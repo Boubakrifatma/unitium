@@ -387,6 +387,59 @@ public class BillingService {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // PLAN MANAGEMENT (permanent deletion)
+    // ─────────────────────────────────────────────────────────────────────────
+    @Transactional
+    public PlanDTO createPlan(CreatePlanRequestDTO request) {
+        int priceMonthlyCents = (int) (request.getPriceMonthly() * 100);
+        int priceYearlyCents = (int) (request.getPriceYearly() * 100);
+
+        String name = request.getDisplayName().toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("^-|-$", "");
+
+        // Check if plan already exists with better error handling
+        Optional<Plan> existingPlan = planRepository.findByName(name);
+        if (existingPlan.isPresent()) {
+            log.warn("Duplicate plan name detected: {}", name);
+            throw new IllegalArgumentException("A plan with the name '" + request.getDisplayName() + "' already exists");
+        }
+
+        Plan plan = Plan.builder()
+            .name(name)
+            .displayName(request.getDisplayName())
+            .priceMonthlyCents(priceMonthlyCents)
+            .priceYearlyCents(priceYearlyCents)
+            .storageMb(request.getStorageMb())
+            .mlTier(Plan.MlTier.valueOf(request.getMlTier() != null ? request.getMlTier() : "BASIC"))
+            .supportTier(Plan.SupportTier.valueOf(request.getSupportTier() != null ? request.getSupportTier() : "EMAIL"))
+            .maxWorkspaces(request.getMaxWorkspaces())
+            .maxMembersPerWs(request.getMaxMembersPerWs())
+            .maxActiveProjects(request.getMaxActiveProjects())
+            .apiAccess(request.getApiAccess() != null ? request.getApiAccess() : false)
+            .apiCallsPerMonth(request.getApiCallsPerMonth())
+            .ssoEnabled(request.getSsoEnabled() != null ? request.getSsoEnabled() : false)
+            .lmsIntegration(request.getLmsIntegration() != null ? request.getLmsIntegration() : false)
+            .gradeExport(request.getGradeExport() != null ? request.getGradeExport() : false)
+            .customIntegrations(Plan.CustomIntegrations.NONE)
+            .isActive(true)
+            .build();
+
+        plan = planRepository.save(plan);
+        log.info("Plan created: {} ({})", plan.getId(), plan.getDisplayName());
+        return PlanDTO.from(plan);
+    }
+
+    @Transactional
+    public boolean deletePlan(String planId) {
+        return planRepository.findById(planId)
+            .map(plan -> {
+                planRepository.delete(plan);
+                log.info("Plan {} deleted from database", planId);
+                return true;
+            })
+            .orElse(false);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────
     private PaymentResponseDTO toResponseDTO(PendingPayment p) {

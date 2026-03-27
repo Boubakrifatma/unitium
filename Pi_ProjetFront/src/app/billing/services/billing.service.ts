@@ -7,8 +7,8 @@ import { Plan, PaymentRequest, PaymentResponse } from '../models/billing.models'
 export class BillingService {
   private readonly API = 'http://localhost:8084/api/billing';
 
-  // ─── Enterprise Plans ──────────────────────────────────────────────────────
-  readonly enterprisePlans: Plan[] = [
+  // ─── Default Plans (fallback if API fails) ─────────────────────────────────
+  readonly defaultEnterprisePlans: Plan[] = [
     {
       id: 'starter',
       name: 'Starter',
@@ -94,8 +94,8 @@ export class BillingService {
     },
   ];
 
-  // ─── Academic Plans (all require payment — no free tier) ───────────────────
-  readonly academicPlans: Plan[] = [
+  // ─── Default Academic Plans (fallback if API fails) ──────────────────────
+  readonly defaultAcademicPlans: Plan[] = [
     {
       id: 'academic-starter',
       name: 'Academic Starter',
@@ -179,11 +179,69 @@ export class BillingService {
     },
   ];
 
+  // ─── Dynamic Plans (loaded from API) ──────────────────────────────────────
+  enterprisePlans: Plan[] = [];
+  academicPlans: Plan[] = [];
+
   getPlanById(id: string): Plan | undefined {
     return [...this.enterprisePlans, ...this.academicPlans].find(p => p.id === id);
   }
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) {
+    // Load plans from API on init
+    this.loadPlansFromAPI();
+  }
+
+  // Load plans from API and merge with defaults
+  loadPlansFromAPI(): void {
+    this.http.get<any[]>(`${this.API}/plans`).subscribe({
+      next: (apiPlans) => {
+        if (apiPlans && apiPlans.length > 0) {
+          // Convert API plans to UI format and separate by org type
+          const convertedPlans = apiPlans.map((p: any) => this.convertPlanFromAPI(p));
+          this.enterprisePlans = convertedPlans.filter(p => p.orgType === 'enterprise' || !p.orgType);
+          this.academicPlans = convertedPlans.filter(p => p.orgType === 'academic');
+          console.log('Plans loaded from API:', { enterprise: this.enterprisePlans.length, academic: this.academicPlans.length });
+        } else {
+          this.useFallbackPlans();
+        }
+      },
+      error: (err) => {
+        console.warn('Failed to load plans from API, using defaults:', err);
+        this.useFallbackPlans();
+      }
+    });
+  }
+
+  private useFallbackPlans(): void {
+    this.enterprisePlans = this.defaultEnterprisePlans;
+    this.academicPlans = this.defaultAcademicPlans;
+  }
+
+  private convertPlanFromAPI(apiPlan: any): Plan {
+    return {
+      id: apiPlan.name,
+      name: apiPlan.displayName,
+      subtitle: 'Custom plan',
+      icon: 'rocket_launch',
+      monthlyPrice: apiPlan.priceMonthly,
+      annualPrice: apiPlan.priceYearly,
+      orgType: 'enterprise', // Default, can be enhanced with API field
+      features: [
+        `${apiPlan.storageMb / 1024} GB storage`,
+        `${apiPlan.supportTier} support`,
+        `ML: ${apiPlan.mlTier}`,
+        apiPlan.apiAccess ? 'API access' : '',
+        apiPlan.ssoEnabled ? 'SSO enabled' : '',
+      ].filter(f => f),
+      limits: {
+        users: apiPlan.maxMembersPerWs || 'Custom',
+        workspaces: apiPlan.maxWorkspaces || 'Custom',
+        projects: apiPlan.maxActiveProjects || 'Custom',
+        storage: `${(apiPlan.storageMb / 1024).toFixed(0)} GB`
+      },
+    };
+  }
 
   submitPayment(payload: PaymentRequest): Observable<PaymentResponse> {
     return this.http.post<PaymentResponse>(`${this.API}/payment`, payload);

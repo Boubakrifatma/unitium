@@ -525,10 +525,73 @@ export class SuperAdminBillingComponent implements OnInit {
     });
   }
 
-  openAddPlan() { this.editing=null; this.pf={displayName:'',priceMonthly:0,priceYearly:0,storageMb:10,mlTier:'BASIC',supportTier:'EMAIL'}; this.showModal=true; }
-  editPlan(p:PlanDTO) { this.editing=p; this.pf={displayName:p.displayName,priceMonthly:p.priceMonthly,priceYearly:p.priceYearly,storageMb:Math.round(p.storageMb/1024),mlTier:p.mlTier,supportTier:p.supportTier}; this.showModal=true; }
-  savePlan() { console.log('Plan saved:', this.pf); this.showModal=false; }
-  togglePlan(p:PlanDTO) { p.isActive=!p.isActive; }
+  openAddPlan() {
+    this.editing=null;
+    this.pf={displayName:'',priceMonthly:0,priceYearly:0,storageMb:10,mlTier:'BASIC',supportTier:'EMAIL'};
+    this.showModal=true;
+  }
+
+  editPlan(p:PlanDTO) {
+    this.editing=p;
+    this.pf={displayName:p.displayName,priceMonthly:p.priceMonthly,priceYearly:p.priceYearly,storageMb:Math.round(p.storageMb/1024),mlTier:p.mlTier,supportTier:p.supportTier};
+    this.showModal=true;
+  }
+
+  savePlan() {
+    if (!this.pf.displayName || this.pf.priceMonthly <= 0 || this.pf.priceYearly <= 0) {
+      alert('Please fill all required fields correctly');
+      return;
+    }
+
+    const payload = {
+      displayName: this.pf.displayName,
+      priceMonthly: this.pf.priceMonthly,
+      priceYearly: this.pf.priceYearly,
+      storageMb: this.pf.storageMb * 1024, // Convert GB to MB
+      mlTier: this.pf.mlTier,
+      supportTier: this.pf.supportTier
+    };
+
+    console.log('Creating plan with payload:', payload);
+
+    this.orgBilling.createPlan(payload).subscribe({
+      next: (newPlan) => {
+        console.log('Plan created successfully:', newPlan);
+        // Close modal in next event loop to avoid change detection error
+        setTimeout(() => {
+          this.showModal = false;
+          alert('Plan created successfully!');
+        }, 0);
+        // Refresh plans list
+        this.orgBilling.getActivePlans().subscribe(d => {
+          this.plans = d;
+          console.log('Plans refreshed');
+        });
+      },
+      error: (err) => {
+        console.error('Plan creation error:', err);
+        const errorMsg = err?.error?.error || err?.message || 'Failed to create plan';
+        alert('Error: ' + errorMsg);
+      }
+    });
+  }
+
+  togglePlan(p:PlanDTO) {
+    if (!p.id) return;
+    if (!confirm('Are you sure you want to permanently delete this plan?')) return;
+
+    this.orgBilling.deletePlan(p.id).subscribe({
+      next: (res) => {
+        console.log('Plan deleted:', res);
+        this.plans = this.plans.filter(plan => plan.id !== p.id);
+        alert('Plan permanently deleted');
+      },
+      error: (err) => {
+        console.error('Plan deletion error:', err);
+        alert('Failed to delete plan');
+      }
+    });
+  }
 
   getInvClass(s:string) { return ({PAID:'pill-green',OPEN:'pill-yellow',DRAFT:'pill-blue',VOID:'pill-red'})[s]??'pill-blue'; }
   getPayStatus(s:string) { return ({CONFIRMED:'pill-green',PENDING:'pill-yellow',REJECTED:'pill-red'})[s]??'pill-blue'; }

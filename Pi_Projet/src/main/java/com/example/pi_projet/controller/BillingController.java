@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -45,6 +46,25 @@ public class BillingController {
     @GetMapping("/plans")
     public ResponseEntity<List<PlanDTO>> getPlans() {
         return ResponseEntity.ok(billingService.getAllActivePlans());
+    }
+
+    @Operation(summary = "Create a new plan (super admin)")
+    @PostMapping("/plans")
+    public ResponseEntity<?> createPlan(@Valid @RequestBody CreatePlanRequestDTO request) {
+        try {
+            PlanDTO planDTO = billingService.createPlan(request);
+            return ResponseEntity.status(HttpStatus.CREATED).body(planDTO);
+        } catch (DataIntegrityViolationException e) {
+            log.error("Duplicate plan name: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", "A plan with this name already exists. Please choose a different name."));
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid plan data: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid plan data: " + e.getMessage()));
+        } catch (Exception e) {
+            log.error("Plan creation error: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Plan creation failed. Please try again."));
+        }
     }
 
     @Operation(summary = "Get payment status by ID")
@@ -154,5 +174,16 @@ public class BillingController {
     @GetMapping("/usage-quotas")
     public ResponseEntity<List<UsageQuotaDTO>> getAllUsageQuotas() {
         return ResponseEntity.ok(billingService.getAllUsageQuotas());
+    }
+
+    @Operation(summary = "Delete a plan permanently (super admin)")
+    @DeleteMapping("/plans/{planId}")
+    public ResponseEntity<?> deletePlan(@PathVariable String planId) {
+        boolean deleted = billingService.deletePlan(planId);
+        if (deleted) {
+            return ResponseEntity.ok(Map.of("message", "Plan permanently deleted", "planId", planId));
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 }

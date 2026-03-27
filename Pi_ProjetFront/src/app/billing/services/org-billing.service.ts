@@ -161,4 +161,12 @@ export class OrgBillingService {
       catchError(() => of([]))
     );
   }
+
+  createPlan(plan: any): Observable<PlanDTO> {
+    return this.http.post<PlanDTO>(`${this.API}/plans`, plan);
+  }
+
+  deletePlan(planId: string): Observable<any> {
+    return this.http.delete(`${this.API}/plans/${planId}`);
+  }
 }
