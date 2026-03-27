@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from './auth.service';
 
 @Component({
@@ -20,12 +20,16 @@ export class LoginComponent {
 
   // Comptes de test — retirer en production
   testAccounts = [
-    { email: 'admin@test.com',    password: 'admin123',    role: 'ADMIN'    },
-    { email: 'manager@test.com',  password: 'manager123',  role: 'MANAGER'  },
-    { email: 'employee@test.com', password: 'employee123', role: 'EMPLOYEE' },
+    { email: 'evenixgroup@gmail.com', password: 'Esprit1234', role: 'ADMIN'    },
+    { email: 'manager@test.com',      password: 'manager123',  role: 'MANAGER'  },
+    { email: 'employee@test.com',     password: 'employee123', role: 'EMPLOYEE' },
   ];
 
-  constructor(private authService: AuthService, private router: Router) {}
+  constructor(
+    private authService: AuthService,
+    private router: Router,
+    private route: ActivatedRoute
+  ) {}
 
   onSubmit(): void {
     this.error   = '';
@@ -33,13 +37,16 @@ export class LoginComponent {
 
     this.authService.login({ email: this.email, password: this.password }).subscribe({
       next: () => {
-        this.router.navigate(['/dashboard']).then(navigated => {
-          if (!navigated) {
-            this.loading = false;
-            this.error   = '';
-            alert('Login successful! (/dashboard route not created yet)');
-          }
-        });
+        this.loading = false;
+        // Check if user must change password on first login
+        const user = this.authService.currentUser();
+        if (user?.mustChangePassword) {
+          this.router.navigate(['/auth/change-password']);
+        } else {
+          // ── Billing flow: restore checkout and redirect to payment page ──────
+          const returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/app/dashboard';
+          this.router.navigate([returnUrl]);
+        }
       },
       error: (err) => {
         this.error   = err.error?.message ?? 'An error occurred. Please try again.';

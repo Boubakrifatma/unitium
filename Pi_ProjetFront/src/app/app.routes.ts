@@ -8,7 +8,7 @@ import { authGuard } from "./auth/auth.guard";
 export const routes: Routes = [
     {
         path: "",
-        redirectTo: "/auth/landing",
+        redirectTo: "/web/website",
         pathMatch: "full",
     },
     {
@@ -39,6 +39,10 @@ export const routes: Routes = [
             {
                 path: "change-password",
                 loadComponent: () => import("./pages/auth/change-password/change-password.component").then((c) => c.ChangePasswordComponent),
+            },
+            {
+                path: "first-login",
+                loadComponent: () => import("./pages/auth/first-login/first-login.component").then((c) => c.FirstLoginComponent),
             },
             {
                 path: "signup-success",
@@ -169,6 +173,18 @@ export const routes: Routes = [
                 loadComponent: () => import("./pages/app/super-admin/super-admin.component").then((c) => c.SuperAdminComponent),
             },
             {
+                path: "super-admin-billing",
+                loadComponent: () => import("./pages/app/super-admin/super-admin-billing.component").then((c) => c.SuperAdminBillingComponent),
+            },
+            {
+                path: "org-billing",
+                loadComponent: () => import("./pages/app/org-billing/org-billing.component").then((c) => c.OrgBillingComponent),
+            },
+            {
+                path: "upgrade-confirmation",
+                loadComponent: () => import("./billing/pages/confirmation/payment-confirmation.component").then((c) => c.PaymentConfirmationComponent),
+            },
+            {
                 path: "po",
                 loadComponent: () => import("./pages/app/po/po-dashboard.component").then((c) => c.PoDashboardComponent),
             },
@@ -201,6 +217,34 @@ export const routes: Routes = [
             {
                 path: "about-us",
                 loadComponent: () => import("./pages/website/aboutus.component").then((c) => c.AboutUsComponent),
+            },
+        ],
+    },
+    // ─── Billing & Subscription Flow ──────────────────────────────────────────
+    {
+        path: "billing",
+        component: WebsiteLayoutComponent,
+        children: [
+            {
+                path: "",
+                redirectTo: "pricing",
+                pathMatch: "full",
+            },
+            {
+                path: "pricing",
+                loadComponent: () => import("./billing/pages/pricing/pricing.component").then((c) => c.PricingComponent),
+            },
+            {
+                path: "checkout",
+                loadComponent: () => import("./billing/pages/checkout/checkout.component").then((c) => c.CheckoutComponent),
+            },
+            {
+                path: "payment",
+                loadComponent: () => import("./billing/pages/payment/payment.component").then((c) => c.PaymentComponent),
+            },
+            {
+                path: "confirmation",
+                loadComponent: () => import("./billing/pages/confirmation/payment-confirmation.component").then((c) => c.PaymentConfirmationComponent),
             },
         ],
     },

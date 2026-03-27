@@ -87,9 +87,12 @@ import { AuthService } from "../../../auth/auth.service";
                     </div>
                 </div>
 
-                <p class="signup-line">
-                    Don't have an account? <a routerLink="/auth/signup">Sign up free</a>
-                </p>
+                <div class="text-center mt-4">
+                    <button matButton type="button" (click)="goHome()" class="back-home-btn">
+                        <mat-icon class="material-icons-outlined">arrow_back</mat-icon>
+                        Back to Home
+                    </button>
+                </div>
             </div>
         </div>
     `,
@@ -109,7 +112,6 @@ import { AuthService } from "../../../auth/auth.service";
             max-width: 420px;
         }
 
-        /* Header */
         .login-head { text-align: center; margin-bottom: 28px; }
         .login-avatar {
             width: 52px; height: 52px;
@@ -123,7 +125,6 @@ import { AuthService } from "../../../auth/auth.service";
         .login-head h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; letter-spacing: -0.3px; }
         .login-head p { color: var(--bs-secondary-color, #6c757d); font-size: 14px; margin: 0; }
 
-        /* Error */
         .login-error {
             display: flex; align-items: center; gap: 8px;
             background: #fef2f2; border: 1px solid #fecaca;
@@ -133,7 +134,6 @@ import { AuthService } from "../../../auth/auth.service";
         }
         .login-error mat-icon { font-size: 18px; width: 18px; height: 18px; flex-shrink: 0; }
 
-        /* Options row */
         .login-options {
             display: flex; justify-content: space-between; align-items: center;
             margin-bottom: 20px;
@@ -141,7 +141,6 @@ import { AuthService } from "../../../auth/auth.service";
         .forgot-link { font-size: 13px; color: #6366f1; text-decoration: none; font-weight: 500; }
         .forgot-link:hover { text-decoration: underline; }
 
-        /* Sign in button */
         .signin-btn {
             height: 44px !important;
             font-size: 15px !important;
@@ -151,7 +150,6 @@ import { AuthService } from "../../../auth/auth.service";
             gap: 6px;
         }
 
-        /* Quick access */
         .quick-label {
             font-size: 11px; font-weight: 600; text-transform: uppercase;
             letter-spacing: 0.08em; color: #9ca3af;
@@ -170,9 +168,7 @@ import { AuthService } from "../../../auth/auth.service";
             background: var(--bs-light, #f8f9fa);
             transform: translateX(3px);
         }
-        .account-dot {
-            width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
-        }
+        .account-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
         .dot-red    { background: #ef4444; }
         .dot-yellow { background: #f59e0b; }
         .dot-blue   { background: #3b82f6; }
@@ -182,10 +178,8 @@ import { AuthService } from "../../../auth/auth.service";
         .account-role  { display: block; font-size: 11px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
         .account-arrow { color: #d1d5db !important; font-size: 18px !important; width: 18px !important; height: 18px !important; }
 
-        /* Signup line */
-        .signup-line { text-align: center; font-size: 13px; color: #6b7280; margin: 0; }
-        .signup-line a { color: #6366f1; font-weight: 600; text-decoration: none; }
-        .signup-line a:hover { text-decoration: underline; }
+        .back-home-btn { color: #6366f1 !important; font-weight: 600 !important; gap: 6px !important; }
+        .back-home-btn:hover { background: #f3f4f6 !important; }
     `],
 })
 export class LoginComponent implements OnInit {
@@ -196,7 +190,7 @@ export class LoginComponent implements OnInit {
 
     testAccounts = [
         { email: 'superadmin@cmp.com', password: 'superadmin123', role: 'SUPER_ADMIN' },
-        { email: 'admin@test.com',     password: 'admin123',      role: 'ADMIN'       },
+        { email: 'evenixgroup@gmail.com', password: 'Esprit1234', role: 'ADMIN'       },
         { email: 'manager@test.com',   password: 'manager123',    role: 'MANAGER'        },
         { email: 'po@test.com',        password: 'productowner123', role: 'PRODUCT_OWNER'  },
         { email: 'tutor@test.com',     password: 'tutor123',      role: 'TUTOR'          },
@@ -205,7 +199,11 @@ export class LoginComponent implements OnInit {
         { email: 'employee@test.com',  password: 'employee123',   role: 'EMPLOYEE'       },
     ];
 
-    constructor(private fb: FormBuilder, private router: Router, private authService: AuthService) {
+    constructor(
+        private fb: FormBuilder,
+        private router: Router,
+        private authService: AuthService
+    ) {
         this.loginForm = this.fb.group({
             email:    ['', [Validators.required, Validators.email]],
             password: ['', [Validators.required, Validators.minLength(6)]],
@@ -225,19 +223,35 @@ export class LoginComponent implements OnInit {
         return map[role] ?? 'blue';
     }
 
+    goHome(): void {
+        this.router.navigate(['/web/website']);
+    }
+
     onSubmit() {
         if (this.loginForm.invalid) return;
         this.loading = true;
         this.errorMessage = '';
+
         const { email, password } = this.loginForm.value;
+
         this.authService.login({ email, password }).subscribe({
-            next: () => {
-                const role = this.authService.currentUser()?.role;
+            next: (res) => {
+                this.loading = false;
+
+                // ── Si premier login (mot de passe par défaut) → page changement mdp ──
+                if (res.mustChangePassword) {
+                    this.router.navigate(['/auth/first-login'], {
+                        state: { email, userId: res.id }
+                    });
+                    return;
+                }
+
+                // ── Redirection selon le rôle ──
                 const redirectMap: Record<string, string> = {
                     SUPER_ADMIN: '/app/super-admin',
                     PRODUCT_OWNER: '/app/po',
                 };
-                const redirect = redirectMap[role ?? ''] ?? '/app/dashboard';
+                const redirect = redirectMap[res.role] ?? '/app/dashboard';
                 this.router.navigate([redirect]);
             },
             error: (err) => {

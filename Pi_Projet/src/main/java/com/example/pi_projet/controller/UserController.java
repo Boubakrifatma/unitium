@@ -65,4 +65,16 @@ public class UserController {
     public ResponseEntity<UserDTO> changeStatus(@PathVariable Long id, @RequestBody Map<String, Boolean> body) {
         return ResponseEntity.ok(userService.changeStatus(id, body.get("isActive")));
     }
+
+    /**
+     * PATCH /api/users/{id}/password
+     * Allows an org admin to change their default password after first login.
+     * Body: { "oldPassword": "...", "newPassword": "..." }
+     */
+    @Operation(summary = "Change user password (self-service — used after first login)")
+    @PatchMapping("/{id}/password")
+    public ResponseEntity<?> changePassword(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        userService.changePassword(id, body.get("oldPassword"), body.get("newPassword"));
+        return ResponseEntity.ok(Map.of("message", "Password changed successfully."));
+    }
 }

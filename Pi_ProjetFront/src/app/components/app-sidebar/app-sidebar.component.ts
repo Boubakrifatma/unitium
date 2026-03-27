@@ -203,15 +203,27 @@ export class AppSidebarComponent {
             ],
         });
 
-        // ADMIN + above — billing
-        if (this.isAdmin) {
+        // SUPER_ADMIN — billing plateforme globale
+        if (this.isSuperAdmin) {
+            all.push({
+                name: "Billing Platform",
+                icon: "account_balance",
+                children: [
+                    { name: "Plans & Revenue",   route: "/app/super-admin-billing", icon: "inventory_2" },
+                    { name: "Payment History",   route: "/app/super-admin-billing", icon: "receipt_long" },
+                ],
+            });
+        }
+
+        // ADMIN org uniquement — billing organisation
+        if (this.isAdmin && !this.isSuperAdmin) {
             all.push({
                 name: "Billing",
                 icon: "receipt_long",
                 children: [
-                    { name: "Subscription", route: "/app/subscription", icon: "workspace_premium" },
-                    { name: "Plans", route: "/app/plans", icon: "star" },
-                    { name: "Invoice", route: "/app/invoice", icon: "receipt" },
+                    { name: "My Subscription", route: "/app/org-billing", icon: "workspace_premium" },
+                    { name: "My Invoices",     route: "/app/org-billing", icon: "receipt_long" },
+                    { name: "Available Plans", route: "/app/org-billing", icon: "inventory_2" },
                 ],
             });
         }

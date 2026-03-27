@@ -3,6 +3,7 @@ export interface User {
   email: string;
   fullName: string;
   role: 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'EMPLOYEE' | 'TUTOR' | 'PRODUCT_OWNER' | 'STUDENT' | 'VIEWER';
+  mustChangePassword?: boolean;
 }
 
 export interface AuthResponse {
@@ -11,6 +12,7 @@ export interface AuthResponse {
   email: string;
   fullName: string;
   role: string;
+  mustChangePassword: boolean;
 }
 
 export interface LoginRequest {

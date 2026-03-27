@@ -10,6 +10,7 @@ export interface UserDTO {
   isActive: boolean;
   avatarUrl: string | null;
   createdAt: string;
+  orgType?: 'enterprise' | 'academic';
 }
 
 @Injectable({ providedIn: 'root' })

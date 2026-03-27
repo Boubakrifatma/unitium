@@ -48,6 +48,11 @@ public class User {
     private RoleName role = RoleName.EMPLOYEE;
 
     // Face Recognition
+    // Force password change on first login (org admins créés via paiement)
+    @Builder.Default
+    @Column(name = "must_change_password")
+    private Boolean mustChangePassword = false;
+
     @Column(name = "face_encoding", columnDefinition = "TEXT")
     private String faceEncoding;
 

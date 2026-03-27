@@ -277,7 +277,40 @@ export class UsersComponent implements OnInit {
 
   loadUsers() {
     this.userService.getAll().subscribe({
-      next: (data) => this.dataSource.data = data,
+      next: (data) => {
+        // Filter users based on current user's role
+        const currentRole = this.authService.currentUser()?.role;
+
+        if (currentRole === 'SUPER_ADMIN') {
+          // SUPER_ADMIN sees all users
+          this.dataSource.data = data;
+        } else if (currentRole === 'ADMIN') {
+          // ADMIN cannot see SUPER_ADMIN or other ADMINs
+          // Filter based on organization type
+          this.dataSource.data = data.filter(user => {
+            // Hide SUPER_ADMIN and ADMIN users
+            if (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') {
+              return false;
+            }
+
+            // For ENTERPRISE: show MANAGER, EMPLOYEE, VIEWER, PRODUCT_OWNER
+            if (user.orgType === 'enterprise') {
+              return ['MANAGER', 'EMPLOYEE', 'VIEWER', 'PRODUCT_OWNER'].includes(user.role);
+            }
+
+            // For ACADEMIC: show TUTOR, STUDENT, VIEWER
+            if (user.orgType === 'academic') {
+              return ['TUTOR', 'STUDENT', 'VIEWER'].includes(user.role);
+            }
+
+            // Default: show lower roles
+            return ['MANAGER', 'EMPLOYEE', 'TUTOR', 'VIEWER', 'STUDENT', 'PRODUCT_OWNER'].includes(user.role);
+          });
+        } else {
+          // Other roles see only their own data or no data
+          this.dataSource.data = [];
+        }
+      },
       error: () => this.notify('Failed to load users', true)
     });
   }

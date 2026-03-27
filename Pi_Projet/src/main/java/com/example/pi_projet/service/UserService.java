@@ -82,4 +82,22 @@ public class UserService {
         user.setIsActive(isActive);
         return UserDTO.from(userRepository.save(user));
     }
+
+    /**
+     * Change password — vérifie l'ancien mot de passe avant de mettre à jour.
+     * Utilisé par l'admin d'organisation après la première connexion.
+     */
+    public void changePassword(Long id, String oldPassword, String newPassword) {
+        if (oldPassword == null || newPassword == null || newPassword.length() < 8) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Old password and new password (min 8 chars) are required.");
+        }
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
+        if (!passwordEncoder.matches(oldPassword, user.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Old password is incorrect.");
+        }
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
 }
