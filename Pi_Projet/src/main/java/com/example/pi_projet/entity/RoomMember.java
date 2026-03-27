@@ -1,11 +1,13 @@
 package com.example.pi_projet.entity;
 
 import jakarta.persistence.*;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "room_members")
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class RoomMember {
 
     @Id
@@ -27,8 +29,12 @@ public class RoomMember {
     @JoinColumn(name = "last_read_message_id")
     private Message lastReadMessage;
 
-
     private LocalDateTime joinedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        joinedAt = LocalDateTime.now();
+    }
 }
 
 

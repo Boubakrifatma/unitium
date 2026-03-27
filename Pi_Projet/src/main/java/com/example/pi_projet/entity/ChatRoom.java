@@ -2,20 +2,22 @@ package com.example.pi_projet.entity;
 
 import com.example.pi_projet.enums.RoomType;
 import jakarta.persistence.*;
+import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
 @Table(name = "chat_rooms")
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class ChatRoom {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // FK -> Project
-    @ManyToOne
+    // FK -> Project (required)
+    @ManyToOne(optional = false)
     @JoinColumn(name = "project_id", nullable = false)
     private Project project;
 
@@ -40,18 +42,15 @@ public class ChatRoom {
 
     @OneToMany(mappedBy = "room")
     private List<RoomMember> members;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
