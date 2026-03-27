@@ -20,6 +20,9 @@ public class SessionInterceptor implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) return true;
 
+        // File downloads are public — browser requests carry no Authorization header
+        if (request.getServletPath().startsWith("/api/chat/files/")) return true;
+
         String token = extractToken(request);
         Optional<User> userOpt = authService.getUserFromToken(token);
 

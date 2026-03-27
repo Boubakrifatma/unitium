@@ -44,7 +44,8 @@
               "./node_modules/jsvectormap/dist/maps/world.js"
             ],
             "styles": [
-              "src/template-style.scss"
+              "src/template-style.scss",
+              "node_modules/quill/dist/quill.snow.css"
             ],
             "tsConfig": "tsconfig.app.json"
           }

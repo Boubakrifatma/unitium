@@ -1,6 +1,7 @@
 package com.example.pi_projet.controller;
 
 import com.example.pi_projet.annotation.Authorized;
+import com.example.pi_projet.dto.ChatRoomDTO;
 import com.example.pi_projet.dto.RoomMemberDTO;
 import com.example.pi_projet.entity.User;
 import com.example.pi_projet.service.RoomMemberService;

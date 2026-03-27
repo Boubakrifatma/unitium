@@ -1,5 +1,6 @@
 package com.example.pi_projet.service;
 
+import com.example.pi_projet.dto.ChatRoomDTO;
 import com.example.pi_projet.dto.RoomMemberDTO;
 import com.example.pi_projet.entity.ChatRoom;
 import com.example.pi_projet.entity.RoomMember;
@@ -81,6 +82,16 @@ public class RoomMemberService {
         return roomMemberRepository.findByRoom(room)
                 .stream()
                 .map(RoomMemberDTO::from)
+                .toList();
+    }
+
+    public List<ChatRoomDTO> getMyRooms(User currentUser) {
+        if (currentUser.getRole() != User.RoleName.EMPLOYEE && currentUser.getRole() != User.RoleName.STUDENT) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only EMPLOYEE or STUDENT can use this endpoint.");
+        }
+        return roomMemberRepository.findByUser(currentUser)
+                .stream()
+                .map(m -> ChatRoomDTO.from(m.getRoom()))
                 .toList();
     }
 }

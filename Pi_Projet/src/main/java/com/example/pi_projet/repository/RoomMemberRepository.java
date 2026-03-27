@@ -12,6 +12,8 @@ public interface RoomMemberRepository extends JpaRepository<RoomMember, Long> {
 
     List<RoomMember> findByRoom(ChatRoom room);
 
+    List<RoomMember> findByUser(User user);
+
     boolean existsByRoomAndUser(ChatRoom room, User user);
 
     @Transactional

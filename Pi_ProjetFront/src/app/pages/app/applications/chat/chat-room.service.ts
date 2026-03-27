@@ -57,4 +57,8 @@ export class ChatRoomService {
   deleteRoom(id: number): Observable<void> {
     return this.http.delete<void>(`${this.API}/${id}`);
   }
+
+  getMyRooms(): Observable<ChatRoomDTO[]> {
+    return this.http.get<ChatRoomDTO[]>('http://localhost:8084/api/chat/members/my-rooms');
+  }
 }
