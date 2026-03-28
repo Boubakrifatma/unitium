@@ -1,0 +1,32 @@
+# ── Node ──────────────────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log
+yarn-error.log
+.yarn-integrity
+
+# ── Angular build cache ────────────────────────────────────────────────────────
+.angular/cache/
+dist/
+tmp/
+
+# ── Java / Maven ───────────────────────────────────────────────────────────────
+Pi_Projet/target/
+*.class
+*.jar
+*.war
+
+# ── IDE ────────────────────────────────────────────────────────────────────────
+.idea/
+*.iml
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# ── OS ─────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Claude Code memory ─────────────────────────────────────────────────────────
+.claude/
