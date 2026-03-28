@@ -426,7 +426,21 @@ export class RealProjectsComponent implements OnInit {
                     });
                 },
                 error: (error: HttpErrorResponse) => {
-                    this.snackBar.open(`Failed to create project: ${this.errorMessage(error)}`, "Close", { duration: 4200 });
+                    if (error.status === 409) {
+                        this.snackBar.open(
+                            error?.error?.message || "A project with this name already exists in this workspace",
+                            "Close",
+                            { duration: 5000 }
+                        );
+                    } else if (error.status === 402) {
+                        this.snackBar.open(
+                            "Project quota exceeded for your organization's plan. Upgrade to create more projects.",
+                            "Close",
+                            { duration: 6000 }
+                        );
+                    } else {
+                        this.snackBar.open(`Failed to create project: ${this.errorMessage(error)}`, "Close", { duration: 4200 });
+                    }
                 },
             });
         });

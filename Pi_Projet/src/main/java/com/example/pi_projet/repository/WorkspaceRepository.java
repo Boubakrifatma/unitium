@@ -18,6 +18,7 @@ public interface WorkspaceRepository extends JpaRepository<Workspace, UUID> {
     Optional<Workspace> findBySlug(String slug);
     boolean existsBySlug(String slug);
     boolean existsBySlugAndOrganizationId(String slug, UUID organizationId);
+    boolean existsByNameIgnoreCaseAndOrganizationId(String name, UUID organizationId);
 
     List<Workspace> findAllByOrganizationId(UUID organizationId);
 

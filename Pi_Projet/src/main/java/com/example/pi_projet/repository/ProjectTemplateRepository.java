@@ -19,6 +19,7 @@ public interface ProjectTemplateRepository extends JpaRepository<ProjectTemplate
     Page<ProjectTemplate> findAllByIsPublicTrueAndStatus(ProjectTemplate.TemplateStatus status, Pageable pageable);
     Page<ProjectTemplate> findByCreatedBy(Long createdBy, Pageable pageable);
     Page<ProjectTemplate> findByStatus(ProjectTemplate.TemplateStatus status, Pageable pageable);
+    boolean existsByNameIgnoreCaseAndCreatedBy(String name, Long createdBy);
 
     @Query("SELECT t FROM ProjectTemplate t WHERE " +
         "(:search IS NULL OR LOWER(t.name) LIKE LOWER(CONCAT('%',:search,'%')) " +

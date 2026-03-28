@@ -42,6 +42,13 @@ public class ProjectTemplateService {
         // Name is the only strictly required field — validated with min/max
         M2ValidationUtils.requireTemplateName(template.getName());
 
+        if (template.getCreatedBy() != null
+                && projectTemplateRepository.existsByNameIgnoreCaseAndCreatedBy(
+                        template.getName().trim(), template.getCreatedBy())) {
+            throw new Module2Exception(CONFLICT,
+                "You already have a template named '" + template.getName().trim() + "'");
+        }
+
         template.setVersion(template.getVersion() != null ? template.getVersion() : 1);
         template.setStatus(ProjectTemplate.TemplateStatus.DRAFT);
         template.setIsPublic(false);

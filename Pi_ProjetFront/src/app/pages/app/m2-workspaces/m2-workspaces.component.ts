@@ -664,6 +664,12 @@ export class M2WorkspacesComponent implements OnInit {
                             "Upgrade",
                             { duration: 8000, panelClass: ["snackbar-warn"] }
                         );
+                    } else if (error.status === 409) {
+                        this.snackBar.open(
+                            error?.error?.message || `A ${entityLabel.toLowerCase()} with this name already exists in your organization`,
+                            "Close",
+                            { duration: 5000 }
+                        );
                     } else {
                         this.snackBar.open(
                             `Failed to create ${entityLabel.toLowerCase()}: ${error?.error?.message || "Unexpected error"}`,

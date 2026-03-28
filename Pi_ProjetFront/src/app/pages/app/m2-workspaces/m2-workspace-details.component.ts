@@ -27,6 +27,7 @@ import { WorkspaceDeleteConfirmDialogComponent, WorkspaceDeleteConfirmDialogResu
 import { WorkspaceEditDialogComponent, WorkspaceEditDialogResult } from "./workspace-edit-dialog.component";
 import { WorkspaceMemberCardComponent } from "./workspace-member-card.component";
 import { WorkspacePermissionService } from "./workspace-permission.service";
+import { IntegrationsComingSoonDialogComponent } from "./integrations-coming-soon-dialog.component";
 
 interface WorkspaceActivity {
     id: string;
@@ -52,6 +53,7 @@ interface WorkspaceActivity {
         MatTooltipModule,
         CircleProgressBlueComponent,
         WorkspaceMemberCardComponent,
+        IntegrationsComingSoonDialogComponent,
     ],
     template: `
         <div class="container-fluid fade-in mb-3 mb-lg-4">
@@ -475,7 +477,7 @@ interface WorkspaceActivity {
                                         <mat-icon class="material-icons-outlined">edit</mat-icon>
                                         Rename
                                     </button>
-                                    <button matButton="filled" [disabled]="!canManageWorkspace()" (click)="showPlaceholder('Manage Integrations')">
+                                    <button matButton="filled" (click)="openIntegrationsDialog()">
                                         <mat-icon class="material-icons-outlined">hub</mat-icon>
                                         Integrations
                                     </button>
@@ -1192,8 +1194,13 @@ export class M2WorkspaceDetailsComponent implements OnInit {
         this.router.navigate(["/app/workspaces"]);
     }
 
-    showPlaceholder(action: string): void {
-        this.snackBar.open(`${action} will be enabled when Module 2 write endpoints are finalized.`, "Close", { duration: 3500 });
+    openIntegrationsDialog(): void {
+        this.dialog.open(IntegrationsComingSoonDialogComponent, {
+            width: "500px",
+            maxWidth: "95vw",
+            autoFocus: false,
+            panelClass: "rounded-dialog",
+        });
     }
 
     private loadWorkspaceDetails(workspaceId: string): void {

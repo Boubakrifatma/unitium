@@ -111,6 +111,10 @@ public class WorkspaceService {
             }
         }
 
+        if (workspaceRepo.existsByNameIgnoreCaseAndOrganizationId(finalName, orgId)) {
+            throw new Module2Exception(CONFLICT, "A workspace named '" + finalName + "' already exists in this organization");
+        }
+
         if (workspaceRepo.existsBySlugAndOrganizationId(normalizedSlug, orgId)) {
             throw new Module2Exception(CONFLICT, "Workspace slug already exists for this organization");
         }
@@ -153,6 +157,10 @@ public class WorkspaceService {
         String finalName = (name != null ? name.trim() : "");
         if (!StringUtils.hasText(finalName)) {
             throw new Module2Exception(VALIDATION, "Workspace name is required");
+        }
+        if (!finalName.equalsIgnoreCase(ws.getName())
+                && workspaceRepo.existsByNameIgnoreCaseAndOrganizationId(finalName, ws.getOrganization().getId())) {
+            throw new Module2Exception(CONFLICT, "A workspace named '" + finalName + "' already exists in this organization");
         }
         ws.setName(finalName);
 
@@ -247,7 +255,7 @@ public class WorkspaceService {
 
             // Not already in workspace
             if (memberRepo.existsByWorkspaceIdAndUserId(workspaceId, targetUserId)) {
-                throw new Module2Exception(CONFLICT, "User already active in workspace");
+                throw new Module2Exception(CONFLICT, "This user is already a member of this workspace");
             }
 
             // Role assignment based on org type and target user role.

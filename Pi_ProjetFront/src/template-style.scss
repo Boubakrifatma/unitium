@@ -1536,6 +1536,11 @@ circle-progress {
   font-size: var(--mat-dialog-supporting-text-size, var(--mat-sys-body-large-size, 1rem)) !important;
 }
 
+.rounded-dialog .mat-mdc-dialog-container {
+  border-radius: 20px !important;
+  overflow: hidden;
+}
+
 // snackbar
 mat-snack-bar-container[class*="theme-"] .mat-mdc-snackbar-surface {
   background-color: var(--mat-sys-primary-container);

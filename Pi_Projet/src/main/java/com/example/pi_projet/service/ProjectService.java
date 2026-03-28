@@ -89,6 +89,13 @@ public class ProjectService {
             throw new Module2Exception(FORBIDDEN, "Only org owner/admin, manager, or tutor can create projects.");
         }
 
+        if (name == null || name.trim().isEmpty()) {
+            throw new Module2Exception(VALIDATION, "Project name is required");
+        }
+        if (projectRepo.existsByNameIgnoreCaseAndWorkspaceId(name.trim(), workspaceId)) {
+            throw new Module2Exception(CONFLICT, "A project named '" + name.trim() + "' already exists in this workspace");
+        }
+
         // Quota check at org level
         java.util.UUID orgId = ws.getOrganization().getId();
         long current = quotaHelper.countActiveProjectsByOrg(orgId);
@@ -134,11 +141,15 @@ public class ProjectService {
         if (!projectAuthorizationService.canCreateProject(requester, ws)) {
             throw new Module2Exception(FORBIDDEN, "Only org owner/admin, manager, or tutor can create projects.");
         }
+        String resolvedName = nameOverride != null ? nameOverride.trim() : template.getName();
+        if (projectRepo.existsByNameIgnoreCaseAndWorkspaceId(resolvedName, workspaceId)) {
+            throw new Module2Exception(CONFLICT, "A project named '" + resolvedName + "' already exists in this workspace");
+        }
         Project p = Project.builder()
             .workspace(ws)
             .templateId(template.getId())
             .createdBy(requesterId)
-            .name(nameOverride != null ? nameOverride : template.getName())
+            .name(resolvedName)
             .description(template.getUseCaseDescription())
             .visibility(template.getDefaultVisibility() == ProjectTemplate.DefaultVisibility.PUBLIC ? Visibility.PUBLIC : Visibility.PRIVATE)
             .startDate(startDate)
@@ -163,7 +174,7 @@ public class ProjectService {
             throw new Module2Exception(BAD_REQUEST, "User is not a member of the project's workspace");
         }
         if (projectMemberRepo.existsByProjectIdAndUserId(projectId, userId)) {
-            throw new Module2Exception(CONFLICT, "User already assigned to project");
+            throw new Module2Exception(CONFLICT, "This user is already a member of this project");
         }
         var assigner = userRepo.findById(assignedBy).orElseThrow(() -> new Module2Exception(NOT_FOUND, "Assigner user not found"));
         if (!projectAuthorizationService.canManageProjectMembers(assigner, project)) {

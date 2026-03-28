@@ -15,6 +15,7 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
 
     Page<Project> findAllByWorkspaceId(UUID workspaceId, Pageable pageable);
     long countByWorkspaceIdAndDeletedAtIsNull(UUID workspaceId);
+    boolean existsByNameIgnoreCaseAndWorkspaceId(String name, UUID workspaceId);
 
     @Query("""
         SELECT DISTINCT p FROM Project p
