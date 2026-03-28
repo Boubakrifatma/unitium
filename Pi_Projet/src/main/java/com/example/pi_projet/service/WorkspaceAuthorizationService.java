@@ -94,6 +94,11 @@ public class WorkspaceAuthorizationService {
             return true;
         }
 
+        // Workspace OWNER/ADMIN can always manage their workspace regardless of org role
+        if (isWorkspaceOwnerOrAdmin(workspace.getId(), user.getId())) {
+            return true;
+        }
+
         Optional<OrganizationMember> membership = findOrganizationMembership(user.getId(), workspace.getOrganization().getId());
         if (membership.isEmpty()) {
             return false;
@@ -107,6 +112,11 @@ public class WorkspaceAuthorizationService {
             return true;
         }
 
+        // Workspace OWNER/ADMIN can invite members
+        if (isWorkspaceOwnerOrAdmin(workspace.getId(), user.getId())) {
+            return true;
+        }
+
         Optional<OrganizationMember> membership = findOrganizationMembership(user.getId(), workspace.getOrganization().getId());
         if (membership.isEmpty()) {
             return false;
@@ -117,6 +127,11 @@ public class WorkspaceAuthorizationService {
 
     public boolean canEditOrRemoveWorkspaceMember(User user, Workspace workspace) {
         if (isGlobalAdmin(user)) {
+            return true;
+        }
+
+        // Workspace OWNER/ADMIN can edit or remove members
+        if (isWorkspaceOwnerOrAdmin(workspace.getId(), user.getId())) {
             return true;
         }
 
@@ -180,5 +195,12 @@ public class WorkspaceAuthorizationService {
             return false;
         }
         return organization.getOrgType() == Organization.OrgType.ACADEMIC;
+    }
+
+    private boolean isWorkspaceOwnerOrAdmin(UUID workspaceId, Long userId) {
+        return workspaceMemberRepository.findByWorkspaceIdAndUserId(workspaceId, userId)
+            .map(m -> m.getRole() == com.example.pi_projet.entity.WorkspaceMember.WorkspaceRole.OWNER
+                   || m.getRole() == com.example.pi_projet.entity.WorkspaceMember.WorkspaceRole.ADMIN)
+            .orElse(false);
     }
 }

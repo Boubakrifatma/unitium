@@ -121,7 +121,8 @@ public class ProjectService {
 
         // audit log (via adapter)
         try {
-            auditLogService.writeAudit(requesterId, orgId, "CREATE_PROJECT", "project", p.getId().toString(), null);
+            auditLogService.writeAudit(requesterId, orgId, "CREATE_PROJECT", "project",
+                p.getId().toString(), p.getName(), workspaceId, null);
         } catch (Exception ignored) {}
         return p;
     }

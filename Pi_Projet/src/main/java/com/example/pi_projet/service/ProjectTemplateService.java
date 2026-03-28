@@ -30,6 +30,7 @@ public class ProjectTemplateService {
     private final ProjectTemplateRepository projectTemplateRepository;
     private final TemplateRatingRepository templateRatingRepository;
     private final TemplateFavoriteRepository templateFavoriteRepository;
+    private final M2AuditLogService auditLogService;
 
     public Page<ProjectTemplate> getAll(Pageable pageable) {
         return projectTemplateRepository.findAll(pageable);
@@ -57,7 +58,9 @@ public class ProjectTemplateService {
         template.setRatingCount(0);
         if (template.getTeamStrategy() == null) template.setTeamStrategy(ProjectTemplate.TeamStrategy.MANUAL);
         if (template.getTemplateType() == null) template.setTemplateType(ProjectTemplate.TemplateType.CUSTOM);
-        return projectTemplateRepository.save(template);
+        ProjectTemplate saved = projectTemplateRepository.save(template);
+        auditTemplate(saved.getCreatedBy(), "CREATE_TEMPLATE", saved);
+        return saved;
     }
 
     public ProjectTemplate update(UUID id, ProjectTemplate updated) {
@@ -95,7 +98,9 @@ public class ProjectTemplateService {
             .orElseThrow(() -> new Module2Exception(NOT_FOUND, "Template not found"));
         t.setIsPublic(true);
         t.setStatus(ProjectTemplate.TemplateStatus.PENDING_APPROVAL);
-        return projectTemplateRepository.save(t);
+        ProjectTemplate saved = projectTemplateRepository.save(t);
+        auditTemplate(requesterId, "PUBLISH_TEMPLATE", saved);
+        return saved;
     }
 
     public ProjectTemplate approveTemplate(UUID id, Long approverId) {
@@ -104,7 +109,9 @@ public class ProjectTemplateService {
         t.setStatus(ProjectTemplate.TemplateStatus.APPROVED);
         t.setApprovedBy(approverId);
         t.setApprovedAt(LocalDateTime.now());
-        return projectTemplateRepository.save(t);
+        ProjectTemplate saved = projectTemplateRepository.save(t);
+        auditTemplate(approverId, "APPROVE_TEMPLATE", saved);
+        return saved;
     }
 
     public ProjectTemplate rejectTemplate(UUID id, Long approverId, String reason) {
@@ -113,7 +120,9 @@ public class ProjectTemplateService {
         t.setStatus(ProjectTemplate.TemplateStatus.REJECTED);
         t.setApprovedBy(approverId);
         t.setRejectionReason(reason);
-        return projectTemplateRepository.save(t);
+        ProjectTemplate saved = projectTemplateRepository.save(t);
+        auditTemplate(approverId, "REJECT_TEMPLATE", saved);
+        return saved;
     }
 
     public ProjectTemplate rateTemplate(UUID id, int rating, Long userId) {
@@ -130,7 +139,9 @@ public class ProjectTemplateService {
         double newAvg = (currentRating * currentCount + rating) / (currentCount + 1);
         t.setRating(newAvg);
         t.setRatingCount(currentCount + 1);
-        return projectTemplateRepository.save(t);
+        ProjectTemplate saved = projectTemplateRepository.save(t);
+        auditTemplate(userId, "RATE_TEMPLATE", saved);
+        return saved;
     }
 
     public Page<ProjectTemplate> getPublicTemplates(Pageable pageable) {
@@ -198,7 +209,7 @@ public class ProjectTemplateService {
 
     @org.springframework.transaction.annotation.Transactional
     public Map<String, Object> toggleFavorite(UUID templateId, Long userId) {
-        projectTemplateRepository.findById(templateId)
+        ProjectTemplate t = projectTemplateRepository.findById(templateId)
             .orElseThrow(() -> new Module2Exception(NOT_FOUND, "Template not found"));
         boolean isFav = templateFavoriteRepository.existsByTemplateIdAndUserId(templateId, userId);
         if (isFav) {
@@ -208,6 +219,7 @@ public class ProjectTemplateService {
                 TemplateFavorite.builder().templateId(templateId).userId(userId).build());
         }
         long count = templateFavoriteRepository.countByTemplateId(templateId);
+        auditTemplate(userId, isFav ? "UNFAVORITE_TEMPLATE" : "FAVORITE_TEMPLATE", t);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("favorited", !isFav);
         result.put("favoriteCount", count);
@@ -267,5 +279,12 @@ public class ProjectTemplateService {
             .createdBy(requesterId)
             .build();
         return projectTemplateRepository.save(fork);
+    }
+
+    private void auditTemplate(Long userId, String actionType, ProjectTemplate t) {
+        try {
+            auditLogService.writeAudit(userId, null, actionType, "template",
+                t.getId().toString(), t.getName(), null, null);
+        } catch (Exception ignored) {}
     }
 }

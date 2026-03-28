@@ -39,6 +39,7 @@ public class WorkspaceMemberService {
     private final JdbcTemplate jdbcTemplate;
     private final WorkspaceAuthorizationService authorizationService;
     private final WorkspaceQuotaHelper quotaHelper;
+    private final M2AuditLogService auditLogService;
 
     private static final Set<WorkspaceRole> ENTERPRISE_VALID_INVITE_ROLES = Set.of(
         WorkspaceRole.MANAGER,
@@ -149,7 +150,7 @@ public class WorkspaceMemberService {
         if (restoreSoftDeletedMembership(workspaceId, targetUserId, requestedRole, requesterId)) {
             WorkspaceMember restored = memberRepo.findByWorkspaceIdAndUserId(workspaceId, targetUserId)
                 .orElseThrow(() -> new Module2Exception(INTERNAL, "Failed to restore workspace membership"));
-            writeAuditInline(requesterId, orgId, restored.getId(), targetUserId, requestedRole);
+            writeAuditInline(requesterId, orgId, workspaceId, restored.getId(), targetUserId, requestedRole, "ADD_WORKSPACE_MEMBER");
             return restored;
         }
 
@@ -166,7 +167,7 @@ public class WorkspaceMemberService {
             throw new Module2Exception(CONFLICT, "User is already a member of this workspace");
         }
 
-        writeAuditInline(requesterId, orgId, saved.getId(), targetUserId, requestedRole);
+        writeAuditInline(requesterId, orgId, workspaceId, saved.getId(), targetUserId, requestedRole, "ADD_WORKSPACE_MEMBER");
         return saved;
     }
 
@@ -195,7 +196,10 @@ public class WorkspaceMemberService {
         WorkspaceMember m = memberRepo.findByWorkspaceIdAndUserId(workspaceId, userId)
             .orElseThrow(() -> new Module2Exception(NOT_FOUND, "Member not found"));
         m.setRole(newRole);
-        return memberRepo.save(m);
+        WorkspaceMember saved = memberRepo.save(m);
+        writeAuditInline(requesterId, workspace.getOrganization().getId(), workspaceId,
+            saved.getId(), userId, newRole, "UPDATE_WORKSPACE_MEMBER_ROLE");
+        return saved;
     }
 
     @Transactional
@@ -220,7 +224,10 @@ public class WorkspaceMemberService {
         memberRepo.save(currentOwnerMember);
 
         newOwnerMember.setRole(WorkspaceRole.OWNER);
-        return memberRepo.save(newOwnerMember);
+        WorkspaceMember result = memberRepo.save(newOwnerMember);
+        writeAuditInline(requesterId, workspace.getOrganization().getId(), workspaceId,
+            result.getId(), newOwnerId, WorkspaceRole.OWNER, "TRANSFER_OWNER");
+        return result;
     }
 
     @Transactional
@@ -251,7 +258,10 @@ public class WorkspaceMemberService {
             }
         }
 
+        WorkspaceRole roleBeforeDelete = m.getRole();
         memberRepo.delete(m);
+        writeAuditInline(requesterId, workspace.getOrganization().getId(), workspaceId,
+            m.getId(), userId, roleBeforeDelete, "REMOVE_WORKSPACE_MEMBER");
     }
 
     private void enforceInvitePermission(Workspace workspace, Long requesterId) {
@@ -373,22 +383,15 @@ public class WorkspaceMemberService {
         return StringUtils.hasText(raw) ? raw.trim().toLowerCase(Locale.ROOT) : "enterprise";
     }
 
-    private void writeAuditInline(Long requesterId,
-                                  UUID orgId,
-                                  UUID workspaceMemberId,
-                                  Long targetUserId,
-                                  WorkspaceRole role) {
+    private void writeAuditInline(Long requesterId, UUID orgId, UUID workspaceId,
+                                  UUID workspaceMemberId, Long targetUserId,
+                                  WorkspaceRole role, String actionType) {
         try {
-            String details = "{\"targetUserId\":" + targetUserId + ",\"role\":\"" + role.name() + "\"}";
-            jdbcTemplate.update(
-                "INSERT INTO audit_logs (user_id, org_id, action_type, entity_type, entity_id, details_json, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())",
-                requesterId,
-                orgId.toString(),
-                "ADD_WORKSPACE_MEMBER",
-                "workspace_member",
-                workspaceMemberId.toString(),
-                details
-            );
+            String targetName = userRepo.findById(targetUserId)
+                .map(User::getFullName).orElse(null);
+            auditLogService.writeAudit(requesterId, orgId, actionType,
+                "workspace_member", workspaceMemberId.toString(),
+                targetName, workspaceId, null);
         } catch (Exception ignored) {
             // Audit insert is non-blocking for business action.
         }

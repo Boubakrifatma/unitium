@@ -28,6 +28,7 @@ import { WorkspaceEditDialogComponent, WorkspaceEditDialogResult } from "./works
 import { WorkspaceMemberCardComponent } from "./workspace-member-card.component";
 import { WorkspacePermissionService } from "./workspace-permission.service";
 import { IntegrationsComingSoonDialogComponent } from "./integrations-coming-soon-dialog.component";
+import { WorkspaceTransferOwnerDialogComponent, WorkspaceTransferOwnerDialogResult } from "./workspace-transfer-owner-dialog.component";
 
 interface WorkspaceActivity {
     id: string;
@@ -54,6 +55,7 @@ interface WorkspaceActivity {
         CircleProgressBlueComponent,
         WorkspaceMemberCardComponent,
         IntegrationsComingSoonDialogComponent,
+        WorkspaceTransferOwnerDialogComponent,
     ],
     template: `
         <div class="container-fluid fade-in mb-3 mb-lg-4">
@@ -516,9 +518,8 @@ interface WorkspaceActivity {
                                             <div class="col">
                                                 <p class="text-secondary small mb-1">{{ strVal(log['created_at']) | date : "MMM d, y, h:mm a" }}</p>
                                                 <p class="mb-0">
-                                                    <span class="text-theme">User #{{ log['user_id'] }}</span>
-                                                    <span class="ms-1">{{ humanizeAction(strVal(log['action_type'])) }}</span>
-                                                    <span class="text-secondary ms-1 small">{{ log['entity_type'] }}</span>
+                                                    <span class="fw-semibold text-theme">{{ log['full_name'] || ('User #' + log['user_id']) }}</span>
+                                                    <span class="ms-1">{{ activityLine(log) }}</span>
                                                 </p>
                                             </div>
                                         </div>
@@ -831,16 +832,30 @@ export class M2WorkspaceDetailsComponent implements OnInit {
         if (!this.canManageWorkspace()) return;
         const workspaceId = this.route.snapshot.paramMap.get("workspaceId");
         if (!workspaceId) return;
-        const confirmed = window.confirm(`Transfer workspace ownership to ${member.fullName || 'User #' + member.userId}?\nYou will be demoted to ADMIN.`);
-        if (!confirmed) return;
-        this.workspaceMemberService.transferOwner(workspaceId, member.userId).subscribe({
-            next: () => {
-                this.snackBar.open("Ownership transferred successfully.", "Close", { duration: 3500 });
-                this.loadMembers(workspaceId);
+
+        const ref = this.dialog.open(WorkspaceTransferOwnerDialogComponent, {
+            width: "520px",
+            maxWidth: "95vw",
+            autoFocus: false,
+            panelClass: "rounded-dialog",
+            data: {
+                newOwnerName: member.fullName || `User #${member.userId}`,
+                newOwnerEmail: member.email || "",
+                workspaceName: this.workspace()?.name || "",
             },
-            error: (error: HttpErrorResponse) => {
-                this.snackBar.open(`Failed to transfer ownership: ${this.errorMessage(error)}`, "Close", { duration: 4500 });
-            },
+        });
+
+        ref.afterClosed().subscribe((result?: WorkspaceTransferOwnerDialogResult) => {
+            if (!result?.confirm) return;
+            this.workspaceMemberService.transferOwner(workspaceId, member.userId).subscribe({
+                next: () => {
+                    this.snackBar.open("Ownership transferred successfully.", "Close", { duration: 3500 });
+                    this.loadMembers(workspaceId);
+                },
+                error: (error: HttpErrorResponse) => {
+                    this.snackBar.open(`Failed to transfer ownership: ${this.errorMessage(error)}`, "Close", { duration: 4500 });
+                },
+            });
         });
     }
 
@@ -1177,15 +1192,56 @@ export class M2WorkspaceDetailsComponent implements OnInit {
     }
 
     strVal(v: unknown): string { return v == null ? '' : String(v); }
-    humanizeAction(actionType: string): string {
-        return (actionType || '').replace(/_/g, ' ').toLowerCase();
+
+    private parseDetails(log: Record<string, unknown>): Record<string, string> {
+        const raw = log['details_json'];
+        if (!raw || typeof raw !== 'string') return {};
+        try { return JSON.parse(raw) as Record<string, string>; }
+        catch { return {}; }
+    }
+
+    activityLine(log: Record<string, unknown>): string {
+        const action = this.strVal(log['action_type']);
+        const name = this.parseDetails(log)['name'] || '';
+        const n = name ? ` "${name}"` : '';
+        const m = name ? ` ${name}` : '';
+        const map: Record<string, string> = {
+            CREATE_WORKSPACE:             `created workspace${n}`,
+            UPDATE_WORKSPACE:             `updated workspace${n}`,
+            DELETE_WORKSPACE:             `deleted workspace${n}`,
+            ADD_WORKSPACE_MEMBER:         `added member${m}`,
+            REMOVE_WORKSPACE_MEMBER:      `removed member${m}`,
+            UPDATE_WORKSPACE_MEMBER_ROLE: `updated role for${m}`,
+            TRANSFER_OWNER:               `transferred ownership to${m}`,
+            CREATE_PROJECT:               `created project${n}`,
+            CREATE_TEMPLATE:              `created template${n}`,
+            PUBLISH_TEMPLATE:             `submitted template${n} for review`,
+            APPROVE_TEMPLATE:             `approved template${n}`,
+            REJECT_TEMPLATE:              `rejected template${n}`,
+            RATE_TEMPLATE:                `rated template${n}`,
+            FAVORITE_TEMPLATE:            `favorited template${n}`,
+            UNFAVORITE_TEMPLATE:          `removed favorite on template${n}`,
+        };
+        return map[action] ?? action.replace(/_/g, ' ').toLowerCase();
     }
 
     activityIcon(actionType: string): string {
         const map: Record<string, string> = {
-            ADD_WORKSPACE_MEMBER: 'person_add', REMOVE_WORKSPACE_MEMBER: 'person_remove',
-            UPDATE_WORKSPACE_MEMBER_ROLE: 'manage_accounts', CREATE_PROJECT: 'create_new_folder',
-            UPDATE_WORKSPACE: 'edit', TRANSFER_OWNER: 'transfer_within_a_station',
+            CREATE_WORKSPACE:             'domain_add',
+            UPDATE_WORKSPACE:             'edit',
+            DELETE_WORKSPACE:             'delete',
+            ADD_WORKSPACE_MEMBER:         'person_add',
+            REMOVE_WORKSPACE_MEMBER:      'person_remove',
+            UPDATE_WORKSPACE_MEMBER_ROLE: 'manage_accounts',
+            TRANSFER_OWNER:               'transfer_within_a_station',
+            CREATE_PROJECT:               'create_new_folder',
+            CREATE_TEMPLATE:              'note_add',
+            PUBLISH_TEMPLATE:             'publish',
+            APPROVE_TEMPLATE:             'verified',
+            REJECT_TEMPLATE:              'cancel',
+            RATE_TEMPLATE:                'star',
+            FAVORITE_TEMPLATE:            'favorite',
+            UNFAVORITE_TEMPLATE:          'heart_broken',
         };
         return map[actionType] || 'history';
     }
