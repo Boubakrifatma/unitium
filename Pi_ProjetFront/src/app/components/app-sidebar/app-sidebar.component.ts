@@ -156,13 +156,15 @@ export class AppSidebarComponent {
         if (this.isSuperAdmin) {
             all.push({ name: "Platform Overview", route: "/app/super-admin", icon: "admin_panel_settings" });
             all.push({ name: "All Users", route: "/app/users", icon: "manage_accounts" });
+            all.push({ name: "Organizations", route: "/app/organizations", icon: "corporate_fare" });
+            all.push({ name: "Audit Log", route: "/app/audit-logs", icon: "history" });
         }
 
         // ADMIN + SUPER_ADMIN
         if (this.isAdmin) {
             all.push({ name: "Dashboard", route: "/app/dashboard", icon: "house" });
             if (!this.isSuperAdmin) {
-                all.push({ name: "Users", route: "/app/users", icon: "manage_accounts" });
+                all.push({ name: "My Organization", route: "/app/my-organization", icon: "corporate_fare" });
             }
             all.push({ name: "Employees", route: "/app/employee", icon: "person" });
         }

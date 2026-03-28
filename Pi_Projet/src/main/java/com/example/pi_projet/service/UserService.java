@@ -87,6 +87,12 @@ public class UserService {
      * Change password — vérifie l'ancien mot de passe avant de mettre à jour.
      * Utilisé par l'admin d'organisation après la première connexion.
      */
+    public List<UserDTO> searchUsers(String query) {
+        if (query == null || query.trim().isEmpty()) return List.of();
+        return userRepository.searchByNameOrEmail(query.trim())
+                .stream().map(UserDTO::from).toList();
+    }
+
     public void changePassword(Long id, String oldPassword, String newPassword) {
         if (oldPassword == null || newPassword == null || newPassword.length() < 8) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,

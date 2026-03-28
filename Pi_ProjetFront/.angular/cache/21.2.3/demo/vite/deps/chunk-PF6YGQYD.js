@@ -20,11 +20,11 @@ import {
   _getEventTarget
 } from "./chunk-EE4Q3I4S.js";
 import {
-  _CdkPrivateStyleLoader
-} from "./chunk-MV2NGOTN.js";
-import {
   coerceArray
 } from "./chunk-N4DOILP3.js";
+import {
+  _CdkPrivateStyleLoader
+} from "./chunk-MV2NGOTN.js";
 import {
   ScrollDispatcher,
   ScrollingModule,
@@ -2663,4 +2663,4 @@ export {
   CdkConnectedOverlay,
   OverlayModule
 };
-//# sourceMappingURL=chunk-G5B6F3QR.js.map
+//# sourceMappingURL=chunk-PF6YGQYD.js.map

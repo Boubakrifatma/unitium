@@ -185,6 +185,22 @@ export const routes: Routes = [
                 loadComponent: () => import("./billing/pages/confirmation/payment-confirmation.component").then((c) => c.PaymentConfirmationComponent),
             },
             {
+                path: "organizations",
+                loadComponent: () => import("./organizations/organizations.component").then((c) => c.OrganizationsComponent),
+            },
+            {
+                path: "organizations/:id",
+                loadComponent: () => import("./organizations/organization-detail.component").then((c) => c.OrganizationDetailComponent),
+            },
+            {
+                path: "audit-logs",
+                loadComponent: () => import("./organizations/audit-log.component").then((c) => c.AuditLogComponent),
+            },
+            {
+                path: "my-organization",
+                loadComponent: () => import("./organizations/my-organization.component").then((c) => c.MyOrganizationComponent),
+            },
+            {
                 path: "po",
                 loadComponent: () => import("./pages/app/po/po-dashboard.component").then((c) => c.PoDashboardComponent),
             },

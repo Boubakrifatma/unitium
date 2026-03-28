@@ -1,10 +1,10 @@
 import {
   MatTooltip,
   TooltipComponent
-} from "./chunk-MNHEDQS6.js";
+} from "./chunk-I7B3AWHG.js";
 import {
   OverlayModule
-} from "./chunk-G5B6F3QR.js";
+} from "./chunk-PF6YGQYD.js";
 import {
   A11yModule
 } from "./chunk-3OQHSF2P.js";
@@ -48,4 +48,4 @@ var MatTooltipModule = class _MatTooltipModule {
 export {
   MatTooltipModule
 };
-//# sourceMappingURL=chunk-SHTZABZD.js.map
+//# sourceMappingURL=chunk-IMBOFVCF.js.map

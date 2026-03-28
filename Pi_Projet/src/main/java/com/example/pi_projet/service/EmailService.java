@@ -196,6 +196,31 @@ public class EmailService {
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // EMAIL 7 : Invitation d'un membre par un Admin
+    // ─────────────────────────────────────────────────────────────────────────
+    @Async
+    public void sendMemberInviteEmail(
+            String toEmail,
+            String fullName,
+            String orgName,
+            String platformRole,
+            String tempPassword
+    ) {
+        try {
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
+            helper.setFrom(fromEmail, fromName);
+            helper.setTo(toEmail);
+            helper.setSubject("🎉 You've been invited to join " + orgName + " on Unitum");
+            helper.setText(buildMemberInviteEmail(fullName, orgName, platformRole, tempPassword, toEmail), true);
+            mailSender.send(msg);
+            log.info("✉️  Invite email sent to {}", toEmail);
+        } catch (Exception e) {
+            log.error("❌ Failed to send invite email to {}: {}", toEmail, e.getMessage(), e);
+        }
+    }
+
     // ═════════════════════════════════════════════════════════════════════════
     // HTML Templates
     // ═════════════════════════════════════════════════════════════════════════
@@ -413,6 +438,32 @@ public class EmailService {
             "</div></div>" +
             "<div style='background:#f8fafc;padding:16px 40px;text-align:center;border-top:1px solid #e2e8f0'>" +
             "<p style='color:#94a3b8;font-size:12px;margin:0'>© 2025 Unitum · Invoice: " + invoiceNumber + " · Tx: " + paymentId + "</p>" +
+            "</div></div></body></html>";
+    }
+
+    private String buildMemberInviteEmail(String name, String orgName, String platformRole, String tempPassword, String email) {
+        return "<!DOCTYPE html><html><head><meta charset='UTF-8'></head><body style='margin:0;padding:0;background:#f0f4fa;font-family:Segoe UI,Arial,sans-serif'>" +
+            "<div style='max-width:600px;margin:40px auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)'>" +
+            "<div style='background:linear-gradient(135deg,#6366f1,#4f46e5);padding:40px;text-align:center'>" +
+            "<span style='font-size:42px'>👋</span>" +
+            "<h1 style='color:#fff;margin:12px 0 4px;font-size:26px'>You're Invited!</h1>" +
+            "<p style='color:rgba(255,255,255,.85);margin:0'>You've been added to <strong>" + orgName + "</strong></p></div>" +
+            "<div style='padding:36px 40px'>" +
+            "<p style='color:#1e293b;font-size:15px'>Hello <strong>" + name + "</strong>,</p>" +
+            "<p style='color:#475569;font-size:14px;line-height:1.7'>You have been invited to join <strong>" + orgName + "</strong> on <strong>Unitum</strong> as a <strong>" + platformRole + "</strong>. Your account has been created — use the credentials below to log in.</p>" +
+            "<div style='background:#f0f4ff;border-radius:12px;padding:20px 24px;margin:20px 0;border-left:4px solid #6366f1'>" +
+            "<p style='margin:0 0 8px;font-weight:700;color:#3730a3;font-size:14px'>🔑 Your Login Credentials</p>" +
+            "<p style='margin:0 0 4px;color:#3730a3;font-size:14px'>Email: <strong>" + email + "</strong></p>" +
+            "<p style='margin:0 0 4px;color:#3730a3;font-size:14px'>Temporary Password: <code style='background:#e0e7ff;padding:2px 10px;border-radius:4px;font-size:16px;font-weight:700'>" + tempPassword + "</code></p>" +
+            "<p style='margin:8px 0 0;color:#4338ca;font-size:12px'>⚠ You will be asked to change this password on your first login.</p>" +
+            "</div>" +
+            "<div style='text-align:center;margin:28px 0'>" +
+            "<a href='" + appUrl + "/auth/login' style='display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:14px 40px;border-radius:50px;font-weight:700;font-size:15px'>Login to Unitum →</a>" +
+            "</div>" +
+            "<p style='color:#64748b;font-size:13px;line-height:1.7'>If you were not expecting this invitation, please contact us at <a href='mailto:" + adminEmail + "' style='color:#6366f1'>" + adminEmail + "</a>.</p>" +
+            "</div>" +
+            "<div style='background:#f8fafc;padding:20px 40px;text-align:center;border-top:1px solid #e2e8f0'>" +
+            "<p style='color:#94a3b8;font-size:12px;margin:0'>© 2025 Unitum · Powered by Evenix Group</p>" +
             "</div></div></body></html>";
     }
 
