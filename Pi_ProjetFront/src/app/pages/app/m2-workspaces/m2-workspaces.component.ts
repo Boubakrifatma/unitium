@@ -656,7 +656,21 @@ export class M2WorkspacesComponent implements OnInit {
                     this.loadWorkspaces();
                 },
                 error: (error: HttpErrorResponse) => {
-                    this.snackBar.open(`Failed to create ${entityLabel.toLowerCase()} (${this.errorMessage(error)})`, "Close", { duration: 5000 });
+                    const msg = (error?.error?.message || error?.error?.error || error.message || "").toLowerCase();
+                    const isQuota = error.status === 403 && (msg.includes("limit") || msg.includes("quota") || msg.includes("plan"));
+                    if (isQuota) {
+                        this.snackBar.open(
+                            `⚠ ${entityLabel} limit reached — your current plan does not allow more ${entityLabel.toLowerCase()}s. Upgrade your plan to create more.`,
+                            "Upgrade",
+                            { duration: 8000, panelClass: ["snackbar-warn"] }
+                        );
+                    } else {
+                        this.snackBar.open(
+                            `Failed to create ${entityLabel.toLowerCase()}: ${error?.error?.message || "Unexpected error"}`,
+                            "Close",
+                            { duration: 5000 }
+                        );
+                    }
                 },
             });
         });
@@ -690,7 +704,6 @@ export class M2WorkspacesComponent implements OnInit {
     }
 
     private errorMessage(error: HttpErrorResponse): string {
-        const message = (error?.error && (error.error.message || error.error.error)) || error.message || "Request failed";
-        return `status=${error.status || 0} message=${message}`;
+        return (error?.error?.message || error?.error?.error || error.message || "Request failed");
     }
 }

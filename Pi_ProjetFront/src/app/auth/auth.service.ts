@@ -49,20 +49,13 @@ export class AuthService {
   fetchMe(): Observable<AuthResponse> {
     return this.http.get<AuthResponse>(`${this.API}/me`).pipe(
       tap(res => {
-        console.log('[AuthService] /me response fields', {
-          id: res.id,
-          email: res.email,
-          fullName: res.fullName,
-          role: res.role,
-        });
         this.currentUser.set({
           id: res.id,
           email: res.email,
           fullName: res.fullName,
           role: res.role as User['role']
         });
-        // Try setting org from embedded response (login flow); /me won't have it
-        this.setOrganizationFromResponse(res);
+        // /me never returns organizations — org is set below via fetchOrganizationOptions
       }),
       switchMap(res =>
         this.fetchOrganizationOptions().pipe(

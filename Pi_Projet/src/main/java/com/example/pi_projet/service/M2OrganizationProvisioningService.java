@@ -76,7 +76,9 @@ public class M2OrganizationProvisioningService {
         // Business invariant: organization creation automatically provisions default workspace.
         Workspace defaultWorkspace = ensureDefaultWorkspaceForOrganization(org, currentUser);
         ensureOrganizationMember(org, currentUser, OrganizationMember.OrganizationRole.ADMIN, currentUser, false);
-        ensureWorkspaceOwner(defaultWorkspace, currentUser.getId(), currentUser);
+        if (defaultWorkspace != null) {
+            ensureWorkspaceOwner(defaultWorkspace, currentUser.getId(), currentUser);
+        }
 
         return new ProvisionedOrganization(org, defaultWorkspace, true);
     }
@@ -106,7 +108,9 @@ public class M2OrganizationProvisioningService {
 
         // Even when org already exists, ensure invariant remains true.
         Workspace defaultWorkspace = ensureDefaultWorkspaceForOrganization(organization, owner);
-        ensureWorkspaceOwner(defaultWorkspace, owner.getId(), owner);
+        if (defaultWorkspace != null) {
+            ensureWorkspaceOwner(defaultWorkspace, owner.getId(), owner);
+        }
 
         return new ProvisionedOrganization(organization, defaultWorkspace, created);
     }

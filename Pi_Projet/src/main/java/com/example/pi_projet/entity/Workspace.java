@@ -39,6 +39,9 @@ public class Workspace {
     @JoinColumn(name = "owner_id", insertable = false, updatable = false)
     private User owner;
 
+    @Column(name = "organization_id", insertable = false, updatable = false)
+    private UUID organizationId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id", nullable = false)
     private Organization organization;

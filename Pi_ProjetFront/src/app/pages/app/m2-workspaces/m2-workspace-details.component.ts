@@ -650,8 +650,12 @@ export class M2WorkspaceDetailsComponent implements OnInit {
 
     readonly isSameOrganizationAsWorkspace = computed(() => {
         const currentOrgId = (this.authService.currentOrganization()?.organizationId || "").toLowerCase();
-        const workspaceOrgId = (this.workspace()?.organization?.id || "").toLowerCase();
-        return !!currentOrgId && !!workspaceOrgId && currentOrgId === workspaceOrgId;
+        if (!currentOrgId) return false;
+        // Prefer the direct organizationId field (always serialized); fall back to nested organization.id
+        const ws = this.workspace();
+        const workspaceOrgId = (ws?.organizationId || ws?.organization?.id || "").toLowerCase();
+        if (!workspaceOrgId) return true; // org id not in response → let backend enforce security
+        return currentOrgId === workspaceOrgId;
     });
 
     readonly isCurrentUserGlobalAdmin = computed(() => {
@@ -676,10 +680,13 @@ export class M2WorkspaceDetailsComponent implements OnInit {
         if (this.isCurrentUserGlobalAdmin()) {
             return true;
         }
-        if (!this.isSameOrganizationAsWorkspace()) {
-            return false;
+        if (this.isSameOrganizationAsWorkspace()) {
+            return this.isCurrentUserOrgAdmin() || this.isCurrentUserManager() || this.isCurrentUserAcademicTutor();
         }
-        return this.isCurrentUserOrgAdmin() || this.isCurrentUserAcademicTutor();
+        // Fallback: workspace OWNER or ADMIN can manage their own workspace
+        // even when org data is temporarily unavailable (e.g. org signal not yet populated)
+        const wsRole = this.currentUserWorkspaceRole();
+        return wsRole === "OWNER" || wsRole === "ADMIN";
     });
 
     readonly canManageWorkspace = computed(() => {
@@ -715,18 +722,23 @@ export class M2WorkspaceDetailsComponent implements OnInit {
         if (this.isCurrentUserGlobalAdmin()) {
             return true;
         }
-        if (!this.isSameOrganizationAsWorkspace()) {
-            return false;
+        if (this.isSameOrganizationAsWorkspace()) {
+            return this.isCurrentUserOrgAdmin() || this.isCurrentUserAcademicTutor() || this.isCurrentUserManager();
         }
-
-        return this.isCurrentUserOrgAdmin() || this.isCurrentUserAcademicTutor() || this.isCurrentUserManager();
+        // Fallback: workspace OWNER or ADMIN can invite members
+        const wsRole = this.currentUserWorkspaceRole();
+        return wsRole === "OWNER" || wsRole === "ADMIN";
     });
 
     readonly canEditMemberRoles = computed(() => {
         if (this.isCurrentUserGlobalAdmin()) {
             return true;
         }
-        return this.isSameOrganizationAsWorkspace() && (this.isCurrentUserOrgAdmin() || this.isCurrentUserAcademicTutor());
+        if (this.isSameOrganizationAsWorkspace()) {
+            return this.isCurrentUserOrgAdmin() || this.isCurrentUserAcademicTutor();
+        }
+        // Fallback: workspace OWNER can always manage roles
+        return this.currentUserWorkspaceRole() === "OWNER";
     });
 
     readonly capacityBarColor = computed(() => {
@@ -919,7 +931,15 @@ export class M2WorkspaceDetailsComponent implements OnInit {
                     });
                 },
                 error: (error: HttpErrorResponse) => {
-                    this.snackBar.open(`Failed to create project: ${this.errorMessage(error)}`, "Close", { duration: 4500 });
+                    const msg = (error?.error?.message || error?.error?.error || error.message || "").toLowerCase();
+                    const isQuota = error.status === 403 && (msg.includes("limit") || msg.includes("quota") || msg.includes("plan"));
+                    this.snackBar.open(
+                        isQuota
+                            ? `⚠ Project limit reached — your plan does not allow more projects in this workspace.`
+                            : `Failed to create project: ${error?.error?.message || "Unexpected error"}`,
+                        "Close",
+                        { duration: 5500 }
+                    );
                 },
             });
         });
@@ -1267,7 +1287,6 @@ export class M2WorkspaceDetailsComponent implements OnInit {
     }
 
     private errorMessage(error: HttpErrorResponse): string {
-        const message = (error?.error && (error.error.message || error.error.error)) || error.message || "Request failed";
-        return `status=${error.status || 0} message=${message}`;
+        return (error?.error?.message || error?.error?.error || error.message || "Request failed");
     }
 }

@@ -409,6 +409,14 @@ public class WorkspaceService {
             return saved;
         }
 
+        // Guard: skip default workspace creation if org is already at its quota
+        long currentCount = quotaHelper.countActiveWorkspaces(orgId);
+        int maxAllowed = quotaHelper.getMaxWorkspacesStub(orgId);
+        if (currentCount >= maxAllowed) {
+            log.warn("[Workspace] Skipping default workspace for org {} — quota reached ({}/{})", orgId, currentCount, maxAllowed);
+            return null;
+        }
+
         Workspace workspace = Workspace.builder()
             .id(UUID.nameUUIDFromBytes((orgId + ":" + defaultSlug).getBytes(StandardCharsets.UTF_8)))
             .name(defaultName)

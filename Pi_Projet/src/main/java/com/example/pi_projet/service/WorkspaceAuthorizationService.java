@@ -99,7 +99,7 @@ public class WorkspaceAuthorizationService {
             return false;
         }
 
-        return isOrgAdmin(membership.get()) || isTutorInAcademicOrganization(user, workspace.getOrganization());
+        return isOrgAdmin(membership.get()) || isManager(user) || isTutorInAcademicOrganization(user, workspace.getOrganization());
     }
 
     public boolean canInviteOrAddMember(User user, Workspace workspace) {

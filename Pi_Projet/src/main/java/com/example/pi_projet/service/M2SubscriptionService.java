@@ -24,8 +24,8 @@ public class M2SubscriptionService {
                 FROM subscriptions s
                 JOIN plans p ON p.id = s.plan_id
                 WHERE s.org_id = ?
-                  AND UPPER(CAST(s.status AS VARCHAR(20))) IN ('ACTIVE','TRIALING')
-                ORDER BY s.updated_at DESC, s.created_at DESC
+                  AND s.status IN ('ACTIVE','TRIALING')
+                ORDER BY s.created_at DESC
                 LIMIT 1
                 """,
                 Integer.class,
@@ -55,9 +55,20 @@ public class M2SubscriptionService {
     public int getMaxProjectsForOrg(UUID orgId) {
         try {
             Integer v = jdbcTemplate.queryForObject(
-                "SELECT max_projects FROM subscription_limits WHERE org_id = ?",
-                Integer.class, orgId.toString());
-            if (v != null) return v;
+                """
+                SELECT p.max_active_projects
+                FROM subscriptions s
+                JOIN plans p ON p.id = s.plan_id
+                WHERE s.org_id = ?
+                  AND s.status IN ('ACTIVE','TRIALING')
+                ORDER BY s.created_at DESC
+                LIMIT 1
+                """,
+                Integer.class,
+                orgId.toString());
+            if (v != null && v > 0) {
+                return v;
+            }
         } catch (Exception ignored) {
         }
         // TODO [CROSS-MODULE DEPENDENCY] — Replace fallback with Module 6 integration
@@ -72,8 +83,8 @@ public class M2SubscriptionService {
                 FROM subscriptions s
                 JOIN plans p ON p.id = s.plan_id
                 WHERE s.org_id = ?
-                  AND UPPER(CAST(s.status AS VARCHAR(20))) IN ('ACTIVE','TRIALING')
-                ORDER BY s.updated_at DESC, s.created_at DESC
+                  AND s.status IN ('ACTIVE','TRIALING')
+                ORDER BY s.created_at DESC
                 LIMIT 1
                 """,
                 Integer.class,
@@ -110,8 +121,8 @@ public class M2SubscriptionService {
                 FROM subscriptions s
                 JOIN plans p ON p.id = s.plan_id
                 WHERE s.org_id = ?
-                  AND UPPER(CAST(s.status AS VARCHAR(20))) IN ('ACTIVE','TRIALING')
-                ORDER BY s.updated_at DESC, s.created_at DESC
+                  AND s.status IN ('ACTIVE','TRIALING')
+                ORDER BY s.created_at DESC
                 LIMIT 1
                 """,
                 String.class,

@@ -8,6 +8,7 @@ export interface M2Workspace {
     slug: string;
     ownerId: number;
     orgType?: string;
+    organizationId?: string;
     createdAt?: string;
     organization?: {
         id: string;
