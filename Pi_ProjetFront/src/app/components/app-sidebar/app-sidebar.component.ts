@@ -167,6 +167,7 @@ export class AppSidebarComponent {
                 all.push({ name: "Users", route: "/app/users", icon: "manage_accounts" });
             }
             all.push({ name: "Employees", route: "/app/employee", icon: "person" });
+            all.push({ name: "Admin Dashboard", route: "/app/m2-admin", icon: "admin_panel_settings" });
         }
 
         // All authenticated roles can access Workspaces list and their projects.

@@ -4,6 +4,7 @@ import { AppLayoutComponent } from "./layouts/app-layout/app-layout.component";
 import { FullLayoutComponent } from "./layouts/full-layout/full-layout.component";
 import { WebsiteLayoutComponent } from "./layouts/website-layout/websitelayout.component";
 import { authGuard } from "./auth/auth.guard";
+import { m2AdminGuard } from "./pages/app/m2-admin/m2-admin.guard";
 
 export const routes: Routes = [
     {
@@ -203,6 +204,11 @@ export const routes: Routes = [
             {
                 path: "super-admin",
                 loadComponent: () => import("./pages/app/super-admin/super-admin.component").then((c) => c.SuperAdminComponent),
+            },
+            {
+                path: "m2-admin",
+                canActivate: [m2AdminGuard],
+                loadComponent: () => import("./pages/app/m2-admin/m2-admin.component").then((c) => c.M2AdminComponent),
             },
             {
                 path: "po",

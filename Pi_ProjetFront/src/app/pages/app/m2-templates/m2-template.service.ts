@@ -112,6 +112,10 @@ export class M2TemplateService {
         return this.http.patch<M2TemplateSummary>(`${this.base}/${id}/trending`, { trending });
     }
 
+    setRecommended(id: string, recommended: boolean): Observable<M2TemplateSummary> {
+        return this.http.patch<M2TemplateSummary>(`${this.base}/${id}/recommend`, { recommended });
+    }
+
     search(params: { search?: string; type?: string; difficulty?: string; status?: string; page?: number; size?: number }): Observable<M2TemplatePage> {
         const p = new URLSearchParams();
         if (params.search)     p.set('search',     params.search);

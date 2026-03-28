@@ -273,6 +273,16 @@ public class ProjectTemplateController {
         return projectTemplateService.trendingTemplate(id, trending);
     }
 
+    @PatchMapping("/{id}/recommend")
+    public ProjectTemplate setRecommended(@PathVariable UUID id,
+                                           @RequestBody Map<String, Object> body,
+                                           HttpServletRequest request) {
+        User currentUser = requireCurrentUser(request);
+        requireAdminRole(currentUser);
+        boolean recommended = Boolean.parseBoolean(body.getOrDefault("recommended", false).toString());
+        return projectTemplateService.recommendTemplate(id, recommended);
+    }
+
     /* ── Favorites ─────────────────────────────────────────────── */
 
     @PostMapping("/{id}/favorite")

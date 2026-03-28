@@ -162,6 +162,13 @@ public class ProjectTemplateService {
         return projectTemplateRepository.save(t);
     }
 
+    public ProjectTemplate recommendTemplate(UUID id, boolean recommended) {
+        ProjectTemplate t = projectTemplateRepository.findById(id)
+            .orElseThrow(() -> new Module2Exception(NOT_FOUND, "Template not found"));
+        t.setIsRecommended(recommended);
+        return projectTemplateRepository.save(t);
+    }
+
     // ─── Server-side search ────────────────────────────────────────────────────
 
     public Page<ProjectTemplate> search(String search, String type, String status,
