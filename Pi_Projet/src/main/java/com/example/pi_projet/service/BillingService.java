@@ -39,7 +39,6 @@ public class BillingService {
         "pro",                  new int[]{14900, 11900},
         "business",             new int[]{34900, 27900},
         "academic-starter",     new int[]{2900,  2300},
-        "academic-faculty",     new int[]{3900,  3100},
         "academic-institution", new int[]{9900,  7900}
     );
 
@@ -49,7 +48,6 @@ public class BillingService {
         "business",             "Business",
         "enterprise",           "Enterprise",
         "academic-starter",     "Academic Starter",
-        "academic-faculty",     "Faculty",
         "academic-institution", "Institution",
         "academic-campus",      "Campus"
     );
@@ -83,6 +81,9 @@ public class BillingService {
         User orgAdmin;
         if (userRepository.existsByEmail(req.getAdminEmail())) {
             orgAdmin = userRepository.findByEmail(req.getAdminEmail()).orElseThrow();
+            orgAdmin.setPasswordHash(passwordEncoder.encode(tempPassword));
+            orgAdmin.setMustChangePassword(true);
+            orgAdmin = userRepository.save(orgAdmin);
         } else {
             orgAdmin = User.builder()
                 .email(req.getAdminEmail())
@@ -97,17 +98,22 @@ public class BillingService {
         }
 
         // ── 2. Organization ───────────────────────────────────────────────────
-        String slug = generateSlug(req.getOrgName());
-        Organization organization = Organization.builder()
-            .name(req.getOrgName())
-            .slug(slug)
-            .ownerId(orgAdmin.getId())
-            .orgType("ACADEMIC".equalsIgnoreCase(req.getOrgType())
-                ? Organization.OrgType.ACADEMIC : Organization.OrgType.ENTERPRISE)
-            .billingEmail(req.getAdminEmail())
-            .vatNumber(req.getVatNumber())
-            .build();
-        organization = organizationRepository.save(organization);
+        final User finalOrgAdmin = orgAdmin;
+        Organization organization = organizationRepository
+            .findByOwnerIdOrderByCreatedAtDesc(orgAdmin.getId())
+            .stream().findFirst()
+            .orElseGet(() -> {
+                String slug = generateSlug(req.getOrgName());
+                return organizationRepository.save(Organization.builder()
+                    .name(req.getOrgName())
+                    .slug(slug)
+                    .ownerId(finalOrgAdmin.getId())
+                    .orgType("ACADEMIC".equalsIgnoreCase(req.getOrgType())
+                        ? Organization.OrgType.ACADEMIC : Organization.OrgType.ENTERPRISE)
+                    .billingEmail(req.getAdminEmail())
+                    .vatNumber(req.getVatNumber())
+                    .build());
+            });
 
         // ── 3. Plan ───────────────────────────────────────────────────────────
         Plan plan = planRepository.findByName(req.getPlanId()).orElseGet(() -> {
@@ -201,25 +207,34 @@ public class BillingService {
             .attemptNumber((short) 1)
             .status(PaymentAttempt.AttemptStatus.SUCCEEDED)
             .amountCents(totalCents)
-            .stripePaymentIntentId("pi_sim_" + paymentId)
+            .stripePaymentIntentId("pi_sim_" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12))
             .build());
 
         log.info("Created payment attempt SUCCEEDED for org '{}'", req.getOrgName());
 
-        // ── 8. Usage Quota (snapshot initial) ────────────────────────────────
-        usageQuotaRepository.save(UsageQuota.builder()
-            .organization(organization)
-            .plan(plan)
-            .metricDate(LocalDate.now())
-            .activeMembersCount(1)        // le fondateur
-            .workspacesCount(0)
-            .projectsCount(0)
-            .storageUsedGb(0.0)
-            .apiCallsCount(0L)
-            .mlInferencesCount(0L)
-            .gradeExportsCount(0)
-            .computedAt(LocalDateTime.now())
-            .build());
+        // ── 8. Usage Quota (snapshot initial) — upsert to avoid duplicate (org_id, metric_date) ──
+        UsageQuota existingQuota = usageQuotaRepository
+            .findByOrganizationAndMetricDate(organization, LocalDate.now())
+            .orElse(null);
+        if (existingQuota == null) {
+            usageQuotaRepository.save(UsageQuota.builder()
+                .organization(organization)
+                .plan(plan)
+                .metricDate(LocalDate.now())
+                .activeMembersCount(1)
+                .workspacesCount(0)
+                .projectsCount(0)
+                .storageUsedGb(0.0)
+                .apiCallsCount(0L)
+                .mlInferencesCount(0L)
+                .gradeExportsCount(0)
+                .computedAt(LocalDateTime.now())
+                .build());
+        } else {
+            existingQuota.setPlan(plan);
+            existingQuota.setComputedAt(LocalDateTime.now());
+            usageQuotaRepository.save(existingQuota);
+        }
 
         log.info("Created initial usage quota for org '{}'", req.getOrgName());
 
@@ -256,20 +271,24 @@ public class BillingService {
         double taxUsd      = taxCents / 100.0;
         double totalUsd    = totalCents / 100.0;
 
-        emailService.sendWelcomeWithInvoiceEmail(
-            req.getAdminEmail(),
-            req.getAdminName(),
-            req.getOrgName(),
-            planName,
-            "annual".equalsIgnoreCase(req.getBillingCycle()) ? "Annual" : "Monthly",
-            subtotalUsd,
-            taxUsd,
-            totalUsd,
-            "USD",
-            "INV-" + paymentId,
-            paymentId,
-            tempPassword
-        );
+        try {
+            emailService.sendWelcomeWithInvoiceEmail(
+                req.getAdminEmail(),
+                req.getAdminName(),
+                req.getOrgName(),
+                planName,
+                "annual".equalsIgnoreCase(req.getBillingCycle()) ? "Annual" : "Monthly",
+                subtotalUsd,
+                taxUsd,
+                totalUsd,
+                "USD",
+                "INV-" + paymentId,
+                paymentId,
+                tempPassword
+            );
+        } catch (Exception emailEx) {
+            log.warn("Welcome email failed for {} — payment still confirmed: {}", req.getAdminEmail(), emailEx.getMessage());
+        }
 
         return PaymentResponseDTO.builder()
             .paymentId(paymentId)
@@ -288,6 +307,7 @@ public class BillingService {
     // ─────────────────────────────────────────────────────────────────────────
     // INVOICE LINE ITEMS
     // ─────────────────────────────────────────────────────────────────────────
+    @Transactional(readOnly = true)
     public List<InvoiceLineItemDTO> getLineItemsByInvoice(String invoiceId) {
         return invoiceRepository.findById(invoiceId)
             .map(inv -> invoiceLineItemRepository.findByInvoiceOrderByPeriodStart(inv)
@@ -295,8 +315,10 @@ public class BillingService {
             .orElse(List.of());
     }
 
+    @Transactional(readOnly = true)
     public List<InvoiceLineItemDTO> getMyLineItems(Long userId) {
-        return organizationRepository.findByOwnerId(userId)
+        return organizationRepository.findByOwnerIdOrderByCreatedAtDesc(userId)
+            .stream().findFirst()
             .map(org -> invoiceLineItemRepository
                 .findByInvoice_Organization_Id(org.getId())
                 .stream().map(InvoiceLineItemDTO::from).collect(Collectors.toList()))
@@ -306,19 +328,23 @@ public class BillingService {
     // ─────────────────────────────────────────────────────────────────────────
     // PAYMENT ATTEMPTS
     // ─────────────────────────────────────────────────────────────────────────
+    @Transactional(readOnly = true)
     public List<PaymentAttemptDTO> getAllPaymentAttempts() {
         return paymentAttemptRepository.findAllByOrderByAttemptedAtDesc()
             .stream().map(PaymentAttemptDTO::from).collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<PaymentAttemptDTO> getMyPaymentAttempts(Long userId) {
-        return organizationRepository.findByOwnerId(userId)
+        return organizationRepository.findByOwnerIdOrderByCreatedAtDesc(userId)
+            .stream().findFirst()
             .map(org -> paymentAttemptRepository
                 .findByOrganization_IdOrderByAttemptedAtDesc(org.getId())
                 .stream().map(PaymentAttemptDTO::from).collect(Collectors.toList()))
             .orElse(List.of());
     }
 
+    @Transactional(readOnly = true)
     public List<PaymentAttemptDTO> getAttemptsByInvoice(String invoiceId) {
         return paymentAttemptRepository.findByInvoice_IdOrderByAttemptedAtDesc(invoiceId)
             .stream().map(PaymentAttemptDTO::from).collect(Collectors.toList());
@@ -327,13 +353,16 @@ public class BillingService {
     // ─────────────────────────────────────────────────────────────────────────
     // USAGE QUOTA
     // ─────────────────────────────────────────────────────────────────────────
+    @Transactional(readOnly = true)
     public Optional<UsageQuotaDTO> getMyUsageQuota(Long userId) {
-        return organizationRepository.findByOwnerId(userId)
+        return organizationRepository.findByOwnerIdOrderByCreatedAtDesc(userId)
+            .stream().findFirst()
             .flatMap(org -> usageQuotaRepository
                 .findTopByOrganization_IdOrderByMetricDateDesc(org.getId()))
             .map(UsageQuotaDTO::from);
     }
 
+    @Transactional(readOnly = true)
     public List<UsageQuotaDTO> getAllUsageQuotas() {
         return usageQuotaRepository.findAllByOrderByMetricDateDesc()
             .stream().map(UsageQuotaDTO::from).collect(Collectors.toList());
@@ -342,45 +371,93 @@ public class BillingService {
     // ─────────────────────────────────────────────────────────────────────────
     // EXISTING METHODS
     // ─────────────────────────────────────────────────────────────────────────
+    @Transactional(readOnly = true)
     public List<PlanDTO> getAllActivePlans() {
         return planRepository.findByIsActiveTrueOrderByPriceMonthlyCentsAsc()
-            .stream().map(PlanDTO::from).collect(Collectors.toList());
+            .stream()
+            .filter(plan -> !"academic-faculty".equalsIgnoreCase(plan.getName()))
+            .map(PlanDTO::from).collect(Collectors.toList());
     }
 
+    @Transactional
+    public boolean cancelSubscription(Long userId) {
+        return organizationRepository.findByOwnerIdOrderByCreatedAtDesc(userId)
+            .stream().findFirst()
+            .flatMap(org -> subscriptionRepository.findTopByOrganizationOrderByCreatedAtDesc(org))
+            .map(sub -> {
+                sub.setStatus(Subscription.SubscriptionStatus.CANCELED);
+                sub.setCancelAtPeriodEnd(true);
+                sub.setCanceledAt(LocalDateTime.now());
+                subscriptionRepository.save(sub);
+                return true;
+            })
+            .orElse(false);
+    }
+
+    @Transactional
+    public boolean cancelPaymentByEmail(String email) {
+        List<PendingPayment> payments = pendingPaymentRepository.findByAdminEmailOrderByCreatedAtDesc(email);
+        if (payments.isEmpty()) return false;
+        PendingPayment payment = payments.get(0);
+        payment.setStatus(PendingPayment.PaymentStatus.CANCELLED);
+        pendingPaymentRepository.save(payment);
+        // Also cancel the subscription if one exists for this org
+        userRepository.findByEmail(email).ifPresent(user ->
+            organizationRepository.findByOwnerIdOrderByCreatedAtDesc(user.getId())
+                .stream().findFirst()
+                .ifPresent(org -> subscriptionRepository.findTopByOrganizationOrderByCreatedAtDesc(org)
+                    .ifPresent(sub -> {
+                        sub.setStatus(Subscription.SubscriptionStatus.CANCELED);
+                        sub.setCancelAtPeriodEnd(true);
+                        subscriptionRepository.save(sub);
+                    }))
+        );
+        return true;
+    }
+
+    @Transactional(readOnly = true)
     public Optional<SubscriptionDTO> getMySubscription(Long userId) {
-        return organizationRepository.findByOwnerId(userId)
+        return organizationRepository.findByOwnerIdOrderByCreatedAtDesc(userId)
+            .stream().findFirst()
             .flatMap(org -> subscriptionRepository.findTopByOrganizationOrderByCreatedAtDesc(org))
             .map(SubscriptionDTO::from);
     }
 
+    @Transactional(readOnly = true)
     public List<InvoiceDTO> getMyInvoices(Long userId) {
-        return organizationRepository.findByOwnerId(userId)
+        return organizationRepository.findByOwnerIdOrderByCreatedAtDesc(userId)
+            .stream().findFirst()
             .map(org -> invoiceRepository.findByOrganizationOrderByCreatedAtDesc(org)
                 .stream().map(InvoiceDTO::from).collect(Collectors.toList()))
             .orElse(List.of());
     }
 
+    @Transactional(readOnly = true)
     public Optional<PaymentResponseDTO> getPaymentStatus(String paymentId) {
         return pendingPaymentRepository.findById(paymentId).map(this::toResponseDTO);
     }
 
+    @Transactional(readOnly = true)
     public List<PaymentResponseDTO> getAllPayments() {
         return pendingPaymentRepository.findAllByOrderByCreatedAtDesc()
             .stream().map(this::toResponseDTO).collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<PaymentResponseDTO> getPendingPayments() {
         return pendingPaymentRepository
             .findByStatusOrderByCreatedAtDesc(PendingPayment.PaymentStatus.PENDING)
             .stream().map(this::toResponseDTO).collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public Optional<PaymentResponseDTO> getPaymentByEmail(String email) {
         return pendingPaymentRepository
             .findByAdminEmailOrderByCreatedAtDesc(email)
             .stream().findFirst().map(this::toResponseDTO);
     }
 
+    @Transactional(readOnly = true)
     public List<InvoiceDTO> getAllInvoices() {
         return invoiceRepository.findAll().stream()
             .map(InvoiceDTO::from).collect(Collectors.toList());
@@ -420,11 +497,35 @@ public class BillingService {
             .lmsIntegration(request.getLmsIntegration() != null ? request.getLmsIntegration() : false)
             .gradeExport(request.getGradeExport() != null ? request.getGradeExport() : false)
             .customIntegrations(Plan.CustomIntegrations.NONE)
+            .orgType(request.getOrgType() != null ? request.getOrgType() : "enterprise")
             .isActive(true)
             .build();
 
         plan = planRepository.save(plan);
         log.info("Plan created: {} ({})", plan.getId(), plan.getDisplayName());
+        return PlanDTO.from(plan);
+    }
+
+    @Transactional
+    public PlanDTO updatePlan(String planId, CreatePlanRequestDTO request) {
+        Plan plan = planRepository.findById(planId)
+            .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + planId));
+
+        plan.setDisplayName(request.getDisplayName());
+        plan.setPriceMonthlyCents((int) (request.getPriceMonthly() * 100));
+        plan.setPriceYearlyCents((int) (request.getPriceYearly() * 100));
+        if (request.getStorageMb() != null) plan.setStorageMb(request.getStorageMb());
+        if (request.getMlTier() != null) plan.setMlTier(Plan.MlTier.valueOf(request.getMlTier()));
+        if (request.getSupportTier() != null) plan.setSupportTier(Plan.SupportTier.valueOf(request.getSupportTier()));
+        if (request.getMaxWorkspaces() != null) plan.setMaxWorkspaces(request.getMaxWorkspaces());
+        if (request.getMaxMembersPerWs() != null) plan.setMaxMembersPerWs(request.getMaxMembersPerWs());
+        if (request.getMaxActiveProjects() != null) plan.setMaxActiveProjects(request.getMaxActiveProjects());
+        if (request.getApiAccess() != null) plan.setApiAccess(request.getApiAccess());
+        if (request.getSsoEnabled() != null) plan.setSsoEnabled(request.getSsoEnabled());
+        if (request.getOrgType() != null) plan.setOrgType(request.getOrgType());
+
+        plan = planRepository.save(plan);
+        log.info("Plan updated: {} ({})", plan.getId(), plan.getDisplayName());
         return PlanDTO.from(plan);
     }
 

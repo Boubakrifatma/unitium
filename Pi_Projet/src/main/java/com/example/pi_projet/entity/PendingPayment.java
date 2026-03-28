@@ -100,6 +100,6 @@ public class PendingPayment {
     private LocalDateTime updatedAt;
 
     public enum PaymentStatus {
-        PENDING, CONFIRMED, REJECTED
+        PENDING, CONFIRMED, REJECTED, CANCELLED
     }
 }

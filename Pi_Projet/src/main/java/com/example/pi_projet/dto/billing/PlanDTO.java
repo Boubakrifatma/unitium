@@ -21,6 +21,7 @@ public class PlanDTO {
     private Boolean apiAccess;
     private Boolean ssoEnabled;
     private Boolean isActive;
+    private String orgType;
 
     public static PlanDTO from(Plan p) {
         return PlanDTO.builder()
@@ -38,6 +39,7 @@ public class PlanDTO {
             .apiAccess(p.getApiAccess())
             .ssoEnabled(p.getSsoEnabled())
             .isActive(p.getIsActive())
+            .orgType(p.getOrgType() != null ? p.getOrgType() : "enterprise")
             .build();
     }
 }

@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject, computed } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -10,7 +10,6 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { CheckoutStateService } from '../../services/checkout-state.service';
-import { AuthService } from '../../../auth/auth.service';
 import { BillingService } from '../../services/billing.service';
 import { PendingPaymentsService } from '../../services/pending-payments.service';
 import { PaymentRequest } from '../../models/billing.models';
@@ -117,6 +116,14 @@ import { PaymentRequest } from '../../models/billing.models';
                   }
                 </div>
               </div>
+
+              <!-- Error message -->
+              @if (errorMessage()) {
+                <div class="err-banner">
+                  <mat-icon class="material-icons-outlined">error_outline</mat-icon>
+                  {{ errorMessage() }}
+                </div>
+              }
 
               <!-- Actions -->
               <div class="form-actions">
@@ -287,15 +294,22 @@ import { PaymentRequest } from '../../models/billing.models';
       box-shadow: 0 4px 14px rgba(37,99,235,.35) !important;
     }
     .pay-btn:disabled { opacity: .6 !important; cursor: not-allowed !important; }
+    .err-banner {
+      display: flex; align-items: center; gap: 8px;
+      background: #fee2e2; color: #dc2626; border-radius: 10px;
+      padding: 12px 16px; font-size: .85rem; font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .err-banner mat-icon { font-size: 18px; width: 18px; height: 18px; flex-shrink: 0; }
   </style>
   `,
 })
 export class PaymentComponent implements OnInit {
   isSubmitting = signal(false);
+  errorMessage = signal<string | null>(null);
 
   private fb = inject(FormBuilder);
   private router = inject(Router);
-  private authService = inject(AuthService);
   checkoutState = inject(CheckoutStateService);
   private billing = inject(BillingService);
   private pendingSvc = inject(PendingPaymentsService);
@@ -358,6 +372,7 @@ export class PaymentComponent implements OnInit {
       numUsers: s.numUsers,
       address: s.address,
       vatNumber: s.vatNumber,
+      institution: s.institution,
       department: s.department,
       cardHolder: v.cardHolder!,
       cardNumber: v.cardNumber!.replace(/\s/g, ''),
@@ -365,20 +380,24 @@ export class PaymentComponent implements OnInit {
       cvv: v.cvv!,
     };
 
+    this.errorMessage.set(null);
+    const isUpgrade = this.checkoutState.isUpgradeMode();
     this.billing.submitPayment(payload).subscribe({
       next: (res) => {
         this.isSubmitting.set(false);
-        // ← Register in pending payments queue for Super Admin
         this.pendingSvc.addPending(res, payload);
         this.checkoutState.clear();
-        // Si connecté → upgrade → aller vers AppLayout avec sidebar
-        const isLoggedIn = !!this.authService.getToken() && !!this.authService.currentUser();
-        const route = isLoggedIn ? '/app/upgrade-confirmation' : '/billing/confirmation';
-        this.router.navigate([route], {
+        this.checkoutState.clearUpgradeMode();
+        const destination = isUpgrade ? '/app/upgrade-confirmation' : '/billing/confirmation';
+        this.router.navigate([destination], {
           state: { payment: res, email: s.adminEmail, orgName: s.orgName }
         });
       },
-      error: () => { this.isSubmitting.set(false); }
+      error: (err) => {
+        this.isSubmitting.set(false);
+        const msg = err?.error?.error ?? err?.error?.message ?? null;
+        this.errorMessage.set(msg ?? 'Payment failed. Please check your details and try again.');
+      }
     });
   }
 

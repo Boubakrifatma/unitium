@@ -35,7 +35,7 @@ register();
                             Multi-Device UI Consistency
                         </h1>
                         <p class="opacity-75 mb-4 mb-lg-5">Enhance your web projects with our responsive Angular Material Admin Dashboard Template. This comprehensive UI kit provides a sleek, modern, and intuitive design to help you build powerful, feature-rich admin panels with ease.</p>
-                        <button routerLink="/billing/pricing" matButton="filled" class="mx-2">Get Started <mat-icon iconPositionEnd>arrow_forward</mat-icon></button>
+                        <button (click)="scrollToPlans()" matButton="filled" class="mx-2">Get Started <mat-icon iconPositionEnd>arrow_forward</mat-icon></button>
                     </div>
                 </div>
             </div>
@@ -403,7 +403,7 @@ register();
         <!-- ══════════════════════════════════════════════════════════
              PRICING SECTION — CMP Plans (Enterprise & Academic)
              ══════════════════════════════════════════════════════════ -->
-        <div class="container py-4 py-lg-5">
+        <div id="plans-section" class="container py-4 py-lg-5">
             <!-- Section Header -->
             <div class="row gx-3 gx-lg-4 justify-content-center mb-3 mb-lg-4">
                 <div class="col-12 col-md-8 col-lg-6 text-center">
@@ -885,5 +885,9 @@ export class WebsiteComponent {
     hideSingleSelectionIndicator = signal(false);
     toggleSingleSelectionIndicator() {
         this.hideSingleSelectionIndicator.update((value) => !value);
+    }
+
+    scrollToPlans() {
+        document.getElementById('plans-section')?.scrollIntoView({ behavior: 'smooth' });
     }
 }

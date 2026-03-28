@@ -3,6 +3,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { CheckoutState, OrgType } from '../models/billing.models';
 
 const CHECKOUT_KEY = 'cmp_checkout_state';
+const UPGRADE_KEY  = 'cmp_upgrade_mode';
 
 @Injectable({ providedIn: 'root' })
 export class CheckoutStateService {
@@ -42,5 +43,17 @@ export class CheckoutStateService {
 
   hasState(): boolean {
     return !!this.checkoutState();
+  }
+
+  setUpgradeMode(): void {
+    if (this.isBrowser) localStorage.setItem(UPGRADE_KEY, '1');
+  }
+
+  isUpgradeMode(): boolean {
+    return this.isBrowser && localStorage.getItem(UPGRADE_KEY) === '1';
+  }
+
+  clearUpgradeMode(): void {
+    if (this.isBrowser) localStorage.removeItem(UPGRADE_KEY);
   }
 }

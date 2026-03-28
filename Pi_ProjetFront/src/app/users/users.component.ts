@@ -252,16 +252,23 @@ export class UsersComponent implements OnInit {
   dataSource = new MatTableDataSource<UserDTO>([]);
   displayedColumns = ['fullName', 'role', 'isActive', 'createdAt', 'actions'];
 
+  currentOrgType: 'enterprise' | 'academic' | null = null;
+
   get activeCount() { return this.dataSource.data.filter(u => u.isActive).length; }
   get adminCount() { return this.dataSource.data.filter(u => u.role === 'ADMIN' || u.role === 'SUPER_ADMIN').length; }
 
-  // Admin cannot assign ADMIN role — only MANAGER, EMPLOYEE, VIEWER
   get availableRoles(): string[] {
     const currentRole = this.authService.currentUser()?.role;
     if (currentRole === 'SUPER_ADMIN') {
-      return ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EMPLOYEE', 'TUTOR', 'VIEWER'];
+      return ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EMPLOYEE', 'PRODUCT_OWNER', 'VIEWER', 'TUTOR', 'STUDENT'];
     }
-    return ['MANAGER', 'EMPLOYEE', 'TUTOR', 'VIEWER'];
+    if (this.currentOrgType === 'enterprise') {
+      return ['MANAGER', 'EMPLOYEE', 'PRODUCT_OWNER', 'VIEWER'];
+    }
+    if (this.currentOrgType === 'academic') {
+      return ['TUTOR', 'STUDENT'];
+    }
+    return ['MANAGER', 'EMPLOYEE', 'PRODUCT_OWNER', 'VIEWER', 'TUTOR', 'STUDENT'];
   }
 
   ngOnInit() {
@@ -278,36 +285,30 @@ export class UsersComponent implements OnInit {
   loadUsers() {
     this.userService.getAll().subscribe({
       next: (data) => {
-        // Filter users based on current user's role
         const currentRole = this.authService.currentUser()?.role;
 
+        // Detect org type from any user in the dataset
+        const orgTypeUser = data.find(u => u.orgType != null);
+        if (orgTypeUser?.orgType) {
+          this.currentOrgType = orgTypeUser.orgType;
+        }
+
         if (currentRole === 'SUPER_ADMIN') {
-          // SUPER_ADMIN sees all users
           this.dataSource.data = data;
         } else if (currentRole === 'ADMIN') {
-          // ADMIN cannot see SUPER_ADMIN or other ADMINs
-          // Filter based on organization type
           this.dataSource.data = data.filter(user => {
-            // Hide SUPER_ADMIN and ADMIN users
             if (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') {
               return false;
             }
-
-            // For ENTERPRISE: show MANAGER, EMPLOYEE, VIEWER, PRODUCT_OWNER
-            if (user.orgType === 'enterprise') {
-              return ['MANAGER', 'EMPLOYEE', 'VIEWER', 'PRODUCT_OWNER'].includes(user.role);
+            if (this.currentOrgType === 'enterprise') {
+              return ['MANAGER', 'EMPLOYEE', 'PRODUCT_OWNER', 'VIEWER'].includes(user.role);
             }
-
-            // For ACADEMIC: show TUTOR, STUDENT, VIEWER
-            if (user.orgType === 'academic') {
-              return ['TUTOR', 'STUDENT', 'VIEWER'].includes(user.role);
+            if (this.currentOrgType === 'academic') {
+              return ['TUTOR', 'STUDENT'].includes(user.role);
             }
-
-            // Default: show lower roles
-            return ['MANAGER', 'EMPLOYEE', 'TUTOR', 'VIEWER', 'STUDENT', 'PRODUCT_OWNER'].includes(user.role);
+            return ['MANAGER', 'EMPLOYEE', 'PRODUCT_OWNER', 'VIEWER', 'TUTOR', 'STUDENT'].includes(user.role);
           });
         } else {
-          // Other roles see only their own data or no data
           this.dataSource.data = [];
         }
       },
@@ -384,7 +385,9 @@ export class UsersComponent implements OnInit {
       ADMIN: 'theme-yellow',
       MANAGER: 'theme-blue',
       EMPLOYEE: 'theme-green',
+      PRODUCT_OWNER: 'theme-orange',
       TUTOR: 'theme-purple',
+      STUDENT: 'theme-indigo',
       VIEWER: 'theme-cyan'
     };
     return map[role] ?? 'theme-cyan';

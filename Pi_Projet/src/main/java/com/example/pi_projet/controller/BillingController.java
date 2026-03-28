@@ -37,8 +37,9 @@ public class BillingController {
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (Exception e) {
             log.error("Payment error: {}", e.getMessage(), e);
+            String cause = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Payment processing failed. Please try again."));
+                .body(Map.of("error", cause != null ? cause : e.getClass().getSimpleName()));
         }
     }
 
@@ -129,6 +130,19 @@ public class BillingController {
     }
 
     @Authorized
+    @Operation(summary = "Cancel my organisation's current subscription")
+    @DeleteMapping("/my-subscription")
+    public ResponseEntity<?> cancelSubscription(HttpServletRequest request) {
+        User user = (User) request.getAttribute("currentUser");
+        boolean cancelled = billingService.cancelSubscription(user.getId());
+        if (cancelled) {
+            return ResponseEntity.ok(Map.of("message", "Subscription cancelled successfully"));
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @Authorized
     @Operation(summary = "Get my payment record by email (fallback)")
     @GetMapping("/my-payment")
     public ResponseEntity<?> getMyPayment(HttpServletRequest request) {
@@ -136,6 +150,19 @@ public class BillingController {
         return billingService.getPaymentByEmail(user.getEmail())
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
+    }
+
+    @Authorized
+    @Operation(summary = "Cancel my pending payment and subscription (fallback)")
+    @DeleteMapping("/my-payment")
+    public ResponseEntity<?> cancelMyPayment(HttpServletRequest request) {
+        User user = (User) request.getAttribute("currentUser");
+        boolean cancelled = billingService.cancelPaymentByEmail(user.getEmail());
+        if (cancelled) {
+            return ResponseEntity.ok(Map.of("message", "Payment cancelled successfully"));
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     // ── Super Admin ───────────────────────────────────────────────────────────
@@ -174,6 +201,22 @@ public class BillingController {
     @GetMapping("/usage-quotas")
     public ResponseEntity<List<UsageQuotaDTO>> getAllUsageQuotas() {
         return ResponseEntity.ok(billingService.getAllUsageQuotas());
+    }
+
+    @Operation(summary = "Update an existing plan (super admin)")
+    @PutMapping("/plans/{planId}")
+    public ResponseEntity<?> updatePlan(@PathVariable String planId, @Valid @RequestBody CreatePlanRequestDTO request) {
+        try {
+            PlanDTO planDTO = billingService.updatePlan(planId, request);
+            return ResponseEntity.ok(planDTO);
+        } catch (IllegalArgumentException e) {
+            log.error("Plan update error: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            log.error("Plan update error: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Plan update failed. Please try again."));
+        }
     }
 
     @Operation(summary = "Delete a plan permanently (super admin)")

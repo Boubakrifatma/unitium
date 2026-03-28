@@ -25,6 +25,7 @@ export interface PlanDTO {
   maxWorkspaces: number; maxMembersPerWs: number; maxActiveProjects: number;
   storageMb: number; mlTier: string; supportTier: string;
   apiAccess: boolean; ssoEnabled: boolean; isActive: boolean;
+  orgType: string;
 }
 
 export interface InvoiceLineItemDTO {
@@ -166,7 +167,19 @@ export class OrgBillingService {
     return this.http.post<PlanDTO>(`${this.API}/plans`, plan);
   }
 
+  updatePlan(planId: string, plan: any): Observable<PlanDTO> {
+    return this.http.put<PlanDTO>(`${this.API}/plans/${planId}`, plan);
+  }
+
   deletePlan(planId: string): Observable<any> {
     return this.http.delete(`${this.API}/plans/${planId}`);
+  }
+
+  cancelSubscription(): Observable<any> {
+    return this.http.delete(`${this.API}/my-subscription`);
+  }
+
+  cancelPayment(): Observable<any> {
+    return this.http.delete(`${this.API}/my-payment`);
   }
 }

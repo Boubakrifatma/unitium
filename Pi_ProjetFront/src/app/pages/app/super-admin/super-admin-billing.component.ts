@@ -395,10 +395,17 @@ import { PaymentResponse } from '../../../billing/models/billing.models';
                   <option>NONE</option><option>BASIC</option><option>FULL</option><option>FULL_API</option>
                 </select>
               </div>
-              <div class="col-12 mb-3">
+              <div class="col-6 mb-3">
                 <label class="field-lbl">Support Tier</label>
                 <select class="field-input" [(ngModel)]="pf.supportTier">
                   <option>COMMUNITY</option><option>EMAIL</option><option>PRIORITY</option><option>DEDICATED</option>
+                </select>
+              </div>
+              <div class="col-6 mb-3">
+                <label class="field-lbl">Organisation Type</label>
+                <select class="field-input" [(ngModel)]="pf.orgType">
+                  <option value="enterprise">Enterprise</option>
+                  <option value="academic">Academic</option>
                 </select>
               </div>
             </div>
@@ -501,7 +508,7 @@ export class SuperAdminBillingComponent implements OnInit {
 
   showModal = false;
   editing: PlanDTO | null = null;
-  pf = { displayName:'', priceMonthly:0, priceYearly:0, storageMb:10, mlTier:'BASIC', supportTier:'EMAIL' };
+  pf = { displayName:'', priceMonthly:0, priceYearly:0, storageMb:10, mlTier:'BASIC', supportTier:'EMAIL', orgType:'enterprise' };
 
   get totalRevenue() { return this.payments.filter(p=>p.status==='CONFIRMED').reduce((s,p)=>s+p.amount,0); }
   get confirmedPayments() { return this.payments.filter(p=>p.status==='CONFIRMED').length; }
@@ -527,13 +534,13 @@ export class SuperAdminBillingComponent implements OnInit {
 
   openAddPlan() {
     this.editing=null;
-    this.pf={displayName:'',priceMonthly:0,priceYearly:0,storageMb:10,mlTier:'BASIC',supportTier:'EMAIL'};
+    this.pf={displayName:'',priceMonthly:0,priceYearly:0,storageMb:10,mlTier:'BASIC',supportTier:'EMAIL',orgType:'enterprise'};
     this.showModal=true;
   }
 
   editPlan(p:PlanDTO) {
     this.editing=p;
-    this.pf={displayName:p.displayName,priceMonthly:p.priceMonthly,priceYearly:p.priceYearly,storageMb:Math.round(p.storageMb/1024),mlTier:p.mlTier,supportTier:p.supportTier};
+    this.pf={displayName:p.displayName,priceMonthly:p.priceMonthly,priceYearly:p.priceYearly,storageMb:Math.round(p.storageMb/1024),mlTier:p.mlTier,supportTier:p.supportTier,orgType:p.orgType??'enterprise'};
     this.showModal=true;
   }
 
@@ -547,30 +554,27 @@ export class SuperAdminBillingComponent implements OnInit {
       displayName: this.pf.displayName,
       priceMonthly: this.pf.priceMonthly,
       priceYearly: this.pf.priceYearly,
-      storageMb: this.pf.storageMb * 1024, // Convert GB to MB
+      storageMb: this.pf.storageMb * 1024,
       mlTier: this.pf.mlTier,
-      supportTier: this.pf.supportTier
+      supportTier: this.pf.supportTier,
+      orgType: this.pf.orgType
     };
 
-    console.log('Creating plan with payload:', payload);
+    const isEditing = !!this.editing;
+    const request$ = isEditing
+      ? this.orgBilling.updatePlan(this.editing!.id, payload)
+      : this.orgBilling.createPlan(payload);
 
-    this.orgBilling.createPlan(payload).subscribe({
-      next: (newPlan) => {
-        console.log('Plan created successfully:', newPlan);
-        // Close modal in next event loop to avoid change detection error
+    request$.subscribe({
+      next: (_) => {
         setTimeout(() => {
           this.showModal = false;
-          alert('Plan created successfully!');
+          alert(isEditing ? 'Plan updated successfully!' : 'Plan created successfully!');
         }, 0);
-        // Refresh plans list
-        this.orgBilling.getActivePlans().subscribe(d => {
-          this.plans = d;
-          console.log('Plans refreshed');
-        });
+        this.orgBilling.getActivePlans().subscribe(d => { this.plans = d; });
       },
       error: (err) => {
-        console.error('Plan creation error:', err);
-        const errorMsg = err?.error?.error || err?.message || 'Failed to create plan';
+        const errorMsg = err?.error?.error || err?.message || (isEditing ? 'Failed to update plan' : 'Failed to create plan');
         alert('Error: ' + errorMsg);
       }
     });

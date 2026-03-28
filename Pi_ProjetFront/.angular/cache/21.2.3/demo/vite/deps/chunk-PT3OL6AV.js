@@ -20,9 +20,6 @@ import {
   _getEventTarget
 } from "./chunk-EE4Q3I4S.js";
 import {
-  _CdkPrivateStyleLoader
-} from "./chunk-MV2NGOTN.js";
-import {
   coerceArray
 } from "./chunk-N4DOILP3.js";
 import {
@@ -37,6 +34,9 @@ import {
   BidiModule,
   Directionality
 } from "./chunk-EKTVZ2II.js";
+import {
+  _CdkPrivateStyleLoader
+} from "./chunk-MV2NGOTN.js";
 import {
   Platform
 } from "./chunk-CXH2GZ4H.js";
@@ -2663,4 +2663,4 @@ export {
   CdkConnectedOverlay,
   OverlayModule
 };
-//# sourceMappingURL=chunk-G5B6F3QR.js.map
+//# sourceMappingURL=chunk-PT3OL6AV.js.map

@@ -315,7 +315,7 @@ export class PricingComponent {
   billingCycle = signal<BillingCycle>('monthly');
 
   currentPlans = computed(() =>
-    this.orgType() === 'enterprise' ? this.billing.enterprisePlans : this.billing.academicPlans
+    this.orgType() === 'enterprise' ? this.billing.enterprisePlans() : this.billing.academicPlans()
   );
 
   constructor(private billing: BillingService, private checkoutState: CheckoutStateService, private router: Router) {}
