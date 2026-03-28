@@ -95,4 +95,8 @@ export class M2ProjectService {
     removeProjectMember(workspaceId: string, projectId: string, userId: number): Observable<void> {
         return this.http.delete<void>(`${this.workspaceBase}/${workspaceId}/projects/${projectId}/members/${userId}`);
     }
+
+    bulkChangeStatus(workspaceId: string, projectIds: string[], status: string): Observable<M2ProjectSummary[]> {
+        return this.http.patch<M2ProjectSummary[]>(`${this.workspaceBase}/${workspaceId}/projects/bulk-status`, { projectIds, status });
+    }
 }

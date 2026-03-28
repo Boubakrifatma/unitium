@@ -8,10 +8,12 @@ import { MatCardModule } from "@angular/material/card";
 import { MatIconModule } from "@angular/material/icon";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInputModule } from "@angular/material/input";
+import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
 import { MatSnackBarModule, MatSnackBar } from "@angular/material/snack-bar";
+import { MatTooltipModule } from "@angular/material/tooltip";
 import { MatDialog } from "@angular/material/dialog";
-import { forkJoin, of } from "rxjs";
-import { catchError } from "rxjs/operators";
+import { forkJoin, of, Subject } from "rxjs";
+import { catchError, debounceTime, distinctUntilChanged } from "rxjs/operators";
 import { M2TemplateService, M2TemplateSummary } from "./m2-template.service";
 import { TemplatesCardsComponent, TemplateCardItem } from "./templates-cards.component";
 import { TemplatesGridComponent } from "./templates-grid.component";
@@ -43,6 +45,7 @@ const QUICK_STARTERS: QuickStarter[] = [
         CommonModule, RouterLink, FormsModule,
         MatCardModule, MatIconModule, MatButtonModule,
         MatFormFieldModule, MatInputModule, MatSnackBarModule,
+        MatProgressSpinnerModule, MatTooltipModule,
         TemplatesCardsComponent, TemplatesGridComponent,
     ],
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
@@ -53,6 +56,9 @@ const QUICK_STARTERS: QuickStarter[] = [
         .tab-btn { border:none; background:none; padding:8px 14px; border-radius:20px; cursor:pointer; font-size:13px; color:#64748b; transition:all .15s; display:inline-flex; align-items:center; gap:6px; }
         .tab-btn.active { background:rgba(99,102,241,0.1); color:#6366f1; font-weight:600; }
         .tab-btn:hover:not(.active) { background:rgba(0,0,0,0.04); }
+        .filter-chip { border:1px solid rgba(0,0,0,0.13); background:none; padding:4px 12px; border-radius:16px; cursor:pointer; font-size:12px; color:#475569; transition:all .15s; }
+        .filter-chip.active { border-color:#6366f1; background:rgba(99,102,241,0.09); color:#6366f1; font-weight:600; }
+        .filter-chip:hover:not(.active) { background:rgba(0,0,0,0.04); }
     `],
     template: `
         <div class="container-fluid fade-in mb-3 mb-lg-4">
@@ -149,18 +155,23 @@ const QUICK_STARTERS: QuickStarter[] = [
 
                 <!-- ── Tabs ── -->
                 <div class="d-flex align-items-center gap-1 mt-3 mb-2 flex-wrap">
-                    <button class="tab-btn" [class.active]="activeTab() === 'mine'" (click)="activeTab.set('mine')">
+                    <button class="tab-btn" [class.active]="activeTab() === 'mine'" (click)="setTab('mine')">
                         <mat-icon class="material-icons-outlined" style="font-size:16px;width:16px;height:16px;">folder_special</mat-icon>
                         My Templates
                         <span class="badge badge-light" style="font-size:10px;">{{ myTemplates().length }}</span>
                     </button>
-                    <button class="tab-btn" [class.active]="activeTab() === 'hub'" (click)="activeTab.set('hub')">
+                    <button class="tab-btn" [class.active]="activeTab() === 'hub'" (click)="setTab('hub')">
                         <mat-icon class="material-icons-outlined" style="font-size:16px;width:16px;height:16px;">public</mat-icon>
                         Template Hub
                         <span class="badge badge-light" style="font-size:10px;">{{ publicTemplates().length }}</span>
                     </button>
+                    <button class="tab-btn" [class.active]="activeTab() === 'favorites'" (click)="setTab('favorites')">
+                        <mat-icon class="material-icons-outlined" style="font-size:16px;width:16px;height:16px;">favorite</mat-icon>
+                        Favorites
+                        <span class="badge badge-light" style="font-size:10px;">{{ favoritesTemplates().length }}</span>
+                    </button>
                     @if (isAdmin()) {
-                        <button class="tab-btn" [class.active]="activeTab() === 'pending'" (click)="activeTab.set('pending')">
+                        <button class="tab-btn" [class.active]="activeTab() === 'pending'" (click)="setTab('pending')">
                             <mat-icon class="material-icons-outlined" style="font-size:16px;width:16px;height:16px;">pending_actions</mat-icon>
                             Pending Review
                             @if (pendingTemplates().length > 0) {
@@ -171,6 +182,25 @@ const QUICK_STARTERS: QuickStarter[] = [
                         </button>
                     }
                 </div>
+
+                <!-- ── Hub filter chips ── -->
+                @if (activeTab() === 'hub') {
+                    <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+                        <span class="text-secondary small me-1">Type:</span>
+                        @for (opt of typeOptions; track opt.value) {
+                            <button class="filter-chip" [class.active]="typeFilter() === opt.value"
+                                (click)="setTypeFilter(opt.value)">{{ opt.label }}</button>
+                        }
+                        <span class="text-secondary small ms-3 me-1">Difficulty:</span>
+                        @for (opt of difficultyOptions; track opt.value) {
+                            <button class="filter-chip" [class.active]="difficultyFilter() === opt.value"
+                                (click)="setDifficultyFilter(opt.value)">{{ opt.label }}</button>
+                        }
+                        @if (hubSearchLoading()) {
+                            <mat-progress-spinner diameter="18" mode="indeterminate" class="ms-2"></mat-progress-spinner>
+                        }
+                    </div>
+                }
 
                 <!-- ── Pending Review banner ── -->
                 @if (activeTab() === 'pending' && isAdmin()) {
@@ -226,13 +256,19 @@ const QUICK_STARTERS: QuickStarter[] = [
                 }
 
                 <!-- ── Empty state ── -->
-                @if (activeTabData().length === 0 && activeTab() !== 'pending') {
+                @if (activeTabData().length === 0 && activeTab() !== 'pending' && !hubSearchLoading()) {
                     <mat-card class="mt-2">
                         <mat-card-content class="text-center py-5">
-                            <mat-icon class="material-icons-outlined text-secondary" style="font-size:56px;width:56px;height:56px;">layers</mat-icon>
-                            <h4 class="mt-3 mb-1">{{ activeTab() === 'mine' ? 'No templates yet' : 'No public templates found' }}</h4>
+                            <mat-icon class="material-icons-outlined text-secondary" style="font-size:56px;width:56px;height:56px;">
+                                {{ activeTab() === 'favorites' ? 'favorite_border' : 'layers' }}
+                            </mat-icon>
+                            <h4 class="mt-3 mb-1">
+                                {{ activeTab() === 'mine' ? 'No templates yet' : activeTab() === 'favorites' ? 'No favorites yet' : 'No templates found' }}
+                            </h4>
                             <p class="text-secondary small mb-3">
-                                {{ activeTab() === 'mine' ? 'Pick a blueprint above or create a blank template.' : 'No approved templates in the hub yet.' }}
+                                {{ activeTab() === 'mine' ? 'Pick a blueprint above or create a blank template.'
+                                   : activeTab() === 'favorites' ? 'Browse the Template Hub and click ♥ to save favorites.'
+                                   : 'Try adjusting the search or filters.' }}
                             </p>
                         </mat-card-content>
                     </mat-card>
@@ -256,14 +292,16 @@ const QUICK_STARTERS: QuickStarter[] = [
                                 [templatesData]="activeTabData()"
                                 [currentUserId]="currentUserId()"
                                 [isAdmin]="isAdmin()"
-                                [title]="activeTab() === 'mine' ? 'My Templates' : 'Template Hub'">
+                                [canFavorite]="canFavorite()"
+                                [title]="activeTab() === 'mine' ? 'My Templates' : activeTab() === 'favorites' ? 'My Favorites' : 'Template Hub'"
+                                (favoriteChanged)="onFavoriteChanged($event)">
                             </app-templates-cards>
                         } @else {
                             <app-templates-grid
                                 [templatesData]="activeTabData()"
                                 [currentUserId]="currentUserId()"
                                 [isAdmin]="isAdmin()"
-                                [title]="activeTab() === 'mine' ? 'My Templates' : 'Template Hub'">
+                                [title]="activeTab() === 'mine' ? 'My Templates' : activeTab() === 'favorites' ? 'My Favorites' : 'Template Hub'">
                             </app-templates-grid>
                         }
                     }
@@ -281,14 +319,34 @@ export class M2TemplatesComponent implements OnInit {
 
     readonly quickStarters: QuickStarter[] = QUICK_STARTERS;
 
+    readonly typeOptions = [
+        { value: "", label: "All" },
+        { value: "SCRUM", label: "Scrum" },
+        { value: "KANBAN", label: "Kanban" },
+        { value: "WATERFALL", label: "Waterfall" },
+        { value: "CUSTOM", label: "Custom" },
+    ];
+    readonly difficultyOptions = [
+        { value: "", label: "All" },
+        { value: "BEGINNER", label: "Beginner" },
+        { value: "INTERMEDIATE", label: "Intermediate" },
+        { value: "ADVANCED", label: "Advanced" },
+    ];
+
     readonly myTemplates = signal<TemplateCardItem[]>([]);
     readonly publicTemplates = signal<TemplateCardItem[]>([]);
     readonly pendingTemplates = signal<TemplateCardItem[]>([]);
-    readonly activeTab = signal<"mine" | "hub" | "pending">("mine");
+    readonly favoritesTemplates = signal<TemplateCardItem[]>([]);
+    readonly activeTab = signal<"mine" | "hub" | "favorites" | "pending">("mine");
+    readonly typeFilter = signal("");
+    readonly difficultyFilter = signal("");
     readonly searchQuery = signal("");
     readonly viewMode = signal<"cards" | "grid">("cards");
     readonly loading = signal(false);
+    readonly hubSearchLoading = signal(false);
     readonly error = signal("");
+
+    private readonly hubSearch$ = new Subject<void>();
 
     readonly currentUserId = computed(() => this.authService.currentUser()?.id ?? 0);
     readonly isAdmin = computed(() => {
@@ -300,9 +358,16 @@ export class M2TemplatesComponent implements OnInit {
         return role === "ADMIN" || role === "SUPER_ADMIN" || role === "MANAGER" || role === "TUTOR";
     });
 
-    // Filtered data for the active non-pending tab
+    /** Only TUTOR and MANAGER may favorite templates */
+    readonly canFavorite = computed(() => {
+        const role = this.authService.currentUser()?.role;
+        return role === "TUTOR" || role === "MANAGER";
+    });
+
     readonly activeTabData = computed(() => {
-        const src = this.activeTab() === "mine" ? this.myTemplates() : this.publicTemplates();
+        const tab = this.activeTab();
+        if (tab === "favorites") return this.favoritesTemplates();
+        const src = tab === "mine" ? this.myTemplates() : this.publicTemplates();
         const q = this.searchQuery().toLowerCase();
         if (!q) return src;
         return src.filter(t =>
@@ -317,7 +382,67 @@ export class M2TemplatesComponent implements OnInit {
     );
 
     ngOnInit(): void {
+        this.hubSearch$.pipe(debounceTime(350), distinctUntilChanged()).subscribe(() => this.runHubSearch());
         this.loadData();
+    }
+
+    setTab(tab: "mine" | "hub" | "favorites" | "pending"): void {
+        this.activeTab.set(tab);
+        if (tab === "favorites") this.loadFavorites();
+    }
+
+    setTypeFilter(val: string): void {
+        this.typeFilter.set(val);
+        this.hubSearch$.next();
+    }
+
+    setDifficultyFilter(val: string): void {
+        this.difficultyFilter.set(val);
+        this.hubSearch$.next();
+    }
+
+    loadFavorites(): void {
+        this.templateService.getMyFavorites(0, 50).pipe(catchError(() => of({ content: [] }))).subscribe(page => {
+            this.favoritesTemplates.set((page.content || []).map(t => ({ ...this.toCardItem(t), favorited: true })));
+        });
+    }
+
+    onFavoriteChanged(event: { id: string; favorited: boolean }): void {
+        const tab = this.activeTab();
+        if (tab === 'favorites' && !event.favorited) {
+            // Unfavorited inside Favorites tab → remove from list
+            this.favoritesTemplates.update(list => list.filter(t => t.id !== event.id));
+        }
+        // Keep hub and mine lists in sync
+        this.publicTemplates.update(list => list.map(t =>
+            t.id === event.id ? { ...t, favorited: event.favorited } : t
+        ));
+        this.myTemplates.update(list => list.map(t =>
+            t.id === event.id ? { ...t, favorited: event.favorited } : t
+        ));
+        if (event.favorited) {
+            // If favorited from hub/mine and not already in favorites list, add it
+            if (!this.favoritesTemplates().find(t => t.id === event.id)) {
+                const src = [...this.publicTemplates(), ...this.myTemplates()].find(t => t.id === event.id);
+                if (src) this.favoritesTemplates.update(list => [src, ...list]);
+            }
+        }
+    }
+
+    runHubSearch(): void {
+        this.hubSearchLoading.set(true);
+        const search = this.searchQuery() || undefined;
+        const type = this.typeFilter() || undefined;
+        const difficulty = this.difficultyFilter() || undefined;
+        // Keep current favorite set for cross-referencing
+        const currentFavIds = new Set(this.favoritesTemplates().map(t => t.id));
+        this.templateService.search({ search, type, difficulty }).pipe(catchError(() => of({ content: [] }))).subscribe(page => {
+            this.publicTemplates.set((page.content || []).map(t => ({
+                ...this.toCardItem(t),
+                favorited: currentFavIds.has(t.id),
+            })));
+            this.hubSearchLoading.set(false);
+        });
     }
 
     loadData(): void {
@@ -332,10 +457,17 @@ export class M2TemplatesComponent implements OnInit {
             this.isAdmin()
                 ? this.templateService.getPending(0, 100).pipe(catchError(() => of({ content: [] })))
                 : of({ content: [] }),
+            this.canFavorite()
+                ? this.templateService.getMyFavorites(0, 200).pipe(catchError(() => of({ content: [] })))
+                : of({ content: [] }),
         ]).subscribe({
-            next: ([myPage, hubPage, pendingPage]) => {
+            next: ([myPage, hubPage, pendingPage, favPage]) => {
+                const favIds = new Set<string>((favPage.content || []).map((t: { id: string }) => t.id));
                 this.myTemplates.set((myPage.content || []).map(t => this.toCardItem(t)));
-                this.publicTemplates.set((hubPage.content || []).map(t => this.toCardItem(t)));
+                this.publicTemplates.set((hubPage.content || []).map(t => ({
+                    ...this.toCardItem(t),
+                    favorited: favIds.has(t.id),
+                })));
                 this.pendingTemplates.set((pendingPage.content || []).map(t => this.toCardItem(t)));
                 this.loading.set(false);
             },
@@ -347,7 +479,9 @@ export class M2TemplatesComponent implements OnInit {
     }
 
     onSearch(event: Event): void {
-        this.searchQuery.set((event.target as HTMLInputElement).value);
+        const val = (event.target as HTMLInputElement).value;
+        this.searchQuery.set(val);
+        if (this.activeTab() === "hub") this.hubSearch$.next();
     }
 
     openCreateDialog(starterType?: string): void {
@@ -389,6 +523,8 @@ export class M2TemplatesComponent implements OnInit {
             isFeatured: t.isFeatured,
             isTrending: t.isTrending,
             createdBy: t.createdBy,
+            favorited: t.favorited,
+            favoriteCount: t.favoriteCount,
         };
     }
 

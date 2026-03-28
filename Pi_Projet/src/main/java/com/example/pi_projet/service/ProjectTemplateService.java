@@ -1,18 +1,26 @@
 package com.example.pi_projet.service;
 
 import com.example.pi_projet.entity.ProjectTemplate;
+import com.example.pi_projet.entity.TemplateFavorite;
 import com.example.pi_projet.entity.TemplateRating;
 import com.example.pi_projet.exception.M2ValidationUtils;
 import com.example.pi_projet.exception.Module2Exception;
 import static com.example.pi_projet.exception.Module2Exception.ErrorCode.*;
 import com.example.pi_projet.repository.ProjectTemplateRepository;
+import com.example.pi_projet.repository.TemplateFavoriteRepository;
 import com.example.pi_projet.repository.TemplateRatingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -21,6 +29,7 @@ import java.util.UUID;
 public class ProjectTemplateService {
     private final ProjectTemplateRepository projectTemplateRepository;
     private final TemplateRatingRepository templateRatingRepository;
+    private final TemplateFavoriteRepository templateFavoriteRepository;
 
     public Page<ProjectTemplate> getAll(Pageable pageable) {
         return projectTemplateRepository.findAll(pageable);
@@ -152,6 +161,71 @@ public class ProjectTemplateService {
         t.setIsTrending(trending);
         return projectTemplateRepository.save(t);
     }
+
+    // ─── Server-side search ────────────────────────────────────────────────────
+
+    public Page<ProjectTemplate> search(String search, String type, String status,
+                                         String difficulty, Boolean isPublic,
+                                         Pageable pageable) {
+        String searchTrim = StringUtils.hasText(search) ? search.trim() : null;
+        ProjectTemplate.TemplateType typeEnum = parseEnum(ProjectTemplate.TemplateType.class, type);
+        ProjectTemplate.TemplateStatus statusEnum = parseEnum(ProjectTemplate.TemplateStatus.class, status);
+        ProjectTemplate.DifficultyLevel difficultyEnum = parseEnum(ProjectTemplate.DifficultyLevel.class, difficulty);
+        return projectTemplateRepository.search(searchTrim, typeEnum, statusEnum, difficultyEnum, isPublic, pageable);
+    }
+
+    private <E extends Enum<E>> E parseEnum(Class<E> cls, String val) {
+        if (!StringUtils.hasText(val)) return null;
+        try { return Enum.valueOf(cls, val.trim().toUpperCase(Locale.ROOT)); }
+        catch (Exception e) { return null; }
+    }
+
+    // ─── Template Favoriting ───────────────────────────────────────────────────
+
+    @org.springframework.transaction.annotation.Transactional
+    public Map<String, Object> toggleFavorite(UUID templateId, Long userId) {
+        projectTemplateRepository.findById(templateId)
+            .orElseThrow(() -> new Module2Exception(NOT_FOUND, "Template not found"));
+        boolean isFav = templateFavoriteRepository.existsByTemplateIdAndUserId(templateId, userId);
+        if (isFav) {
+            templateFavoriteRepository.deleteByTemplateIdAndUserId(templateId, userId);
+        } else {
+            templateFavoriteRepository.save(
+                TemplateFavorite.builder().templateId(templateId).userId(userId).build());
+        }
+        long count = templateFavoriteRepository.countByTemplateId(templateId);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("favorited", !isFav);
+        result.put("favoriteCount", count);
+        return result;
+    }
+
+    public Page<ProjectTemplate> getMyFavorites(Long userId, Pageable pageable) {
+        List<UUID> ids = templateFavoriteRepository.findTemplateIdsByUserId(userId);
+        if (ids.isEmpty()) return Page.empty(pageable);
+        List<ProjectTemplate> templates = projectTemplateRepository.findAllByIdIn(ids);
+        int start = (int) pageable.getOffset();
+        int end = Math.min(start + pageable.getPageSize(), templates.size());
+        List<ProjectTemplate> page = start >= templates.size() ? List.of() : templates.subList(start, end);
+        return new PageImpl<>(page, pageable, templates.size());
+    }
+
+    public boolean isFavorited(UUID templateId, Long userId) {
+        return templateFavoriteRepository.existsByTemplateIdAndUserId(templateId, userId);
+    }
+
+    public long getFavoriteCount(UUID templateId) {
+        return templateFavoriteRepository.countByTemplateId(templateId);
+    }
+
+    public Map<String, Object> getFavoriteStatus(UUID templateId, Long userId) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("favorited", isFavorited(templateId, userId));
+        result.put("favoriteCount", getFavoriteCount(templateId));
+        return result;
+    }
+
+    // ─── Fork ─────────────────────────────────────────────────────────────────
 
     @org.springframework.transaction.annotation.Transactional
     public ProjectTemplate forkTemplate(UUID sourceId, Long requesterId) {

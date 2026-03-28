@@ -27,7 +27,7 @@ export interface TableItem {
     image: string;
     name: string;
     company: string;
-    status: "Active" | "On Hold" | "Completed" | "";
+    status: string; // raw backend enum: ACTIVE, ON_HOLD, PLANNING, COMPLETED, CANCELLED, ARCHIVED
     priority: "High" | "Medium" | "Low" | "";
     managerimage: string;
     manager: string;
@@ -92,11 +92,12 @@ export interface TableItem {
                         <span
                             class="badge"
                             [ngClass]="{
-                                'theme-green': item.status === 'Active',
-                                'theme-orange': item.status === 'On Hold',
-                                'theme-red': item.status === 'Completed'
+                                'theme-green':  item.status === 'ACTIVE',
+                                'theme-orange': item.status === 'ON_HOLD' || item.status === 'PLANNING',
+                                'theme-red':    item.status === 'CANCELLED',
+                                'theme-violet': item.status === 'COMPLETED' || item.status === 'ARCHIVED'
                             }">
-                            {{ item.status }}
+                            {{ statusDisplay(item.status) }}
                         </span>
                     </td>
                 </ng-container>
@@ -234,6 +235,8 @@ export class ProjectsGridComponent implements OnInit {
                     return item.manager;
                 case "dueDate":
                     return item.dueDate;
+                case "progress":
+                    return item.progress;
                 default:
                     return "";
             }
@@ -247,6 +250,14 @@ export class ProjectsGridComponent implements OnInit {
         if (this.projectsData && this.projectsData.length > 0) {
             this.dataSource.data = [...this.projectsData];
         }
+    }
+
+    statusDisplay(status: string): string {
+        const map: Record<string, string> = {
+            PLANNING: "Planning", ACTIVE: "Active", ON_HOLD: "On Hold",
+            COMPLETED: "Completed", CANCELLED: "Cancelled", ARCHIVED: "Archived",
+        };
+        return map[(status || "").toUpperCase()] || status;
     }
 
     applyFilter(event: Event) {

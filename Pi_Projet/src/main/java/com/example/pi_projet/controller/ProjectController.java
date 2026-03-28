@@ -112,6 +112,42 @@ public class ProjectController {
         return projectService.changeStatus(projectId, status, currentUser.getId());
     }
 
+    @PatchMapping("/bulk-status")
+    public List<Project> bulkChangeStatus(@PathVariable UUID workspaceId,
+                                           @RequestBody Map<String, Object> body,
+                                           HttpServletRequest request) {
+        User currentUser = requireCurrentUser(request);
+
+        Object idsRaw = body.get("projectIds");
+        if (!(idsRaw instanceof List<?>)) {
+            throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "projectIds must be a list");
+        }
+        List<UUID> projectIds = new java.util.ArrayList<>();
+        for (Object item : (List<?>) idsRaw) {
+            try {
+                projectIds.add(UUID.fromString(item.toString()));
+            } catch (IllegalArgumentException ex) {
+                throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "Invalid UUID in projectIds: " + item);
+            }
+        }
+        if (projectIds.isEmpty()) {
+            throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "projectIds must not be empty");
+        }
+
+        String statusRaw = body.get("status") != null ? body.get("status").toString() : null;
+        if (statusRaw == null || statusRaw.isBlank()) {
+            throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "status is required");
+        }
+        ProjectStatus newStatus;
+        try {
+            newStatus = ProjectStatus.valueOf(statusRaw.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "Invalid status: " + statusRaw);
+        }
+
+        return projectService.bulkChangeStatus(workspaceId, projectIds, newStatus, currentUser.getId());
+    }
+
     @DeleteMapping("/{projectId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID workspaceId,

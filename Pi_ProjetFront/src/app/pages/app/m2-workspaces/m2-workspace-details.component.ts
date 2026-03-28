@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { HttpErrorResponse } from "@angular/common/http";
+import { HttpClient, HttpErrorResponse } from "@angular/common/http";
 import { Component, OnInit, computed, inject, signal } from "@angular/core";
 import { MatDialog } from "@angular/material/dialog";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
@@ -9,6 +9,7 @@ import { MatIconModule } from "@angular/material/icon";
 import { MatProgressBarModule } from "@angular/material/progress-bar";
 import { MatSnackBar, MatSnackBarModule } from "@angular/material/snack-bar";
 import { MatTabChangeEvent, MatTabsModule } from "@angular/material/tabs";
+import { MatTooltipModule } from "@angular/material/tooltip";
 import { forkJoin, of } from "rxjs";
 import { catchError, take } from "rxjs/operators";
 import { AuthService } from "../../../auth/auth.service";
@@ -48,6 +49,7 @@ interface WorkspaceActivity {
         MatProgressBarModule,
         MatTabsModule,
         MatSnackBarModule,
+        MatTooltipModule,
         CircleProgressBlueComponent,
         WorkspaceMemberCardComponent,
     ],
@@ -284,11 +286,28 @@ interface WorkspaceActivity {
                             </ng-template>
 
                             <div class="p-3">
-                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-                                    <div>
+                                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                                    <div class="flex-grow-1" style="max-width:380px;">
                                         @if (memberCapacity()) {
-                                        <p class="small mb-0 text-secondary">Plan: {{ memberCapacity()!.planName }} | Workspace seats {{ memberCapacity()!.currentMembers }}/{{ memberCapacity()!.maxMembers }}</p>
-                                        <p class="small mb-0 text-secondary">Organization pool: {{ organizationMembers() }} members | Coverage {{ memberCoveragePercent() }}%</p>
+                                        <div class="mb-2 p-3 rounded" style="background:rgba(0,0,0,0.03);border:1px solid rgba(0,0,0,0.07);">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <span class="small fw-medium">Team capacity</span>
+                                                <span class="badge badge-light" style="font-size:10px;">{{ memberCapacity()!.planName }}</span>
+                                            </div>
+                                            <mat-progress-bar mode="determinate"
+                                                [value]="(memberCapacity()!.currentMembers / memberCapacity()!.maxMembers) * 100"
+                                                [color]="capacityBarColor()">
+                                            </mat-progress-bar>
+                                            <div class="d-flex justify-content-between mt-1">
+                                                <span class="text-secondary" style="font-size:11px;">{{ memberCapacity()!.currentMembers }} / {{ memberCapacity()!.maxMembers }} seats</span>
+                                                <span class="text-secondary" style="font-size:11px;">{{ memberCapacity()!.remainingMembers }} free</span>
+                                            </div>
+                                            @if (memberCapacity()!.remainingMembers === 0) {
+                                                <p class="small mb-0 mt-1" style="color:#dc2626;">Workspace full — upgrade plan to add members</p>
+                                            } @else if (memberCapacity()!.remainingMembers <= 2) {
+                                                <p class="small mb-0 mt-1" style="color:#d97706;">Only {{ memberCapacity()!.remainingMembers }} seat(s) remaining</p>
+                                            }
+                                        </div>
                                         } @else {
                                         <p class="small mb-0 text-secondary">Plan capacity is loading...</p>
                                         }
@@ -342,13 +361,24 @@ interface WorkspaceActivity {
                                 <p class="text-secondary mb-0">No members found for this workspace.</p>
                                 } @else {
                                 @for (member of members(); track member.userId) {
-                                <app-workspace-member-card
-                                    [member]="member"
-                                    [orgType]="normalizedOrgType()"
-                                    [canEditRole]="canEditMemberRole(member)"
-                                    [canRemoveMember]="canRemoveMember(member)"
-                                    (removeMember)="openMemberUnassignDialog($event)"
-                                    (editRole)="openMemberRoleEditDialog($event)"></app-workspace-member-card>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="flex-grow-1">
+                                        <app-workspace-member-card
+                                            [member]="member"
+                                            [orgType]="normalizedOrgType()"
+                                            [canEditRole]="canEditMemberRole(member)"
+                                            [canRemoveMember]="canRemoveMember(member)"
+                                            (removeMember)="openMemberUnassignDialog($event)"
+                                            (editRole)="openMemberRoleEditDialog($event)"></app-workspace-member-card>
+                                    </div>
+                                    @if (canManageWorkspace() && (member.workspaceRole || '').toUpperCase() !== 'OWNER' && member.userId !== currentUserId()) {
+                                        <button matIconButton matTooltip="Transfer ownership to this member"
+                                            style="flex-shrink:0;"
+                                            (click)="openTransferOwnerDialog(member)">
+                                            <mat-icon class="material-icons-outlined text-secondary" style="font-size:18px;">transfer_within_a_station</mat-icon>
+                                        </button>
+                                    }
+                                </div>
                                 }
                                 }
                             </div>
@@ -460,29 +490,33 @@ interface WorkspaceActivity {
                         <mat-tab>
                             <ng-template mat-tab-label>
                                 <mat-icon class="me-2">history</mat-icon>
-                                Activity <span class="badge badge-light ms-2">{{ activityItems().length }}</span>
+                                Activity
                             </ng-template>
 
                             <div class="p-3">
-                                @if (activityItems().length === 0) {
-                                <p class="text-secondary mb-0">No activity yet for this workspace.</p>
+                                @if (activityLoading()) {
+                                    <p class="text-secondary mb-0">Loading activity...</p>
+                                } @else if (activityLogs().length === 0) {
+                                    <div class="text-center py-5">
+                                        <mat-icon class="material-icons-outlined text-secondary" style="font-size:48px;width:48px;height:48px;">history</mat-icon>
+                                        <p class="text-secondary mt-2">No activity recorded yet for this workspace.</p>
+                                    </div>
                                 } @else {
                                 <ul class="activity">
-                                    @for (activity of activityItems(); track activity.id) {
+                                    @for (log of activityLogs(); track $index) {
                                     <li>
                                         <div class="row gx-3">
                                             <div class="col-auto">
                                                 <div class="avatar avatar-40 rounded-circle bg-light-theme text-theme d-flex align-items-center justify-content-center">
-                                                    <mat-icon class="material-icons-outlined">{{ activity.icon }}</mat-icon>
+                                                    <mat-icon class="material-icons-outlined">{{ activityIcon(strVal(log['action_type'])) }}</mat-icon>
                                                 </div>
                                             </div>
                                             <div class="col">
-                                                <p class="text-secondary small mb-1">{{ activity.timestamp | date : "MMM d, y, h:mm a" }}</p>
+                                                <p class="text-secondary small mb-1">{{ strVal(log['created_at']) | date : "MMM d, y, h:mm a" }}</p>
                                                 <p class="mb-0">
-                                                    <span class="text-theme">{{ activity.user }}</span>
-                                                    {{ activity.action }}
-                                                    <span class="text-theme">{{ activity.target }}</span
-                                                    >.
+                                                    <span class="text-theme">User #{{ log['user_id'] }}</span>
+                                                    <span class="ms-1">{{ humanizeAction(strVal(log['action_type'])) }}</span>
+                                                    <span class="text-secondary ms-1 small">{{ log['entity_type'] }}</span>
                                                 </p>
                                             </div>
                                         </div>
@@ -528,6 +562,7 @@ export class M2WorkspaceDetailsComponent implements OnInit {
     private readonly snackBar = inject(MatSnackBar);
 
     readonly permissionService = inject(WorkspacePermissionService);
+    private readonly http = inject(HttpClient);
 
     readonly workspace = signal<M2Workspace | null>(null);
     readonly members = signal<WorkspaceMember[]>([]);
@@ -536,7 +571,10 @@ export class M2WorkspaceDetailsComponent implements OnInit {
     readonly isLoading = signal(true);
     readonly membersLoading = signal(false);
     readonly error = signal<string | null>(null);
+    readonly activityLogs = signal<Record<string, unknown>[]>([]);
+    readonly activityLoading = signal(false);
 
+    readonly currentUserId = computed(() => this.authService.currentUser()?.id ?? 0);
     readonly totalMembers = computed(() => this.members().length);
     readonly ownerCount = computed(() => this.members().filter((m) => (m.workspaceRole || "").toUpperCase() === "OWNER").length);
     readonly organizationMembers = computed(() => Math.max(this.memberCapacity()?.organizationMembers ?? 0, this.totalMembers()));
@@ -691,6 +729,13 @@ export class M2WorkspaceDetailsComponent implements OnInit {
         return this.isSameOrganizationAsWorkspace() && (this.isCurrentUserOrgAdmin() || this.isCurrentUserAcademicTutor());
     });
 
+    readonly capacityBarColor = computed(() => {
+        const c = this.memberCapacity();
+        if (!c || c.maxMembers === 0) return 'primary';
+        const ratio = c.currentMembers / c.maxMembers;
+        return ratio >= 1 ? 'warn' : ratio >= 0.8 ? 'accent' : 'primary';
+    });
+
     readonly createdDateLabel = computed(() => {
         const createdAt = this.workspace()?.createdAt;
         return createdAt ? new Date(createdAt).toLocaleDateString() : "-";
@@ -751,16 +796,38 @@ export class M2WorkspaceDetailsComponent implements OnInit {
     }
 
     onTabChange(event: MatTabChangeEvent): void {
-        if (event.index !== 1) {
-            return;
-        }
-
         const workspaceId = this.route.snapshot.paramMap.get("workspaceId");
-        if (!workspaceId) {
-            return;
-        }
+        if (!workspaceId) return;
+        if (event.index === 1) this.loadMembers(workspaceId);
+        if (event.index === 4) this.loadActivity(workspaceId);
+    }
 
-        this.loadMembers(workspaceId);
+    loadActivity(workspaceId: string): void {
+        if (this.activityLoading()) return;
+        this.activityLoading.set(true);
+        this.http.get<Record<string, unknown>[]>(`http://localhost:8084/api/v1/workspaces/${workspaceId}/activity?limit=50`)
+            .pipe(catchError(() => of([])))
+            .subscribe(logs => {
+                this.activityLogs.set(logs || []);
+                this.activityLoading.set(false);
+            });
+    }
+
+    openTransferOwnerDialog(member: WorkspaceMember): void {
+        if (!this.canManageWorkspace()) return;
+        const workspaceId = this.route.snapshot.paramMap.get("workspaceId");
+        if (!workspaceId) return;
+        const confirmed = window.confirm(`Transfer workspace ownership to ${member.fullName || 'User #' + member.userId}?\nYou will be demoted to ADMIN.`);
+        if (!confirmed) return;
+        this.workspaceMemberService.transferOwner(workspaceId, member.userId).subscribe({
+            next: () => {
+                this.snackBar.open("Ownership transferred successfully.", "Close", { duration: 3500 });
+                this.loadMembers(workspaceId);
+            },
+            error: (error: HttpErrorResponse) => {
+                this.snackBar.open(`Failed to transfer ownership: ${this.errorMessage(error)}`, "Close", { duration: 4500 });
+            },
+        });
     }
 
     openInviteModal(): void {
@@ -1085,6 +1152,20 @@ export class M2WorkspaceDetailsComponent implements OnInit {
         }
 
         return true;
+    }
+
+    strVal(v: unknown): string { return v == null ? '' : String(v); }
+    humanizeAction(actionType: string): string {
+        return (actionType || '').replace(/_/g, ' ').toLowerCase();
+    }
+
+    activityIcon(actionType: string): string {
+        const map: Record<string, string> = {
+            ADD_WORKSPACE_MEMBER: 'person_add', REMOVE_WORKSPACE_MEMBER: 'person_remove',
+            UPDATE_WORKSPACE_MEMBER_ROLE: 'manage_accounts', CREATE_PROJECT: 'create_new_folder',
+            UPDATE_WORKSPACE: 'edit', TRANSFER_OWNER: 'transfer_within_a_station',
+        };
+        return map[actionType] || 'history';
     }
 
     backToWorkspaces(): void {

@@ -8,6 +8,8 @@ import { MatCardModule } from "@angular/material/card";
 import { MatIconModule } from "@angular/material/icon";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInputModule } from "@angular/material/input";
+import { MatSelectModule } from "@angular/material/select";
+import { MatTooltipModule } from "@angular/material/tooltip";
 import { MatDialog } from "@angular/material/dialog";
 import { MatSnackBarModule } from "@angular/material/snack-bar";
 import { MatSnackBar } from "@angular/material/snack-bar";
@@ -54,11 +56,19 @@ interface RealProjectRow {
         MatButtonModule,
         MatFormFieldModule,
         MatInputModule,
+        MatSelectModule,
+        MatTooltipModule,
         MatSnackBarModule,
         ProjectsCardsComponent,
         ProjectsGridComponent,
     ],
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
+    styles: [`
+        .status-chip { border:1px solid rgba(0,0,0,0.13); background:none; padding:4px 14px; border-radius:16px; cursor:pointer; font-size:12px; color:#475569; transition:all .15s; }
+        .status-chip.active { border-color:#6366f1; background:rgba(99,102,241,0.09); color:#6366f1; font-weight:600; }
+        .status-chip:hover:not(.active) { background:rgba(0,0,0,0.04); }
+        .bulk-bar { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:white; border-radius:12px; box-shadow:0 8px 32px rgba(0,0,0,0.18); padding:12px 20px; display:flex; align-items:center; gap:12px; z-index:1000; min-width:360px; }
+    `],
     template: `
         <div class="container-fluid fade-in mb-3 mb-lg-4">
             <mat-card class="bg-light-theme shadow-none pt-3 pb-lg-3 px-3">
@@ -81,14 +91,31 @@ interface RealProjectRow {
                         </mat-form-field>
                     </div>
 
-                    <div class="col-auto order-2 order-lg-3 mb-3 mb-xl-0">
+                    <div class="col-auto order-2 order-lg-3 mb-3 mb-xl-0 d-flex gap-1 align-items-center flex-wrap">
                         <button matButton (click)="loadRealProjects()"><mat-icon class="material-icons-outlined">refresh</mat-icon> Refresh</button>
                         @if (selectedWorkspaceId()) {
                         <button matButton class="ms-1" (click)="goBackToWorkspace()"><mat-icon class="material-icons-outlined">arrow_back</mat-icon> Workspace</button>
                         <button matButton class="ms-1" (click)="showAllWorkspaces()"><mat-icon class="material-icons-outlined">layers_clear</mat-icon> Show All</button>
                         }
+                        <button matIconButton [class.text-theme]="bulkMode()"
+                            matTooltip="{{ bulkMode() ? 'Exit select mode' : 'Select multiple' }}"
+                            (click)="toggleBulkMode()">
+                            <mat-icon class="material-icons-outlined">{{ bulkMode() ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+                        </button>
                     </div>
                 </div>
+                <!-- status filter chips -->
+                @if (projectCardsData().length > 0) {
+                    <div class="d-flex align-items-center gap-2 mt-2 flex-wrap">
+                        @for (opt of statusOptions; track opt.value) {
+                            <button class="status-chip" [class.active]="statusFilter() === opt.value"
+                                (click)="statusFilter.set(opt.value)">
+                                {{ opt.label }}
+                                <span style="font-size:11px;opacity:0.7;margin-left:4px;">{{ countByStatus(opt.value) }}</span>
+                            </button>
+                        }
+                    </div>
+                }
             </mat-card>
         </div>
 
@@ -233,6 +260,24 @@ interface RealProjectRow {
             </mat-card>
             }
         </div>
+
+        <!-- Bulk action floating bar -->
+        @if (bulkMode() && selectedProjectIds().length > 0) {
+            <div class="bulk-bar">
+                <mat-icon class="material-icons-outlined text-theme">checklist</mat-icon>
+                <span class="fw-medium" style="font-size:13px;">{{ selectedProjectIds().length }} selected</span>
+                <mat-form-field appearance="outline" class="inline-small mb-0" style="min-width:160px;">
+                    <mat-label>Change status to</mat-label>
+                    <mat-select [(ngModel)]="bulkTargetStatus">
+                        @for (s of changeableStatuses; track s.value) {
+                            <mat-option [value]="s.value">{{ s.label }}</mat-option>
+                        }
+                    </mat-select>
+                </mat-form-field>
+                <button matButton class="text-theme" [disabled]="!bulkTargetStatus" (click)="applyBulkStatus()">Apply</button>
+                <button matButton (click)="clearBulkSelection()">Cancel</button>
+            </div>
+        }
     `,
 })
 export class RealProjectsComponent implements OnInit {
@@ -249,7 +294,26 @@ export class RealProjectsComponent implements OnInit {
     readonly selectedWorkspaceName = signal("");
     readonly selectedWorkspaceOrgType = signal("enterprise");
     readonly searchQuery = signal("");
+    readonly statusFilter = signal("");
+    readonly bulkMode = signal(false);
+    readonly selectedProjectIds = signal<string[]>([]);
+    bulkTargetStatus = "";
     readonly selectedWorkspaceMembers = signal<M2WorkspaceMember[]>([]);
+
+    readonly statusOptions = [
+        { value: "",          label: "All" },
+        { value: "PLANNING",  label: "Planning" },
+        { value: "ACTIVE",    label: "Active" },
+        { value: "ON_HOLD",   label: "On Hold" },
+        { value: "COMPLETED", label: "Completed" },
+        { value: "CANCELLED", label: "Cancelled" },
+    ];
+    readonly changeableStatuses = [
+        { value: "ACTIVE",    label: "Active" },
+        { value: "ON_HOLD",   label: "On Hold" },
+        { value: "COMPLETED", label: "Completed" },
+        { value: "CANCELLED", label: "Cancelled" },
+    ];
 
     readonly projects = signal<RealProjectRow[]>([]);
     readonly projectCardsData = computed<ProjectCardItem[]>(() =>
@@ -258,7 +322,7 @@ export class RealProjectsComponent implements OnInit {
             image: row.image,
             name: row.name,
             company: row.company,
-            status: row.status as "Active" | "On Hold" | "Completed" | "",
+            status: row.status,
             priority: row.priority,
             managerimage: row.managerAvatarUrl,
             manager: row.manager,
@@ -273,14 +337,16 @@ export class RealProjectsComponent implements OnInit {
     );
 
     readonly filteredProjectCardsData = computed<ProjectCardItem[]>(() => {
+        let list = this.projectCardsData();
         const q = this.searchQuery().trim().toLowerCase();
-        if (!q) return this.projectCardsData();
-        return this.projectCardsData().filter(
-            (p) =>
-                p.name.toLowerCase().includes(q) ||
-                p.company.toLowerCase().includes(q) ||
-                (p.manager || "").toLowerCase().includes(q)
+        const statusF = this.statusFilter();
+        if (q) list = list.filter(p =>
+            p.name.toLowerCase().includes(q) ||
+            p.company.toLowerCase().includes(q) ||
+            (p.manager || "").toLowerCase().includes(q)
         );
+        if (statusF) list = list.filter(p => p.status === statusF);
+        return list;
     });
 
     readonly highlightProjects = computed(() => this.projectCardsData());
@@ -415,6 +481,41 @@ export class RealProjectsComponent implements OnInit {
         return 7;
     }
 
+    countByStatus(status: string): number {
+        if (!status) return this.projectCardsData().length;
+        return this.projectCardsData().filter(p => p.status === status).length;
+    }
+
+    toggleBulkMode(): void {
+        this.bulkMode.update(v => !v);
+        if (!this.bulkMode()) this.clearBulkSelection();
+    }
+
+    toggleProjectSelection(id: string): void {
+        this.selectedProjectIds.update(ids =>
+            ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]
+        );
+    }
+
+    clearBulkSelection(): void {
+        this.selectedProjectIds.set([]);
+        this.bulkTargetStatus = "";
+        this.bulkMode.set(false);
+    }
+
+    applyBulkStatus(): void {
+        const workspaceId = this.selectedWorkspaceId();
+        if (!workspaceId || !this.bulkTargetStatus || this.selectedProjectIds().length === 0) return;
+        this.projectService.bulkChangeStatus(workspaceId, this.selectedProjectIds(), this.bulkTargetStatus).subscribe({
+            next: (updated) => {
+                this.snackBar.open(`${updated.length} project(s) updated to ${this.bulkTargetStatus}.`, "Close", { duration: 3200 });
+                this.clearBulkSelection();
+                this.loadRealProjects();
+            },
+            error: () => this.snackBar.open("Bulk update failed.", "Close", { duration: 3500 }),
+        });
+    }
+
     loadRealProjects(): void {
         const workspaceId = this.selectedWorkspaceId();
         this.isLoading.set(true);
@@ -524,18 +625,24 @@ export class RealProjectsComponent implements OnInit {
         this.router.navigate(["/app/real-projects", project.workspaceId, project.id]);
     }
 
+    statusDisplay(status: string): string {
+        const map: Record<string, string> = {
+            PLANNING: "Planning", ACTIVE: "Active", ON_HOLD: "On Hold",
+            COMPLETED: "Completed", CANCELLED: "Cancelled", ARCHIVED: "Archived",
+        };
+        return map[(status || "").toUpperCase()] || status;
+    }
+
     statusClass(status: string): string {
-        const normalized = (status || "").toLowerCase();
-        if (normalized === "active") {
-            return "theme-green";
+        switch ((status || "").toUpperCase()) {
+            case "ACTIVE":    return "theme-green";
+            case "ON_HOLD":   return "theme-orange";
+            case "PLANNING":  return "theme-orange";
+            case "COMPLETED": return "theme-violet";
+            case "CANCELLED": return "theme-red";
+            case "ARCHIVED":  return "badge-light";
+            default:          return "badge-light";
         }
-        if (normalized === "on hold") {
-            return "theme-orange";
-        }
-        if (normalized === "completed") {
-            return "theme-red";
-        }
-        return "badge-light";
     }
 
     priorityClass(priority: "High" | "Medium" | "Low"): string {
@@ -570,7 +677,7 @@ export class RealProjectsComponent implements OnInit {
             company: workspace.name || "Workspace",
             description: project.description || "",
             visibility: (project.visibility || "PRIVATE").toUpperCase(),
-            status: this.statusLabel(normalizedStatus),
+            status: normalizedStatus,
             priority: this.derivePriority(normalizedStatus),
             manager: managerProfile?.fullName || managerMember?.user?.fullName || this.fallbackManagerLabel(managerMember?.userId),
             managerAvatarUrl: managerProfile?.avatarUrl || managerMember?.user?.avatarUrl || "",
@@ -657,19 +764,6 @@ export class RealProjectsComponent implements OnInit {
             return "Unassigned";
         }
         return `User #${userId}`;
-    }
-
-    private statusLabel(status: string): string {
-        if (status === "ACTIVE") {
-            return "Active";
-        }
-        if (status === "ON_HOLD") {
-            return "On Hold";
-        }
-        if (status === "COMPLETED" || status === "ARCHIVED") {
-            return "Completed";
-        }
-        return "On Hold";
     }
 
     private derivePriority(status: string): "High" | "Medium" | "Low" {

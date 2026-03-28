@@ -60,6 +60,12 @@ export class WorkspaceMemberService {
         return this.http.delete<void>(`${this.base}/${workspaceId}/members/${userId}`);
     }
 
+    transferOwner(workspaceId: string, newOwnerId: number): Observable<WorkspaceMember> {
+        return this.http.patch<RawWorkspaceMember>(`${this.base}/${workspaceId}/transfer-owner`, { newOwnerId }).pipe(
+            map((row) => this.toWorkspaceMember(row))
+        );
+    }
+
     private toWorkspaceMember(row: RawWorkspaceMember): WorkspaceMember {
         return {
             userId: row.userId,

@@ -6,6 +6,7 @@ import com.example.pi_projet.entity.WorkspaceMember;
 import com.example.pi_projet.entity.WorkspaceMember.WorkspaceRole;
 import com.example.pi_projet.exception.M2ValidationUtils;
 import com.example.pi_projet.exception.Module2Exception;
+import com.example.pi_projet.service.M2AuditLogService;
 import com.example.pi_projet.service.WorkspaceMemberService;
 import com.example.pi_projet.service.WorkspaceService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,6 +25,7 @@ public class WorkspaceController {
 
     private final WorkspaceService workspaceService;
     private final WorkspaceMemberService memberService;
+    private final M2AuditLogService auditLogService;
 
     @GetMapping
     public List<Workspace> getVisibleWorkspaces(HttpServletRequest request) {
@@ -143,6 +145,20 @@ public class WorkspaceController {
                               HttpServletRequest request) {
         User currentUser = requireCurrentUser(request);
         memberService.remove(id, userId, currentUser.getId());
+    }
+
+    // ── Activity Log ──────────────────────────────────────────
+
+    @GetMapping("/{id}/activity")
+    public List<Map<String, Object>> getActivity(
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "30") int limit,
+            HttpServletRequest request) {
+        User currentUser = requireCurrentUser(request);
+        Workspace workspace = workspaceService.getByIdVisibleForUser(id, currentUser);
+        UUID orgId = workspace.getOrganization() != null ? workspace.getOrganization().getId() : null;
+        if (orgId == null) return List.of();
+        return auditLogService.fetchWorkspaceLogs(orgId, id, Math.min(limit, 100));
     }
 
     @PatchMapping("/{id}/transfer-owner")

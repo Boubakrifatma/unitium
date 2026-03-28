@@ -32,10 +32,18 @@ public class ProjectTemplateController {
     public Page<ProjectTemplate> getAll(
             @RequestParam(required = false) Long createdBy,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String difficulty,
             @PageableDefault(size = 50) Pageable pageable,
             HttpServletRequest request) {
 
         requireCurrentUser(request);
+
+        // If any search/filter param present → use the combined search query
+        if (search != null || type != null || difficulty != null) {
+            return projectTemplateService.search(search, type, status, difficulty, null, pageable);
+        }
 
         if (createdBy != null) return projectTemplateService.getByCreatedBy(createdBy, pageable);
 
@@ -55,10 +63,26 @@ public class ProjectTemplateController {
     }
 
     @GetMapping("/public")
-    public Page<ProjectTemplate> getPublic(@PageableDefault(size = 20) Pageable pageable,
-                                            HttpServletRequest request) {
+    public Page<ProjectTemplate> getPublic(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String difficulty,
+            @PageableDefault(size = 20) Pageable pageable,
+            HttpServletRequest request) {
         requireCurrentUser(request);
+        if (search != null || type != null || difficulty != null) {
+            return projectTemplateService.search(search, type,
+                ProjectTemplate.TemplateStatus.APPROVED.name(), difficulty, true, pageable);
+        }
         return projectTemplateService.getPublicTemplates(pageable);
+    }
+
+    @GetMapping("/my-favorites")
+    public Page<ProjectTemplate> getMyFavorites(@PageableDefault(size = 50) Pageable pageable,
+                                                  HttpServletRequest request) {
+        User currentUser = requireCurrentUser(request);
+        requireFavoritePermission(currentUser);
+        return projectTemplateService.getMyFavorites(currentUser.getId(), pageable);
     }
 
     @GetMapping("/pending")
@@ -249,6 +273,22 @@ public class ProjectTemplateController {
         return projectTemplateService.trendingTemplate(id, trending);
     }
 
+    /* ── Favorites ─────────────────────────────────────────────── */
+
+    @PostMapping("/{id}/favorite")
+    public Map<String, Object> toggleFavorite(@PathVariable UUID id, HttpServletRequest request) {
+        User currentUser = requireCurrentUser(request);
+        requireFavoritePermission(currentUser);
+        return projectTemplateService.toggleFavorite(id, currentUser.getId());
+    }
+
+    @GetMapping("/{id}/favorite/status")
+    public Map<String, Object> getFavoriteStatus(@PathVariable UUID id, HttpServletRequest request) {
+        User currentUser = requireCurrentUser(request);
+        requireFavoritePermission(currentUser);
+        return projectTemplateService.getFavoriteStatus(id, currentUser.getId());
+    }
+
     /* ── Fork ──────────────────────────────────────────────────── */
 
     @PostMapping("/{id}/fork")
@@ -266,6 +306,14 @@ public class ProjectTemplateController {
             throw new Module2Exception(Module2Exception.ErrorCode.FORBIDDEN, "Missing authenticated user context");
         }
         return currentUser;
+    }
+
+    private void requireFavoritePermission(User user) {
+        User.RoleName role = user.getRole();
+        if (role != User.RoleName.TUTOR && role != User.RoleName.MANAGER) {
+            throw new Module2Exception(Module2Exception.ErrorCode.FORBIDDEN,
+                "Only tutors and managers can favorite templates");
+        }
     }
 
     private void requireAdminRole(User user) {

@@ -4,6 +4,7 @@ import com.example.pi_projet.entity.OrganizationMember;
 import com.example.pi_projet.entity.Project;
 import com.example.pi_projet.entity.ProjectMember;
 import com.example.pi_projet.entity.User;
+import com.example.pi_projet.entity.User.RoleName;
 import com.example.pi_projet.entity.Workspace;
 import com.example.pi_projet.exception.Module2Exception;
 import com.example.pi_projet.repository.ProjectMemberRepository;
@@ -55,7 +56,21 @@ public class ProjectAuthorizationService {
             return true;
         }
 
-        return canManageByWorkspace(requester, project.getWorkspace());
+        if (canManageByWorkspace(requester, project.getWorkspace())) {
+            return true;
+        }
+
+        // TUTOR and MANAGER with direct workspace membership can manage any project in that workspace
+        Workspace ws = project.getWorkspace();
+        if (ws != null) {
+            RoleName role = requester.getRole();
+            if ((role == RoleName.MANAGER || role == RoleName.TUTOR)
+                    && workspaceAuthorizationService.isWorkspaceMember(ws.getId(), requester.getId())) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public boolean canManageProjectMembers(User requester, Project project) {

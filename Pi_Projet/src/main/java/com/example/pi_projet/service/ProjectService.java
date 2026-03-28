@@ -23,6 +23,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -217,6 +219,23 @@ public class ProjectService {
         }
     }
 
+    /**
+     * Valid project status transitions following software project lifecycle best practices:
+     * - Any active state can be CANCELLED
+     * - CANCELLED can be re-opened to PLANNING
+     * - COMPLETED → ARCHIVED for archival (soft-delete equivalent)
+     */
+    private static final java.util.Map<ProjectStatus, java.util.List<ProjectStatus>> VALID_TRANSITIONS;
+    static {
+        VALID_TRANSITIONS = new java.util.HashMap<>();
+        VALID_TRANSITIONS.put(ProjectStatus.PLANNING,   java.util.List.of(ProjectStatus.ACTIVE, ProjectStatus.CANCELLED));
+        VALID_TRANSITIONS.put(ProjectStatus.ACTIVE,     java.util.List.of(ProjectStatus.ON_HOLD, ProjectStatus.COMPLETED, ProjectStatus.CANCELLED));
+        VALID_TRANSITIONS.put(ProjectStatus.ON_HOLD,    java.util.List.of(ProjectStatus.ACTIVE, ProjectStatus.CANCELLED));
+        VALID_TRANSITIONS.put(ProjectStatus.COMPLETED,  java.util.List.of(ProjectStatus.ARCHIVED));
+        VALID_TRANSITIONS.put(ProjectStatus.CANCELLED,  java.util.List.of(ProjectStatus.PLANNING));
+        VALID_TRANSITIONS.put(ProjectStatus.ARCHIVED,   java.util.List.of());
+    }
+
     @Transactional
     public Project changeStatus(UUID projectId, ProjectStatus status, Long requesterId) {
         Project p = findOrThrow(projectId);
@@ -226,22 +245,35 @@ public class ProjectService {
             throw new Module2Exception(FORBIDDEN, "Not allowed to change project status");
         }
 
-        // validate transition
-        java.util.Map<ProjectStatus, java.util.List<ProjectStatus>> VALID_TRANSITIONS = java.util.Map.of(
-            ProjectStatus.PLANNING, java.util.List.of(ProjectStatus.ACTIVE),
-            ProjectStatus.ACTIVE, java.util.List.of(ProjectStatus.ON_HOLD, ProjectStatus.COMPLETED),
-            ProjectStatus.ON_HOLD, java.util.List.of(ProjectStatus.ACTIVE),
-            ProjectStatus.COMPLETED, java.util.List.of(ProjectStatus.ARCHIVED),
-            ProjectStatus.ARCHIVED, java.util.List.of()
-        );
-
         var allowedTo = VALID_TRANSITIONS.getOrDefault(p.getStatus(), java.util.List.of());
         if (!allowedTo.contains(status)) {
-            throw new Module2Exception(BAD_REQUEST, String.format("Invalid status transition from %s to %s.", p.getStatus(), status));
+            throw new Module2Exception(BAD_REQUEST, String.format(
+                "Cannot move project from %s to %s. Allowed transitions: %s.",
+                p.getStatus(), status, allowedTo));
         }
 
         p.setStatus(status);
         return projectRepo.save(p);
+    }
+
+    @Transactional
+    public List<Project> bulkChangeStatus(UUID workspaceId, List<UUID> projectIds,
+                                           ProjectStatus newStatus, Long requesterId) {
+        User requester = userRepo.findById(requesterId)
+            .orElseThrow(() -> new Module2Exception(NOT_FOUND, "Requester user not found"));
+        List<Project> updated = new ArrayList<>();
+        for (UUID pid : projectIds) {
+            try {
+                Project p = findOrThrow(pid);
+                if (!p.getWorkspace().getId().equals(workspaceId)) continue;
+                if (!projectAuthorizationService.canManageProject(requester, p)) continue;
+                var allowedTo = VALID_TRANSITIONS.getOrDefault(p.getStatus(), java.util.List.of());
+                if (!allowedTo.contains(newStatus)) continue;
+                p.setStatus(newStatus);
+                updated.add(projectRepo.save(p));
+            } catch (Exception ignored) {}
+        }
+        return updated;
     }
 
     @Transactional

@@ -35,6 +35,8 @@ export interface TemplateCardItem {
     isFeatured: boolean;
     isTrending: boolean;
     createdBy: number;
+    favorited?: boolean;
+    favoriteCount?: number;
 }
 
 @Component({
@@ -102,6 +104,18 @@ export interface TemplateCardItem {
                                     <div class="position-relative coverimg rounded-top" style="height:120px;overflow:hidden;">
                                         <img [src]="item.image" [alt]="item.name" class="w-100 h-100" style="object-fit:cover;" />
                                         <mat-icon class="hoverview-icon bg-light-theme text-theme rounded circle avatar avatar-40 position-absolute start-0 top-0" style="display:flex;align-items:center;justify-content:center;margin:8px;">visibility</mat-icon>
+                                        <!-- favorite button bottom-right — only for TUTOR/MANAGER -->
+                                        @if (canFavorite) {
+                                            <button class="fav-btn position-absolute bottom-0 end-0 m-1"
+                                                mat-icon-button
+                                                [matTooltip]="(item.favorited ? 'Remove from favorites' : 'Add to favorites') + ' (' + (item.favoriteCount ?? 0) + ')'"
+                                                (click)="$event.stopPropagation(); toggleFavorite(item)">
+                                                <mat-icon [style.color]="item.favorited ? '#e53935' : 'rgba(255,255,255,0.8)'"
+                                                          style="font-size:20px;width:20px;height:20px;text-shadow:0 1px 3px rgba(0,0,0,0.4);">
+                                                    {{ item.favorited ? 'favorite' : 'favorite_border' }}
+                                                </mat-icon>
+                                            </button>
+                                        }
                                         <!-- status badge top-right -->
                                         <span class="badge position-absolute top-0 end-0 m-2"
                                             [ngClass]="{
@@ -245,10 +259,14 @@ export class TemplatesCardsComponent implements OnInit, OnChanges {
     @Input() currentUserId = 0;
     @Input() isAdmin = false;
     @Input() title = "Templates";
+    /** When true, shows the heart favorite button (only TUTOR/MANAGER roles) */
+    @Input() canFavorite = false;
     /** When true, shows inline Approve / Reject actions instead of the action menu */
     @Input() reviewMode = false;
     /** Emitted after a successful approve or reject so the parent can refresh its data */
     @Output() dataChanged = new EventEmitter<void>();
+    /** Emitted after a favorite toggle — parent can remove item from favorites list */
+    @Output() favoriteChanged = new EventEmitter<{ id: string; favorited: boolean }>();
 
     private readonly router = inject(Router);
     private readonly snackBar = inject(MatSnackBar);
@@ -377,6 +395,20 @@ export class TemplatesCardsComponent implements OnInit, OnChanges {
                 this.dataChanged.emit();
             },
             error: () => this.snackBar.open("Failed to reject.", "Close", { duration: 4000 }),
+        });
+    }
+
+    toggleFavorite(item: TemplateCardItem): void {
+        this.templateService.toggleFavorite(item.id).subscribe({
+            next: (res) => {
+                this.externalData.set(this.externalData().map(t =>
+                    t.id === item.id ? { ...t, favorited: res.favorited, favoriteCount: res.favoriteCount } : t
+                ));
+                this.favoriteChanged.emit({ id: item.id, favorited: res.favorited });
+                const msg = res.favorited ? "Added to favorites." : "Removed from favorites.";
+                this.snackBar.open(msg, "Close", { duration: 2500 });
+            },
+            error: () => this.snackBar.open("Failed to update favorite.", "Close", { duration: 3000 }),
         });
     }
 

@@ -119,7 +119,7 @@ interface ProjectMemberView {
                 <div class="col-6 col-md-3 col-xl">
                     <mat-card class="mb-3 mb-lg-4">
                         <mat-card-content class="pb-0">
-                            <h1 class="mb-1">{{ projectStatus() }}</h1>
+                            <h1 class="mb-1">{{ statusLabel(projectStatus()) }}</h1>
                             <p class="small text-secondary">Project Status</p>
                             <br />
                             <div class="row gx-3 align-items-center mb-3">
@@ -300,16 +300,16 @@ interface ProjectMemberView {
                                 </button>
                             </div>
 
+                            @if (validStatusTransitions().length > 0) {
                             <mat-form-field appearance="outline" class="w-100 inline-small mb-2">
                                 <mat-label>Change Status</mat-label>
-                                <mat-select [ngModel]="project()?.status" (ngModelChange)="changeStatus($event)">
-                                    <mat-option value="PLANNING">Planning</mat-option>
-                                    <mat-option value="ACTIVE">Active</mat-option>
-                                    <mat-option value="ON_HOLD">On Hold</mat-option>
-                                    <mat-option value="COMPLETED">Completed</mat-option>
-                                    <mat-option value="CANCELLED">Cancelled</mat-option>
+                                <mat-select [ngModel]="null" (ngModelChange)="changeStatus($event)">
+                                    @for (opt of validStatusTransitions(); track opt.value) {
+                                        <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                                    }
                                 </mat-select>
                             </mat-form-field>
+                            }
                             }
                             }
 
@@ -338,18 +338,6 @@ interface ProjectMemberView {
                                         <mat-select name="editVisibility" [(ngModel)]="editVisibility">
                                             <mat-option value="PRIVATE">Private</mat-option>
                                             <mat-option value="PUBLIC">Public</mat-option>
-                                        </mat-select>
-                                    </mat-form-field>
-                                </div>
-                                <div class="col-6">
-                                    <mat-form-field appearance="outline" class="w-100 mb-2">
-                                        <mat-label>Status</mat-label>
-                                        <mat-select name="editStatus" [(ngModel)]="editStatus">
-                                            <mat-option value="PLANNING">Planning</mat-option>
-                                            <mat-option value="ACTIVE">Active</mat-option>
-                                            <mat-option value="ON_HOLD">On Hold</mat-option>
-                                            <mat-option value="COMPLETED">Completed</mat-option>
-                                            <mat-option value="CANCELLED">Cancelled</mat-option>
                                         </mat-select>
                                     </mat-form-field>
                                 </div>
@@ -478,7 +466,6 @@ export class ProjectDetailsComponent implements OnInit {
     editName = "";
     editDescription = "";
     editVisibility: "PUBLIC" | "PRIVATE" = "PRIVATE";
-    editStatus = "PLANNING";
     editStartDate = "";
     editEndDate = "";
 
@@ -491,6 +478,19 @@ export class ProjectDetailsComponent implements OnInit {
 
     readonly canManageProjects = computed(() => this.permissionService.canManageProject());
     readonly projectStatus = computed(() => (this.project()?.status || "PLANNING").toUpperCase());
+
+    private readonly statusTransitions: Record<string, { value: string; label: string }[]> = {
+        PLANNING:  [{ value: "ACTIVE", label: "Active" }, { value: "CANCELLED", label: "Cancelled" }],
+        ACTIVE:    [{ value: "ON_HOLD", label: "On Hold" }, { value: "COMPLETED", label: "Completed" }, { value: "CANCELLED", label: "Cancelled" }],
+        ON_HOLD:   [{ value: "ACTIVE", label: "Active" }, { value: "CANCELLED", label: "Cancelled" }],
+        COMPLETED: [{ value: "ARCHIVED", label: "Archived" }],
+        CANCELLED: [{ value: "PLANNING", label: "Re-open (Planning)" }],
+        ARCHIVED:  [],
+    };
+
+    readonly validStatusTransitions = computed(() =>
+        this.statusTransitions[this.projectStatus()] ?? []
+    );
     readonly projectVisibility = computed(() => (this.project()?.visibility || "PRIVATE").toUpperCase());
     readonly leadershipCount = computed(() => this.members().filter((m) => this.isManageRole(m.role)).length);
     readonly contributorCount = computed(() => Math.max(0, this.members().length - this.leadershipCount()));
@@ -735,8 +735,7 @@ export class ProjectDetailsComponent implements OnInit {
         this.editName = p.name || "";
         this.editDescription = p.description || "";
         this.editVisibility = (p.visibility as "PUBLIC" | "PRIVATE") || "PRIVATE";
-        this.editStatus = p.status || "PLANNING";
-        this.editStartDate = p.startDate || "";
+this.editStartDate = p.startDate || "";
         this.editEndDate = p.endDate || "";
         this.editMode.set(true);
     }
@@ -754,7 +753,6 @@ export class ProjectDetailsComponent implements OnInit {
             name: this.editName.trim(),
             description: this.editDescription.trim() || null,
             visibility: this.editVisibility,
-            status: this.editStatus,
         };
         if (this.editStartDate) body["startDate"] = this.editStartDate;
         if (this.editEndDate) body["endDate"] = this.editEndDate;

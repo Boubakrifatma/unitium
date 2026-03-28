@@ -31,7 +31,7 @@ export interface TableItem {
     image: string;
     name: string;
     company: string;
-    status: "Active" | "On Hold" | "Completed" | "";
+    status: string; // raw backend enum: ACTIVE, ON_HOLD, PLANNING, COMPLETED, CANCELLED, ARCHIVED
     priority: "High" | "Medium" | "Low" | "";
     managerimage: string;
     manager: string;
@@ -96,25 +96,25 @@ type SortDirection = "asc" | "desc" | "";
                 </mat-card>
             </div>
             <div class="col-6 col-md-3">
-                <mat-card class="mb-2 mb-lg-3 theme-green" [class]="selectedStatus() === 'Active' ? 'bg-theme text-white' : 'bg-light-theme text-theme'" (click)="setSelectedStatus('Active')">
+                <mat-card class="mb-2 mb-lg-3 theme-green" [class]="selectedStatus() === 'ACTIVE' ? 'bg-theme text-white' : 'bg-light-theme text-theme'" (click)="setSelectedStatus('ACTIVE')">
                     <mat-card-content>
-                        <h3 class="mb-1">{{ countStatus("Active") }}</h3>
+                        <h3 class="mb-1">{{ countStatus("ACTIVE") }}</h3>
                         <p class="opacity-75">Active</p>
                     </mat-card-content>
                 </mat-card>
             </div>
             <div class="col-6 col-md-3">
-                <mat-card class="mb-2 mb-lg-3 theme-orange" [class]="selectedStatus() === 'On Hold' ? 'bg-theme text-white' : 'bg-light-theme text-theme'" (click)="setSelectedStatus('On Hold')">
+                <mat-card class="mb-2 mb-lg-3 theme-orange" [class]="selectedStatus() === 'ON_HOLD' ? 'bg-theme text-white' : 'bg-light-theme text-theme'" (click)="setSelectedStatus('ON_HOLD')">
                     <mat-card-content>
-                        <h3 class="mb-1">{{ countStatus("On Hold") }}</h3>
+                        <h3 class="mb-1">{{ countStatus("ON_HOLD") }}</h3>
                         <p class="opacity-75">On Hold</p>
                     </mat-card-content>
                 </mat-card>
             </div>
             <div class="col-6 col-md-3">
-                <mat-card class="mb-2 mb-lg-3 theme-violet" [class]="selectedStatus() === 'Completed' ? 'bg-theme text-white' : 'bg-light-theme text-theme'" (click)="setSelectedStatus('Completed')">
+                <mat-card class="mb-2 mb-lg-3 theme-violet" [class]="selectedStatus() === 'COMPLETED' ? 'bg-theme text-white' : 'bg-light-theme text-theme'" (click)="setSelectedStatus('COMPLETED')">
                     <mat-card-content>
-                        <h3 class="mb-1">{{ countStatus("Completed") }}</h3>
+                        <h3 class="mb-1">{{ countStatus("COMPLETED") }}</h3>
                         <p class="opacity-75">Completed</p>
                     </mat-card-content>
                 </mat-card>
@@ -137,11 +137,12 @@ type SortDirection = "asc" | "desc" | "";
                         <span
                             class="badge me-2"
                             [ngClass]="{
-                                'theme-green': project.status === 'Active',
-                                'theme-orange': project.status === 'On Hold',
-                                'theme-red': project.status === 'Completed'
+                                'theme-green':  project.status === 'ACTIVE',
+                                'theme-orange': project.status === 'ON_HOLD' || project.status === 'PLANNING',
+                                'theme-red':    project.status === 'CANCELLED',
+                                'theme-violet': project.status === 'COMPLETED' || project.status === 'ARCHIVED'
                             }">
-                            {{ project.status }}
+                            {{ statusDisplay(project.status) }}
                         </span>
                         <span
                             class="badge badge-light"
@@ -346,7 +347,7 @@ export class ProjectsCardsComponent implements OnInit {
     ngAfterViewInit() {}
 
     searchQuery: WritableSignal<string> = signal("");
-    selectedStatus: WritableSignal<"All" | TableItem["status"]> = signal("All");
+    selectedStatus: WritableSignal<string> = signal("All");
     selectedItem: TableItem | null = null;
 
     // Signals for tracking Sort state (Defaulting to 'name' ascending)
@@ -442,22 +443,27 @@ export class ProjectsCardsComponent implements OnInit {
     }
 
     /** Updates the selected status signal. */
-    setSelectedStatus(status: "All" | TableItem["status"]): void {
+    setSelectedStatus(status: string): void {
         this.selectedStatus.set(status);
         this.logAction("Filter by Status: " + status);
     }
 
-    getStatusClasses(status: TableItem["status"]): string {
-        // Note: The 'Active' status is handled with the explicit @if logic in the template for the 'badge' style.
-        switch (status) {
-            case "Active":
-                return "status-active";
-            case "On Hold":
-                return "status-onhold";
-            case "Completed":
-                return "status-completed";
-            default:
-                return "";
+    statusDisplay(status: string): string {
+        const map: Record<string, string> = {
+            PLANNING: "Planning", ACTIVE: "Active", ON_HOLD: "On Hold",
+            COMPLETED: "Completed", CANCELLED: "Cancelled", ARCHIVED: "Archived",
+        };
+        return map[(status || "").toUpperCase()] || status;
+    }
+
+    getStatusClasses(status: string): string {
+        switch ((status || "").toUpperCase()) {
+            case "ACTIVE":    return "status-active";
+            case "ON_HOLD":   return "status-onhold";
+            case "PLANNING":  return "status-onhold";
+            case "COMPLETED": return "status-completed";
+            case "CANCELLED": return "status-cancelled";
+            default:          return "";
         }
     }
 
@@ -474,7 +480,7 @@ export class ProjectsCardsComponent implements OnInit {
         }
     }
 
-    countStatus(status: TableItem["status"]): number {
+    countStatus(status: string): number {
         return this.sourceTabledata().filter((p) => p.status === status).length;
     }
 

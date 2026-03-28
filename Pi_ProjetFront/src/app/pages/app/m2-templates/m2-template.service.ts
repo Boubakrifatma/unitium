@@ -25,6 +25,8 @@ export interface M2TemplateSummary {
     createdBy: number;
     createdAt?: string;
     parentTemplateId?: string;
+    favorited?: boolean;
+    favoriteCount?: number;
     organizationId?: string;
     // Detail-only fields (returned by getById):
     defaultProjectConfigJson?: string;
@@ -108,6 +110,29 @@ export class M2TemplateService {
 
     setTrending(id: string, trending: boolean): Observable<M2TemplateSummary> {
         return this.http.patch<M2TemplateSummary>(`${this.base}/${id}/trending`, { trending });
+    }
+
+    search(params: { search?: string; type?: string; difficulty?: string; status?: string; page?: number; size?: number }): Observable<M2TemplatePage> {
+        const p = new URLSearchParams();
+        if (params.search)     p.set('search',     params.search);
+        if (params.type)       p.set('type',        params.type);
+        if (params.difficulty) p.set('difficulty',  params.difficulty);
+        if (params.status)     p.set('status',      params.status);
+        p.set('page', String(params.page ?? 0));
+        p.set('size', String(params.size ?? 50));
+        return this.http.get<M2TemplatePage>(`${this.base}/public?${p.toString()}`);
+    }
+
+    toggleFavorite(id: string): Observable<{ favorited: boolean; favoriteCount: number }> {
+        return this.http.post<{ favorited: boolean; favoriteCount: number }>(`${this.base}/${id}/favorite`, {});
+    }
+
+    getMyFavorites(page = 0, size = 50): Observable<M2TemplatePage> {
+        return this.http.get<M2TemplatePage>(`${this.base}/my-favorites?page=${page}&size=${size}`);
+    }
+
+    getFavoriteStatus(id: string): Observable<{ favorited: boolean; favoriteCount: number }> {
+        return this.http.get<{ favorited: boolean; favoriteCount: number }>(`${this.base}/${id}/favorite/status`);
     }
 
     createProjectFromTemplate(workspaceId: string, templateId: string, name?: string, startDate?: string, endDate?: string): Observable<Record<string, unknown>> {
