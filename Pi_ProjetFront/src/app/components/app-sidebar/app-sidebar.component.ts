@@ -173,8 +173,10 @@ export class AppSidebarComponent {
         const projectChildren: NavItem[] = [
             { name: "Workspaces", route: "/app/workspaces", icon: "workspaces" },
             { name: "My Projects", route: "/app/real-projects", icon: "folder_special" },
-            { name: "Templates Hub", route: "/app/templates", icon: "layers" },
         ];
+        if (this.canManageWorkspaces) {
+            projectChildren.push({ name: "Templates Hub", route: "/app/templates", icon: "layers" });
+        }
 
         // Manager/Admin/Tutor roles can access broader project/task workspace management views.
         if (this.canManageWorkspaces) {

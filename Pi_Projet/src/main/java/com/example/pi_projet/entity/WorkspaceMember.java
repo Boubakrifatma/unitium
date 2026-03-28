@@ -43,9 +43,6 @@ public class WorkspaceMember {
     @JsonIgnore
     private User invitedByUser; // nullable inviter
 
-    @Column(name = "role_id")
-    private Long roleId;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default

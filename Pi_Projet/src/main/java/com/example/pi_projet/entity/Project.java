@@ -68,7 +68,7 @@ public class Project {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default
-    private Visibility visibility = Visibility.PUBLIC;
+    private Visibility visibility = Visibility.PRIVATE;
 
     @Column(name = "start_date")
     private LocalDate startDate;

@@ -247,7 +247,6 @@ export class TemplatesCardsComponent implements OnInit, OnChanges {
     @Input() title = "Templates";
     /** When true, shows inline Approve / Reject actions instead of the action menu */
     @Input() reviewMode = false;
-    @Input() approverId = 0;
     /** Emitted after a successful approve or reject so the parent can refresh its data */
     @Output() dataChanged = new EventEmitter<void>();
 
@@ -327,8 +326,7 @@ export class TemplatesCardsComponent implements OnInit, OnChanges {
     }
 
     forkTemplate(item: TemplateCardItem): void {
-        if (!this.currentUserId) return;
-        this.templateService.fork(item.id, this.currentUserId).subscribe({
+        this.templateService.fork(item.id).subscribe({
             next: (forked) => {
                 this.snackBar.open(`"${forked.name}" forked as DRAFT in My Templates.`, "Close", { duration: 3500 });
             },
@@ -337,8 +335,7 @@ export class TemplatesCardsComponent implements OnInit, OnChanges {
     }
 
     publishTemplate(item: TemplateCardItem): void {
-        if (!this.currentUserId) return;
-        this.templateService.publish(item.id, this.currentUserId).subscribe({
+        this.templateService.publish(item.id).subscribe({
             next: (updated) => {
                 this.snackBar.open(`"${updated.name}" submitted for approval.`, "Close", { duration: 3500 });
                 const current = this.externalData();
@@ -354,7 +351,7 @@ export class TemplatesCardsComponent implements OnInit, OnChanges {
 
     approveCard(item: TemplateCardItem, event: Event): void {
         event.stopPropagation();
-        this.templateService.approve(item.id, this.approverId).subscribe({
+        this.templateService.approve(item.id).subscribe({
             next: () => {
                 this.snackBar.open(`"${item.name}" approved and published to Hub.`, "Close", { duration: 3500 });
                 this.externalData.set(this.externalData().filter(t => t.id !== item.id));
@@ -372,7 +369,7 @@ export class TemplatesCardsComponent implements OnInit, OnChanges {
 
     submitReject(item: TemplateCardItem): void {
         if (!this.rejectReason.trim()) return;
-        this.templateService.reject(item.id, this.approverId, this.rejectReason).subscribe({
+        this.templateService.reject(item.id, this.rejectReason).subscribe({
             next: () => {
                 this.snackBar.open(`"${item.name}" rejected.`, "Close", { duration: 3500 });
                 this.externalData.set(this.externalData().filter(t => t.id !== item.id));

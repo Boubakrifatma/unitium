@@ -78,24 +78,24 @@ export class M2TemplateService {
         return this.http.delete<void>(`${this.base}/${id}`);
     }
 
-    publish(id: string, requesterId: number): Observable<M2TemplateSummary> {
-        return this.http.post<M2TemplateSummary>(`${this.base}/${id}/publish`, { requesterId });
+    publish(id: string): Observable<M2TemplateSummary> {
+        return this.http.post<M2TemplateSummary>(`${this.base}/${id}/publish`, {});
     }
 
-    approve(id: string, approverId: number): Observable<M2TemplateSummary> {
-        return this.http.patch<M2TemplateSummary>(`${this.base}/${id}/approve`, { approverId });
+    approve(id: string): Observable<M2TemplateSummary> {
+        return this.http.patch<M2TemplateSummary>(`${this.base}/${id}/approve`, {});
     }
 
-    reject(id: string, approverId: number, reason: string): Observable<M2TemplateSummary> {
-        return this.http.patch<M2TemplateSummary>(`${this.base}/${id}/reject`, { approverId, reason });
+    reject(id: string, reason: string): Observable<M2TemplateSummary> {
+        return this.http.patch<M2TemplateSummary>(`${this.base}/${id}/reject`, { reason });
     }
 
     rate(id: string, rating: number): Observable<M2TemplateSummary> {
         return this.http.post<M2TemplateSummary>(`${this.base}/${id}/rate`, { rating });
     }
 
-    fork(id: string, requesterId: number): Observable<M2TemplateSummary> {
-        return this.http.post<M2TemplateSummary>(`${this.base}/${id}/fork`, { requesterId });
+    fork(id: string): Observable<M2TemplateSummary> {
+        return this.http.post<M2TemplateSummary>(`${this.base}/${id}/fork`, {});
     }
 
     getPending(page = 0, size = 50): Observable<M2TemplatePage> {

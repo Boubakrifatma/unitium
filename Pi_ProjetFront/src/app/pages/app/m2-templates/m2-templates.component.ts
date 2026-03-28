@@ -247,7 +247,6 @@ const QUICK_STARTERS: QuickStarter[] = [
                             [currentUserId]="currentUserId()"
                             [isAdmin]="isAdmin()"
                             [reviewMode]="true"
-                            [approverId]="currentUserId()"
                             title="Pending Review"
                             (dataChanged)="loadData()">
                         </app-templates-cards>

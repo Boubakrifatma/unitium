@@ -195,7 +195,6 @@ public class M2OrganizationProvisioningService {
             workspace.getId(),
             userId,
             WorkspaceMember.WorkspaceRole.OWNER.name(),
-            null,
             inviterId
         ) > 0) {
             return;
@@ -217,7 +216,6 @@ public class M2OrganizationProvisioningService {
                 workspace.getId(),
                 userId,
                 WorkspaceMember.WorkspaceRole.OWNER.name(),
-                null,
                 inviterId
             ) > 0) {
                 return;

@@ -145,9 +145,8 @@ public class WorkspaceMemberService {
 
         User inviter = userRepo.findById(requesterId)
             .orElseThrow(() -> new Module2Exception(FORBIDDEN, "You don't have permission to invite members"));
-        Long roleId = resolveRoleId(requestedRole.name());
 
-        if (restoreSoftDeletedMembership(workspaceId, targetUserId, requestedRole, roleId, requesterId)) {
+        if (restoreSoftDeletedMembership(workspaceId, targetUserId, requestedRole, requesterId)) {
             WorkspaceMember restored = memberRepo.findByWorkspaceIdAndUserId(workspaceId, targetUserId)
                 .orElseThrow(() -> new Module2Exception(INTERNAL, "Failed to restore workspace membership"));
             writeAuditInline(requesterId, orgId, restored.getId(), targetUserId, requestedRole);
@@ -160,7 +159,6 @@ public class WorkspaceMemberService {
                 .workspace(workspace)
                 .userId(targetUserId)
                 .role(requestedRole)
-                .roleId(roleId)
                 .invitedByUser(inviter)
                 .joinedAt(Instant.now())
                 .build());
@@ -197,8 +195,32 @@ public class WorkspaceMemberService {
         WorkspaceMember m = memberRepo.findByWorkspaceIdAndUserId(workspaceId, userId)
             .orElseThrow(() -> new Module2Exception(NOT_FOUND, "Member not found"));
         m.setRole(newRole);
-        m.setRoleId(resolveRoleId(newRole.name()));
         return memberRepo.save(m);
+    }
+
+    @Transactional
+    public WorkspaceMember transferOwner(UUID workspaceId, Long newOwnerId, Long requesterId) {
+        Workspace workspace = workspaceService.getById(workspaceId);
+
+        WorkspaceMember currentOwnerMember = memberRepo.findByWorkspaceIdAndUserId(workspaceId, requesterId)
+            .orElseThrow(() -> new Module2Exception(FORBIDDEN, "You are not a member of this workspace"));
+
+        if (currentOwnerMember.getRole() != WorkspaceRole.OWNER) {
+            throw new Module2Exception(FORBIDDEN, "Only the current workspace owner can transfer ownership");
+        }
+
+        if (requesterId.equals(newOwnerId)) {
+            throw new Module2Exception(VALIDATION, "New owner must be a different user");
+        }
+
+        WorkspaceMember newOwnerMember = memberRepo.findByWorkspaceIdAndUserId(workspaceId, newOwnerId)
+            .orElseThrow(() -> new Module2Exception(NOT_FOUND, "Target user is not a member of this workspace"));
+
+        currentOwnerMember.setRole(WorkspaceRole.ADMIN);
+        memberRepo.save(currentOwnerMember);
+
+        newOwnerMember.setRole(WorkspaceRole.OWNER);
+        return memberRepo.save(newOwnerMember);
     }
 
     @Transactional
@@ -311,13 +333,11 @@ public class WorkspaceMemberService {
     private boolean restoreSoftDeletedMembership(UUID workspaceId,
                                                  Long userId,
                                                  WorkspaceRole role,
-                                                 Long roleId,
                                                  Long inviterId) {
         int updated = memberRepo.restoreSoftDeletedMember(
             workspaceId,
             userId,
             role.name(),
-            roleId,
             inviterId
         );
         return updated > 0;
@@ -374,18 +394,4 @@ public class WorkspaceMemberService {
         }
     }
 
-    private Long resolveRoleId(String roleName) {
-        if (!StringUtils.hasText(roleName)) {
-            return null;
-        }
-        try {
-            return jdbcTemplate.queryForObject(
-                "SELECT id FROM roles WHERE LOWER(name) = LOWER(?) LIMIT 1",
-                Long.class,
-                roleName
-            );
-        } catch (Exception ignored) {
-            return null;
-        }
-    }
 }

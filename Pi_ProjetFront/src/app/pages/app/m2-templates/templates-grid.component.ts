@@ -238,16 +238,14 @@ export class TemplatesGridComponent implements OnInit, OnChanges {
     }
 
     forkTemplate(item: TemplateCardItem): void {
-        if (!this.currentUserId) return;
-        this.templateService.fork(item.id, this.currentUserId).subscribe({
+        this.templateService.fork(item.id).subscribe({
             next: (forked) => this.snackBar.open(`"${forked.name}" forked as DRAFT.`, "Close", { duration: 3500 }),
             error: () => this.snackBar.open("Failed to fork template.", "Close", { duration: 4000 }),
         });
     }
 
     publishTemplate(item: TemplateCardItem): void {
-        if (!this.currentUserId) return;
-        this.templateService.publish(item.id, this.currentUserId).subscribe({
+        this.templateService.publish(item.id).subscribe({
             next: (updated) => {
                 this.snackBar.open(`"${updated.name}" submitted for approval.`, "Close", { duration: 3500 });
                 this.dataSource.data = this.dataSource.data.map(t => t.id === item.id ? { ...t, status: updated.status } : t);

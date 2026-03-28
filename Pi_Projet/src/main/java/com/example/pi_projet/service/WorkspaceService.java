@@ -132,7 +132,6 @@ public class WorkspaceService {
             .workspace(ws)
             .userId(currentUserId)
             .role(WorkspaceRole.OWNER)
-            .roleId(resolveRoleId("OWNER", "ADMIN"))
             .invitedByUser(null)
             .joinedAt(Instant.now())
             .build();
@@ -162,12 +161,11 @@ public class WorkspaceService {
             if (!StringUtils.hasText(normalizedSlug)) {
                 throw new Module2Exception(VALIDATION, "Workspace slug is required");
             }
-            UUID orgId = ws.getOrganization().getId();
-            if (!normalizedSlug.equalsIgnoreCase(ws.getSlug())
-                && workspaceRepo.existsBySlugAndOrganizationId(normalizedSlug, orgId)) {
-                throw new Module2Exception(CONFLICT, "Workspace slug already exists for this organization");
+            // Slug is immutable — the workspace UUID is derived from orgId+slug, so changing
+            // it would silently break the UUID semantics without migrating existing references.
+            if (!normalizedSlug.equalsIgnoreCase(ws.getSlug())) {
+                throw new Module2Exception(VALIDATION, "Workspace slug cannot be changed after creation");
             }
-            ws.setSlug(normalizedSlug);
         }
 
         Workspace saved = workspaceRepo.save(ws);
@@ -260,7 +258,6 @@ public class WorkspaceService {
                     .workspace(ws)
                     .userId(targetUserId)
                     .role(finalRole)
-                    .roleId(resolveRoleId(finalRole.name(), targetOrgRole, targetUser.getRole() != null ? targetUser.getRole().name() : null))
                     .invitedByUser(requester)
                     .joinedAt(Instant.now())
                     .build();
@@ -436,11 +433,6 @@ public class WorkspaceService {
                 row.setRole(WorkspaceRole.OWNER);
                 changed = true;
             }
-            Long ownerRoleId = resolveRoleId("OWNER", "ADMIN");
-            if (ownerRoleId != null && (row.getRoleId() == null || !ownerRoleId.equals(row.getRoleId()))) {
-                row.setRoleId(ownerRoleId);
-                changed = true;
-            }
             if (row.getJoinedAt() == null) {
                 row.setJoinedAt(Instant.now());
                 changed = true;
@@ -451,12 +443,10 @@ public class WorkspaceService {
             return;
         }
 
-        Long ownerRoleId = resolveRoleId("OWNER", "ADMIN");
         if (memberRepo.restoreSoftDeletedMember(
             workspace.getId(),
             ownerUserId,
             WorkspaceRole.OWNER.name(),
-            ownerRoleId,
             null
         ) > 0) {
             return;
@@ -467,7 +457,6 @@ public class WorkspaceService {
                 .workspace(workspace)
                 .userId(ownerUserId)
                 .role(WorkspaceRole.OWNER)
-                .roleId(ownerRoleId)
                 .joinedAt(Instant.now())
                 .build());
         } catch (DataIntegrityViolationException ex) {
@@ -478,7 +467,6 @@ public class WorkspaceService {
                 workspace.getId(),
                 ownerUserId,
                 WorkspaceRole.OWNER.name(),
-                ownerRoleId,
                 null
             ) > 0) {
                 return;
@@ -587,27 +575,6 @@ public class WorkspaceService {
         } catch (IllegalArgumentException ex) {
             throw new Module2Exception(INTERNAL, "Invalid UUID value in organization membership context");
         }
-    }
-
-    private Long resolveRoleId(String... roleNames) {
-        for (String roleName : roleNames) {
-            if (!StringUtils.hasText(roleName)) {
-                continue;
-            }
-            try {
-                Long roleId = jdbcTemplate.queryForObject(
-                    "SELECT id FROM roles WHERE LOWER(name) = LOWER(?) LIMIT 1",
-                    Long.class,
-                    roleName
-                );
-                if (roleId != null) {
-                    return roleId;
-                }
-            } catch (Exception ignored) {
-                // fallback to next candidate
-            }
-        }
-        return null;
     }
 
 }

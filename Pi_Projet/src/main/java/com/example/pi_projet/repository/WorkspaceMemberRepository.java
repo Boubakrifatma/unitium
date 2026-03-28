@@ -23,11 +23,10 @@ public interface WorkspaceMemberRepository extends JpaRepository<WorkspaceMember
 
     @Modifying
     @Query(value = "UPDATE workspace_members " +
-        "SET deleted_at = NULL, role = :role, role_id = :roleId, invited_by = :invitedBy, joined_at = COALESCE(joined_at, NOW()) " +
+        "SET deleted_at = NULL, role = :role, invited_by = :invitedBy, joined_at = COALESCE(joined_at, NOW()) " +
         "WHERE workspace_id = :workspaceId AND user_id = :userId AND deleted_at IS NOT NULL", nativeQuery = true)
     int restoreSoftDeletedMember(@Param("workspaceId") UUID workspaceId,
                                  @Param("userId") Long userId,
                                  @Param("role") String role,
-                                 @Param("roleId") Long roleId,
                                  @Param("invitedBy") Long invitedBy);
 }

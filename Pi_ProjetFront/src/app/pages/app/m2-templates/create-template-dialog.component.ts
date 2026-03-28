@@ -705,7 +705,6 @@ export class CreateTemplateDialogComponent implements OnInit {
             name: this.name.trim(),
             templateType: this.templateType,
             teamStrategy: this.teamStrategy,
-            createdBy: userId,
         };
         if (this.previewImageUrl.trim()) body["previewImageUrl"] = this.previewImageUrl.trim();
         if (this.estimatedEffort) body["estimatedEffort"] = this.estimatedEffort;

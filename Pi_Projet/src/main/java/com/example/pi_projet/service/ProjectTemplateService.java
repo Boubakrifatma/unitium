@@ -1,10 +1,12 @@
 package com.example.pi_projet.service;
 
 import com.example.pi_projet.entity.ProjectTemplate;
+import com.example.pi_projet.entity.TemplateRating;
 import com.example.pi_projet.exception.M2ValidationUtils;
 import com.example.pi_projet.exception.Module2Exception;
 import static com.example.pi_projet.exception.Module2Exception.ErrorCode.*;
 import com.example.pi_projet.repository.ProjectTemplateRepository;
+import com.example.pi_projet.repository.TemplateRatingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,6 +20,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ProjectTemplateService {
     private final ProjectTemplateRepository projectTemplateRepository;
+    private final TemplateRatingRepository templateRatingRepository;
 
     public Page<ProjectTemplate> getAll(Pageable pageable) {
         return projectTemplateRepository.findAll(pageable);
@@ -97,10 +100,15 @@ public class ProjectTemplateService {
         return projectTemplateRepository.save(t);
     }
 
-    public ProjectTemplate rateTemplate(UUID id, int rating) {
+    public ProjectTemplate rateTemplate(UUID id, int rating, Long userId) {
         if (rating < 1 || rating > 5) throw new Module2Exception(BAD_REQUEST, "Rating must be between 1 and 5");
+        if (templateRatingRepository.existsByTemplateIdAndUserId(id, userId)) {
+            throw new Module2Exception(CONFLICT, "You have already rated this template");
+        }
         ProjectTemplate t = projectTemplateRepository.findById(id)
             .orElseThrow(() -> new Module2Exception(NOT_FOUND, "Template not found"));
+        templateRatingRepository.save(TemplateRating.builder()
+            .templateId(id).userId(userId).rating(rating).build());
         int currentCount = t.getRatingCount() == null ? 0 : t.getRatingCount();
         double currentRating = t.getRating() == null ? 0.0 : t.getRating();
         double newAvg = (currentRating * currentCount + rating) / (currentCount + 1);
@@ -113,9 +121,14 @@ public class ProjectTemplateService {
         return projectTemplateRepository.findAllByIsPublicTrueAndStatus(ProjectTemplate.TemplateStatus.APPROVED, pageable);
     }
 
-    // simple saver used by other services when updating usage or small fields
+    // simple saver used by other services when updating small fields
     public ProjectTemplate saveTemplate(ProjectTemplate template) {
         return projectTemplateRepository.save(template);
+    }
+
+    // atomic increment — no race condition under concurrent use
+    public void incrementUsageCount(UUID id) {
+        projectTemplateRepository.incrementUsageCount(id);
     }
 
     public Page<ProjectTemplate> getByCreatedBy(Long createdBy, Pageable pageable) {

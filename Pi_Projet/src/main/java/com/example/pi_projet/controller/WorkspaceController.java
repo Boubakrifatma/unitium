@@ -145,6 +145,15 @@ public class WorkspaceController {
         memberService.remove(id, userId, currentUser.getId());
     }
 
+    @PatchMapping("/{id}/transfer-owner")
+    public WorkspaceMember transferOwner(@PathVariable UUID id,
+                                         @RequestBody Map<String, Object> body,
+                                         HttpServletRequest request) {
+        User currentUser = requireCurrentUser(request);
+        Long newOwnerId = M2ValidationUtils.requireLong(body.get("newOwnerId"), "newOwnerId");
+        return memberService.transferOwner(id, newOwnerId, currentUser.getId());
+    }
+
     private User requireCurrentUser(HttpServletRequest request) {
         Object user = request.getAttribute("currentUser");
         if (!(user instanceof User currentUser)) {

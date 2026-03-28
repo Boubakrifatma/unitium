@@ -100,7 +100,7 @@ public class ProjectService {
             .createdBy(requesterId)
             .name(name)
             .description(description)
-            .visibility(visibility != null ? visibility : Visibility.PUBLIC)
+            .visibility(visibility != null ? visibility : Visibility.PRIVATE)
             .startDate(startDate)
             .endDate(endDate)
             .build();
@@ -147,9 +147,8 @@ public class ProjectService {
         String orgType = resolveWorkspaceOrgType(ws);
         projectMemberRepo.save(ProjectMember.builder()
             .project(p).userId(requesterId).role(orgType.equals("academic") ? ProjectRole.PROFESSOR : ProjectRole.PROJECT_MANAGER).build());
-        // increment usage
-        template.setUsageCount(template.getUsageCount() + 1);
-        templateService.saveTemplate(template); // persist usage increment
+        // atomic usage increment — avoids race condition under concurrent requests
+        templateService.incrementUsageCount(templateId);
         return p;
     }
 
@@ -207,6 +206,15 @@ public class ProjectService {
         if (startDate != null)   p.setStartDate(startDate);
         if (endDate != null)     p.setEndDate(endDate);
         return projectRepo.save(p);
+    }
+
+    private void validateJson(String json, String fieldName) {
+        if (json == null || json.isBlank()) return;
+        try {
+            new com.fasterxml.jackson.databind.ObjectMapper().readTree(json);
+        } catch (Exception e) {
+            throw new Module2Exception(VALIDATION, fieldName + " contains invalid JSON");
+        }
     }
 
     @Transactional

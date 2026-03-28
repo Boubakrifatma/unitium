@@ -222,14 +222,12 @@ public class M2DevSeedService {
             return;
         }
 
-        Long roleId = resolveRoleId(role.name(), roleNameCandidate);
         Long inviterId = inviter != null ? inviter.getId() : null;
 
         if (workspaceMemberRepository.restoreSoftDeletedMember(
             workspace.getId(),
             userId,
             role.name(),
-            roleId,
             inviterId
         ) > 0) {
             return;
@@ -239,7 +237,6 @@ public class M2DevSeedService {
             .workspace(workspace)
             .userId(userId)
             .role(role)
-            .roleId(roleId)
             .invitedByUser(inviter)
             .joinedAt(Instant.now())
             .build();
@@ -254,7 +251,6 @@ public class M2DevSeedService {
                 workspace.getId(),
                 userId,
                 role.name(),
-                roleId,
                 inviterId
             ) > 0) {
                 return;
@@ -316,24 +312,4 @@ public class M2DevSeedService {
             .build());
     }
 
-    private Long resolveRoleId(String... roleNames) {
-        for (String roleName : roleNames) {
-            if (roleName == null || roleName.isBlank()) {
-                continue;
-            }
-            try {
-                Long roleId = jdbcTemplate.queryForObject(
-                    "SELECT id FROM roles WHERE LOWER(name) = LOWER(?) LIMIT 1",
-                    Long.class,
-                    roleName
-                );
-                if (roleId != null) {
-                    return roleId;
-                }
-            } catch (Exception ignored) {
-                // keep trying
-            }
-        }
-        return null;
-    }
 }

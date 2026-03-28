@@ -810,9 +810,7 @@ export class M2TemplateDetailsComponent implements OnInit {
     }
 
     publishTemplate(): void {
-        const userId = this.authService.currentUser()?.id;
-        if (!userId) return;
-        this.templateService.publish(this.templateId(), userId).subscribe({
+        this.templateService.publish(this.templateId()).subscribe({
             next: (updated) => {
                 this.template.set({ ...this.template()!, status: updated.status });
                 this.snackBar.open("Template submitted for approval.", "Close", { duration: 3500 });
@@ -822,9 +820,7 @@ export class M2TemplateDetailsComponent implements OnInit {
     }
 
     approveTemplate(): void {
-        const userId = this.authService.currentUser()?.id;
-        if (!userId) return;
-        this.templateService.approve(this.templateId(), userId).subscribe({
+        this.templateService.approve(this.templateId()).subscribe({
             next: (updated) => {
                 this.template.set({ ...this.template()!, status: updated.status });
                 this.snackBar.open("Template approved and published to Hub.", "Close", { duration: 3500 });
@@ -837,9 +833,7 @@ export class M2TemplateDetailsComponent implements OnInit {
         const ref = this.dialog.open(RejectTemplateDialogComponent, { width: "480px", maxWidth: "95vw" });
         ref.afterClosed().subscribe((result?: { reason: string }) => {
             if (!result?.reason) return;
-            const userId = this.authService.currentUser()?.id;
-            if (!userId) return;
-            this.templateService.reject(this.templateId(), userId, result.reason).subscribe({
+            this.templateService.reject(this.templateId(), result.reason).subscribe({
                 next: (updated) => {
                     this.template.set({ ...this.template()!, status: updated.status, rejectionReason: updated.rejectionReason });
                     this.snackBar.open("Template rejected.", "Close", { duration: 3500 });
@@ -850,9 +844,7 @@ export class M2TemplateDetailsComponent implements OnInit {
     }
 
     forkTemplate(): void {
-        const userId = this.authService.currentUser()?.id;
-        if (!userId) return;
-        this.templateService.fork(this.templateId(), userId).subscribe({
+        this.templateService.fork(this.templateId()).subscribe({
             next: (forked) => {
                 this.snackBar.open(`"${forked.name}" forked as DRAFT.`, "View", { duration: 4000 })
                     .onAction().subscribe(() => this.router.navigate(["/app/templates", forked.id]));
