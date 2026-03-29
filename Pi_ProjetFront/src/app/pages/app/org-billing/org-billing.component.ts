@@ -374,8 +374,8 @@ import { CheckoutStateService } from '../../../billing/services/checkout-state.s
                           Period: {{ inv.billingPeriodStart | date:'dd/MM/yy' }} → {{ inv.billingPeriodEnd | date:'dd/MM/yy' }}
                           <span *ngIf="inv.paidAt"> · Paid: {{ inv.paidAt | date:'dd MMM yyyy' }}</span>
                         </p>
-                        <button mat-icon-button matTooltip="Download PDF" [disabled]="!inv.pdfUrl" (click)="dl(inv)">
-                          <mat-icon class="material-icons-outlined">download</mat-icon>
+                        <button mat-icon-button matTooltip="Download invoice PDF" (click)="dl(inv)">
+                          <mat-icon class="material-icons-outlined" style="color:#dc2626">picture_as_pdf</mat-icon>
                         </button>
                       </div>
                     </mat-card-content>
@@ -717,7 +717,72 @@ export class OrgBillingComponent implements OnInit {
     });
   }
 
-  dl(i: InvoiceDTO) { if (i.pdfUrl) window.open(i.pdfUrl, '_blank'); }
+  dl(inv: InvoiceDTO) {
+    const fmt = (d: string | null) => d ? new Date(d).toLocaleDateString('fr-FR') : '—';
+    const fmtUsd = (v: number) => '$' + v.toFixed(2);
+    const lineItemsHtml = (inv.lineItems ?? []).map(li => `
+      <tr>
+        <td>${li.description}</td>
+        <td style="text-align:center">${li.quantity}</td>
+        <td style="text-align:right">${fmtUsd(li.unitPrice)}</td>
+        <td style="text-align:center">${li.taxRate > 0 ? li.taxRate + '%' : '0%'}</td>
+        <td style="text-align:right"><strong>${fmtUsd(li.totalPrice)}</strong></td>
+      </tr>`).join('');
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+      <title>Invoice ${inv.invoiceNumber}</title>
+      <style>
+        body{font-family:Arial,sans-serif;color:#1e293b;padding:40px;max-width:800px;margin:0 auto}
+        h1{font-size:28px;margin:0} .sub{color:#64748b;font-size:13px}
+        .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px}
+        .badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;
+               background:${inv.status==='PAID'?'#dcfce7':'#dbeafe'};color:${inv.status==='PAID'?'#15803d':'#1d4ed8'}}
+        .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px}
+        .info-box{background:#f8fafc;border-radius:8px;padding:16px}
+        .info-box p{margin:0 0 4px;font-size:11px;color:#94a3b8;text-transform:uppercase;font-weight:700}
+        .info-box h3{margin:0;font-size:15px}
+        table{width:100%;border-collapse:collapse;margin-bottom:24px}
+        th{background:#f1f5f9;padding:10px 12px;text-align:left;font-size:12px;color:#64748b;text-transform:uppercase}
+        td{padding:10px 12px;border-bottom:1px solid #f1f5f9;font-size:13px}
+        .totals{margin-left:auto;width:280px}
+        .totals tr td{border:none;padding:6px 12px}
+        .totals tr.grand td{font-size:16px;font-weight:800;border-top:2px solid #1e293b;padding-top:12px}
+        .footer{margin-top:40px;text-align:center;font-size:11px;color:#94a3b8}
+        @media print{body{padding:20px}}
+      </style></head><body>
+      <div class="header">
+        <div><h1>INVOICE</h1><p class="sub">${inv.invoiceNumber}</p></div>
+        <div style="text-align:right">
+          <span class="badge">${inv.status}</span>
+          <p class="sub" style="margin-top:8px">Issued: ${fmt(inv.createdAt)}</p>
+          <p class="sub">Paid: ${fmt(inv.paidAt)}</p>
+        </div>
+      </div>
+      <div class="info-grid">
+        <div class="info-box"><p>Plan</p><h3>${inv.planName ?? '—'}</h3></div>
+        <div class="info-box"><p>Currency</p><h3>${inv.currency}</h3></div>
+        <div class="info-box"><p>Billing Period</p><h3>${fmt(inv.billingPeriodStart)} → ${fmt(inv.billingPeriodEnd)}</h3></div>
+        <div class="info-box"><p>Due Date</p><h3>${fmt(inv.dueDate)}</h3></div>
+      </div>
+      <table>
+        <thead><tr><th>Description</th><th style="text-align:center">Qty</th>
+          <th style="text-align:right">Unit Price</th><th style="text-align:center">Tax</th>
+          <th style="text-align:right">Total</th></tr></thead>
+        <tbody>${lineItemsHtml}</tbody>
+      </table>
+      <table class="totals">
+        <tr><td>Subtotal</td><td style="text-align:right">${fmtUsd(inv.subtotal)}</td></tr>
+        <tr><td>Tax (19%)</td><td style="text-align:right">${fmtUsd(inv.taxAmount)}</td></tr>
+        <tr class="grand"><td>Total</td><td style="text-align:right">${fmtUsd(inv.total)} ${inv.currency}</td></tr>
+      </table>
+      <div class="footer">Unitum · unitumgroup1@gmail.com · Generated ${new Date().toLocaleString()}</div>
+      <script>window.onload=()=>{window.print()}</script>
+      </body></html>`;
+
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  }
 
   getSubStatusClass(s?: string) { return ({ACTIVE:'pill-green',TRIALING:'pill-blue',PAST_DUE:'pill-yellow',CANCELED:'pill-red'})[s??'']??'pill-blue'; }
   getInvClass(s: string) { return ({PAID:'pill-green',OPEN:'pill-yellow',DRAFT:'pill-blue',VOID:'pill-red'})[s]??'pill-blue'; }

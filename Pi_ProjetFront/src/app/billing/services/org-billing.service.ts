@@ -15,7 +15,7 @@ export interface InvoiceDTO {
   subtotal: number; taxAmount: number; total: number; currency: string;
   billingPeriodStart: string; billingPeriodEnd: string;
   dueDate: string; paidAt: string; pdfUrl: string;
-  planName: string; createdAt: string;
+  planName: string; orgName: string; createdAt: string;
   lineItems?: InvoiceLineItemDTO[];
 }
 
@@ -173,6 +173,12 @@ export class OrgBillingService {
 
   deletePlan(planId: string): Observable<any> {
     return this.http.delete(`${this.API}/plans/${planId}`);
+  }
+
+  uploadInvoicePdf(invoiceId: string, file: File): Observable<{ pdfUrl: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<{ pdfUrl: string }>(`${this.API}/invoices/${invoiceId}/pdf`, formData);
   }
 
   cancelSubscription(): Observable<any> {

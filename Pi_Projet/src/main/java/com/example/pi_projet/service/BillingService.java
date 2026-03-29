@@ -13,7 +13,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -29,6 +32,9 @@ public class BillingService {
 
     @Value("${stripe.secret.key}")
     private String stripeSecretKey;
+
+    @Value("${upload.dir}")
+    private String uploadDir;
 
     private final PendingPaymentRepository  pendingPaymentRepository;
     private final UserRepository            userRepository;
@@ -603,6 +609,30 @@ public class BillingService {
                 return true;
             })
             .orElse(false);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PDF UPLOAD
+    // ─────────────────────────────────────────────────────────────────────────
+    @Transactional
+    public String uploadInvoicePdf(String invoiceId, MultipartFile file) throws IOException {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+            .orElseThrow(() -> new IllegalArgumentException("Invoice not found: " + invoiceId));
+
+        Path dir = Paths.get(uploadDir);
+        Files.createDirectories(dir);
+
+        String filename = invoiceId + "_" + System.currentTimeMillis() + ".pdf";
+        Path filePath = dir.resolve(filename);
+        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+        String pdfUrl = "http://localhost:8084/uploads/invoices/" + filename;
+        invoice.setPdfUrl(pdfUrl);
+        invoice.setPdfSentAt(LocalDateTime.now());
+        invoiceRepository.save(invoice);
+
+        log.info("PDF uploaded for invoice {}: {}", invoiceId, pdfUrl);
+        return pdfUrl;
     }
 
     // ─────────────────────────────────────────────────────────────────────────

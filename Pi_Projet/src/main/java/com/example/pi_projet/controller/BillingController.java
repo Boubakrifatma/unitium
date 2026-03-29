@@ -12,11 +12,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/billing")
@@ -231,6 +234,27 @@ public class BillingController {
             log.error("Plan update error: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("error", "Plan update failed. Please try again."));
+        }
+    }
+
+    @Operation(summary = "Upload a PDF for an invoice (super admin)")
+    @PostMapping(value = "/invoices/{invoiceId}/pdf", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> uploadInvoicePdf(
+            @PathVariable String invoiceId,
+            @RequestParam("file") MultipartFile file) {
+        try {
+            String originalName = Objects.requireNonNull(file.getOriginalFilename(), "").toLowerCase();
+            if (file.isEmpty() || !originalName.endsWith(".pdf")) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Only non-empty PDF files are accepted"));
+            }
+            String pdfUrl = billingService.uploadInvoicePdf(invoiceId, file);
+            return ResponseEntity.ok(Map.of("pdfUrl", pdfUrl));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            log.error("PDF upload error for invoice {}: {}", invoiceId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "PDF upload failed: " + e.getMessage()));
         }
     }
 
