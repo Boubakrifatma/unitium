@@ -27,6 +27,11 @@ export interface MessageDTO {
   pinnedAt?: string;
   pinnedById?: number;
   pinnedByName?: string;
+  // shared content fields
+  category?: 'IMAGE' | 'FILE' | 'LINK';
+  extractedUrl?: string;
+  deleted?: boolean;
+  isSystemMessage?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -160,6 +165,20 @@ export class ChatMessageService {
   unpinMessage(roomId: number, messageId: number): Observable<any> {
     return this.http.delete<any>(
       `${this.BASE_URL}/api/chat/rooms/${roomId}/messages/${messageId}/pin`,
+    );
+  }
+
+  /** REST: get all shared content (images, files, links) for a room. */
+  getSharedContent(roomId: number): Observable<MessageDTO[]> {
+    return this.http.get<MessageDTO[]>(
+      `${this.BASE_URL}/api/chat/rooms/${roomId}/shared`,
+    );
+  }
+
+  /** REST: delete a message. */
+  deleteMessage(roomId: number, messageId: number): Observable<void> {
+    return this.http.delete<void>(
+      `${this.BASE_URL}/api/chat/rooms/${roomId}/messages/${messageId}`,
     );
   }
 

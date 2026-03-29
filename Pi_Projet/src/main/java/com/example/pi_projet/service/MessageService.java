@@ -14,10 +14,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -145,5 +149,59 @@ public class MessageService {
                 .stream()
                 .map(this::buildDTO)
                 .toList();
+    }
+
+    // ── Delete message ─────────────────────────────────────────────────────────
+    @Transactional
+    public void deleteMessage(Long roomId, Long messageId, User currentUser) {
+        ChatRoom room = getAccessibleRoom(roomId, currentUser);
+        Message message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found."));
+        if (!message.getRoom().getId().equals(room.getId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Message does not belong to this room.");
+        }
+
+        boolean isOwner = message.getSender().getId().equals(currentUser.getId());
+        boolean isPrivileged = currentUser.getRole() == User.RoleName.MANAGER
+                || currentUser.getRole() == User.RoleName.TUTOR;
+        if (!isOwner && !isPrivileged) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not allowed to delete this message.");
+        }
+
+        reactionRepository.deleteByMessage(message);
+        roomMemberRepository.clearLastReadMessageByMessageId(messageId);
+        messageRepository.delete(message);
+
+        messagingTemplate.convertAndSend("/topic/rooms/" + roomId, MessageDTO.deleted(messageId, roomId));
+    }
+
+    // ── Shared Media & Files ────────────────────────────────────────────────────
+    private static final Pattern URL_PATTERN =
+            Pattern.compile("https?://[^\\s]+", Pattern.CASE_INSENSITIVE);
+
+    public List<MessageDTO> getSharedContent(Long roomId, User currentUser) {
+        ChatRoom room = getAccessibleRoom(roomId, currentUser);
+
+        List<MessageDTO> result = new ArrayList<>();
+
+        for (Message m : messageRepository.findCandidateSharedContent(room)) {
+            List<MessageReactionDTO> reactions = reactionRepository.findByMessage(m)
+                    .stream().map(MessageReactionDTO::from).toList();
+
+            if (m.getFileUrl() != null) {
+                // File or Image — determined by MIME type
+                String fileType = m.getFileType();
+                String category = (fileType != null && fileType.startsWith("image/")) ? "IMAGE" : "FILE";
+                result.add(MessageDTO.fromShared(m, reactions, category, null));
+            } else if (m.getContentText() != null) {
+                // Extract first URL from text — qualify as LINK
+                Matcher matcher = URL_PATTERN.matcher(m.getContentText());
+                if (matcher.find()) {
+                    result.add(MessageDTO.fromShared(m, reactions, "LINK", matcher.group()));
+                }
+            }
+        }
+
+        return result;
     }
 }

@@ -37,10 +37,10 @@ public class ChatRoom {
     private LocalDateTime updatedAt;
 
     // Relation inverse
-    @OneToMany(mappedBy = "room")
+    @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Message> messages;
 
-    @OneToMany(mappedBy = "room")
+    @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RoomMember> members;
 
     @PrePersist

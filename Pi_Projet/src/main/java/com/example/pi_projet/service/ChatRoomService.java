@@ -7,10 +7,14 @@ import com.example.pi_projet.entity.Project;
 import com.example.pi_projet.entity.User;
 import com.example.pi_projet.enums.RoomType;
 import com.example.pi_projet.repository.ChatRoomRepository;
+import com.example.pi_projet.repository.MessageReactionRepository;
+import com.example.pi_projet.repository.MessageRepository;
 import com.example.pi_projet.repository.ProjectRepository;
+import com.example.pi_projet.repository.RoomMemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -21,6 +25,9 @@ public class ChatRoomService {
 
     private final ChatRoomRepository chatRoomRepository;
     private final ProjectRepository projectRepository;
+    private final MessageReactionRepository messageReactionRepository;
+    private final MessageRepository messageRepository;
+    private final RoomMemberRepository roomMemberRepository;
 
     private void checkRole(User user) {
         if (user.getRole() != User.RoleName.MANAGER && user.getRole() != User.RoleName.TUTOR) {
@@ -76,9 +83,14 @@ public class ChatRoomService {
         return ChatRoomDTO.from(chatRoomRepository.save(room));
     }
 
+    @Transactional
     public void deleteRoom(Long id, User currentUser) {
         checkRole(currentUser);
         getOwnedRoom(id, currentUser);
+        messageReactionRepository.deleteByRoomId(id);
+        roomMemberRepository.clearLastReadMessageByRoomId(id);
+        roomMemberRepository.deleteByRoomId(id);
+        messageRepository.deleteByRoomId(id);
         chatRoomRepository.deleteById(id);
     }
 }

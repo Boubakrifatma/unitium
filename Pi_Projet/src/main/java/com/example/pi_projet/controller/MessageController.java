@@ -64,25 +64,71 @@ public class MessageController {
 
     // ── REST: file download ────────────────────────────────────────────────────
 
-    @Operation(summary = "Download a stored file by its stored filename")
+    @Operation(summary = "Download / stream a stored file by its stored filename")
     @GetMapping("/api/chat/files/{fileName:.+}")
     @ResponseBody
     public ResponseEntity<Resource> downloadFile(
             @PathVariable String fileName,
-            HttpServletRequest request) { // request kept for MIME-type detection
+            HttpServletRequest request) {
         Resource resource = fileStorageService.getFileAsResource(fileName);
 
-        String contentType = "application/octet-stream";
+        // 1. Try servlet-context detection first
+        String contentType = null;
         try {
-            String detected = request.getServletContext().getMimeType(resource.getFile().getAbsolutePath());
-            if (detected != null) contentType = detected;
+            contentType = request.getServletContext().getMimeType(resource.getFile().getAbsolutePath());
         } catch (Exception ignored) {}
+
+        // 2. Fall back to Files.probeContentType (JDK NIO)
+        if (contentType == null || contentType.isBlank()) {
+            try {
+                contentType = java.nio.file.Files.probeContentType(resource.getFile().toPath());
+            } catch (Exception ignored) {}
+        }
+
+        // 3. Manual map for audio types that JDK / servlet containers often miss
+        if (contentType == null || contentType.isBlank() || contentType.equals("application/octet-stream")) {
+            String lower = fileName.toLowerCase();
+            // video
+            if (lower.endsWith(".webm"))      contentType = "video/webm";
+            else if (lower.endsWith(".mp4"))  contentType = "video/mp4";
+            else if (lower.endsWith(".mov"))  contentType = "video/quicktime";
+            else if (lower.endsWith(".ogv"))  contentType = "video/ogg";
+            else if (lower.endsWith(".avi"))  contentType = "video/x-msvideo";
+            else if (lower.endsWith(".mkv"))  contentType = "video/x-matroska";
+            // audio
+            else if (lower.endsWith(".ogg"))  contentType = "audio/ogg";
+            else if (lower.endsWith(".opus")) contentType = "audio/ogg; codecs=opus";
+            else if (lower.endsWith(".mp3"))  contentType = "audio/mpeg";
+            else if (lower.endsWith(".m4a"))  contentType = "audio/mp4";
+            else if (lower.endsWith(".wav"))  contentType = "audio/wav";
+            else if (lower.endsWith(".aac"))  contentType = "audio/aac";
+            else                              contentType = "application/octet-stream";
+        }
+
+        // Use inline disposition so browsers can stream audio/video without forcing a download
+        boolean isInline = contentType.startsWith("audio/") || contentType.startsWith("video/")
+                || contentType.startsWith("image/") || contentType.equals("application/pdf");
+        String disposition = (isInline ? "inline" : "attachment")
+                + "; filename=\"" + resource.getFilename() + "\"";
 
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(contentType))
-                .header(HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\"" + resource.getFilename() + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition)
+                .header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
                 .body(resource);
+    }
+
+    // ── REST: shared media & files ────────────────────────────────────────────
+
+    @Authorized
+    @Operation(summary = "Get all shared files, images and links in a room")
+    @GetMapping("/api/chat/rooms/{roomId}/shared")
+    @ResponseBody
+    public ResponseEntity<List<MessageDTO>> getSharedContent(
+            @PathVariable Long roomId,
+            HttpServletRequest request) {
+        User currentUser = (User) request.getAttribute("currentUser");
+        return ResponseEntity.ok(messageService.getSharedContent(roomId, currentUser));
     }
 
     // ── REST: pin / unpin / list pinned ───────────────────────────────────────
@@ -120,6 +166,21 @@ public class MessageController {
             HttpServletRequest request) {
         User currentUser = (User) request.getAttribute("currentUser");
         return ResponseEntity.ok(messageService.getPinnedMessages(roomId, currentUser));
+    }
+
+    // ── REST: delete a message ────────────────────────────────────────────────
+
+    @Authorized
+    @Operation(summary = "Delete a message (own message, or any message if MANAGER/TUTOR)")
+    @DeleteMapping("/api/chat/rooms/{roomId}/messages/{messageId}")
+    @ResponseBody
+    public ResponseEntity<Void> deleteMessage(
+            @PathVariable Long roomId,
+            @PathVariable Long messageId,
+            HttpServletRequest request) {
+        User currentUser = (User) request.getAttribute("currentUser");
+        messageService.deleteMessage(roomId, messageId, currentUser);
+        return ResponseEntity.noContent().build();
     }
 
     // ── WebSocket: send text message (unchanged) ───────────────────────────────

@@ -4,6 +4,9 @@ import com.example.pi_projet.entity.Message;
 import com.example.pi_projet.entity.MessageReaction;
 import com.example.pi_projet.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -17,4 +20,12 @@ public interface MessageReactionRepository extends JpaRepository<MessageReaction
 
     @Transactional
     void deleteByMessageAndUser(Message message, User user);
+
+    @Transactional
+    void deleteByMessage(Message message);
+
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM MessageReaction mr WHERE mr.message.room.id = :roomId")
+    void deleteByRoomId(@Param("roomId") Long roomId);
 }

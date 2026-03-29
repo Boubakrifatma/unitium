@@ -20,7 +20,7 @@ import java.util.UUID;
 @Service
 public class FileStorageService {
 
-    private static final long MAX_SIZE_BYTES = 20L * 1024 * 1024; // 20 MB
+    private static final long MAX_SIZE_BYTES = 50L * 1024 * 1024; // 50 MB
 
     @Value("${app.upload.dir:uploads/chat}")
     private String uploadDir;

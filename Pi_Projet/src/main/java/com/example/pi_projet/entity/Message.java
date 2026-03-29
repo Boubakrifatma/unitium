@@ -53,12 +53,16 @@ public class Message {
 
     private boolean isEdited;
 
+    @Column(name = "is_system_message")
+    @Builder.Default
+    private Boolean isSystemMessage = false;
+
     private LocalDateTime editedAt;
     private LocalDateTime deletedAt;
     private LocalDateTime createdAt;
 
     // Relation inverse
-    @OneToMany(mappedBy = "message")
+    @OneToMany(mappedBy = "message", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<MessageReaction> reactions;
 
     @PrePersist
