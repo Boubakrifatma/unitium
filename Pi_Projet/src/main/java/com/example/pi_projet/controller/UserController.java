@@ -12,10 +12,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
@@ -98,8 +100,13 @@ public class UserController {
     @Operation(summary = "Change user password (self-service — used after first login)")
     @PatchMapping("/{id}/password")
     public ResponseEntity<?> changePassword(@PathVariable Long id, @RequestBody Map<String, String> body) {
-        userService.changePassword(id, body.get("oldPassword"), body.get("newPassword"));
-        return ResponseEntity.ok(Map.of("message", "Password changed successfully."));
+        try {
+            userService.changePassword(id, body.get("oldPassword"), body.get("newPassword"));
+            return ResponseEntity.ok(Map.of("message", "Password changed successfully."));
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode())
+                    .body(Map.of("message", e.getReason() != null ? e.getReason() : "Password change failed."));
+        }
     }
 
     @Operation(summary = "Upload avatar photo for a user")

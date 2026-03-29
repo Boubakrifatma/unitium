@@ -129,7 +129,7 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
         if (!passwordEncoder.matches(oldPassword, user.getPasswordHash())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Old password is incorrect.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Old password is incorrect.");
         }
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(user);

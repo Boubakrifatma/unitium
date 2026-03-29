@@ -14,15 +14,21 @@ public record OrgMemberDTO(
         String role,
         Instant joinedAt
 ) {
-    public static OrgMemberDTO from(OrganizationMember m) {
+    /** Used when the orgId is already known — avoids lazy-loading the organization proxy. */
+    public static OrgMemberDTO from(OrganizationMember m, UUID orgId) {
         return new OrgMemberDTO(
                 m.getId(),
-                m.getOrganization().getId(),
+                orgId,
                 m.getUserId(),
                 m.getUser() != null ? m.getUser().getFullName() : null,
                 m.getUser() != null ? m.getUser().getEmail()    : null,
                 m.getRole().name(),
                 m.getJoinedAt()
         );
+    }
+
+    /** Fallback — requires an active persistence context for lazy org load. */
+    public static OrgMemberDTO from(OrganizationMember m) {
+        return from(m, m.getOrganization().getId());
     }
 }

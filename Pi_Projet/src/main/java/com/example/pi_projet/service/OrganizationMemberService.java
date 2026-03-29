@@ -35,6 +35,7 @@ public class OrganizationMemberService {
     private final EmailService emailService;
     private final BCryptPasswordEncoder passwordEncoder;
 
+    @Transactional(readOnly = true)
     public List<UserDTO> getMemberUsers(UUID orgId) {
         return memberRepository.findByOrganizationId(orgId).stream()
                 .map(m -> userRepository.findById(m.getUserId()).orElse(null))
@@ -43,9 +44,12 @@ public class OrganizationMemberService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public List<OrgMemberDTO> getMembers(UUID orgId) {
         findOrgOrThrow(orgId);
-        return memberRepository.findByOrganizationId(orgId).stream().map(OrgMemberDTO::from).toList();
+        return memberRepository.findByOrganizationId(orgId).stream()
+                .map(m -> OrgMemberDTO.from(m, orgId))
+                .toList();
     }
 
     public OrgMemberDTO addMember(UUID orgId, AddOrgMemberRequest body) {
@@ -149,7 +153,7 @@ public class OrganizationMemberService {
 
     private void validateRoleCompatibility(Organization.OrgType orgType, User.RoleName userRole) {
         Set<User.RoleName> common = Set.of(
-                User.RoleName.ADMIN, User.RoleName.MANAGER, User.RoleName.VIEWER
+                User.RoleName.SUPER_ADMIN, User.RoleName.ADMIN, User.RoleName.MANAGER, User.RoleName.VIEWER
         );
         Set<User.RoleName> enterpriseOnly = Set.of(
                 User.RoleName.EMPLOYEE, User.RoleName.PRODUCT_OWNER
@@ -165,8 +169,8 @@ public class OrganizationMemberService {
 
         if (!allowed) {
             String allowed_roles = orgType == Organization.OrgType.ENTERPRISE
-                    ? "ADMIN, MANAGER, EMPLOYEE, PRODUCT_OWNER, VIEWER"
-                    : "ADMIN, MANAGER, TUTOR, STUDENT, VIEWER";
+                    ? "SUPER_ADMIN, ADMIN, MANAGER, EMPLOYEE, PRODUCT_OWNER, VIEWER"
+                    : "SUPER_ADMIN, ADMIN, MANAGER, TUTOR, STUDENT, VIEWER";
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "User role " + userRole + " is not allowed in a " + orgType + " organization. Allowed roles: " + allowed_roles);
         }

@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
@@ -131,32 +131,47 @@ import { AddMemberDialogComponent } from './add-member-dialog.component';
   styles: [`.badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }`]
 })
 export class OrganizationDetailComponent implements OnInit {
-  private route = inject(ActivatedRoute);
-  private svc = inject(OrganizationService);
-  private dialog = inject(MatDialog);
+  private route    = inject(ActivatedRoute);
+  private svc      = inject(OrganizationService);
+  private dialog   = inject(MatDialog);
   private snackBar = inject(MatSnackBar);
+  private cdr      = inject(ChangeDetectorRef);
 
   org: OrganizationDTO | null = null;
   members: OrgMemberDTO[] = [];
   cols = ['user', 'role', 'joinedAt', 'actions'];
+  private orgId = '';
 
   get adminCount()  { return this.members.filter(m => m.role === 'ADMIN' || m.role === 'OWNER').length; }
   get memberCount() { return this.members.filter(m => m.role === 'MEMBER').length; }
 
   ngOnInit() {
-    const id = this.route.snapshot.paramMap.get('id')!;
-    this.svc.getById(id).subscribe({ next: o => { this.org = o; this.loadMembers(); }, error: () => this.notify('Organization not found', true) });
+    this.orgId = this.route.snapshot.paramMap.get('id')!;
+
+    // Load org info and members in parallel — do NOT chain them
+    this.svc.getById(this.orgId).subscribe({
+      next: o => { this.org = o; this.cdr.detectChanges(); },
+      error: () => this.notify('Organization not found', true)
+    });
+
+    this.svc.getMembers(this.orgId).subscribe({
+      next: d => { this.members = d; this.cdr.detectChanges(); },
+      error: () => this.notify('Failed to load members', true)
+    });
   }
 
   loadMembers() {
-    this.svc.getMembers(this.org!.id).subscribe({ next: d => this.members = d, error: () => this.notify('Failed to load members', true) });
+    this.svc.getMembers(this.orgId).subscribe({
+      next: d => { this.members = d; this.cdr.detectChanges(); },
+      error: () => this.notify('Failed to load members', true)
+    });
   }
 
   openAddMember() {
     this.dialog.open(AddMemberDialogComponent, {
       width: '500px',
       autoFocus: false,
-      data: { orgId: this.org!.id, orgType: this.org!.orgType }
+      data: { orgId: this.orgId, orgType: this.org?.orgType ?? 'ENTERPRISE' }
     }).afterClosed().subscribe(member => {
       if (!member) return;
       this.members = [...this.members, member];
@@ -165,12 +180,12 @@ export class OrganizationDetailComponent implements OnInit {
   }
 
   changeRole(m: OrgMemberDTO, role: string) {
-    this.svc.changeRole(this.org!.id, m.id, role).subscribe({ next: u => { this.members = this.members.map(x => x.id === u.id ? u : x); this.notify(`Role changed to ${role}`); }, error: () => this.notify('Failed to change role', true) });
+    this.svc.changeRole(this.orgId, m.id, role).subscribe({ next: u => { this.members = this.members.map(x => x.id === u.id ? u : x); this.notify(`Role changed to ${role}`); }, error: () => this.notify('Failed to change role', true) });
   }
 
   removeMember(m: OrgMemberDTO) {
     if (!confirm(`Remove "${m.userFullName ?? 'this user'}"?`)) return;
-    this.svc.removeMember(this.org!.id, m.id).subscribe({ next: () => { this.members = this.members.filter(x => x.id !== m.id); this.notify('Member removed'); }, error: () => this.notify('Failed to remove', true) });
+    this.svc.removeMember(this.orgId, m.id).subscribe({ next: () => { this.members = this.members.filter(x => x.id !== m.id); this.notify('Member removed'); }, error: () => this.notify('Failed to remove', true) });
   }
 
   getRoleBadge(role: string): string {

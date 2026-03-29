@@ -1,6 +1,6 @@
-import { Component, OnInit, computed, inject } from '@angular/core';
+import { Component, OnInit, computed, inject, ChangeDetectorRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, FormGroup, FormGroupDirective, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -113,35 +113,42 @@ function passwordMatchValidator(control: AbstractControl): ValidationErrors | nu
             </h4>
             <mat-divider class="mb-3"></mat-divider>
 
-            <form [formGroup]="pwForm" (ngSubmit)="changePassword()">
+            <form [formGroup]="pwForm" #pwFormRef="ngForm" (ngSubmit)="changePassword()">
+
+              <!-- Current Password -->
               <mat-form-field appearance="outline" class="w-100 mb-2">
                 <mat-label>Current Password</mat-label>
                 <input matInput formControlName="oldPassword" [type]="hideOld ? 'password' : 'text'" />
                 <button matIconButton matSuffix type="button" (click)="hideOld = !hideOld">
                   <mat-icon class="material-icons-outlined">{{ hideOld ? 'visibility_off' : 'visibility' }}</mat-icon>
                 </button>
+                <mat-error *ngIf="pwForm.get('oldPassword')?.hasError('required')">Current password is required</mat-error>
               </mat-form-field>
 
+              <!-- New Password -->
               <mat-form-field appearance="outline" class="w-100 mb-2">
                 <mat-label>New Password</mat-label>
                 <input matInput formControlName="newPassword" [type]="hideNew ? 'password' : 'text'" />
                 <button matIconButton matSuffix type="button" (click)="hideNew = !hideNew">
                   <mat-icon class="material-icons-outlined">{{ hideNew ? 'visibility_off' : 'visibility' }}</mat-icon>
                 </button>
+                <mat-error *ngIf="pwForm.get('newPassword')?.hasError('required')">New password is required</mat-error>
                 <mat-error *ngIf="pwForm.get('newPassword')?.hasError('minlength')">At least 8 characters</mat-error>
+                <mat-error *ngIf="pwForm.get('newPassword')?.hasError('maxlength')">50 characters maximum</mat-error>
               </mat-form-field>
 
+              <!-- Confirm Password -->
               <mat-form-field appearance="outline" class="w-100 mb-2">
                 <mat-label>Confirm New Password</mat-label>
                 <input matInput formControlName="confirmPassword" [type]="hideConf ? 'password' : 'text'" />
                 <button matIconButton matSuffix type="button" (click)="hideConf = !hideConf">
                   <mat-icon class="material-icons-outlined">{{ hideConf ? 'visibility_off' : 'visibility' }}</mat-icon>
                 </button>
-                <mat-error *ngIf="pwForm.hasError('mismatch')">Passwords do not match</mat-error>
+                <mat-error *ngIf="pwForm.get('confirmPassword')?.hasError('required')">Please confirm your password</mat-error>
+                <mat-error *ngIf="pwForm.hasError('mismatch') && pwForm.get('confirmPassword')?.touched">Passwords do not match</mat-error>
               </mat-form-field>
 
-              <button matButton="filled" color="primary" type="submit"
-                      [disabled]="pwForm.invalid || pwSaving">
+              <button matButton="filled" color="primary" type="submit" [disabled]="pwSaving">
                 <mat-spinner diameter="16" *ngIf="pwSaving"></mat-spinner>
                 <mat-icon *ngIf="!pwSaving">lock_reset</mat-icon>
                 {{ pwSaving ? 'Updating…' : 'Update Password' }}
@@ -288,6 +295,7 @@ export class SettingsComponent implements OnInit {
   pwMsg = '';
   pwError = '';
   hideOld = true; hideNew = true; hideConf = true;
+  @ViewChild('pwFormRef') pwFormDirective!: FormGroupDirective;
 
   // Face ID
   showFaceRegistration = false;
@@ -296,6 +304,8 @@ export class SettingsComponent implements OnInit {
   faceRemoving = false;
   faceMsg = '';
   faceError = '';
+
+  private cdr = inject(ChangeDetectorRef);
 
   constructor(
     private fb: FormBuilder,
@@ -310,7 +320,7 @@ export class SettingsComponent implements OnInit {
 
     this.pwForm = this.fb.group({
       oldPassword:     ['', Validators.required],
-      newPassword:     ['', [Validators.required, Validators.minLength(8)]],
+      newPassword:     ['', [Validators.required, Validators.minLength(8), Validators.maxLength(50)]],
       confirmPassword: ['', Validators.required]
     }, { validators: passwordMatchValidator });
   }
@@ -403,23 +413,35 @@ export class SettingsComponent implements OnInit {
 
   // ── Password ──────────────────────────────────────────────────────
   changePassword(): void {
-    if (this.pwForm.invalid) return;
+    if (this.pwForm.invalid) {
+      this.pwForm.markAllAsTouched();
+      return;
+    }
     const userId = this.authService.getUserId();
     if (!userId) return;
     this.pwSaving = true;
     this.pwError  = '';
+    this.pwMsg    = '';
 
     const { oldPassword, newPassword } = this.pwForm.value;
     this.userService.changePassword(userId, oldPassword, newPassword).subscribe({
       next: () => {
         this.pwSaving = false;
         this.pwMsg    = 'Password changed successfully!';
-        this.pwForm.reset();
-        setTimeout(() => this.pwMsg = '', 3000);
+        this.pwFormDirective.resetForm();
+        this.cdr.detectChanges();
+        setTimeout(() => { this.pwMsg = ''; this.cdr.detectChanges(); }, 3000);
       },
       error: (err) => {
         this.pwSaving = false;
-        this.pwError  = err.error?.message ?? 'Password change failed.';
+        if (err.status === 0) {
+          this.pwError = 'Cannot reach the server. Please try again later.';
+        } else {
+          this.pwError = err.error?.message
+            || (typeof err.error === 'string' ? err.error : null)
+            || 'Password change failed.';
+        }
+        this.cdr.detectChanges();
       }
     });
   }
