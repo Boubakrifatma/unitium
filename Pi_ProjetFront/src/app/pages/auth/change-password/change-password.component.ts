@@ -1,4 +1,4 @@
-import { Component, OnInit } from "@angular/core";
+import { Component, OnInit, ChangeDetectorRef } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { MatCardModule } from "@angular/material/card";
 import { MatInputModule } from "@angular/material/input";
@@ -7,6 +7,7 @@ import { MatIconModule } from "@angular/material/icon";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { AbstractControl, FormBuilder, FormGroup, ReactiveFormsModule, ValidationErrors, Validators } from "@angular/forms";
 import { Router, RouterModule } from "@angular/router";
+import { AuthService } from "../../../auth/auth.service";
 
 function passwordsMatch(group: AbstractControl): ValidationErrors | null {
     const pw = group.get('newPassword')?.value;
@@ -99,7 +100,12 @@ export class ChangePasswordComponent implements OnInit {
     // Email received from forgot-password via navigation state
     private email = '';
 
-    constructor(private fb: FormBuilder, private router: Router) {
+    constructor(
+      private fb: FormBuilder,
+      private router: Router,
+      private authService: AuthService,
+      private cdr: ChangeDetectorRef
+    ) {
         this.changeForm = this.fb.group({
             newPassword: ["", [
                 Validators.required,
@@ -123,40 +129,30 @@ export class ChangePasswordComponent implements OnInit {
             this.changeForm.markAllAsTouched();
             return;
         }
+        const userId = this.authService.getUserId();
+        if (!userId) {
+            this.router.navigate(['/auth/login']);
+            return;
+        }
         this.loading = true;
         this.errorMessage = '';
 
         const newPassword = this.changeForm.value.newPassword;
-
-        setTimeout(() => {
-            try {
-                // ── Update password in cmp_first_login_users if this email is there ──
-                const raw = localStorage.getItem('cmp_first_login_users');
-                if (raw) {
-                    const map = JSON.parse(raw);
-                    if (map[this.email]) {
-                        // Update temp password to the new one and clear mustChange flag
-                        delete map[this.email];
-                        localStorage.setItem('cmp_first_login_users', JSON.stringify(map));
-                    }
-                }
-
-                // ── Save new password so login works ──
-                // Store as a "real" user override: email -> newPassword
-                const overridesRaw = localStorage.getItem('cmp_password_overrides') ?? '{}';
-                const overrides = JSON.parse(overridesRaw);
-                overrides[this.email] = newPassword;
-                localStorage.setItem('cmp_password_overrides', JSON.stringify(overrides));
-
-            } catch (e) {
-                this.errorMessage = 'Something went wrong. Please try again.';
+        this.authService.changePassword(userId, newPassword).subscribe({
+            next: () => {
+                // Clear mustChangePassword flag in cached user
+                const u = this.authService.currentUser();
+                if (u) this.authService.currentUser.set({ ...u, mustChangePassword: false });
                 this.loading = false;
-                return;
+                this.success = true;
+                this.cdr.detectChanges();
+                setTimeout(() => this.router.navigate(['/app/dashboard']), 2000);
+            },
+            error: (err) => {
+                this.loading = false;
+                this.errorMessage = err.error?.message ?? 'Something went wrong. Please try again.';
+                this.cdr.detectChanges();
             }
-
-            this.loading = false;
-            this.success = true;
-            setTimeout(() => this.router.navigate(['/auth/login']), 2000);
-        }, 1000);
+        });
     }
 }

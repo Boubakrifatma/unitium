@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -28,7 +28,8 @@ export class LoginComponent {
   constructor(
     private authService: AuthService,
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private cdr: ChangeDetectorRef
   ) {}
 
   onSubmit(): void {
@@ -38,19 +39,21 @@ export class LoginComponent {
     this.authService.login({ email: this.email, password: this.password }).subscribe({
       next: () => {
         this.loading = false;
-        // Check if user must change password on first login
+        this.cdr.detectChanges();
         const user = this.authService.currentUser();
         if (user?.mustChangePassword) {
           this.router.navigate(['/auth/change-password']);
         } else {
-          // ── Billing flow: restore checkout and redirect to payment page ──────
           const returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/app/dashboard';
           this.router.navigate([returnUrl]);
         }
       },
       error: (err) => {
-        this.error   = err.error?.message ?? 'An error occurred. Please try again.';
         this.loading = false;
+        this.error   = err.status === 0
+          ? 'Cannot reach the server. Please try again later.'
+          : (err.error?.message ?? 'Invalid email or password.');
+        this.cdr.detectChanges();
       }
     });
   }

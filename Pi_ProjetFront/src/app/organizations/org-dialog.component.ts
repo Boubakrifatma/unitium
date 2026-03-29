@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core';
+import { Component, Inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
@@ -8,6 +8,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { OrganizationDTO } from './organization.service';
+import { UserService, UserDTO } from '../users/user.service';
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const COUNTRY_PATTERN = /^[A-Za-z]{2}$/;
@@ -60,14 +61,21 @@ const VAT_PATTERN = /^[A-Z0-9\-]{0,20}$/;
             </mat-form-field>
           </div>
 
-          <!-- Owner ID (create only) -->
+          <!-- Owner (create only) -->
           <div class="col-12 col-md-6 mb-1" *ngIf="data.mode === 'create'">
             <mat-form-field appearance="outline" class="w-100">
-              <mat-label>Owner ID</mat-label>
+              <mat-label>Responsable de l'organisation</mat-label>
               <mat-icon matPrefix class="material-icons-outlined">person</mat-icon>
-              <input matInput type="number" formControlName="ownerId" placeholder="1" min="1" />
-              <mat-error *ngIf="f['ownerId'].hasError('required')">Owner ID is required</mat-error>
-              <mat-error *ngIf="f['ownerId'].hasError('min')">Must be a positive number</mat-error>
+              <mat-select formControlName="ownerId">
+                <mat-option *ngIf="adminUsers.length === 0" disabled>
+                  Aucun admin disponible — créez d'abord un utilisateur ADMIN
+                </mat-option>
+                <mat-option *ngFor="let u of adminUsers" [value]="u.id">
+                  {{ u.fullName }} ({{ u.role }}) — {{ u.email }}
+                </mat-option>
+              </mat-select>
+              <mat-hint>L'admin qui gérera cette organisation</mat-hint>
+              <mat-error *ngIf="f['ownerId'].hasError('required')">Veuillez choisir un responsable</mat-error>
             </mat-form-field>
           </div>
 
@@ -127,7 +135,7 @@ const VAT_PATTERN = /^[A-Z0-9\-]{0,20}$/;
 
     <mat-dialog-actions align="end" class="px-3 pb-3 gap-2">
       <button mat-button mat-dialog-close>Cancel</button>
-      <button mat-flat-button color="primary" [disabled]="form.invalid" (click)="submit()">
+      <button mat-flat-button color="primary" (click)="submit()">
         <mat-icon class="material-icons-outlined me-1">
           {{ data.mode === 'create' ? 'add' : 'save' }}
         </mat-icon>
@@ -136,11 +144,13 @@ const VAT_PATTERN = /^[A-Z0-9\-]{0,20}$/;
     </mat-dialog-actions>
   `
 })
-export class OrgDialogComponent {
+export class OrgDialogComponent implements OnInit {
   form: FormGroup;
+  adminUsers: UserDTO[] = [];
 
   constructor(
     private fb: FormBuilder,
+    private userService: UserService,
     public dialogRef: MatDialogRef<OrgDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: { mode: 'create' | 'edit'; org?: OrganizationDTO }
   ) {
@@ -148,18 +158,33 @@ export class OrgDialogComponent {
     this.form = this.fb.group({
       name:           [data.org?.name ?? '',          [Validators.required, Validators.minLength(2), Validators.maxLength(100)]],
       slug:           [data.org?.slug ?? '',           isCreate ? [Validators.required, Validators.pattern(SLUG_PATTERN), Validators.maxLength(50)] : []],
-      ownerId:        [data.org?.ownerId ?? null,      isCreate ? [Validators.required, Validators.min(1)] : []],
+      ownerId:        [data.org?.ownerId ?? null,      isCreate ? [Validators.required] : []],
       orgType:        [data.org?.orgType ?? 'ENTERPRISE', Validators.required],
       billingEmail:   [data.org?.billingEmail ?? '',   [Validators.email, Validators.maxLength(150)]],
       billingCountry: [data.org?.billingCountry ?? '', [Validators.pattern(COUNTRY_PATTERN)]],
       vatNumber:      [data.org?.vatNumber ?? '',      [Validators.maxLength(20), Validators.pattern(VAT_PATTERN)]],
     });
+
+    // Auto-generate slug from name as user types
+    if (isCreate) {
+      this.form.get('name')!.valueChanges.subscribe(val => {
+        const slug = (val ?? '').toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        this.form.get('slug')!.setValue(slug, { emitEvent: false });
+      });
+    }
   }
 
-  /** Shortcut to access form controls */
+  ngOnInit(): void {
+    if (this.data.mode === 'create') {
+      this.userService.getAll().subscribe({
+        next: users => this.adminUsers = users.filter(u => u.role === 'ADMIN'),
+        error: () => {}
+      });
+    }
+  }
+
   get f() { return this.form.controls; }
 
-  /** Auto-uppercase country as user types */
   autoSlug(event: Event): void {
     const input = event.target as HTMLInputElement;
     const val = input.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');

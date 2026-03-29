@@ -12,25 +12,36 @@ export class AuthService {
   private readonly API = 'http://localhost:8084/api/auth';
   private readonly TOKEN_KEY   = 'session_token';
   private readonly USER_ID_KEY = 'session_user_id';
+  private readonly USER_KEY    = 'session_user';
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   currentUser = signal<User | null>(null);
 
-  constructor(private http: HttpClient, private router: Router) {}
+  constructor(private http: HttpClient, private router: Router) {
+    // Restore user from cache on page refresh — makes guard skip fetchMe()
+    if (this.isBrowser) {
+      try {
+        const stored = localStorage.getItem(this.USER_KEY);
+        if (stored) this.currentUser.set(JSON.parse(stored));
+      } catch { /* ignore corrupt data */ }
+    }
+  }
 
   login(credentials: LoginRequest): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(`${this.API}/login`, credentials).pipe(
       tap(res => {
         this.setToken(res.token);
         this.setUserId(res.id);
-        this.currentUser.set({
+        const user: User = {
           id: res.id,
           email: res.email,
           fullName: res.fullName,
           role: res.role as User['role'],
           mustChangePassword: res.mustChangePassword,
           avatarUrl: (res as any).avatarUrl ?? null
-        });
+        };
+        this.currentUser.set(user);
+        if (this.isBrowser) localStorage.setItem(this.USER_KEY, JSON.stringify(user));
       })
     );
   }
@@ -51,14 +62,18 @@ export class AuthService {
 
   fetchMe(): Observable<AuthResponse> {
     return this.http.get<AuthResponse>(`${this.API}/me`).pipe(
-      tap(res => this.currentUser.set({
-        id: res.id,
-        email: res.email,
-        fullName: res.fullName,
-        role: res.role as User['role'],
-        mustChangePassword: res.mustChangePassword,
-        avatarUrl: (res as any).avatarUrl ?? null
-      }))
+      tap(res => {
+        const user: User = {
+          id: res.id,
+          email: res.email,
+          fullName: res.fullName,
+          role: res.role as User['role'],
+          mustChangePassword: res.mustChangePassword,
+          avatarUrl: (res as any).avatarUrl ?? null
+        };
+        this.currentUser.set(user);
+        if (this.isBrowser) localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+      })
     );
   }
 
@@ -89,6 +104,7 @@ export class AuthService {
     if (this.isBrowser) {
       localStorage.removeItem(this.TOKEN_KEY);
       localStorage.removeItem(this.USER_ID_KEY);
+      localStorage.removeItem(this.USER_KEY);
     }
     this.currentUser.set(null);
   }

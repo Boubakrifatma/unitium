@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -164,6 +164,7 @@ export class MyOrganizationComponent implements OnInit {
   private svc = inject(OrganizationService);
   private dialog = inject(MatDialog);
   private snackBar = inject(MatSnackBar);
+  private cdr = inject(ChangeDetectorRef);
 
   org: OrganizationDTO | null = null;
   members: OrgMemberDTO[] = [];
@@ -174,13 +175,25 @@ export class MyOrganizationComponent implements OnInit {
 
   ngOnInit() {
     this.svc.getMyOrganization().subscribe({
-      next: o => { this.org = o; this.loading = false; this.loadMembers(); },
-      error: () => { this.loading = false; }
+      next: o => {
+        this.org = o;
+        this.loading = false;
+        this.cdr.detectChanges();
+        this.svc.getMembers(o.id).subscribe({
+          next: d => { this.members = d; this.cdr.detectChanges(); },
+          error: () => this.notify('Failed to load members', true)
+        });
+      },
+      error: () => { this.loading = false; this.cdr.detectChanges(); }
     });
   }
 
   loadMembers() {
-    this.svc.getMembers(this.org!.id).subscribe({ next: d => this.members = d });
+    if (!this.org) return;
+    this.svc.getMembers(this.org.id).subscribe({
+      next: d => { this.members = d; this.cdr.detectChanges(); },
+      error: () => this.notify('Failed to load members', true)
+    });
   }
 
   openAddMember() {
