@@ -8,6 +8,7 @@ import com.example.pi_projet.entity.User;
 import com.example.pi_projet.exception.Module2Exception;
 import com.example.pi_projet.service.ProjectMemberService;
 import com.example.pi_projet.service.ProjectService;
+import com.example.pi_projet.annotation.Authorized;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+@Authorized
 @RestController
 @RequestMapping("/api/v1/workspaces/{workspaceId}/projects")
 @RequiredArgsConstructor

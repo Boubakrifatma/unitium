@@ -1,5 +1,6 @@
 package com.example.pi_projet.controller;
 
+import com.example.pi_projet.annotation.Authorized;
 import com.example.pi_projet.entity.ProjectTemplate;
 import com.example.pi_projet.entity.User;
 import com.example.pi_projet.exception.M2ValidationUtils;
@@ -19,6 +20,7 @@ import java.util.UUID;
 
 import static com.example.pi_projet.exception.Module2Exception.ErrorCode.VALIDATION;
 
+@Authorized
 @RestController
 @RequestMapping("/api/project-templates")
 @RequiredArgsConstructor

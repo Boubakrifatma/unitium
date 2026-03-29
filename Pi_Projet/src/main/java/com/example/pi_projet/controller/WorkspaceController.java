@@ -9,6 +9,7 @@ import com.example.pi_projet.exception.Module2Exception;
 import com.example.pi_projet.service.M2AuditLogService;
 import com.example.pi_projet.service.WorkspaceMemberService;
 import com.example.pi_projet.service.WorkspaceService;
+import com.example.pi_projet.annotation.Authorized;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+@Authorized
 @RestController
 @RequestMapping("/api/v1/workspaces")
 @RequiredArgsConstructor

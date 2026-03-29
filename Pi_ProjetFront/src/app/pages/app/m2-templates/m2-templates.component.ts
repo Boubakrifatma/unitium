@@ -13,7 +13,7 @@ import { MatSnackBarModule, MatSnackBar } from "@angular/material/snack-bar";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { MatDialog } from "@angular/material/dialog";
 import { forkJoin, of, Subject } from "rxjs";
-import { catchError, debounceTime, distinctUntilChanged } from "rxjs/operators";
+import { catchError, debounceTime } from "rxjs/operators";
 import { M2TemplateService, M2TemplateSummary } from "./m2-template.service";
 import { TemplatesCardsComponent, TemplateCardItem } from "./templates-cards.component";
 import { TemplatesGridComponent } from "./templates-grid.component";
@@ -382,7 +382,7 @@ export class M2TemplatesComponent implements OnInit {
     );
 
     ngOnInit(): void {
-        this.hubSearch$.pipe(debounceTime(350), distinctUntilChanged()).subscribe(() => this.runHubSearch());
+        this.hubSearch$.pipe(debounceTime(350)).subscribe(() => this.runHubSearch());
         this.loadData();
     }
 
@@ -463,12 +463,16 @@ export class M2TemplatesComponent implements OnInit {
         ]).subscribe({
             next: ([myPage, hubPage, pendingPage, favPage]) => {
                 const favIds = new Set<string>((favPage.content || []).map((t: { id: string }) => t.id));
-                this.myTemplates.set((myPage.content || []).map(t => this.toCardItem(t)));
+                this.myTemplates.set((myPage.content || []).map(t => ({
+                    ...this.toCardItem(t),
+                    favorited: favIds.has(t.id),
+                })));
                 this.publicTemplates.set((hubPage.content || []).map(t => ({
                     ...this.toCardItem(t),
                     favorited: favIds.has(t.id),
                 })));
                 this.pendingTemplates.set((pendingPage.content || []).map(t => this.toCardItem(t)));
+                this.favoritesTemplates.set((favPage.content || []).map(t => ({ ...this.toCardItem(t), favorited: true })));
                 this.loading.set(false);
             },
             error: (err: HttpErrorResponse) => {
