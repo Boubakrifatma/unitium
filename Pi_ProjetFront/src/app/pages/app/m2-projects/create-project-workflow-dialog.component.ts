@@ -9,6 +9,9 @@ import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatIconModule } from "@angular/material/icon";
 import { MatInputModule } from "@angular/material/input";
 import { MatSelectModule } from "@angular/material/select";
+import { FormErrorMessageComponent, FormFieldError } from "../../../components/form-error-message.component";
+import { M2ProjectService } from "./m2-project.service";
+import { take } from "rxjs/operators";
 
 export interface ProjectMemberCandidate {
     userId: number;
@@ -45,6 +48,7 @@ export interface CreateProjectWorkflowDialogResult {
         MatInputModule,
         MatSelectModule,
         MatDatepickerModule,
+        FormErrorMessageComponent,
     ],
     template: `
         <!-- Fixed header -->
@@ -102,21 +106,24 @@ export interface CreateProjectWorkflowDialogResult {
                                 matInput
                                 name="projectName"
                                 [(ngModel)]="name"
+                                (ngModelChange)="duplicateProjectError.set(null)"
                                 required
                                 minlength="3"
                                 [maxlength]="nameMaxLength"
                                 #nameCtrl="ngModel"
                                 placeholder="Ex: AI Automation"
+                                [disabled]="isDuplicateNameChecking()"
                             />
                             <mat-hint align="start">A clear, delivery-focused title.</mat-hint>
                             <mat-hint align="end">{{ name.length }}/{{ nameMaxLength }}</mat-hint>
-                            @if (nameCtrl.errors?.['required']) {
-                                <mat-error>Project name is required.</mat-error>
-                            }
-                            @if (nameCtrl.errors?.['minlength']) {
-                                <mat-error>Name must be at least 3 characters.</mat-error>
-                            }
                         </mat-form-field>
+                        @if (isDuplicateNameChecking()) {
+                            <p class="small text-secondary mb-2 mt-2" style="display:flex; gap:8px; align-items:center;">
+                                <mat-icon class="material-icons-outlined" style="font-size:14px;width:14px;height:14px;animation:spin 1s linear infinite;">cached</mat-icon>
+                                <span>Checking project name...</span>
+                            </p>
+                        }
+                        <app-form-error-message [error]="getProjectNameError(nameCtrl)"></app-form-error-message>
                     </div>
 
                     <div class="col-12 mb-3">
@@ -287,7 +294,7 @@ export interface CreateProjectWorkflowDialogResult {
                 </button>
             }
             @if (currentStep() < 3) {
-                <button matButton="filled" (click)="nextStep()" [disabled]="currentStep() === 1 && !dateRangeValid()">
+                <button matButton="filled" (click)="nextStep()" [disabled]="isDuplicateNameChecking() || !!duplicateProjectError() || (currentStep() === 1 && !dateRangeValid())">
                     Continue <mat-icon class="material-icons-outlined">arrow_forward</mat-icon>
                 </button>
             }
@@ -478,12 +485,18 @@ export interface CreateProjectWorkflowDialogResult {
 export class CreateProjectWorkflowDialogComponent {
     readonly dialogRef = inject(MatDialogRef<CreateProjectWorkflowDialogComponent>);
     readonly data = inject(MAT_DIALOG_DATA) as CreateProjectWorkflowDialogData;
+    readonly projectService = inject(M2ProjectService);
 
     @ViewChild("basicsForm") basicsForm?: NgForm;
 
     // Step state
     readonly currentStep = signal(0);
     readonly stepLabels = ["Basics", "Schedule", "Members", "Review"];
+
+    // Form validation state
+    readonly formSubmitAttempted = signal(false);
+    readonly isDuplicateNameChecking = signal(false);
+    readonly duplicateProjectError = signal<string | null>(null);
 
     // Form fields
     name = "";
@@ -542,11 +555,55 @@ export class CreateProjectWorkflowDialogComponent {
 
     nextStep(): void {
         if (this.currentStep() === 0) {
+            this.formSubmitAttempted.set(true);
             this.basicsForm?.form.markAllAsTouched();
             if (this.basicsForm?.invalid) return;
+            
+            // Check for duplicate project name before advancing (async validation)
+            const trimmedName = this.name.trim();
+            if (trimmedName) {
+                this.validateAndAdvance(trimmedName);
+                return; // Don't advance here, wait for async validation
+            }
         }
         if (this.currentStep() === 1 && !this.dateRangeValid()) return;
         this.currentStep.update((n) => n + 1);
+    }
+
+    private validateAndAdvance(name: string): void {
+        this.isDuplicateNameChecking.set(true);
+        this.duplicateProjectError.set(null);
+
+        this.projectService
+            .getProjects(this.data.workspaceId, 0, 1000)
+            .pipe(take(1))
+            .subscribe({
+                next: (page) => {
+                    const isDuplicate = (page.content || []).some(
+                        (p) => p.name.trim().toLowerCase() === name.toLowerCase()
+                    );
+                    
+                    if (isDuplicate) {
+                        // Show error and block advancement
+                        this.duplicateProjectError.set(
+                            `A project named "${name}" already exists in this workspace.`
+                        );
+                        this.isDuplicateNameChecking.set(false);
+                    } else {
+                        // No duplicate found, safe to advance
+                        this.duplicateProjectError.set(null);
+                        this.isDuplicateNameChecking.set(false);
+                        // Advance to next step
+                        this.currentStep.update((n) => n + 1);
+                    }
+                },
+                error: () => {
+                    // If check fails, allow continuing to avoid blocking user completely
+                    this.isDuplicateNameChecking.set(false);
+                    this.duplicateProjectError.set(null);
+                    this.currentStep.update((n) => n + 1);
+                },
+            });
     }
 
     prevStep(): void {
@@ -616,6 +673,38 @@ export class CreateProjectWorkflowDialogComponent {
 
     close(): void {
         this.dialogRef.close();
+    }
+
+    getProjectNameError(control: any): FormFieldError | null {
+        // Only show validation errors if form was attempted to be submitted
+        if (!this.formSubmitAttempted()) return null;
+        
+        // Check for duplicate name first (takes priority)
+        if (this.duplicateProjectError()) {
+            return {
+                error: 'duplicate',
+                message: this.duplicateProjectError() || 'Project name already exists',
+                hint: 'Choose a different project name for this workspace'
+            };
+        }
+
+        // Then check for standard validation errors
+        if (!control.errors) return null;
+        if (control.errors['required']) {
+            return {
+                error: 'required',
+                message: 'Project name is required.',
+                hint: 'Enter a descriptive project name'
+            };
+        }
+        if (control.errors['minlength']) {
+            return {
+                error: 'minlength',
+                message: 'Name must be at least 3 characters.',
+                hint: 'Use a clear, delivery-focused title (min 3 characters)'
+            };
+        }
+        return null;
     }
 
     private toDateStr(d: Date): string {

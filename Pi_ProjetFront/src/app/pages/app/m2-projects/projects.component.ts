@@ -1,5 +1,6 @@
 import { Component, OnInit, CUSTOM_ELEMENTS_SCHEMA, ViewChild, signal, inject, WritableSignal, computed, HostListener } from "@angular/core";
 import { CommonModule } from "@angular/common";
+import { Router, RouterLink } from "@angular/router";
 import { MatCardModule } from "@angular/material/card";
 import { MatIconModule } from "@angular/material/icon";
 import { MatButtonModule } from "@angular/material/button";
@@ -24,7 +25,7 @@ import { CircleProgressBlueComponent } from "../../../components/charts/circle-p
 import { ProjectsGridComponent } from "./projects-grid.component";
 import { ProjectsCardsComponent } from "./projects-cards.component";
 import { CreateEditProjectModal } from "./createeditproject.component";
-import { RouterLink } from "@angular/router";
+import { CreateProjectChoiceDialogComponent, CreateProjectChoiceResult } from "./create-project-choice-dialog.component";
 
 declare const jsVectorMap: any;
 
@@ -375,6 +376,7 @@ interface Employee {
 export class ProjectsComponent implements OnInit {
     // dialog
     readonly dialog = inject(MatDialog);
+    private readonly router = inject(Router);
 
     // filter on off
     filterOn = true;
@@ -411,12 +413,31 @@ export class ProjectsComponent implements OnInit {
     }
 
     openDialog() {
-        this.dialog.open(CreateEditProjectModal, {
-            width: "990px",
-            maxWidth: "990px",
-            panelClass: "custom-dialog-container",
-            autoFocus: false,
-            data: {},
+        const ref = this.dialog.open(CreateProjectChoiceDialogComponent, {
+            width: "700px",
+            maxWidth: "95vw",
+            disableClose: false,
+        });
+
+        ref.afterClosed().subscribe((result?: CreateProjectChoiceResult) => {
+            if (!result?.choice) {
+                return;
+            }
+
+            if (result.choice === "template") {
+                // Navigate to templates page for user to select one
+                this.router.navigate(["/app/templates"]);
+                this.dialog.closeAll();
+            } else if (result.choice === "blank") {
+                // Open the blank project creation dialog
+                this.dialog.open(CreateEditProjectModal, {
+                    width: "990px",
+                    maxWidth: "990px",
+                    panelClass: "custom-dialog-container",
+                    autoFocus: false,
+                    data: {},
+                });
+            }
         });
     }
 }

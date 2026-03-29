@@ -8,6 +8,7 @@ import { MatIconModule } from "@angular/material/icon";
 import { MatInputModule } from "@angular/material/input";
 import { MatSelectModule } from "@angular/material/select";
 import { MatSnackBar } from "@angular/material/snack-bar";
+import { MatTooltipModule } from "@angular/material/tooltip";
 import { forkJoin, of } from "rxjs";
 import { catchError, map } from "rxjs/operators";
 import { AvailableOrgMember, WorkspaceMember } from "./models/workspace-member.model";
@@ -32,6 +33,7 @@ interface InviteMemberModalData {
         MatFormFieldModule,
         MatInputModule,
         MatSelectModule,
+        MatTooltipModule,
     ],
     template: `
         <h3 mat-dialog-title class="d-flex align-items-center mb-0 pb-0">
@@ -46,6 +48,30 @@ interface InviteMemberModalData {
             @if (errorMessage()) {
             <div class="alert alert-danger small mb-3" role="alert">{{ errorMessage() }}</div>
             }
+
+            <!-- Role Selection Section (Required) -->
+            <div class="alert alert-info mb-3 d-flex align-items-start gap-2">
+                <mat-icon class="material-icons-outlined mt-1">info</mat-icon>
+                <div>
+                    <p class="small mb-1 fw-medium">Step 1: Select the workspace role first</p>
+                    <p class="small text-secondary mb-0">All selected members will be invited with this role.</p>
+                </div>
+            </div>
+
+            <div class="role-selection-card mb-3">
+                <mat-form-field appearance="outline" class="w-100 mb-0">
+                    <mat-label>Assign Workspace Role *</mat-label>
+                    <mat-icon matPrefix>security</mat-icon>
+                    <mat-select [(ngModel)]="selectedRole" required>
+                        @for (option of roleOptions(); track option.value) {
+                        <mat-option [value]="option.value">{{ option.label }}</mat-option>
+                        }
+                    </mat-select>
+                    @if (!selectedRole) {
+                    <mat-hint>Role selection is required to proceed</mat-hint>
+                    }
+                </mat-form-field>
+            </div>
 
             <div class="invite-toolbar mb-3">
                 <div class="d-flex align-items-center gap-2 mb-2">
@@ -82,21 +108,11 @@ interface InviteMemberModalData {
             </div>
 
             <div class="row gx-2 mb-3">
-                <div class="col-12 col-md-7">
-                    <mat-form-field appearance="outline" class="w-100 mb-0">
-                        <mat-label>Workspace Role</mat-label>
-                        <mat-select [(ngModel)]="selectedRole">
-                            @for (option of roleOptions(); track option.value) {
-                            <mat-option [value]="option.value">{{ option.label }}</mat-option>
-                            }
-                        </mat-select>
-                    </mat-form-field>
-                </div>
-                <div class="col-12 col-md-5">
+                <div class="col-12">
                     <div class="stat-card h-100 d-flex align-items-center justify-content-between px-3">
                         <div>
-                            <p class="small text-secondary mb-0">Showing</p>
-                            <p class="mb-0 fw-semibold">{{ filteredMembers().length }} members</p>
+                            <p class="small text-secondary mb-0">Members on this page</p>
+                            <p class="mb-0 fw-semibold">{{ filteredMembers().length }} available</p>
                         </div>
                         <div class="d-flex align-items-center gap-2">
                             @if (selectedCount() > 0) {
@@ -157,8 +173,10 @@ interface InviteMemberModalData {
 
         <mat-dialog-actions align="end">
             <button matButton (click)="close()">Cancel</button>
-            <button matButton="filled" [disabled]="selectedCount() === 0 || isSubmitting()" (click)="invite()">
-                @if (isSubmitting()) {Inviting...} @else {Invite {{ selectedCount() }} {{ selectedCount() === 1 ? "Member" : "Members" }}}
+            <button matButton="filled" [disabled]="selectedCount() === 0 || !selectedRole || isSubmitting()" (click)="invite()" matTooltip="Select members and role above">
+                @if (isSubmitting()) {Inviting...} 
+                @else if (!selectedRole) {Select Role First} 
+                @else {Invite {{ selectedCount() }} as {{ getRoleLabel(selectedRole) }}}
             </button>
         </mat-dialog-actions>
     `,
@@ -169,6 +187,13 @@ interface InviteMemberModalData {
                 border-radius: 12px;
                 padding: 10px;
                 background: linear-gradient(145deg, rgba(236, 247, 255, 0.7), rgba(255, 255, 255, 1));
+            }
+
+            .role-selection-card {
+                border-left: 4px solid #0088ff;
+                border-radius: 8px;
+                padding: 12px;
+                background: rgba(0, 136, 255, 0.04);
             }
 
             .stat-card {
@@ -484,5 +509,10 @@ export class InviteMemberModalComponent implements OnInit {
             return "Member";
         }
         return role || "Member";
+    }
+
+    getRoleLabel(roleValue: string): string {
+        const found = this.roleOptions().find((opt) => opt.value === roleValue);
+        return found ? found.label : roleValue;
     }
 }

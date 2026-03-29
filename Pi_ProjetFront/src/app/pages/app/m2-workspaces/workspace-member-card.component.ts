@@ -3,17 +3,21 @@ import { Component, EventEmitter, Input, Output, computed } from "@angular/core"
 import { MatButtonModule } from "@angular/material/button";
 import { MatCardModule } from "@angular/material/card";
 import { MatIconModule } from "@angular/material/icon";
+import { MatCheckboxModule } from "@angular/material/checkbox";
 import { WorkspaceMember } from "./models/workspace-member.model";
 
 @Component({
     selector: "app-workspace-member-card",
     standalone: true,
-    imports: [CommonModule, MatCardModule, MatIconModule, MatButtonModule],
+    imports: [CommonModule, MatCardModule, MatIconModule, MatButtonModule, MatCheckboxModule],
     template: `
-        <mat-card class="mb-2">
+        <mat-card class="mb-2" [class.selected-card]="isSelected">
             <mat-card-content>
-                <div class="d-flex align-items-center">
-                    <span class="avatar avatar-40 coverimg rounded-circle align-middle me-2 bg-light-theme d-flex align-items-center justify-content-center">
+                <div class="d-flex align-items-center gap-2">
+                    @if (showCheckbox) {
+                    <mat-checkbox [checked]="isSelected" (change)="requestToggleSelection()" class="flex-shrink-0"></mat-checkbox>
+                    }
+                    <span class="avatar avatar-40 coverimg rounded-circle align-middle me-2 bg-light-theme d-flex align-items-center justify-content-center flex-shrink-0">
                         @if (member.avatarUrl) {
                         <img class="w-100 h-100 rounded-circle" [src]="member.avatarUrl" [alt]="member.fullName" />
                         } @else {
@@ -28,8 +32,8 @@ import { WorkspaceMember } from "./models/workspace-member.model";
                         <span class="badge badge-light" [ngClass]="roleBadgeClass()">{{ roleLabel() }}</span>
                         <p class="text-secondary small mb-0 mt-1">Joined {{ joinedAtLabel() }}</p>
                     </div>
-                    @if (canEditRole || canRemoveMember) {
-                    <div class="d-flex align-items-center ms-2 gap-1">
+                    @if ((canEditRole || canRemoveMember) && !showCheckbox) {
+                    <div class="d-flex align-items-center ms-2 gap-1 flex-shrink-0">
                         @if (canEditRole) {
                         <button matIconButton (click)="requestRoleEdit()" title="Edit member role">
                             <mat-icon class="material-icons-outlined">edit</mat-icon>
@@ -46,15 +50,27 @@ import { WorkspaceMember } from "./models/workspace-member.model";
             </mat-card-content>
         </mat-card>
     `,
+    styles: [
+        `
+            mat-card.selected-card {
+                border-color: #0088ff;
+                box-shadow: 0 0 0 2px rgba(0, 136, 255, 0.12);
+                background: rgba(0, 136, 255, 0.04);
+            }
+        `,
+    ],
 })
 export class WorkspaceMemberCardComponent {
     @Input({ required: true }) member!: WorkspaceMember;
     @Input() orgType: string = "enterprise";
     @Input() canEditRole = false;
     @Input() canRemoveMember = false;
+    @Input() showCheckbox = false;
+    @Input() isSelected = false;
 
     @Output() readonly editRole = new EventEmitter<WorkspaceMember>();
     @Output() readonly removeMember = new EventEmitter<WorkspaceMember>();
+    @Output() readonly toggleSelection = new EventEmitter<WorkspaceMember>();
 
     readonly normalizedOrgType = computed(() => (this.orgType || "enterprise").toLowerCase());
 
@@ -116,5 +132,9 @@ export class WorkspaceMemberCardComponent {
 
     requestRemoveMember(): void {
         this.removeMember.emit(this.member);
+    }
+
+    requestToggleSelection(): void {
+        this.toggleSelection.emit(this.member);
     }
 }

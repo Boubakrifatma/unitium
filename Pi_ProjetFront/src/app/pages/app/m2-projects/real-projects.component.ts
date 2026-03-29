@@ -21,6 +21,7 @@ import { ProjectsCardsComponent, TableItem as ProjectCardItem } from "./projects
 import { ProjectsGridComponent } from "./projects-grid.component";
 import { CreateProjectWorkflowDialogComponent, CreateProjectWorkflowDialogResult } from "./create-project-workflow-dialog.component";
 import { UseTemplateWizardDialogComponent, UseTemplateWizardResult } from "../m2-templates/use-template-wizard-dialog.component";
+import { WorkspaceSelectorDialogComponent } from "./workspace-selector-dialog.component";
 import { register } from "swiper/element/bundle";
 
 register();
@@ -64,54 +65,266 @@ interface RealProjectRow {
     ],
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
     styles: [`
-        .status-chip { border:1px solid rgba(0,0,0,0.13); background:none; padding:4px 14px; border-radius:16px; cursor:pointer; font-size:12px; color:#475569; transition:all .15s; }
-        .status-chip.active { border-color:#6366f1; background:rgba(99,102,241,0.09); color:#6366f1; font-weight:600; }
-        .status-chip:hover:not(.active) { background:rgba(0,0,0,0.04); }
-        .bulk-bar { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:white; border-radius:12px; box-shadow:0 8px 32px rgba(0,0,0,0.18); padding:12px 20px; display:flex; align-items:center; gap:12px; z-index:1000; min-width:360px; }
+        /* ===== Header & Workspace Switcher ===== */
+        .header-section {
+            background: linear-gradient(135deg, #f5f3ff 0%, #f0f4ff 100%);
+            border-radius: 12px;
+            border: 1px solid rgba(99, 102, 241, 0.1);
+            transition: all 0.3s ease;
+        }
+        .workspace-context {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .workspace-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: white;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .workspace-badge:hover {
+            border-color: #6366f1;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+            background: linear-gradient(135deg, #f5f3ff, white);
+        }
+        .workspace-badge mat-icon {
+            color: #6366f1;
+        }
+        .workspace-name-text {
+            font-weight: 500;
+            color: #1a202c;
+            font-size: 14px;
+        }
+        .workspace-switch-btn {
+            position: relative;
+        }
+        .workspace-switch-btn:hover {
+            background: rgba(99, 102, 241, 0.05) !important;
+        }
+
+        /* ===== Status Chips ===== */
+        .status-chip {
+            border: 1px solid rgba(0, 0, 0, 0.13);
+            background: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #475569;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .status-chip:hover {
+            border-color: rgba(99, 102, 241, 0.3);
+            background: rgba(99, 102, 241, 0.02);
+            transform: translateY(-1px);
+        }
+        .status-chip.active {
+            border-color: #6366f1;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(99, 102, 241, 0.02));
+            color: #6366f1;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
+        }
+        .status-count {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-left: 4px;
+            background: rgba(0, 0, 0, 0.05);
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+
+        /* ===== Search & Filters ===== */
+        .search-section {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .filter-divider {
+            width: 1px;
+            height: 24px;
+            background: rgba(0, 0, 0, 0.1);
+            margin: 0 8px;
+        }
+
+        /* ===== Bulk Action Bar ===== */
+        .bulk-bar {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            z-index: 1000;
+            min-width: 360px;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+
+        /* ===== Action Buttons ===== */
+        .action-button {
+            transition: all 0.2s ease;
+        }
+        .action-button:hover {
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        /* ===== Empty State ===== */
+        .empty-state-icon {
+            width: 80px;
+            height: 80px;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #6366f1;
+            margin-bottom: 16px;
+        }
+        .empty-state-icon mat-icon {
+            font-size: 40px;
+            width: 40px;
+            height: 40px;
+        }
+
+        /* ===== Error Card ===== */
+        .error-card {
+            border-left: 4px solid #ef4444;
+        }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 768px) {
+            .workspace-badge {
+                padding: 6px 12px;
+                font-size: 13px;
+            }
+            .search-section {
+                flex-direction: column;
+                width: 100%;
+            }
+            .filter-divider {
+                display: none;
+            }
+            .bulk-bar {
+                min-width: auto;
+                width: calc(100% - 32px);
+                left: 16px;
+                transform: none;
+            }
+        }
+
+        /* ===== Loading Animation ===== */
+        @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+        }
     `],
     template: `
-        <div class="container-fluid fade-in mb-3 mb-lg-4">
-            <mat-card class="bg-light-theme shadow-none pt-3 pb-lg-3 px-3">
-                <div class="row gx-3 align-items-center">
-                    <div class="col-12 col-md mb-3 mb-xl-0 py-1 order-1 order-lg-1">
-                        <h3 class="mb-1">Real Projects</h3>
-                        <p class="small mb-0">
-                            <span routerLink="/app/dashboard" class="me-2 text-theme style-none"><mat-icon class="material-icons-outlined align-middle text-sm">house</mat-icon> Home</span>
-                            <mat-icon class="material-icons-outlined align-middle text-sm me-2">chevron_right</mat-icon>
-                            Real Projects
-                        </p>
-                        <p class="text-secondary small mb-0 mt-1">@if (selectedWorkspaceName()) { Workspace: {{ selectedWorkspaceName() }} } @else { Open from a workspace to focus this view }</p>
+        <!-- Header Section -->
+        <div class="container-fluid fade-in mb-4">
+            <mat-card class="header-section shadow-none p-4">
+                <div class="row gx-3 gx-lg-4 align-items-center mb-3">
+                    <div class="col-12 col-lg-auto mb-3 mb-lg-0">
+                        <div>
+                            <h2 class="mb-2" style="font-size: 28px; font-weight: 700; color: #1a202c;">Real Projects</h2>
+                            <p class="text-secondary small mb-0">
+                                <span routerLink="/app/dashboard" class="text-theme style-none d-inline-flex align-items-center gap-1">
+                                    <mat-icon class="material-icons-outlined" style="font-size: 16px;">home</mat-icon> Dashboard
+                                </span>
+                                <span class="mx-2">/</span>
+                                <span style="color: #6366f1; font-weight: 500;">Real Projects</span>
+                            </p>
+                        </div>
                     </div>
 
-                    <div class="col-12 col-md-auto order-3 mb-3 mb-xl-0">
-                        <mat-form-field appearance="outline" class="inline-small w-100">
-                            <mat-label>Search</mat-label>
+                    <div class="col-12 col-lg-auto ms-lg-auto mb-3 mb-lg-0">
+                        @if (selectedWorkspaceName()) {
+                            <div class="workspace-context">
+                                <div class="workspace-badge" (click)="openWorkspaceSwitcher()" 
+                                    matTooltip="Click to switch workspace">
+                                    <mat-icon class="material-icons-outlined" style="font-size: 18px;">business</mat-icon>
+                                    <span class="workspace-name-text">{{ selectedWorkspaceName() }}</span>
+                                    <mat-icon class="material-icons-outlined" style="font-size: 16px; margin-left: 4px;">unfold_more</mat-icon>
+                                </div>
+                            </div>
+                        } @else {
+                            <button mat-raised-button color="primary" (click)="openWorkspaceSwitcher()" class="workspace-switch-btn">
+                                <mat-icon class="material-icons-outlined">language</mat-icon>
+                                Choose Workspace
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <!-- Search & Filters Row -->
+                <div class="row gx-3 gx-lg-4 align-items-center">
+                    <div class="col-12 col-lg-8 mb-3 mb-lg-0">
+                        <mat-form-field appearance="outline" class="w-100">
+                            <mat-label>Search projects</mat-label>
                             <mat-icon matPrefix>search</mat-icon>
-                            <input matInput placeholder="Project name, workspace, manager..." (input)="onSearch($event)" />
+                            <input matInput placeholder="By name, workspace, or manager..." (input)="onSearch($event)" />
                         </mat-form-field>
                     </div>
 
-                    <div class="col-auto order-2 order-lg-3 mb-3 mb-xl-0 d-flex gap-1 align-items-center flex-wrap">
-                        <button matButton (click)="loadRealProjects()"><mat-icon class="material-icons-outlined">refresh</mat-icon> Refresh</button>
+                    <div class="col-12 col-lg-auto ms-lg-auto mb-3 mb-lg-0 d-flex gap-2 align-items-center flex-wrap">
+                        <button matIconButton matTooltip="Refresh" (click)="loadRealProjects()" class="action-button">
+                            <mat-icon class="material-icons-outlined">refresh</mat-icon>
+                        </button>
                         @if (selectedWorkspaceId()) {
-                        <button matButton class="ms-1" (click)="goBackToWorkspace()"><mat-icon class="material-icons-outlined">arrow_back</mat-icon> Workspace</button>
-                        <button matButton class="ms-1" (click)="showAllWorkspaces()"><mat-icon class="material-icons-outlined">layers_clear</mat-icon> Show All</button>
+                            <span class="filter-divider"></span>
+                            <button matButton class="action-button" (click)="showAllWorkspaces()" matTooltip="Clear workspace filter">
+                                <mat-icon class="material-icons-outlined">close</mat-icon>
+                                Clear Filter
+                            </button>
                         }
-                        <button matIconButton [class.text-theme]="bulkMode()"
-                            matTooltip="{{ bulkMode() ? 'Exit select mode' : 'Select multiple' }}"
-                            (click)="toggleBulkMode()">
+                        <button matIconButton 
+                            [class.text-theme]="bulkMode()"
+                            matTooltip="{{ bulkMode() ? 'Exit select mode' : 'Multi-select' }}"
+                            (click)="toggleBulkMode()"
+                            class="action-button">
                             <mat-icon class="material-icons-outlined">{{ bulkMode() ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
                         </button>
                     </div>
                 </div>
-                <!-- status filter chips -->
+
+                <!-- Status Filter Chips -->
                 @if (projectCardsData().length > 0) {
-                    <div class="d-flex align-items-center gap-2 mt-2 flex-wrap">
+                    <div class="mt-4 pt-3 border-top d-flex align-items-center gap-2 flex-wrap">
+                        <p class="small text-secondary mb-0 me-3" style="margin-bottom: 0 !important;">Filter:</p>
                         @for (opt of statusOptions; track opt.value) {
                             <button class="status-chip" [class.active]="statusFilter() === opt.value"
                                 (click)="statusFilter.set(opt.value)">
-                                {{ opt.label }}
-                                <span style="font-size:11px;opacity:0.7;margin-left:4px;">{{ countByStatus(opt.value) }}</span>
+                                <mat-icon class="material-icons-outlined" style="font-size: 14px; margin-right: 2px;">
+                                    {{ opt.value === 'ALL' ? 'apps' : 'circle' }}
+                                </mat-icon>
+                                <span>{{ opt.label }}</span>
+                                <span class="status-count">{{ countByStatus(opt.value) }}</span>
                             </button>
                         }
                     </div>
@@ -630,6 +843,21 @@ export class RealProjectsComponent implements OnInit {
             return;
         }
         this.router.navigate(["/app/workspaces", workspaceId]);
+    }
+
+    openWorkspaceSwitcher(): void {
+        this.dialog.open(WorkspaceSelectorDialogComponent, {
+            width: "900px",
+            maxWidth: "95vw",
+            disableClose: false,
+        }).afterClosed().subscribe((workspace) => {
+            if (workspace) {
+                this.selectedWorkspaceId.set(workspace.id);
+                this.selectedWorkspaceName.set(workspace.name);
+                this.selectedWorkspaceOrgType.set(workspace.orgType);
+                this.loadRealProjects();
+            }
+        });
     }
 
     openProject(project: RealProjectRow): void {

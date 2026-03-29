@@ -56,6 +56,8 @@ const QUICK_STARTERS: QuickStarter[] = [
         .tab-btn { border:none; background:none; padding:8px 14px; border-radius:20px; cursor:pointer; font-size:13px; color:#64748b; transition:all .15s; display:inline-flex; align-items:center; gap:6px; }
         .tab-btn.active { background:rgba(99,102,241,0.1); color:#6366f1; font-weight:600; }
         .tab-btn:hover:not(.active) { background:rgba(0,0,0,0.04); }
+        .admin-tab { border:1px solid rgba(245,158,11,0.3); }
+        .admin-tab.active { background:rgba(245,158,11,0.1); color:#d97706; border-color:rgba(245,158,11,0.5); }
         .filter-chip { border:1px solid rgba(0,0,0,0.13); background:none; padding:4px 12px; border-radius:16px; cursor:pointer; font-size:12px; color:#475569; transition:all .15s; }
         .filter-chip.active { border-color:#6366f1; background:rgba(99,102,241,0.09); color:#6366f1; font-weight:600; }
         .filter-chip:hover:not(.active) { background:rgba(0,0,0,0.04); }
@@ -171,17 +173,27 @@ const QUICK_STARTERS: QuickStarter[] = [
                         <span class="badge badge-light" style="font-size:10px;">{{ favoritesTemplates().length }}</span>
                     </button>
                     @if (isAdmin()) {
-                        <button class="tab-btn" [class.active]="activeTab() === 'pending'" (click)="setTab('pending')">
-                            <mat-icon class="material-icons-outlined" style="font-size:16px;width:16px;height:16px;">pending_actions</mat-icon>
-                            Pending Review
-                            @if (pendingTemplates().length > 0) {
-                                <span class="badge ms-1" style="background:#f59e0b;color:white;font-size:10px;">{{ pendingTemplates().length }}</span>
-                            } @else {
-                                <span class="badge badge-light" style="font-size:10px;">0</span>
-                            }
-                        </button>
+                        <div class="d-flex align-items-center gap-2 ms-auto ps-2 border-start">
+                            <button class="tab-btn admin-tab" [class.active]="activeTab() === 'pending'" (click)="setTab('pending')">
+                                <mat-icon class="material-icons-outlined" style="font-size:16px;width:16px;height:16px;">admin_panel_settings</mat-icon>
+                                Review
+                                @if (pendingTemplates().length > 0) {
+                                    <span class="badge ms-1" style="background:#f59e0b;color:white;font-size:10px;">{{ pendingTemplates().length }}</span>
+                                } @else {
+                                    <span class="badge badge-light" style="font-size:10px;">0</span>
+                                }
+                            </button>
+                        </div>
                     }
                 </div>
+
+                <!-- ── Favorites Help Text ── -->
+                @if (activeTab() === 'favorites') {
+                    <div class="alert-info mb-3 d-flex align-items-start gap-2" style="background:rgba(0,136,255,0.08);border:1px solid rgba(0,136,255,0.2);border-radius:8px;padding:12px;">
+                        <mat-icon class="material-icons-outlined" style="font-size:16px;width:16px;height:16px;color:#0088ff;margin-top:2px;">lightbulb</mat-icon>
+                        <p class="small mb-0 text-secondary">💡 Star templates in the hub to quickly access them here for future projects.</p>
+                    </div>
+                }
 
                 <!-- ── Hub filter chips ── -->
                 @if (activeTab() === 'hub') {
