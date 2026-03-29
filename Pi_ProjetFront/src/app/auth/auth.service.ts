@@ -28,7 +28,8 @@ export class AuthService {
           email: res.email,
           fullName: res.fullName,
           role: res.role as User['role'],
-          mustChangePassword: res.mustChangePassword
+          mustChangePassword: res.mustChangePassword,
+          avatarUrl: (res as any).avatarUrl ?? null
         });
       })
     );
@@ -55,7 +56,8 @@ export class AuthService {
         email: res.email,
         fullName: res.fullName,
         role: res.role as User['role'],
-        mustChangePassword: res.mustChangePassword
+        mustChangePassword: res.mustChangePassword,
+        avatarUrl: (res as any).avatarUrl ?? null
       }))
     );
   }

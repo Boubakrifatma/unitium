@@ -79,12 +79,14 @@ import { MatFormFieldModule } from "@angular/material/form-field";
 
                 <!-- profile -->
                 <button matIconButton [matMenuTriggerFor]="menu">
-                    <mat-icon class="material-icons-outlined">account_circle</mat-icon>
+                    <span class="avatar avatar-32 rounded-circle coverimg d-inline-block"
+                          [ngStyle]="{'background-image': 'url(' + (authService.currentUser()?.avatarUrl || 'assets/img/user-6.jpg') + ')'}"></span>
                 </button>
                 <mat-menu #menu="matMenu" class="user-menu width-280 pt-0 bg-light-gradient">
                     <div class="p-3 text-center mb-1" routerLink="./profile" style="margin-top:-8px">
                         <div class="avatar avatar-120 rounded-circle coverimg align-middle mb-3" style="background-image: url('assets/img/user-bg.png')">
-                            <figure class="avatar avatar-80 rounded-circle coverimg align-middle" style="background-image: url('assets/img/user-6.jpg')"></figure>
+                            <figure class="avatar avatar-80 rounded-circle coverimg align-middle"
+                                    [ngStyle]="{'background-image': 'url(' + (authService.currentUser()?.avatarUrl || 'assets/img/user-6.jpg') + ')'}"></figure>
                         </div>
                         <h3 class="mb-0">{{ authService.currentUser()?.fullName }}</h3>
                         <p class="opacity-75 mt-0">{{ authService.currentUser()?.role }}</p>

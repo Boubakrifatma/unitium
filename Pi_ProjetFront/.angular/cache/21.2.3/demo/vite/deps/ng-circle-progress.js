@@ -2,8 +2,8 @@ import {
   CommonModule,
   NgForOf,
   NgIf
-} from "./chunk-KJUFFDJ3.js";
-import "./chunk-QSH7A4MU.js";
+} from "./chunk-KHQB7NM3.js";
+import "./chunk-QIM7MLCX.js";
 import {
   Component,
   DOCUMENT,
@@ -38,13 +38,13 @@ import {
   ɵɵtemplate,
   ɵɵtext,
   ɵɵtextInterpolate
-} from "./chunk-EOTFVC7M.js";
-import "./chunk-HWYXSU2G.js";
+} from "./chunk-KXDYBHZG.js";
 import "./chunk-JRFR6BLO.js";
+import "./chunk-HWYXSU2G.js";
 import {
   timer
 } from "./chunk-MARUHEWW.js";
-import "./chunk-3OV72XIM.js";
+import "./chunk-7GOANPIK.js";
 
 // node_modules/ng-circle-progress/fesm2020/ng-circle-progress.mjs
 function CircleProgressComponent__svg_svg_0__svg_linearGradient_2_Template(rf, ctx) {

@@ -6,10 +6,15 @@ import com.example.pi_projet.repository.SessionRepository;
 import com.example.pi_projet.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -17,13 +22,22 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AuthService {
 
-    private final UserRepository    userRepository;
-    private final SessionRepository sessionRepository;
-    private final BCryptPasswordEncoder passwordEncoder;
+    private final UserRepository            userRepository;
+    private final SessionRepository         sessionRepository;
+    private final BCryptPasswordEncoder     passwordEncoder;
+    private final AnomalyDetectionService   anomalyService;
 
-    private static final int SESSION_HOURS = 8;
+    private static final int   SESSION_HOURS       = 8;
+    private static final float FACE_THRESHOLD      = 0.50f;  // strict — login
+    private static final float DUPLICATE_THRESHOLD = 0.60f;  // permissive — duplicate detection
 
-    public Optional<String> login(String email, String password, HttpServletRequest request) {
+    /** Result returned by login() */
+    public record LoginResult(String token, AnomalyDetectionService.AnomalyResult anomaly) {}
+
+    // ──────────────────────────────────────────────────────────────
+    // Password login
+    // ──────────────────────────────────────────────────────────────
+    public Optional<LoginResult> login(String email, String password, HttpServletRequest request) {
         Optional<User> userOpt = userRepository.findByEmail(email);
         if (userOpt.isEmpty()) return Optional.empty();
 
@@ -32,21 +46,119 @@ public class AuthService {
         if (!passwordEncoder.matches(password, user.getPasswordHash())) return Optional.empty();
 
         user.setLastLoginAt(LocalDateTime.now());
+        // Update usual login hour (rolling average)
+        int hour = LocalDateTime.now().getHour();
+        user.setUsualLoginHour(user.getUsualLoginHour() == null ? hour
+                : (user.getUsualLoginHour() + hour) / 2);
         userRepository.save(user);
 
-        String token = UUID.randomUUID().toString();
-        sessionRepository.save(Session.builder()
-                .userId(user.getId())
-                .tokenHash(token)
-                .ipAddress(request.getRemoteAddr())
-                .userAgent(request.getHeader("User-Agent"))
-                .isActive(true)
-                .expiresAt(LocalDateTime.now().plusHours(SESSION_HOURS))
-                .build());
+        AnomalyDetectionService.AnomalyResult anomaly = anomalyService.evaluate(user, request);
 
-        return Optional.of(token);
+        // Lock account if ACCOUNT_LOCKED action
+        if (anomaly.action() == Session.ActionTaken.ACCOUNT_LOCKED) {
+            user.setIsActive(false);
+            userRepository.save(user);
+        }
+
+        String token = createSessionForUser(user, request, anomaly);
+        return Optional.of(new LoginResult(token, anomaly));
     }
 
+    // ──────────────────────────────────────────────────────────────
+    // Face login
+    // ──────────────────────────────────────────────────────────────
+    public Optional<LoginResult> loginByFace(double[] descriptor, HttpServletRequest request) {
+        List<User> users = userRepository.findAll();
+        User matched = null;
+        double bestDist = Double.MAX_VALUE;
+
+        for (User u : users) {
+            if (u.getFaceEncoding() == null || !Boolean.TRUE.equals(u.getIsActive())) continue;
+            double dist = euclidean(descriptor, parseEncoding(u.getFaceEncoding()));
+            if (dist < bestDist) {
+                bestDist = dist;
+                matched = u;
+            }
+        }
+
+        if (matched == null || bestDist > FACE_THRESHOLD) return Optional.empty();
+
+        matched.setLastLoginAt(LocalDateTime.now());
+        userRepository.save(matched);
+
+        AnomalyDetectionService.AnomalyResult anomaly = anomalyService.evaluate(matched, request);
+        String token = createSessionForUser(matched, request, anomaly);
+        return Optional.of(new LoginResult(token, anomaly));
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Face registration
+    // ──────────────────────────────────────────────────────────────
+    public void registerFace(Long userId, double[] descriptor) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
+
+        // Check for duplicate face across all other users
+        List<User> all = userRepository.findAll();
+        for (User other : all) {
+            if (other.getId().equals(userId) || other.getFaceEncoding() == null) continue;
+            double dist = euclidean(descriptor, parseEncoding(other.getFaceEncoding()));
+            if (dist <= DUPLICATE_THRESHOLD) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "This face is already registered to another account.");
+            }
+        }
+
+        user.setFaceEncoding(Arrays.toString(descriptor));
+        user.setFaceRegisteredAt(LocalDateTime.now());
+        userRepository.save(user);
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Remove face registration
+    // ──────────────────────────────────────────────────────────────
+    public void removeFace(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
+        user.setFaceEncoding(null);
+        user.setFaceRegisteredAt(null);
+        userRepository.save(user);
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Find duplicate faces across all users
+    // ──────────────────────────────────────────────────────────────
+    public record FaceDuplicatePair(UserInfo user1, UserInfo user2, double distance) {}
+    public record UserInfo(Long id, String email, String fullName) {}
+
+    public List<FaceDuplicatePair> findFaceDuplicates() {
+        List<User> users = userRepository.findAll().stream()
+                .filter(u -> u.getFaceEncoding() != null)
+                .toList();
+
+        List<FaceDuplicatePair> duplicates = new ArrayList<>();
+        for (int i = 0; i < users.size(); i++) {
+            for (int j = i + 1; j < users.size(); j++) {
+                User a = users.get(i);
+                User b = users.get(j);
+                double dist = euclidean(
+                        parseEncoding(a.getFaceEncoding()),
+                        parseEncoding(b.getFaceEncoding()));
+                if (dist <= DUPLICATE_THRESHOLD) {
+                    duplicates.add(new FaceDuplicatePair(
+                            new UserInfo(a.getId(), a.getEmail(), a.getFullName()),
+                            new UserInfo(b.getId(), b.getEmail(), b.getFullName()),
+                            Math.round(dist * 1000.0) / 1000.0
+                    ));
+                }
+            }
+        }
+        return duplicates;
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Session helpers
+    // ──────────────────────────────────────────────────────────────
     public Optional<User> getUserFromToken(String token) {
         if (token == null) return Optional.empty();
         return sessionRepository.findByTokenHashAndIsActiveTrue(token)
@@ -60,5 +172,44 @@ public class AuthService {
             s.setRevokedAt(LocalDateTime.now());
             sessionRepository.save(s);
         });
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Internal helpers
+    // ──────────────────────────────────────────────────────────────
+    private String createSessionForUser(User user, HttpServletRequest request,
+                                        AnomalyDetectionService.AnomalyResult anomaly) {
+        String token = UUID.randomUUID().toString();
+        Session session = Session.builder()
+                .userId(user.getId())
+                .tokenHash(token)
+                .ipAddress(request.getRemoteAddr())
+                .userAgent(request.getHeader("User-Agent"))
+                .isActive(true)
+                .expiresAt(LocalDateTime.now().plusHours(SESSION_HOURS))
+                .build();
+        anomalyService.enrichSession(session, anomaly);
+        sessionRepository.save(session);
+        return token;
+    }
+
+    private double euclidean(double[] a, double[] b) {
+        double sum = 0;
+        int len = Math.min(a.length, b.length);
+        for (int i = 0; i < len; i++) {
+            double d = a[i] - b[i];
+            sum += d * d;
+        }
+        return Math.sqrt(sum);
+    }
+
+    private double[] parseEncoding(String encoded) {
+        String trimmed = encoded.replace("[", "").replace("]", "").trim();
+        String[] parts = trimmed.split(",");
+        double[] result = new double[parts.length];
+        for (int i = 0; i < parts.length; i++) {
+            result[i] = Double.parseDouble(parts[i].trim());
+        }
+        return result;
     }
 }

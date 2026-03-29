@@ -17,6 +17,8 @@ import { ThemeComponent } from "../../components/theme/theme.component";
 import { NotificationSidenavComponent } from "../../components/notification-sidenav/app-notification-sidenav.component";
 import { Subject } from "rxjs";
 import { takeUntil } from "rxjs/operators";
+import { AuthService } from "../../auth/auth.service";
+import { UserService } from "../../users/user.service";
 
 type SidenavView = "theme" | "settings" | null;
 
@@ -117,15 +119,30 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
         private renderer: Renderer2,
         private breakpointObserver: BreakpointObserver,
         @Inject(DOCUMENT) private document: Document,
+        private authService: AuthService,
+        private userService: UserService,
     ) {}
 
     ngOnInit(): void {
+        // Hydrate user (avatar) on page refresh
+        const userId = this.authService.getUserId();
+        if (userId && !this.authService.currentUser()) {
+            this.userService.getById(userId).subscribe(u => {
+                this.authService.currentUser.set({
+                    id: u.id,
+                    email: u.email,
+                    fullName: u.fullName,
+                    role: u.role as any,
+                    avatarUrl: u.avatarUrl
+                });
+            });
+        }
+
         // mobile view detect to add is-mobile class on body
         this.breakpointObserver
             .observe([Breakpoints.HandsetPortrait, Breakpoints.HandsetLandscape])
             .pipe(takeUntil(this.destroy$))
             .subscribe((result) => {
-                // 'result.matches' is true if the current screen size matches one of the observed breakpoints
                 this.isMobile = result.matches;
             });
     }

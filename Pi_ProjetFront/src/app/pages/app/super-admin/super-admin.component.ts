@@ -1,18 +1,20 @@
 import { Component, inject, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DecimalPipe } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { MatChipsModule } from '@angular/material/chips';
 import { RouterModule } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { UserService, UserDTO } from '../../../users/user.service';
 import { AuthService } from '../../../auth/auth.service';
+import { FaceService, FaceDuplicatePair } from '../../../auth/face.service';
 
 @Component({
   selector: 'app-super-admin',
   standalone: true,
-  imports: [CommonModule, MatCardModule, MatIconModule, MatButtonModule, MatTableModule, MatChipsModule, RouterModule],
+  imports: [CommonModule, DecimalPipe, MatCardModule, MatIconModule, MatButtonModule, MatTableModule, MatChipsModule, RouterModule],
   template: `
     <div class="container-fluid fade-in mb-3 mb-lg-4">
       <mat-card class="bg-light-theme shadow-none pt-3 pb-lg-3 px-3">
@@ -194,20 +196,128 @@ import { AuthService } from '../../../auth/auth.service';
         </div>
       </div>
 
+      <!-- Face Duplicate Alerts -->
+      <div class="row gx-3 gx-lg-4 mb-3" *ngIf="faceDuplicates.length > 0">
+        <div class="col-12">
+          <mat-card class="border-warn">
+            <mat-card-header>
+              <div class="col mb-2">
+                <h3 class="mb-1 text-warn">
+                  <mat-icon class="material-icons-outlined" style="vertical-align:middle;color:#f59e0b">face_retouching_off</mat-icon>
+                  Face ID Duplicates Detected
+                </h3>
+                <p class="text-secondary small">The following accounts share the same facial identity</p>
+              </div>
+            </mat-card-header>
+            <mat-card-content>
+              <div *ngFor="let pair of faceDuplicates" class="duplicate-row">
+                <div class="dup-user">
+                  <mat-icon class="material-icons-outlined text-secondary">person</mat-icon>
+                  <div>
+                    <strong>{{ pair.user1.fullName }}</strong>
+                    <span class="text-secondary small d-block">{{ pair.user1.email }}</span>
+                  </div>
+                </div>
+                <div class="dup-dist">
+                  <mat-icon class="material-icons-outlined text-warn">sync_alt</mat-icon>
+                  <span class="badge-dist">{{ pair.distance | number:'1.3-3' }}</span>
+                </div>
+                <div class="dup-user">
+                  <mat-icon class="material-icons-outlined text-secondary">person</mat-icon>
+                  <div>
+                    <strong>{{ pair.user2.fullName }}</strong>
+                    <span class="text-secondary small d-block">{{ pair.user2.email }}</span>
+                  </div>
+                </div>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        </div>
+      </div>
+
+      <!-- ML Anomaly Alerts -->
+      <div class="row gx-3 gx-lg-4 mb-3" *ngIf="anomalies.length > 0">
+        <div class="col-12">
+          <mat-card class="border-danger">
+            <mat-card-header>
+              <div class="col mb-2">
+                <h3 class="mb-1 text-danger">
+                  <mat-icon class="material-icons-outlined" style="vertical-align:middle;color:#ef4444">warning</mat-icon>
+                  ML Anomaly Login Alerts
+                </h3>
+                <p class="text-secondary small">Sessions with anomaly score ≥ 0.60 in the last sessions</p>
+              </div>
+            </mat-card-header>
+            <mat-card-content>
+              <table mat-table [dataSource]="anomalies" class="bg-none w-100">
+                <ng-container matColumnDef="userId">
+                  <th mat-header-cell *matHeaderCellDef>User ID</th>
+                  <td mat-cell *matCellDef="let s">{{ s.userId }}</td>
+                </ng-container>
+                <ng-container matColumnDef="ip">
+                  <th mat-header-cell *matHeaderCellDef>IP</th>
+                  <td mat-cell *matCellDef="let s">{{ s.ipAddress }}</td>
+                </ng-container>
+                <ng-container matColumnDef="score">
+                  <th mat-header-cell *matHeaderCellDef>Score</th>
+                  <td mat-cell *matCellDef="let s">
+                    <span [class]="s.anomalyScore >= 0.9 ? 'score-critical' : 'score-warn'">
+                      {{ s.anomalyScore | number:'1.2-2' }}
+                    </span>
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="action">
+                  <th mat-header-cell *matHeaderCellDef>Action</th>
+                  <td mat-cell *matCellDef="let s">
+                    <span class="badge" [ngClass]="s.actionTaken === 'ACCOUNT_LOCKED' ? 'theme-red' : 'theme-yellow'">
+                      {{ s.actionTaken }}
+                    </span>
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="date">
+                  <th mat-header-cell *matHeaderCellDef>Date</th>
+                  <td mat-cell *matCellDef="let s" class="small text-secondary">{{ s.createdAt | date:'MMM d, HH:mm' }}</td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="anomalyCols"></tr>
+                <tr mat-row *matRowDef="let row; columns: anomalyCols"></tr>
+              </table>
+            </mat-card-content>
+          </mat-card>
+        </div>
+      </div>
+
     </div>
   `,
   styles: [`
     .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
     .progress-bar { height: 6px; }
+    .border-warn { border-left: 4px solid #f59e0b !important; }
+    .border-danger { border-left: 4px solid #ef4444 !important; }
+    .text-warn { color: #92400e !important; }
+    .duplicate-row {
+      display: flex; align-items: center; gap: 16px;
+      padding: 10px 0; border-bottom: 1px solid #f0f0f0;
+    }
+    .duplicate-row:last-child { border-bottom: none; }
+    .dup-user { display: flex; align-items: center; gap: 8px; flex: 1; }
+    .dup-dist { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .badge-dist { font-size: 11px; font-weight: 700; color: #f59e0b; }
+    .score-critical { color: #ef4444; font-weight: 700; }
+    .score-warn { color: #f59e0b; font-weight: 700; }
   `]
 })
 export class SuperAdminComponent implements OnInit {
-  private userService = inject(UserService);
-  private authService = inject(AuthService);
+  private userService  = inject(UserService);
+  private authService  = inject(AuthService);
+  private faceService  = inject(FaceService);
+  private http         = inject(HttpClient);
 
   users: UserDTO[] = [];
   dataSource = new MatTableDataSource<UserDTO>([]);
   cols = ['user', 'role', 'status', 'created'];
+  faceDuplicates: FaceDuplicatePair[] = [];
+  anomalies: any[] = [];
+  anomalyCols = ['userId', 'ip', 'score', 'action', 'date'];
 
   get currentUser() { return this.authService.currentUser(); }
   get activeUsers() { return this.users.filter(u => u.isActive).length; }
@@ -227,6 +337,16 @@ export class SuperAdminComponent implements OnInit {
         this.users = data;
         this.dataSource.data = data;
       }
+    });
+
+    this.faceService.getFaceDuplicates().subscribe({
+      next: (pairs) => this.faceDuplicates = pairs,
+      error: () => {}
+    });
+
+    this.http.get<any[]>('http://localhost:8084/api/auth/anomalies?threshold=0.60').subscribe({
+      next: (data) => this.anomalies = data,
+      error: () => {}
     });
   }
 

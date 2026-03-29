@@ -3,8 +3,10 @@ package com.example.pi_projet.controller;
 import com.example.pi_projet.annotation.Authorized;
 import com.example.pi_projet.dto.AuthResponse;
 import com.example.pi_projet.dto.LoginRequest;
+import com.example.pi_projet.entity.Session;
 import com.example.pi_projet.entity.User;
 import com.example.pi_projet.repository.UserRepository;
+import com.example.pi_projet.service.AnomalyDetectionService;
 import com.example.pi_projet.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -15,45 +17,84 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-@Tag(name = "Authentication", description = "Login, logout, session and password management")
+@Tag(name = "Authentication", description = "Login, logout, session, Face ID and anomaly endpoints")
 public class AuthController {
 
-    private final AuthService authService;
-    private final UserRepository userRepository;
-    private final BCryptPasswordEncoder passwordEncoder;
+    private final AuthService               authService;
+    private final AnomalyDetectionService   anomalyService;
+    private final UserRepository            userRepository;
+    private final BCryptPasswordEncoder     passwordEncoder;
 
-    // ─────────────────────────────────────────────────────────────────────
-    // POST /api/auth/login
-    // Retourne mustChangePassword=true si c'est la première connexion
-    // ─────────────────────────────────────────────────────────────────────
-    @Operation(summary = "Sign in — returns mustChangePassword flag for new org admins")
+    // ── POST /api/auth/login ──────────────────────────────────────────────
+    @Operation(summary = "Sign in with email + password")
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest body, HttpServletRequest request) {
-        Optional<String> tokenOpt = authService.login(body.email(), body.password(), request);
-        if (tokenOpt.isEmpty()) {
+        Optional<AuthService.LoginResult> result = authService.login(body.email(), body.password(), request);
+        if (result.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("message", "Invalid email or password."));
         }
-        User user = authService.getUserFromToken(tokenOpt.get()).orElseThrow();
+
+        AuthService.LoginResult lr = result.get();
+        User user = authService.getUserFromToken(lr.token()).orElseThrow();
+
+        if (lr.anomaly().action() == Session.ActionTaken.ACCOUNT_LOCKED) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "Account locked due to suspicious activity."));
+        }
+
         return ResponseEntity.ok(new AuthResponse(
-                tokenOpt.get(),
+                lr.token(),
                 user.getId(),
                 user.getEmail(),
                 user.getFullName(),
                 user.getRole().name(),
-                Boolean.TRUE.equals(user.getMustChangePassword())
+                Boolean.TRUE.equals(user.getMustChangePassword()),
+                lr.anomaly().score(),
+                lr.anomaly().action().name()
         ));
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // POST /api/auth/logout
-    // ─────────────────────────────────────────────────────────────────────
+    // ── POST /api/auth/face-login ─────────────────────────────────────────
+    @Operation(summary = "Sign in with face descriptor (public endpoint)")
+    @PostMapping("/face-login")
+    public ResponseEntity<?> faceLogin(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        @SuppressWarnings("unchecked")
+        List<Number> raw = (List<Number>) body.get("descriptor");
+        if (raw == null || raw.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Descriptor is required."));
+        }
+        double[] descriptor = raw.stream().mapToDouble(Number::doubleValue).toArray();
+
+        Optional<AuthService.LoginResult> result = authService.loginByFace(descriptor, request);
+        if (result.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "Face not recognized."));
+        }
+
+        AuthService.LoginResult lr = result.get();
+        User user = authService.getUserFromToken(lr.token()).orElseThrow();
+
+        return ResponseEntity.ok(new AuthResponse(
+                lr.token(),
+                user.getId(),
+                user.getEmail(),
+                user.getFullName(),
+                user.getRole().name(),
+                Boolean.TRUE.equals(user.getMustChangePassword()),
+                lr.anomaly().score(),
+                lr.anomaly().action().name()
+        ));
+    }
+
+    // ── POST /api/auth/logout ─────────────────────────────────────────────
     @Authorized
     @Operation(summary = "Sign out")
     @PostMapping("/logout")
@@ -65,9 +106,7 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("message", "Logged out successfully."));
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // GET /api/auth/me
-    // ─────────────────────────────────────────────────────────────────────
+    // ── GET /api/auth/me ──────────────────────────────────────────────────
     @Authorized
     @Operation(summary = "Get current authenticated user")
     @GetMapping("/me")
@@ -83,12 +122,8 @@ public class AuthController {
         ));
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // POST /api/auth/change-password
-    // Utilisé obligatoirement après la première connexion (mustChangePassword=true)
-    // Body: { "userId": 5, "newPassword": "..." }
-    // ─────────────────────────────────────────────────────────────────────
-    @Operation(summary = "Set new password — required after first login with default password")
+    // ── POST /api/auth/change-password ────────────────────────────────────
+    @Operation(summary = "Set new password — required after first login")
     @PostMapping("/change-password")
     public ResponseEntity<?> changePassword(@RequestBody Map<String, Object> body) {
         Long userId = Long.valueOf(body.get("userId").toString());
@@ -101,11 +136,62 @@ public class AuthController {
 
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("User not found"));
-
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setMustChangePassword(false);
         userRepository.save(user);
 
-        return ResponseEntity.ok(Map.of("message", "Password changed successfully. You can now log in."));
+        return ResponseEntity.ok(Map.of("message", "Password changed successfully."));
+    }
+
+    // ── POST /api/auth/face-register ──────────────────────────────────────
+    @Authorized
+    @Operation(summary = "Register face for current user")
+    @PostMapping("/face-register")
+    public ResponseEntity<?> registerFace(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        User user = (User) request.getAttribute("currentUser");
+        @SuppressWarnings("unchecked")
+        List<Number> raw = (List<Number>) body.get("descriptor");
+        if (raw == null || raw.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Descriptor is required."));
+        }
+        double[] descriptor = raw.stream().mapToDouble(Number::doubleValue).toArray();
+        authService.registerFace(user.getId(), descriptor);
+        return ResponseEntity.ok(Map.of("message", "Face registered successfully."));
+    }
+
+    // ── DELETE /api/auth/face-register ────────────────────────────────────
+    @Authorized
+    @Operation(summary = "Remove face registration for current user")
+    @DeleteMapping("/face-register")
+    public ResponseEntity<?> removeFace(HttpServletRequest request) {
+        User user = (User) request.getAttribute("currentUser");
+        authService.removeFace(user.getId());
+        return ResponseEntity.ok(Map.of("message", "Face ID removed successfully."));
+    }
+
+    // ── GET /api/auth/face-duplicates ─────────────────────────────────────
+    @Authorized
+    @Operation(summary = "Find accounts sharing the same face (SUPER_ADMIN)")
+    @GetMapping("/face-duplicates")
+    public ResponseEntity<List<AuthService.FaceDuplicatePair>> faceDuplicates(HttpServletRequest request) {
+        User user = (User) request.getAttribute("currentUser");
+        if (user.getRole() != User.RoleName.SUPER_ADMIN) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(authService.findFaceDuplicates());
+    }
+
+    // ── GET /api/auth/anomalies ───────────────────────────────────────────
+    @Authorized
+    @Operation(summary = "Get recent high-anomaly login sessions (SUPER_ADMIN)")
+    @GetMapping("/anomalies")
+    public ResponseEntity<List<Session>> getAnomalies(
+            @RequestParam(defaultValue = "0.60") float threshold,
+            HttpServletRequest request) {
+        User user = (User) request.getAttribute("currentUser");
+        if (user.getRole() != User.RoleName.SUPER_ADMIN) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(anomalyService.getRecentAnomalies(threshold));
     }
 }

@@ -2,9 +2,20 @@ package com.example.pi_projet.repository;
 
 import com.example.pi_projet.entity.Session;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface SessionRepository extends JpaRepository<Session, Long> {
     Optional<Session> findByTokenHashAndIsActiveTrue(String tokenHash);
+
+    List<Session> findTop10ByUserIdOrderByCreatedAtDesc(Long userId);
+
+    @Query("SELECT COUNT(s) FROM Session s WHERE s.userId = :userId AND s.isActive = false AND s.createdAt >= :since")
+    long countFailedAttemptsSince(@Param("userId") Long userId, @Param("since") java.time.LocalDateTime since);
+
+    @Query("SELECT s FROM Session s WHERE s.anomalyScore >= :threshold ORDER BY s.createdAt DESC")
+    List<Session> findRecentAnomalies(@Param("threshold") float threshold);
 }

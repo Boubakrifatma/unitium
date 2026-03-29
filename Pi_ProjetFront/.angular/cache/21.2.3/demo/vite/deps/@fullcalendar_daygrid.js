@@ -6,7 +6,7 @@ import "./chunk-T7UM46HU.js";
 import {
   createPlugin
 } from "./chunk-HF3J4EVA.js";
-import "./chunk-3OV72XIM.js";
+import "./chunk-7GOANPIK.js";
 
 // node_modules/@fullcalendar/daygrid/index.js
 var index = createPlugin({

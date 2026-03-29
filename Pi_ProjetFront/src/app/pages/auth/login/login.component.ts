@@ -10,6 +10,8 @@ import { MatDividerModule } from "@angular/material/divider";
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from "@angular/forms";
 import { Router, RouterModule } from "@angular/router";
 import { AuthService } from "../../../auth/auth.service";
+import { FaceService } from "../../../auth/face.service";
+import { FaceCameraComponent } from "../../../components/face-camera/face-camera.component";
 
 @Component({
     selector: "app-login",
@@ -17,7 +19,7 @@ import { AuthService } from "../../../auth/auth.service";
     imports: [
         CommonModule, MatCardModule, MatInputModule, MatCheckboxModule,
         MatButtonModule, MatIconModule, MatFormFieldModule, MatDividerModule,
-        ReactiveFormsModule, RouterModule
+        ReactiveFormsModule, RouterModule, FaceCameraComponent
     ],
     template: `
         <div class="login-page">
@@ -32,14 +34,30 @@ import { AuthService } from "../../../auth/auth.service";
                     <p>Welcome back — enter your credentials to continue</p>
                 </div>
 
+                <!-- Anomaly warning -->
+                <div class="anomaly-warn" *ngIf="anomalyWarning">
+                    <mat-icon>security</mat-icon>
+                    <span>{{ anomalyWarning }}</span>
+                </div>
+
                 <!-- Error -->
                 <div class="login-error" *ngIf="errorMessage">
                     <mat-icon>error_outline</mat-icon>
                     {{ errorMessage }}
                 </div>
 
-                <!-- Form -->
-                <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+                <!-- Tab toggle: Password / Face ID -->
+                <div class="login-tabs">
+                    <button [class.active]="!showFaceLogin" (click)="showFaceLogin = false">
+                        <mat-icon class="material-icons-outlined">lock</mat-icon> Password
+                    </button>
+                    <button [class.active]="showFaceLogin" (click)="showFaceLogin = true">
+                        <mat-icon class="material-icons-outlined">face</mat-icon> Face ID
+                    </button>
+                </div>
+
+                <!-- Password form -->
+                <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" *ngIf="!showFaceLogin">
                     <mat-form-field appearance="outline" class="w-100 mb-1">
                         <mat-label>Email address</mat-label>
                         <input matInput formControlName="email" type="email" autocomplete="email" />
@@ -71,6 +89,12 @@ import { AuthService } from "../../../auth/auth.service";
                         <span>{{ loading ? 'Signing in...' : 'Sign In' }}</span>
                     </button>
                 </form>
+
+                <!-- Face ID panel -->
+                <div *ngIf="showFaceLogin" class="face-panel">
+                    <app-face-camera (descriptor)="onFaceLogin($event)"></app-face-camera>
+                    <p class="face-error" *ngIf="faceError">{{ faceError }}</p>
+                </div>
 
                 <mat-divider class="my-3"></mat-divider>
 
@@ -134,6 +158,32 @@ import { AuthService } from "../../../auth/auth.service";
         }
         .login-error mat-icon { font-size: 18px; width: 18px; height: 18px; flex-shrink: 0; }
 
+        .anomaly-warn {
+            display: flex; align-items: center; gap: 8px;
+            background: #fffbeb; border: 1px solid #fbbf24;
+            color: #92400e; border-radius: 8px;
+            padding: 10px 14px; font-size: 13px; font-weight: 500;
+            margin-bottom: 16px;
+        }
+        .anomaly-warn mat-icon { font-size: 18px; width: 18px; height: 18px; flex-shrink: 0; color: #f59e0b; }
+
+        /* Tabs */
+        .login-tabs {
+            display: flex; gap: 0; margin-bottom: 20px;
+            border: 1px solid var(--bs-border-color, #e5e7eb);
+            border-radius: 10px; overflow: hidden;
+        }
+        .login-tabs button {
+            flex: 1; padding: 10px; background: transparent; border: none;
+            cursor: pointer; font-size: 14px; font-weight: 500;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            color: #6b7280; transition: all 0.15s;
+        }
+        .login-tabs button mat-icon { font-size: 18px; width: 18px; height: 18px; }
+        .login-tabs button.active {
+            background: #6366f1; color: white;
+        }
+
         .login-options {
             display: flex; justify-content: space-between; align-items: center;
             margin-bottom: 20px;
@@ -149,6 +199,9 @@ import { AuthService } from "../../../auth/auth.service";
             border-radius: 10px !important;
             gap: 6px;
         }
+
+        .face-panel { display: flex; flex-direction: column; align-items: center; padding: 16px 0; }
+        .face-error { font-size: 13px; color: #ef4444; text-align: center; margin-top: 8px; }
 
         .quick-label {
             font-size: 11px; font-weight: 600; text-transform: uppercase;
@@ -187,6 +240,9 @@ export class LoginComponent implements OnInit {
     hidePassword = true;
     loading = false;
     errorMessage = '';
+    anomalyWarning = '';
+    showFaceLogin = false;
+    faceError = '';
 
     testAccounts = [
         { email: 'superadmin@cmp.com', password: 'superadmin123', role: 'SUPER_ADMIN' },
@@ -202,7 +258,8 @@ export class LoginComponent implements OnInit {
     constructor(
         private fb: FormBuilder,
         private router: Router,
-        private authService: AuthService
+        private authService: AuthService,
+        private faceService: FaceService
     ) {
         this.loginForm = this.fb.group({
             email:    ['', [Validators.required, Validators.email]],
@@ -214,6 +271,7 @@ export class LoginComponent implements OnInit {
 
     fillAccount(a: { email: string; password: string }): void {
         this.loginForm.patchValue({ email: a.email, password: a.password });
+        this.showFaceLogin = false;
     }
 
     getRoleColor(role: string): string {
@@ -231,6 +289,7 @@ export class LoginComponent implements OnInit {
         if (this.loginForm.invalid) return;
         this.loading = true;
         this.errorMessage = '';
+        this.anomalyWarning = '';
 
         const { email, password } = this.loginForm.value;
 
@@ -238,7 +297,12 @@ export class LoginComponent implements OnInit {
             next: (res) => {
                 this.loading = false;
 
-                // ── Si premier login (mot de passe par défaut) → page changement mdp ──
+                // Anomaly warning
+                if (res.actionTaken === 'MFA_FORCED') {
+                    this.anomalyWarning = 'Unusual login detected. Please verify your identity.';
+                }
+
+                // First login redirect
                 if (res.mustChangePassword) {
                     this.router.navigate(['/auth/first-login'], {
                         state: { email, userId: res.id }
@@ -246,7 +310,6 @@ export class LoginComponent implements OnInit {
                     return;
                 }
 
-                // ── Redirection selon le rôle ──
                 const redirectMap: Record<string, string> = {
                     SUPER_ADMIN: '/app/super-admin',
                     PRODUCT_OWNER: '/app/po',
@@ -257,6 +320,34 @@ export class LoginComponent implements OnInit {
             error: (err) => {
                 this.errorMessage = err.error?.message ?? 'Invalid email or password.';
                 this.loading = false;
+            }
+        });
+    }
+
+    onFaceLogin(descriptor: number[]): void {
+        this.faceError = '';
+        this.faceService.faceLogin(descriptor).subscribe({
+            next: (res: any) => {
+                this.authService['setToken'](res.token);
+                this.authService['setUserId'](res.id);
+                this.authService.currentUser.set({
+                    id: res.id,
+                    email: res.email,
+                    fullName: res.fullName,
+                    role: res.role,
+                    mustChangePassword: res.mustChangePassword,
+                    avatarUrl: res.avatarUrl ?? null
+                });
+
+                const redirectMap: Record<string, string> = {
+                    SUPER_ADMIN: '/app/super-admin',
+                    PRODUCT_OWNER: '/app/po',
+                };
+                const redirect = redirectMap[res.role] ?? '/app/dashboard';
+                this.router.navigate([redirect]);
+            },
+            error: () => {
+                this.faceError = 'Face not recognized. Please try again or use password.';
             }
         });
     }

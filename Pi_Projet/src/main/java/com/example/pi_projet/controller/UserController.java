@@ -12,8 +12,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -98,5 +100,12 @@ public class UserController {
     public ResponseEntity<?> changePassword(@PathVariable Long id, @RequestBody Map<String, String> body) {
         userService.changePassword(id, body.get("oldPassword"), body.get("newPassword"));
         return ResponseEntity.ok(Map.of("message", "Password changed successfully."));
+    }
+
+    @Operation(summary = "Upload avatar photo for a user")
+    @PostMapping(value = "/{id}/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<UserDTO> uploadAvatar(@PathVariable Long id,
+                                                @RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(userService.uploadAvatar(id, file));
     }
 }

@@ -9,9 +9,16 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -91,6 +98,27 @@ public class UserService {
         if (query == null || query.trim().isEmpty()) return List.of();
         return userRepository.searchByNameOrEmail(query.trim())
                 .stream().map(UserDTO::from).toList();
+    }
+
+    public UserDTO uploadAvatar(Long id, MultipartFile file) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
+        try {
+            Path dir = Paths.get("uploads/avatars");
+            Files.createDirectories(dir);
+            String ext = "";
+            String original = file.getOriginalFilename();
+            if (original != null && original.contains(".")) {
+                ext = original.substring(original.lastIndexOf('.'));
+            }
+            String filename = UUID.randomUUID() + ext;
+            Path dest = dir.resolve(filename);
+            Files.copy(file.getInputStream(), dest, StandardCopyOption.REPLACE_EXISTING);
+            user.setAvatarUrl("http://localhost:8084/uploads/avatars/" + filename);
+            return UserDTO.from(userRepository.save(user));
+        } catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to upload avatar.");
+        }
     }
 
     public void changePassword(Long id, String oldPassword, String newPassword) {

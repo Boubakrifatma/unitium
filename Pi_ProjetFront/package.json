@@ -24,6 +24,7 @@
     "@fullcalendar/timegrid": "^6.1.18",
     "chart.js": "^4.5.1",
     "dayjs": "^1.11.20",
+    "face-api.js": "^0.22.2",
     "jsvectormap": "^1.7.0",
     "ng-circle-progress": "^1.7.1",
     "rxjs": "^7.8.2",

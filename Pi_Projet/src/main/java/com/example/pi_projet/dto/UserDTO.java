@@ -11,7 +11,8 @@ public record UserDTO(
         String role,
         Boolean isActive,
         String avatarUrl,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        LocalDateTime faceRegisteredAt
 ) {
     public static UserDTO from(User user) {
         return new UserDTO(
@@ -21,7 +22,8 @@ public record UserDTO(
                 user.getRole().name(),
                 user.getIsActive(),
                 user.getAvatarUrl(),
-                user.getCreatedAt()
+                user.getCreatedAt(),
+                user.getFaceRegisteredAt()
         );
     }
 }
