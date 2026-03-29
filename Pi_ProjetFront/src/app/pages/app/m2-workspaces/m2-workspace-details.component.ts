@@ -54,8 +54,6 @@ interface WorkspaceActivity {
         MatTooltipModule,
         CircleProgressBlueComponent,
         WorkspaceMemberCardComponent,
-        IntegrationsComingSoonDialogComponent,
-        WorkspaceTransferOwnerDialogComponent,
     ],
     template: `
         <div class="container-fluid fade-in mb-3 mb-lg-4">

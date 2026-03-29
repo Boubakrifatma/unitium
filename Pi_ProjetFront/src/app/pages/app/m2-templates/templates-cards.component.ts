@@ -229,7 +229,7 @@ export interface TemplateCardItem {
                                                         <mat-icon class="material-icons-outlined" style="font-size:14px;width:14px;height:14px;">send</mat-icon>
                                                         Submit Rejection
                                                     </button>
-                                                    <button matButton (click)="rejectingId.set('')">Cancel</button>
+                                                    <button matButton (click)="cancelReject()">Cancel</button>
                                                 </div>
                                             } @else {
                                                 <div class="d-flex gap-2">
@@ -382,6 +382,11 @@ export class TemplatesCardsComponent implements OnInit, OnChanges {
     startReject(id: string, event: Event): void {
         event.stopPropagation();
         this.rejectingId.set(id);
+        this.rejectReason = "";
+    }
+
+    cancelReject(): void {
+        this.rejectingId.set("");
         this.rejectReason = "";
     }
 

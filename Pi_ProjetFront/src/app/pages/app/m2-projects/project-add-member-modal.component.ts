@@ -60,7 +60,7 @@ export interface ProjectAddMemberModalData {
                 <mat-form-field appearance="outline" class="w-100 mb-0">
                     <mat-label>Search workspace members</mat-label>
                     <mat-icon matPrefix>search</mat-icon>
-                    <input matInput [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set(($event || '').toString())" placeholder="Type a name or email" />
+                    <input matInput [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set(($event || '').toString().trim())" placeholder="Type a name or email" />
                     @if (searchTerm()) {
                     <button mat-icon-button matSuffix (click)="searchTerm.set('')">
                         <mat-icon class="material-icons-outlined">close</mat-icon>

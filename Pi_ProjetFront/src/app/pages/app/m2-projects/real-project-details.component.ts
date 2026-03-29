@@ -741,6 +741,14 @@ this.editStartDate = p.startDate || "";
     }
 
     cancelEdit(): void {
+        const p = this.project();
+        if (p) {
+            this.editName = p.name || "";
+            this.editDescription = p.description || "";
+            this.editVisibility = (p.visibility as "PUBLIC" | "PRIVATE") || "PRIVATE";
+            this.editStartDate = p.startDate || "";
+            this.editEndDate = p.endDate || "";
+        }
         this.editMode.set(false);
     }
 

@@ -19,6 +19,7 @@ import { MatDialog } from "@angular/material/dialog";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { MatSnackBarModule } from "@angular/material/snack-bar";
 import { CreateEditProjectModal } from "./createeditproject.component";
+
 import { ProjectAddMemberModalComponent } from "./project-add-member-modal.component";
 import { ProjectDeleteConfirmDialogComponent } from "./project-delete-confirm-dialog.component";
 import { M2ProjectService } from "./m2-project.service";
@@ -50,7 +51,7 @@ type SortDirection = "asc" | "desc" | "";
 @Component({
     selector: "app-projects-cards",
     standalone: true,
-    imports: [CommonModule, MatCardModule, MatIconModule, MatMenuModule, MatProgressBarModule, MatTooltipModule, MatTableModule, MatPaginatorModule, MatSortModule, MatButtonModule, MatFormFieldModule, FormsModule, MatListModule, MatInputModule, MatSelectModule, MatChipsModule, ProjectAddMemberModalComponent, MatSnackBarModule],
+    imports: [CommonModule, MatCardModule, MatIconModule, MatMenuModule, MatProgressBarModule, MatTooltipModule, MatTableModule, MatPaginatorModule, MatSortModule, MatButtonModule, MatFormFieldModule, FormsModule, MatListModule, MatInputModule, MatSelectModule, MatChipsModule, MatSnackBarModule],
     template: ` <div class="row gx-3 align-items-center">
             <div class="col-auto mb-3">
                 <div class="avatar avatar-40 text-theme rounded">
@@ -304,8 +305,16 @@ type SortDirection = "asc" | "desc" | "";
             } @if(filteredTableItems().length === 0) {
             <div class="col-12 text-center mb-4 pb-5">
                 <img src="assets/img/noproduct.png" alt="" class="width-300 mt-4 mt-lg-5" />
-                <h3 class="mb-1">No project found</h3>
-                <p class="text-secondary">Search for different project name or status</p>
+                <h3 class="mb-1">No projects found</h3>
+                @if (searchQuery() || selectedStatus() !== 'All') {
+                    <p class="text-secondary mb-2">No projects match your current search or filter.</p>
+                    <button matButton class="text-theme" (click)="clearFilters()">
+                        <mat-icon class="material-icons-outlined" style="font-size:16px;width:16px;height:16px;">filter_alt_off</mat-icon>
+                        Clear filters
+                    </button>
+                } @else {
+                    <p class="text-secondary">No projects have been created in this workspace yet.</p>
+                }
             </div>
             }
         </div>`,
@@ -446,6 +455,11 @@ export class ProjectsCardsComponent implements OnInit {
     setSelectedStatus(status: string): void {
         this.selectedStatus.set(status);
         this.logAction("Filter by Status: " + status);
+    }
+
+    clearFilters(): void {
+        this.searchQuery.set("");
+        this.selectedStatus.set("All");
     }
 
     statusDisplay(status: string): string {

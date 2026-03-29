@@ -348,8 +348,13 @@ export class RejectTemplateDialogComponent {
                                     }
                                     @if (template()!.rejectionReason) {
                                         <mat-divider class="my-2"></mat-divider>
-                                        <p class="small text-secondary mb-1">Rejection Reason</p>
-                                        <p class="small theme-red mb-0">{{ template()!.rejectionReason }}</p>
+                                        <div class="d-flex align-items-start gap-2 p-2 rounded" style="background:rgba(220,53,69,0.07);border:1px solid rgba(220,53,69,0.25);">
+                                            <mat-icon class="material-icons-outlined theme-red" style="font-size:16px;width:16px;height:16px;flex-shrink:0;margin-top:1px;">block</mat-icon>
+                                            <div>
+                                                <p class="small fw-medium theme-red mb-0">Rejection reason</p>
+                                                <p class="small text-secondary mb-0">{{ template()!.rejectionReason }}</p>
+                                            </div>
+                                        </div>
                                     }
                                 } @else {
                                     <h5 class="mb-2">Edit Template</h5>
