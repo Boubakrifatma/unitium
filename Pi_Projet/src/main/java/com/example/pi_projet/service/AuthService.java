@@ -26,6 +26,7 @@ public class AuthService {
     private final SessionRepository         sessionRepository;
     private final BCryptPasswordEncoder     passwordEncoder;
     private final AnomalyDetectionService   anomalyService;
+    private final JwtService                jwtService;
 
     private static final int   SESSION_HOURS       = 8;
     private static final float FACE_THRESHOLD      = 0.50f;  // strict — login
@@ -161,17 +162,31 @@ public class AuthService {
     // ──────────────────────────────────────────────────────────────
     public Optional<User> getUserFromToken(String token) {
         if (token == null) return Optional.empty();
-        return sessionRepository.findByTokenHashAndIsActiveTrue(token)
-                .filter(s -> s.getExpiresAt() != null && s.getExpiresAt().isAfter(LocalDateTime.now()))
-                .flatMap(s -> userRepository.findById(s.getUserId()));
+        try {
+            // 1. Validate JWT signature + expiry
+            String jti = jwtService.extractJti(token);
+            Long userId = jwtService.extractUserId(token);
+
+            // 2. Check session not revoked (logout support)
+            boolean active = sessionRepository.findByTokenHashAndIsActiveTrue(jti).isPresent();
+            if (!active) return Optional.empty();
+
+            // 3. Load user
+            return userRepository.findById(userId);
+        } catch (Exception e) {
+            return Optional.empty();
+        }
     }
 
     public void logout(String token) {
-        sessionRepository.findByTokenHashAndIsActiveTrue(token).ifPresent(s -> {
-            s.setIsActive(false);
-            s.setRevokedAt(LocalDateTime.now());
-            sessionRepository.save(s);
-        });
+        try {
+            String jti = jwtService.extractJti(token);
+            sessionRepository.findByTokenHashAndIsActiveTrue(jti).ifPresent(s -> {
+                s.setIsActive(false);
+                s.setRevokedAt(LocalDateTime.now());
+                sessionRepository.save(s);
+            });
+        } catch (Exception ignored) {}
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -179,10 +194,13 @@ public class AuthService {
     // ──────────────────────────────────────────────────────────────
     private String createSessionForUser(User user, HttpServletRequest request,
                                         AnomalyDetectionService.AnomalyResult anomaly) {
-        String token = UUID.randomUUID().toString();
+        String jti = UUID.randomUUID().toString();
+        String jwt = jwtService.generate(user, jti);
+
+        // Store jti (not the full JWT) for revocation support
         Session session = Session.builder()
                 .userId(user.getId())
-                .tokenHash(token)
+                .tokenHash(jti)
                 .ipAddress(request.getRemoteAddr())
                 .userAgent(request.getHeader("User-Agent"))
                 .isActive(true)
@@ -190,7 +208,7 @@ public class AuthService {
                 .build();
         anomalyService.enrichSession(session, anomaly);
         sessionRepository.save(session);
-        return token;
+        return jwt;
     }
 
     private double euclidean(double[] a, double[] b) {

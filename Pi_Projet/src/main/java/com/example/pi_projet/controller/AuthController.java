@@ -5,6 +5,7 @@ import com.example.pi_projet.dto.AuthResponse;
 import com.example.pi_projet.dto.LoginRequest;
 import com.example.pi_projet.entity.Session;
 import com.example.pi_projet.entity.User;
+import com.example.pi_projet.repository.SessionRepository;
 import com.example.pi_projet.repository.UserRepository;
 import com.example.pi_projet.service.AnomalyDetectionService;
 import com.example.pi_projet.service.AuthService;
@@ -30,6 +31,7 @@ public class AuthController {
     private final AuthService               authService;
     private final AnomalyDetectionService   anomalyService;
     private final UserRepository            userRepository;
+    private final SessionRepository         sessionRepository;
     private final BCryptPasswordEncoder     passwordEncoder;
 
     // ── POST /api/auth/login ──────────────────────────────────────────────
@@ -167,6 +169,29 @@ public class AuthController {
         User user = (User) request.getAttribute("currentUser");
         authService.removeFace(user.getId());
         return ResponseEntity.ok(Map.of("message", "Face ID removed successfully."));
+    }
+
+    // ── GET /api/auth/sessions ────────────────────────────────────────────
+    @Authorized
+    @Operation(summary = "Get current user's active sessions")
+    @GetMapping("/sessions")
+    public ResponseEntity<List<Session>> getMySessions(HttpServletRequest request) {
+        User user = (User) request.getAttribute("currentUser");
+        return ResponseEntity.ok(sessionRepository.findByUserIdAndIsActiveTrueOrderByCreatedAtDesc(user.getId()));
+    }
+
+    // ── DELETE /api/auth/sessions/{id} ────────────────────────────────────
+    @Authorized
+    @Operation(summary = "Revoke a specific session")
+    @DeleteMapping("/sessions/{id}")
+    public ResponseEntity<?> revokeSession(@PathVariable Long id, HttpServletRequest request) {
+        User user = (User) request.getAttribute("currentUser");
+        sessionRepository.findByIdAndUserId(id, user.getId()).ifPresent(s -> {
+            s.setIsActive(false);
+            s.setRevokedAt(java.time.LocalDateTime.now());
+            sessionRepository.save(s);
+        });
+        return ResponseEntity.ok(Map.of("message", "Session revoked."));
     }
 
     // ── GET /api/auth/face-duplicates ─────────────────────────────────────

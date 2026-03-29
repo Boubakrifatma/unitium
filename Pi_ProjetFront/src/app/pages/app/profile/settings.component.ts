@@ -9,6 +9,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
+import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../../auth/auth.service';
 import { UserService } from '../../../users/user.service';
 import { FaceService } from '../../../auth/face.service';
@@ -214,6 +215,38 @@ function passwordMatchValidator(control: AbstractControl): ValidationErrors | nu
             </div>
           </mat-card>
 
+          <!-- ─── Active Sessions ────────────────────────────────── -->
+          <mat-card class="p-4 mb-4">
+            <h4 class="section-title">
+              <mat-icon class="material-icons-outlined">devices</mat-icon>
+              Active Sessions
+            </h4>
+            <mat-divider class="mb-3"></mat-divider>
+
+            <div *ngIf="sessions.length === 0" class="text-secondary small py-2">No active sessions found.</div>
+
+            <div *ngFor="let s of sessions" class="session-row">
+              <div class="row gx-3 align-items-center">
+                <div class="col-auto">
+                  <div class="avatar avatar-40 bg-light-theme text-theme rounded theme-blue">
+                    <mat-icon class="material-icons-outlined">computer</mat-icon>
+                  </div>
+                </div>
+                <div class="col">
+                  <p class="mb-0 fw-semibold small">{{ s.ipAddress ?? 'Unknown IP' }}</p>
+                  <p class="mb-0 text-secondary" style="font-size:11px">{{ s.userAgent | slice:0:60 }}…</p>
+                  <p class="mb-0 text-secondary" style="font-size:11px">{{ s.createdAt | date:'MMM d, yyyy HH:mm' }}</p>
+                </div>
+                <div class="col-auto">
+                  <button matButton color="warn" (click)="revokeSession(s)" style="font-size:12px">
+                    <mat-icon style="font-size:16px;height:16px;width:16px">logout</mat-icon>
+                    Revoke
+                  </button>
+                </div>
+              </div>
+            </div>
+          </mat-card>
+
         </div>
       </div>
     </div>
@@ -268,6 +301,10 @@ function passwordMatchValidator(control: AbstractControl): ValidationErrors | nu
     .face-registered mat-icon { color: #10b981; font-size: 28px; width: 28px; height: 28px; }
     .face-not-registered mat-icon { color: #9ca3af; font-size: 28px; width: 28px; height: 28px; }
     .text-success { color: #10b981 !important; }
+
+    /* Sessions */
+    .session-row { padding: 10px 0; border-bottom: 1px solid var(--bs-border-color, #e5e7eb); }
+    .session-row:last-child { border-bottom: none; }
   `]
 })
 export class SettingsComponent implements OnInit {
@@ -297,6 +334,9 @@ export class SettingsComponent implements OnInit {
   hideOld = true; hideNew = true; hideConf = true;
   @ViewChild('pwFormRef') pwFormDirective!: FormGroupDirective;
 
+  // Sessions
+  sessions: any[] = [];
+
   // Face ID
   showFaceRegistration = false;
   faceRegistered = false;
@@ -309,6 +349,7 @@ export class SettingsComponent implements OnInit {
 
   constructor(
     private fb: FormBuilder,
+    private http: HttpClient,
     private authService: AuthService,
     private userService: UserService,
     private faceService: FaceService
@@ -338,6 +379,11 @@ export class SettingsComponent implements OnInit {
         this.faceRegisteredAt  = dto.faceRegisteredAt ?? null;
       });
     }
+    // Load active sessions
+    this.http.get<any[]>('http://localhost:8084/api/auth/sessions').subscribe({
+      next: s => { this.sessions = s; this.cdr.detectChanges(); },
+      error: () => {}
+    });
   }
 
   // ── Avatar ──────────────────────────────────────────────────────
@@ -443,6 +489,15 @@ export class SettingsComponent implements OnInit {
         }
         this.cdr.detectChanges();
       }
+    });
+  }
+
+  // ── Sessions ─────────────────────────────────────────────────────
+  revokeSession(s: any): void {
+    if (!confirm('Revoke this session?')) return;
+    this.http.delete(`http://localhost:8084/api/auth/sessions/${s.id}`).subscribe({
+      next: () => { this.sessions = this.sessions.filter(x => x.id !== s.id); this.cdr.detectChanges(); },
+      error: () => {}
     });
   }
 

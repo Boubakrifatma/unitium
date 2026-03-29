@@ -13,6 +13,10 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
 
     List<Session> findTop10ByUserIdOrderByCreatedAtDesc(Long userId);
 
+    List<Session> findByUserIdAndIsActiveTrueOrderByCreatedAtDesc(Long userId);
+
+    Optional<Session> findByIdAndUserId(Long id, Long userId);
+
     @Query("SELECT COUNT(s) FROM Session s WHERE s.userId = :userId AND s.isActive = false AND s.createdAt >= :since")
     long countFailedAttemptsSince(@Param("userId") Long userId, @Param("since") java.time.LocalDateTime since);
 

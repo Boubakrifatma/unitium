@@ -251,8 +251,11 @@ import { FaceService, FaceDuplicatePair } from '../../../auth/face.service';
             <mat-card-content>
               <table mat-table [dataSource]="anomalies" class="bg-none w-100">
                 <ng-container matColumnDef="userId">
-                  <th mat-header-cell *matHeaderCellDef>User ID</th>
-                  <td mat-cell *matCellDef="let s">{{ s.userId }}</td>
+                  <th mat-header-cell *matHeaderCellDef>User</th>
+                  <td mat-cell *matCellDef="let s">
+                    <span class="fw-semibold">{{ getUserName(s.userId) }}</span>
+                    <span class="text-secondary small d-block">{{ getUserEmail(s.userId) }}</span>
+                  </td>
                 </ng-container>
                 <ng-container matColumnDef="ip">
                   <th mat-header-cell *matHeaderCellDef>IP</th>
@@ -348,6 +351,14 @@ export class SuperAdminComponent implements OnInit {
       next: (data) => this.anomalies = data,
       error: () => {}
     });
+  }
+
+  getUserName(userId: number): string {
+    return this.users.find(u => u.id === userId)?.fullName ?? `User #${userId}`;
+  }
+
+  getUserEmail(userId: number): string {
+    return this.users.find(u => u.id === userId)?.email ?? '';
   }
 
   getRoleBadge(role: string): string {
