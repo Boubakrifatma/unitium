@@ -51,4 +51,7 @@ public class PaymentRequestDTO {
 
     @NotBlank
     private String cvv;
+
+    // Stripe PaymentIntent ID — provided by frontend after Stripe.js confirms the payment
+    private String stripePaymentIntentId;
 }

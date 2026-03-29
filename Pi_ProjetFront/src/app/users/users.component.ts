@@ -16,6 +16,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { UserService, UserDTO } from './user.service';
 import { UserDialogComponent } from './user-dialog.component';
 import { AuthService } from '../auth/auth.service';
+import { OrgBillingService } from '../billing/services/org-billing.service';
 
 @Component({
   selector: 'app-users',
@@ -246,6 +247,7 @@ export class UsersComponent implements OnInit {
 
   private userService = inject(UserService);
   private authService = inject(AuthService);
+  private orgBilling = inject(OrgBillingService);
   private dialog = inject(MatDialog);
   private snackBar = inject(MatSnackBar);
 
@@ -272,7 +274,22 @@ export class UsersComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.loadUsers();
+    const currentRole = this.authService.currentUser()?.role;
+    if (currentRole === 'SUPER_ADMIN') {
+      // Super admin sees everything — no need to check org type
+      this.loadUsers();
+    } else {
+      // Fetch org type from billing before loading users
+      this.orgBilling.getMyPayment().subscribe({
+        next: (payment) => {
+          if (payment?.orgType) {
+            this.currentOrgType = payment.orgType as 'enterprise' | 'academic';
+          }
+          this.loadUsers();
+        },
+        error: () => this.loadUsers()
+      });
+    }
   }
 
   ngAfterViewInit() {
@@ -286,12 +303,6 @@ export class UsersComponent implements OnInit {
     this.userService.getAll().subscribe({
       next: (data) => {
         const currentRole = this.authService.currentUser()?.role;
-
-        // Detect org type from any user in the dataset
-        const orgTypeUser = data.find(u => u.orgType != null);
-        if (orgTypeUser?.orgType) {
-          this.currentOrgType = orgTypeUser.orgType;
-        }
 
         if (currentRole === 'SUPER_ADMIN') {
           this.dataSource.data = data;

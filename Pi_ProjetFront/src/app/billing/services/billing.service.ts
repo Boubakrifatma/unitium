@@ -272,6 +272,13 @@ export class BillingService {
     };
   }
 
+  createPaymentIntent(planId: string, billingCycle: string): Observable<{ clientSecret: string; paymentIntentId: string; amount: number }> {
+    return this.http.post<{ clientSecret: string; paymentIntentId: string; amount: number }>(
+      `${this.API}/create-payment-intent`,
+      { planId, billingCycle }
+    );
+  }
+
   submitPayment(payload: PaymentRequest): Observable<PaymentResponse> {
     return this.http.post<PaymentResponse>(`${this.API}/payment`, payload);
   }

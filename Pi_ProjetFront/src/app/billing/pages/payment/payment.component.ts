@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -9,10 +9,12 @@ import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { loadStripe, Stripe, StripeCardElement } from '@stripe/stripe-js';
 import { CheckoutStateService } from '../../services/checkout-state.service';
 import { BillingService } from '../../services/billing.service';
 import { PendingPaymentsService } from '../../services/pending-payments.service';
 import { PaymentRequest } from '../../models/billing.models';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-payment',
@@ -71,16 +73,30 @@ import { PaymentRequest } from '../../models/billing.models';
                 <mat-icon>check_circle</mat-icon>
                 <span>Your subscription will be activated immediately upon payment.</span>
               </div>
+              <div class="summary-notice mt-2">
+                <mat-icon>lock</mat-icon>
+                <span>Secured by Stripe. We never store your card details.</span>
+              </div>
             }
           </div>
         </div>
 
-        <!-- ── RIGHT: Card Form ── -->
+        <!-- ── RIGHT: Stripe Card Form ── -->
         <div class="card-col">
           <div class="card-box">
             <h5 class="card-heading">Card Information</h5>
 
-            <form [formGroup]="payForm" (ngSubmit)="submit()">
+            <!-- Stripe loading indicator -->
+            @if (stripeLoading()) {
+              <div class="stripe-loading">
+                <mat-progress-spinner diameter="32" mode="indeterminate"></mat-progress-spinner>
+                <span>Loading secure payment form…</span>
+              </div>
+            }
+
+            <form [formGroup]="payForm" (ngSubmit)="submit()" [style.display]="stripeLoading() ? 'none' : 'block'">
+
+              <!-- Cardholder name -->
               <div class="field-group">
                 <input class="pay-input" formControlName="cardHolder"
                   placeholder="Cardholder Name*" type="text" autocomplete="cc-name">
@@ -89,32 +105,12 @@ import { PaymentRequest } from '../../models/billing.models';
                 }
               </div>
 
-              <div class="field-group field-icon-right">
-                <input class="pay-input" formControlName="cardNumber"
-                  placeholder="Card Number*" maxlength="19"
-                  (input)="fmtCard($event)" autocomplete="cc-number">
-                <mat-icon class="input-icon">credit_card</mat-icon>
-                @if (pf['cardNumber'].invalid && pf['cardNumber'].touched) {
-                  <span class="err">Enter a valid 16-digit card number</span>
+              <!-- Stripe Card Element -->
+              <div class="field-group">
+                <div id="stripe-card-element" class="stripe-element"></div>
+                @if (stripeError()) {
+                  <span class="err">{{ stripeError() }}</span>
                 }
-              </div>
-
-              <div class="field-row">
-                <div class="field-group">
-                  <input class="pay-input" formControlName="expiry"
-                    placeholder="Expiry (MM/YY)*" maxlength="5"
-                    (input)="fmtExpiry($event)" autocomplete="cc-exp">
-                  @if (pf['expiry'].invalid && pf['expiry'].touched) {
-                    <span class="err">Enter valid expiry</span>
-                  }
-                </div>
-                <div class="field-group">
-                  <input class="pay-input" formControlName="cvv"
-                    placeholder="CVV*" maxlength="4" type="password" autocomplete="cc-csc">
-                  @if (pf['cvv'].invalid && pf['cvv'].touched) {
-                    <span class="err">Enter valid CVV</span>
-                  }
-                </div>
               </div>
 
               <!-- Error message -->
@@ -129,12 +125,15 @@ import { PaymentRequest } from '../../models/billing.models';
               <div class="form-actions">
                 <button type="button" matButton class="back-btn" (click)="goBack()">Back</button>
                 <button type="submit" matButton="filled" class="pay-btn"
-                  [disabled]="payForm.invalid || isSubmitting()">
+                  [disabled]="payForm.invalid || isSubmitting() || stripeLoading()">
                   @if (isSubmitting()) {
                     <mat-progress-spinner diameter="18" mode="indeterminate"></mat-progress-spinner>
                     <span>Processing…</span>
                   } @else {
-                    Pay {{ totalDisplay() }}
+                    <ng-container>
+                      <mat-icon style="font-size:18px;width:18px;height:18px">lock</mat-icon>
+                      Pay {{ totalDisplay() }}
+                    </ng-container>
                   }
                 </button>
               </div>
@@ -255,6 +254,12 @@ import { PaymentRequest } from '../../models/billing.models';
       color: var(--bs-body-color);
     }
 
+    /* Stripe loading */
+    .stripe-loading {
+      display: flex; align-items: center; gap: 12px;
+      padding: 24px 0; color: #64748b; font-size: .9rem;
+    }
+
     /* Fields */
     .field-group { margin-bottom: 14px; position: relative; }
     .pay-input {
@@ -267,14 +272,19 @@ import { PaymentRequest } from '../../models/billing.models';
     }
     .pay-input:focus { border-color: #2563eb; background: #fff; }
     .pay-input::placeholder { color: #94a3b8; }
-    .field-icon-right .pay-input { padding-right: 48px; }
-    .input-icon {
-      position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
-      color: #94a3b8; font-size: 20px; pointer-events: none;
-    }
-    .err { font-size: .75rem; color: #ef4444; padding-left: 14px; margin-top: 2px; display: block; }
 
-    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    /* Stripe Element container */
+    .stripe-element {
+      padding: 14px 18px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 12px;
+      background: #f8fafc;
+      transition: border-color .2s;
+    }
+    .stripe-element.StripeElement--focus { border-color: #2563eb; background: #fff; }
+    .stripe-element.StripeElement--invalid { border-color: #ef4444; }
+
+    .err { font-size: .75rem; color: #ef4444; padding-left: 14px; margin-top: 4px; display: block; }
 
     /* Actions bar */
     .form-actions {
@@ -304,21 +314,24 @@ import { PaymentRequest } from '../../models/billing.models';
   </style>
   `,
 })
-export class PaymentComponent implements OnInit {
-  isSubmitting = signal(false);
-  errorMessage = signal<string | null>(null);
+export class PaymentComponent implements OnInit, OnDestroy {
+  isSubmitting  = signal(false);
+  stripeLoading = signal(true);
+  errorMessage  = signal<string | null>(null);
+  stripeError   = signal<string | null>(null);
 
-  private fb = inject(FormBuilder);
-  private router = inject(Router);
-  checkoutState = inject(CheckoutStateService);
-  private billing = inject(BillingService);
-  private pendingSvc = inject(PendingPaymentsService);
+  private fb           = inject(FormBuilder);
+  private router       = inject(Router);
+  checkoutState        = inject(CheckoutStateService);
+  private billing      = inject(BillingService);
+  private pendingSvc   = inject(PendingPaymentsService);
+
+  private stripe: Stripe | null = null;
+  private cardElement: StripeCardElement | null = null;
+  private clientSecret: string | null = null;
 
   payForm = this.fb.group({
     cardHolder: ['', Validators.required],
-    cardNumber: ['', [Validators.required, Validators.pattern(/^\d{4} \d{4} \d{4} \d{4}$/)]],
-    expiry: ['', [Validators.required, Validators.pattern(/^\d{2}\/\d{2}$/)]],
-    cvv: ['', [Validators.required, Validators.pattern(/^\d{3,4}$/)]],
   });
 
   get pf() { return this.payForm.controls; }
@@ -332,55 +345,117 @@ export class PaymentComponent implements OnInit {
     return `$ ${price}.00`;
   }
 
-  ngOnInit() {
+  async ngOnInit() {
     if (!this.checkoutState.hasState()) {
       this.router.navigate(['/billing/pricing']);
+      return;
     }
+
+    // 1. Load Stripe.js
+    this.stripe = await loadStripe(environment.stripePublishableKey);
+    if (!this.stripe) {
+      this.stripeLoading.set(false);
+      this.errorMessage.set('Failed to load Stripe. Please refresh the page.');
+      return;
+    }
+
+    // 2. Create PaymentIntent on backend
+    const s = this.checkoutState.checkoutState()!;
+    this.billing.createPaymentIntent(s.plan.id, s.billingCycle).subscribe({
+      next: (res) => {
+        this.clientSecret = res.clientSecret;
+        this.mountCardElement();
+      },
+      error: (err) => {
+        this.stripeLoading.set(false);
+        const msg = err?.error?.error ?? err?.error?.message ?? err?.message ?? null;
+        this.errorMessage.set(
+          msg
+            ? `Payment initialization failed: ${msg}`
+            : 'Could not reach the payment server. Make sure the backend is running on port 8084.'
+        );
+        console.error('PaymentIntent error:', err);
+      }
+    });
   }
 
-  fmtCard(e: any) {
-    let v = e.target.value.replace(/\D/g, '').substring(0, 16);
-    v = v.replace(/(.{4})/g, '$1 ').trim();
-    this.payForm.get('cardNumber')?.setValue(v, { emitEvent: false });
-    e.target.value = v;
+  private mountCardElement() {
+    const elements = this.stripe!.elements();
+    this.cardElement = elements.create('card', {
+      style: {
+        base: {
+          fontSize: '15px',
+          color: '#334155',
+          fontFamily: 'inherit',
+          '::placeholder': { color: '#94a3b8' },
+        },
+        invalid: { color: '#ef4444' },
+      },
+      hidePostalCode: true,
+    });
+
+    this.cardElement.mount('#stripe-card-element');
+
+    this.cardElement.on('change', (event) => {
+      this.stripeError.set(event.error ? event.error.message : null);
+    });
+
+    this.stripeLoading.set(false);
   }
 
-  fmtExpiry(e: any) {
-    let v = e.target.value.replace(/\D/g, '').substring(0, 4);
-    if (v.length > 2) v = v.substring(0, 2) + '/' + v.substring(2);
-    this.payForm.get('expiry')?.setValue(v, { emitEvent: false });
-    e.target.value = v;
-  }
-
-  submit() {
-    if (this.payForm.invalid || !this.checkoutState.hasState()) {
+  async submit() {
+    if (this.payForm.invalid || !this.checkoutState.hasState() || !this.stripe || !this.cardElement || !this.clientSecret) {
       this.payForm.markAllAsTouched();
       return;
     }
-    this.isSubmitting.set(true);
-    const s = this.checkoutState.checkoutState()!;
-    const v = this.payForm.value;
 
-    const payload: PaymentRequest = {
-      planId: s.plan.id,
-      orgType: s.orgType,
-      billingCycle: s.billingCycle,
-      orgName: s.orgName,
-      adminEmail: s.adminEmail,
-      adminName: s.adminName,
-      phone: s.phone,
-      numUsers: s.numUsers,
-      address: s.address,
-      vatNumber: s.vatNumber,
-      institution: s.institution,
-      department: s.department,
-      cardHolder: v.cardHolder!,
-      cardNumber: v.cardNumber!.replace(/\s/g, ''),
-      expiryDate: v.expiry!,
-      cvv: v.cvv!,
+    this.isSubmitting.set(true);
+    this.errorMessage.set(null);
+
+    const cardHolder = this.payForm.value.cardHolder!;
+
+    // 3. Confirm card payment with Stripe.js
+    const { error, paymentIntent } = await this.stripe.confirmCardPayment(this.clientSecret, {
+      payment_method: {
+        card: this.cardElement,
+        billing_details: { name: cardHolder },
+      },
+    });
+
+    if (error) {
+      this.isSubmitting.set(false);
+      this.errorMessage.set(error.message ?? 'Payment failed. Please try again.');
+      return;
+    }
+
+    if (paymentIntent?.status !== 'succeeded') {
+      this.isSubmitting.set(false);
+      this.errorMessage.set('Payment was not completed. Status: ' + paymentIntent?.status);
+      return;
+    }
+
+    // 4. Send everything to backend with the real PaymentIntent ID
+    const s = this.checkoutState.checkoutState()!;
+    const payload: PaymentRequest & { stripePaymentIntentId: string } = {
+      planId:                s.plan.id,
+      orgType:               s.orgType,
+      billingCycle:          s.billingCycle,
+      orgName:               s.orgName,
+      adminEmail:            s.adminEmail,
+      adminName:             s.adminName,
+      phone:                 s.phone,
+      numUsers:              s.numUsers,
+      address:               s.address,
+      vatNumber:             s.vatNumber,
+      institution:           s.institution,
+      department:            s.department,
+      cardHolder:            cardHolder,
+      cardNumber:            '****',
+      expiryDate:            '**/**',
+      cvv:                   '***',
+      stripePaymentIntentId: paymentIntent.id,
     };
 
-    this.errorMessage.set(null);
     const isUpgrade = this.checkoutState.isUpgradeMode();
     this.billing.submitPayment(payload).subscribe({
       next: (res) => {
@@ -396,11 +471,15 @@ export class PaymentComponent implements OnInit {
       error: (err) => {
         this.isSubmitting.set(false);
         const msg = err?.error?.error ?? err?.error?.message ?? null;
-        this.errorMessage.set(msg ?? 'Payment failed. Please check your details and try again.');
+        this.errorMessage.set(msg ?? 'Payment confirmed by Stripe but account setup failed. Contact support.');
       }
     });
   }
 
-  goBack() { this.router.navigate(['/billing/checkout']); }
+  ngOnDestroy() {
+    this.cardElement?.destroy();
+  }
+
+  goBack()      { this.router.navigate(['/billing/checkout']); }
   goToPricing() { this.router.navigate(['/billing/pricing']); }
 }

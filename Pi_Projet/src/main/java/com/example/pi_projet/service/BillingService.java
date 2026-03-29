@@ -3,8 +3,13 @@ package com.example.pi_projet.service;
 import com.example.pi_projet.dto.billing.*;
 import com.example.pi_projet.entity.*;
 import com.example.pi_projet.repository.*;
+import com.stripe.Stripe;
+import com.stripe.exception.StripeException;
+import com.stripe.model.PaymentIntent;
+import com.stripe.param.PaymentIntentCreateParams;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +18,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -20,6 +26,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class BillingService {
+
+    @Value("${stripe.secret.key}")
+    private String stripeSecretKey;
 
     private final PendingPaymentRepository  pendingPaymentRepository;
     private final UserRepository            userRepository;
@@ -51,6 +60,41 @@ public class BillingService {
         "academic-institution", "Institution",
         "academic-campus",      "Campus"
     );
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // CREATE STRIPE PAYMENT INTENT
+    // ─────────────────────────────────────────────────────────────────────────
+    public Map<String, Object> createPaymentIntent(String planId, String billingCycle) {
+        try {
+            Stripe.apiKey = stripeSecretKey;
+
+            int[] prices = PLAN_PRICES.get(planId);
+            int amountCents = 0;
+            if (prices != null) {
+                amountCents = "annual".equalsIgnoreCase(billingCycle) ? prices[1] * 12 : prices[0];
+            }
+            int taxCents   = (int) Math.round(amountCents * 0.19);
+            int totalCents = amountCents + taxCents;
+
+            PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
+                .setAmount((long) totalCents)
+                .setCurrency("usd")
+                .addPaymentMethodType("card")
+                .build();
+
+            PaymentIntent intent = PaymentIntent.create(params);
+            log.info("Stripe PaymentIntent created: {} for plan '{}' amount={} cents", intent.getId(), planId, totalCents);
+
+            return Map.of(
+                "clientSecret",      intent.getClientSecret(),
+                "paymentIntentId",   intent.getId(),
+                "amount",            totalCents
+            );
+        } catch (StripeException e) {
+            log.error("Stripe PaymentIntent creation failed: {}", e.getMessage(), e);
+            throw new RuntimeException("Stripe error: " + e.getMessage(), e);
+        }
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // SUBMIT PAYMENT
@@ -200,6 +244,27 @@ public class BillingService {
         log.info("Created 2 invoice line items for invoice {}", invoice.getInvoiceNumber());
 
         // ── 7. Payment Attempt (SUCCEEDED) ────────────────────────────────────
+        // If a real Stripe PaymentIntent ID is provided, verify it with Stripe
+        String resolvedStripeId;
+        if (req.getStripePaymentIntentId() != null && !req.getStripePaymentIntentId().isBlank()) {
+            try {
+                Stripe.apiKey = stripeSecretKey;
+                PaymentIntent intent = PaymentIntent.retrieve(req.getStripePaymentIntentId());
+                if (!"succeeded".equals(intent.getStatus())) {
+                    throw new RuntimeException("Payment not confirmed by Stripe. Status: " + intent.getStatus());
+                }
+                resolvedStripeId = intent.getId();
+                log.info("Stripe payment verified: {} status={}", resolvedStripeId, intent.getStatus());
+            } catch (StripeException e) {
+                log.error("Stripe verification failed: {}", e.getMessage());
+                throw new RuntimeException("Stripe verification error: " + e.getMessage(), e);
+            }
+        } else {
+            // Fallback: simulated ID (for testing without Stripe keys)
+            resolvedStripeId = "pi_sim_" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+            log.warn("No Stripe PaymentIntent ID provided — using simulated ID: {}", resolvedStripeId);
+        }
+
         paymentAttemptRepository.save(PaymentAttempt.builder()
             .organization(organization)
             .subscription(subscription)
@@ -207,7 +272,7 @@ public class BillingService {
             .attemptNumber((short) 1)
             .status(PaymentAttempt.AttemptStatus.SUCCEEDED)
             .amountCents(totalCents)
-            .stripePaymentIntentId("pi_sim_" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12))
+            .stripePaymentIntentId(resolvedStripeId)
             .build());
 
         log.info("Created payment attempt SUCCEEDED for org '{}'", req.getOrgName());

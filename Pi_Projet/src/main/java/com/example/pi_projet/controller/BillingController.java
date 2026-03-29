@@ -29,6 +29,21 @@ public class BillingController {
 
     // ── Public ────────────────────────────────────────────────────────────────
 
+    @Operation(summary = "Create a Stripe PaymentIntent — returns clientSecret for Stripe.js")
+    @PostMapping("/create-payment-intent")
+    public ResponseEntity<?> createPaymentIntent(@RequestBody Map<String, String> body) {
+        try {
+            String planId       = body.get("planId");
+            String billingCycle = body.get("billingCycle");
+            Map<String, Object> result = billingService.createPaymentIntent(planId, billingCycle);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("PaymentIntent creation error: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @Operation(summary = "Submit a payment — creates org, user, subscription, invoice, line items, payment attempt & usage quota")
     @PostMapping("/payment")
     public ResponseEntity<?> submitPayment(@Valid @RequestBody PaymentRequestDTO request) {
