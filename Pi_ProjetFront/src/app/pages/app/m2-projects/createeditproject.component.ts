@@ -18,6 +18,7 @@ import { MatCardModule } from "@angular/material/card";
 import { TableItem } from "./projects-cards.component";
 import { MatSelectModule } from "@angular/material/select";
 import { EmployeeSelect2Component } from "../../../components/employee-select/employee-select2.component";
+import { M2ProjectService } from "./m2-project.service";
 
 @Component({
     selector: "app-createditproject",
@@ -61,9 +62,11 @@ import { EmployeeSelect2Component } from "../../../components/employee-select/em
                                     <mat-label>Status</mat-label>
                                     <mat-select [(ngModel)]="projectData.status" name="status">
                                         <mat-option value="">Select Status</mat-option>
-                                        <mat-option value="Active">Active</mat-option>
-                                        <mat-option value="On Hold">On Hold</mat-option>
-                                        <mat-option value="Completed">Completed</mat-option>
+                                        <mat-option value="PLANNING">Planning</mat-option>
+                                        <mat-option value="ACTIVE">Active</mat-option>
+                                        <mat-option value="ON_HOLD">On Hold</mat-option>
+                                        <mat-option value="COMPLETED">Completed</mat-option>
+                                        <mat-option value="CANCELLED">Cancelled</mat-option>
                                     </mat-select>
                                 </mat-form-field>
                             </div>
@@ -108,7 +111,7 @@ import { EmployeeSelect2Component } from "../../../components/employee-select/em
         <mat-dialog-actions>
             <div class="col">
                 @if (projectData.name) {
-                <button matButton="filled" mat-dialog-close (click)="updateOrder()"><mat-icon class="material-icons-outlined">event</mat-icon> Update</button>
+                <button matButton="filled" (click)="updateOrder()" [disabled]="saving"><mat-icon class="material-icons-outlined">event</mat-icon> {{ saving ? 'Saving…' : 'Update' }}</button>
                 } @else {
                 <button matButton="filled" mat-dialog-close><mat-icon class="material-icons-outlined">event</mat-icon> Add</button>
                 }
@@ -122,24 +125,48 @@ import { EmployeeSelect2Component } from "../../../components/employee-select/em
 })
 export class CreateEditProjectModal implements OnDestroy {
     public projectData: TableItem;
+    saving = false;
     private updateTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
-    constructor(public dialogRef: MatDialogRef<CreateEditProjectModal>, @Inject(MAT_DIALOG_DATA) public data: TableItem, private snackBar: MatSnackBar) {
-        this.projectData = data;
+    constructor(
+        public dialogRef: MatDialogRef<CreateEditProjectModal>,
+        @Inject(MAT_DIALOG_DATA) public data: TableItem,
+        private snackBar: MatSnackBar,
+        private projectService: M2ProjectService,
+    ) {
+        this.projectData = { ...data };
         if (!this.projectData.status) {
             this.projectData.status = "";
         }
     }
 
     updateOrder(): void {
-        // Simulate a successful API call or update operation
-        if (this.updateTimeoutId !== null) {
-            clearTimeout(this.updateTimeoutId);
+        if (!this.data.workspaceId || !this.data.projectUuid) {
+            // Demo mode — no real data
+            this.openSnackBar("Project updated (demo mode).", "Dismiss");
+            this.dialogRef.close(this.projectData);
+            return;
         }
-        this.updateTimeoutId = setTimeout(() => {
-            this.openSnackBar("Order has been successfully updated.", "Dismiss");
-            this.updateTimeoutId = null;
-        }, 1000);
+        this.saving = true;
+        this.projectService.updateProject(this.data.workspaceId, this.data.projectUuid, {
+            name: this.projectData.name,
+            status: this.projectData.status || undefined,
+            endDate: this.projectData.dueDate || undefined,
+        }).subscribe({
+            next: (updated) => {
+                this.saving = false;
+                this.openSnackBar("Project updated successfully.", "Dismiss");
+                this.dialogRef.close({
+                    ...this.projectData,
+                    name: updated.name ?? this.projectData.name,
+                    status: updated.status ?? this.projectData.status,
+                });
+            },
+            error: () => {
+                this.saving = false;
+                this.openSnackBar("Failed to update project.", "Dismiss");
+            },
+        });
     }
 
     openSnackBar(message: string, action: string): void {

@@ -460,7 +460,7 @@ interface RealProjectRow {
 
             @if (filteredProjectCardsData().length > 0) {
             <app-projects-cards [projectsData]="filteredProjectCardsData()" [useRealRouting]="true"></app-projects-cards>
-            <app-projects-grid [projectsData]="filteredProjectCardsData()" [useRealRouting]="true"></app-projects-grid>
+            <app-projects-grid [projectsData]="filteredProjectCardsData()" [useRealRouting]="true" (projectEdited)="onProjectEdited($event)"></app-projects-grid>
             }
 
             @if (!isLoading() && projectCardsData().length > 0 && filteredProjectCardsData().length === 0) {
@@ -711,6 +711,12 @@ export class RealProjectsComponent implements OnInit {
     countByStatus(status: string): number {
         if (!status) return this.projectCardsData().length;
         return this.projectCardsData().filter(p => p.status === status).length;
+    }
+
+    onProjectEdited(event: { projectUuid: string; name: string; status: string }): void {
+        this.projects.update(list =>
+            list.map(p => p.id === event.projectUuid ? { ...p, name: event.name, status: event.status } : p)
+        );
     }
 
     toggleBulkMode(): void {

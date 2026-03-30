@@ -1,4 +1,4 @@
-import { Component, OnInit, CUSTOM_ELEMENTS_SCHEMA, ViewChild, signal, inject, Input, OnChanges, SimpleChanges } from "@angular/core";
+import { Component, OnInit, CUSTOM_ELEMENTS_SCHEMA, ViewChild, signal, inject, Input, Output, EventEmitter, OnChanges, SimpleChanges } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { MatCardModule } from "@angular/material/card";
 import { MatIconModule } from "@angular/material/icon";
@@ -79,7 +79,7 @@ export interface TableItem {
                                 </div>
                             </div>
                             <div class="col">
-                                <h4 class="mb-0" (click)="openProject(item)">{{ item.name }} <mat-icon class="material-icons-outlined text-sm text-theme" (click)="openDialog(item)">edit</mat-icon></h4>
+                                <h4 class="mb-0" (click)="openProject(item)">{{ item.name }} <mat-icon class="material-icons-outlined text-sm text-theme" (click)="$event.stopPropagation(); openDialog(item)">edit</mat-icon></h4>
                                 <p class="text-secondary small">{{ item.company }}</p>
                             </div>
                         </div>
@@ -189,6 +189,7 @@ export class ProjectsGridComponent implements OnInit {
 
     @Input() projectsData: TableItem[] | null = null;
     @Input() useRealRouting = false;
+    @Output() projectEdited = new EventEmitter<{ projectUuid: string; name: string; status: string }>();
 
     // table grid
     @ViewChild(MatPaginator) paginator!: MatPaginator;
@@ -309,12 +310,17 @@ export class ProjectsGridComponent implements OnInit {
     }
 
     openDialog(project: TableItem | null) {
-        this.dialog.open(CreateEditProjectModal, {
+        if (!project) return;
+        const ref = this.dialog.open(CreateEditProjectModal, {
             width: "990px",
             maxWidth: "990px",
             panelClass: "custom-dialog-container",
             autoFocus: false,
             data: { ...project },
+        });
+        ref.afterClosed().subscribe((updated?: TableItem) => {
+            if (!updated?.projectUuid) return;
+            this.projectEdited.emit({ projectUuid: updated.projectUuid, name: updated.name, status: updated.status });
         });
     }
 

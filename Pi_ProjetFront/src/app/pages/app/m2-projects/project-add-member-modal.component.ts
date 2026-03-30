@@ -8,6 +8,7 @@ import { MatIconModule } from "@angular/material/icon";
 import { MatInputModule } from "@angular/material/input";
 import { MatSelectModule } from "@angular/material/select";
 import { MatSnackBar } from "@angular/material/snack-bar";
+import { MatTooltipModule } from "@angular/material/tooltip";
 import { forkJoin, of } from "rxjs";
 import { catchError, map } from "rxjs/operators";
 import { M2AvailableWorkspaceMember, M2ProjectService } from "./m2-project.service";
@@ -22,7 +23,7 @@ export interface ProjectAddMemberModalData {
 @Component({
     selector: "app-project-add-member-modal",
     standalone: true,
-    imports: [CommonModule, FormsModule, MatDialogModule, MatFormFieldModule, MatSelectModule, MatButtonModule, MatIconModule, MatInputModule],
+    imports: [CommonModule, FormsModule, MatDialogModule, MatFormFieldModule, MatSelectModule, MatButtonModule, MatIconModule, MatInputModule, MatTooltipModule],
     template: `
         <h3 mat-dialog-title class="d-flex align-items-center mb-0 pb-0">
             <div class="flex-grow-1">
@@ -36,6 +37,31 @@ export interface ProjectAddMemberModalData {
             @if (errorMessage()) {
             <div class="alert alert-danger small mb-3" role="alert">{{ errorMessage() }}</div>
             }
+
+            <!-- Info Banner (HIGH PRIORITY FIX) -->
+            <div class="alert alert-info mb-3 d-flex align-items-start gap-2">
+                <mat-icon class="material-icons-outlined flex-shrink-0 mt-1">info</mat-icon>
+                <div class="flex-grow-1">
+                    <p class="small mb-0"><strong>Step 1:</strong> Select the project role, then choose members</p>
+                </div>
+            </div>
+
+            <!-- Role Selection Card (HIGH PRIORITY FIX - MOVED TO TOP) -->
+            <div class="role-selection-card mb-4 p-3 border-start" style="border-left: 4px solid #6366f1; background: rgba(99, 102, 241, 0.04);">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <mat-icon class="text-theme">security</mat-icon>
+                    <p class="mb-0 fw-semibold">Step 1: Select Project Role</p>
+                </div>
+                <mat-form-field appearance="outline" class="w-100 mb-0">
+                    <mat-label>Required Role *</mat-label>
+                    <mat-select [(ngModel)]="selectedRole" (change)="onRoleChange()" required>
+                        @for (option of roleOptions(); track option.value) {
+                        <mat-option [value]="option.value">{{ option.label }}</mat-option>
+                        }
+                    </mat-select>
+                </mat-form-field>
+                <p class="small text-secondary mt-2 mb-0">Select the role these members will have in the project.</p>
+            </div>
 
             <div class="invite-toolbar mb-3">
                 <div class="d-flex align-items-center gap-2 mb-2">
@@ -70,21 +96,11 @@ export interface ProjectAddMemberModalData {
             </div>
 
             <div class="row gx-2 mb-3">
-                <div class="col-12 col-md-7">
-                    <mat-form-field appearance="outline" class="w-100 mb-0">
-                        <mat-label>Project Role</mat-label>
-                        <mat-select [(ngModel)]="selectedRole">
-                            @for (option of roleOptions(); track option.value) {
-                            <mat-option [value]="option.value">{{ option.label }}</mat-option>
-                            }
-                        </mat-select>
-                    </mat-form-field>
-                </div>
-                <div class="col-12 col-md-5">
+                <div class="col-12">
                     <div class="stat-card h-100 d-flex align-items-center justify-content-between px-3">
                         <div>
-                            <p class="small text-secondary mb-0">Showing</p>
-                            <p class="mb-0 fw-semibold">{{ filteredMembers().length }} members</p>
+                            <p class="small text-secondary mb-0">Members Found</p>
+                            <p class="mb-0 fw-semibold">{{ filteredMembers().length }} available</p>
                         </div>
                         <div class="d-flex align-items-center gap-2">
                             @if (selectedCount() > 0) {
@@ -140,9 +156,15 @@ export interface ProjectAddMemberModalData {
 
         <mat-dialog-actions align="end">
             <button matButton (click)="close()">Cancel</button>
-            <button matButton="filled" [disabled]="selectedCount() === 0 || !selectedRole || isSubmitting()" (click)="submit()">
-                @if (isSubmitting()) { Adding... }
-                @else { Add {{ selectedCount() }} {{ selectedCount() === 1 ? "Member" : "Members" }} }
+            <button matButton="filled" 
+                [disabled]="selectedCount() === 0 || !selectedRole || isSubmitting()" 
+                (click)="submit()"
+                matTooltip="{{ getSubmitButtonTooltip() }}">
+                @if (isSubmitting()) { 
+                    Adding... 
+                } @else { 
+                    Add {{ selectedCount() }} as {{ getRoleLabel(selectedRole) }}
+                }
             </button>
         </mat-dialog-actions>
     `,
@@ -405,5 +427,25 @@ export class ProjectAddMemberModalComponent {
     private resolveError(error: unknown): string {
         const e = error as { error?: { message?: string }; message?: string };
         return e?.error?.message || e?.message || "Failed to add member";
+    }
+
+    getRoleLabel(role: string): string {
+        const option = this.roleOptions().find(o => o.value === role);
+        return option?.label || role;
+    }
+
+    getSubmitButtonTooltip(): string {
+        if (this.selectedCount() === 0) {
+            return "Select members and assign a role above";
+        }
+        if (!this.selectedRole) {
+            return "Select a project role above";
+        }
+        return "";
+    }
+
+    onRoleChange(): void {
+        // Optional: clear selection when role changes to ensure consistency
+        // this.selectedUserIds.set([]);
     }
 }

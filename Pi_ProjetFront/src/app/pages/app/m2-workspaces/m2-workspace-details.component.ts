@@ -298,20 +298,20 @@ interface WorkspaceActivity {
                             <div class="p-3">
                                 @if (shouldShowCapacityWarning()) {
                                     @if (capacityStatus() === 'full') {
-                                        <div class="mb-3 p-3 rounded d-flex align-items-start gap-3" style="background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.3);border-left:4px solid #dc2626;">
-                                            <mat-icon class="material-icons-outlined" style="color:#dc2626;font-size:24px;width:24px;height:24px;margin-top:1px;">error</mat-icon>
-                                            <div class="flex-grow-1">
-                                                <p class="fw-semibold mb-1" style="color:#dc2626;font-size:14px;">Workspace capacity full</p>
-                                                <p class="text-secondary small mb-2">You've reached the maximum number of members ({{ memberCapacity()!.maxMembers }}) for your plan. Upgrade to add more team members.</p>
+                                        <div class="capacity-banner critical mb-3">
+                                            <mat-icon class="material-icons-outlined capacity-icon">error</mat-icon>
+                                            <div class="capacity-content">
+                                                <p class="capacity-label mb-0">Workspace capacity full</p>
+                                                <p class="capacity-details mb-2">You've reached the maximum number of members ({{ memberCapacity()!.maxMembers }}) for your plan. Upgrade to add more team members.</p>
                                                 <button matButton class="py-1 px-2" style="height:auto;font-size:12px;background:#dc2626;color:white;" routerLink="/app/billing">Upgrade Plan</button>
                                             </div>
                                         </div>
                                     } @else if (capacityStatus() === 'critical') {
-                                        <div class="mb-3 p-3 rounded d-flex align-items-start gap-3" style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-left:4px solid #f59e0b;">
-                                            <mat-icon class="material-icons-outlined" style="color:#f59e0b;font-size:24px;width:24px;height:24px;margin-top:1px;">warning</mat-icon>
-                                            <div class="flex-grow-1">
-                                                <p class="fw-semibold mb-1" style="color:#d97706;font-size:14px;">Workspace nearing capacity</p>
-                                                <p class="text-secondary small mb-2">You're at {{ capacityPercentage() }}% capacity with only {{ memberCapacity()!.remainingMembers }} seat{{ memberCapacity()!.remainingMembers !== 1 ? 's' : '' }} remaining. Upgrade your plan soon to avoid hitting limits.</p>
+                                        <div class="capacity-banner warning mb-3">
+                                            <mat-icon class="material-icons-outlined capacity-icon">warning</mat-icon>
+                                            <div class="capacity-content">
+                                                <p class="capacity-label mb-0">Workspace nearing capacity</p>
+                                                <p class="capacity-details mb-2">You're at {{ capacityPercentage() }}% capacity with only {{ memberCapacity()!.remainingMembers }} seat{{ memberCapacity()!.remainingMembers !== 1 ? 's' : '' }} remaining. Upgrade your plan soon to avoid hitting limits.</p>
                                                 <button matButton class="py-1 px-2" style="height:auto;font-size:12px;background:#f59e0b;color:white;" routerLink="/app/billing">View Plans</button>
                                             </div>
                                         </div>
@@ -321,9 +321,9 @@ interface WorkspaceActivity {
                                 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
                                     <div class="flex-grow-1" style="max-width:380px;">
                                         @if (memberCapacity()) {
-                                        <div class="mb-2 p-3 rounded" style="background:rgba(0,0,0,0.03);border:1px solid rgba(0,0,0,0.07);">
+                                        <div class="stat-card mb-2">
                                             <div class="d-flex justify-content-between align-items-center mb-1">
-                                                <span class="small fw-medium">Team capacity</span>
+                                                <span class="stat-label">Team capacity</span>
                                                 <span class="badge badge-light" style="font-size:10px;">{{ memberCapacity()!.planName }}</span>
                                             </div>
                                             <mat-progress-bar mode="determinate"
@@ -336,12 +336,12 @@ interface WorkspaceActivity {
                                                 <span class="text-secondary" style="font-size:11px;">{{ capacityPercentage() }}%</span>
                                             </div>
                                             <div class="mt-2 d-flex gap-2 flex-wrap">
-                                                <span class="badge" style="background:rgba(16,185,129,0.2);color:#059669;font-size:10px;">Healthy</span>
+                                                <span class="capacity-badge capacity-healthy">Healthy</span>
                                                 @if (capacityPercentage() >= 60) {
-                                                    <span class="badge" style="background:rgba(234,179,8,0.2);color:#b45309;font-size:10px;">⚠ Warning Zone</span>
+                                                    <span class="capacity-badge capacity-warning">⚠ Warning Zone</span>
                                                 }
                                                 @if (capacityPercentage() >= 85) {
-                                                    <span class="badge" style="background:rgba(220,38,38,0.2);color:#991b1b;font-size:10px;">⚠ Critical</span>
+                                                    <span class="capacity-badge capacity-critical">⚠ Critical</span>
                                                 }
                                             </div>
                                         </div>
