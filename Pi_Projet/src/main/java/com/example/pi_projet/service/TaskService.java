@@ -18,7 +18,7 @@ public class TaskService {
     }
 
     public Task getById(Long id) {
-        return repository.findById(id)
+        return repository.findByIdWithDetails(id)
                 .orElseThrow(() -> new RuntimeException("Task not found"));
     }
 
@@ -40,6 +40,13 @@ public class TaskService {
         existing.setStartDate(t.getStartDate());
         existing.setDueDate(t.getDueDate());
         existing.setCompletedAt(t.getCompletedAt());
+
+        if (t.getMilestone() != null) {
+            existing.setMilestone(t.getMilestone());
+        }
+        if (t.getProject() != null) {
+            existing.setProject(t.getProject());
+        }
 
         return repository.save(existing);
     }

@@ -8,7 +8,7 @@ import { MatInputModule } from "@angular/material/input";
 import { MatSelectModule } from "@angular/material/select";
 import { MatDatepickerModule } from "@angular/material/datepicker";
 import { MatNativeDateModule } from "@angular/material/core";
-import { FormsModule, ReactiveFormsModule, FormBuilder, Validators, FormGroup } from "@angular/forms";
+import { AbstractControl, FormsModule, ReactiveFormsModule, FormBuilder, Validators, FormGroup, ValidationErrors, ValidatorFn } from "@angular/forms";
 import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from "@angular/material/dialog";
 import { MilestoneService, Milestone } from "../../../services/mileStoneService/milestone.service";
 import { ProjectService, Project } from "../../../services/project-service";
@@ -43,6 +43,9 @@ import { ProjectService, Project } from "../../../services/project-service";
                                 <mat-form-field appearance="outline" class="w-100">
                                     <mat-label>Name</mat-label>
                                     <input matInput formControlName="name" placeholder="Milestone name">
+                                    <mat-error *ngIf="milestoneForm.get('name')?.invalid && milestoneForm.get('name')?.touched">
+                                        Le nom est requis
+                                    </mat-error>
                                 </mat-form-field>
                             </div>
                             <div class="col-12 mb-3">
@@ -56,7 +59,10 @@ import { ProjectService, Project } from "../../../services/project-service";
                                     <mat-label>Due Date</mat-label>
                                     <input matInput [matDatepicker]="picker" formControlName="dueDate">
                                     <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
-                                    <mat-datepicker #picker></mat-datepicker>
+                                    <mat-error *ngIf="milestoneForm.hasError('dueDatePast') && milestoneForm.get('dueDate')?.touched">
+                                        La date d'échéance ne peut pas être dans le passé
+                                    </mat-error>
+                                    <mat-datepicker #picker [dateFilter]="dateFilter"></mat-datepicker>
                                 </mat-form-field>
                             </div>
                             <div class="col-12 col-md-6 mb-3">
@@ -67,12 +73,18 @@ import { ProjectService, Project } from "../../../services/project-service";
                                         <mat-option value="in_progress">In Progress</mat-option>
                                         <mat-option value="completed">Completed</mat-option>
                                     </mat-select>
+                                    <mat-error *ngIf="milestoneForm.get('status')?.invalid && milestoneForm.get('status')?.touched">
+                                        Le statut est requis
+                                    </mat-error>
                                 </mat-form-field>
                             </div>
                             <div class="col-12 col-md-6 mb-3">
                                 <mat-form-field appearance="outline" class="w-100">
                                     <mat-label>Completion %</mat-label>
                                     <input matInput type="number" formControlName="completionPct" min="0" max="100">
+                                    <mat-error *ngIf="milestoneForm.get('completionPct')?.invalid && milestoneForm.get('completionPct')?.touched">
+                                        Doit être entre 0 et 100
+                                    </mat-error>
                                 </mat-form-field>
                             </div>
                             <div class="col-12 col-md-6 mb-3">
@@ -83,6 +95,9 @@ import { ProjectService, Project } from "../../../services/project-service";
                                             {{ project.name }}
                                         </mat-option>
                                     </mat-select>
+                                    <mat-error *ngIf="milestoneForm.get('projectId')?.invalid && milestoneForm.get('projectId')?.touched">
+                                        Le projet est requis
+                                    </mat-error>
                                 </mat-form-field>
                             </div>
                         </div>
@@ -113,6 +128,17 @@ export class CreateEditMilestoneComponent implements OnInit {
     projects: Project[] = [];
     isEdit = false;
     milestone: Milestone | null = null;
+    private today: Date = new Date();
+
+    // Disable dates in the past (UX + validation safety net).
+    dateFilter = (date: Date | null): boolean => {
+        if (!date) return false;
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        const t = new Date(this.today);
+        t.setHours(0, 0, 0, 0);
+        return d >= t;
+    };
 
     constructor(
         private fb: FormBuilder,
@@ -121,14 +147,34 @@ export class CreateEditMilestoneComponent implements OnInit {
         private dialogRef: MatDialogRef<CreateEditMilestoneComponent>,
         @Inject(MAT_DIALOG_DATA) public data: { milestone?: Milestone }
     ) {
-        this.milestoneForm = this.fb.group({
+        this.today.setHours(0, 0, 0, 0);
+
+        this.milestoneForm = this.fb.group(
+            {
             name: ['', Validators.required],
             description: [''],
             dueDate: [''],
             status: ['pending', Validators.required],
             completionPct: [0, [Validators.min(0), Validators.max(100)]],
             projectId: ['', Validators.required]
-        });
+            },
+            { validators: [this.dueDateNotPastValidator()] }
+        );
+    }
+
+    private dueDateNotPastValidator(): ValidatorFn {
+        return (group: AbstractControl): ValidationErrors | null => {
+            const due = group.get("dueDate")?.value as Date | null;
+            if (!due) return null;
+
+            const d = new Date(due);
+            d.setHours(0, 0, 0, 0);
+            const t = new Date(this.today);
+            t.setHours(0, 0, 0, 0);
+
+            if (d < t) return { dueDatePast: true };
+            return null;
+        };
     }
 
     ngOnInit() {
@@ -142,7 +188,7 @@ export class CreateEditMilestoneComponent implements OnInit {
                 dueDate: this.milestone.dueDate ? new Date(this.milestone.dueDate) : '',
                 status: this.milestone.status,
                 completionPct: this.milestone.completionPct,
-                projectId: this.milestone.projectId
+                projectId: this.milestone.projectId ?? this.milestone.project?.id ?? ""
             });
         }
     }

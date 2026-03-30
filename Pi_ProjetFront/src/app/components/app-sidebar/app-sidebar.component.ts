@@ -175,9 +175,7 @@ export class AppSidebarComponent {
                 children: [
                     { name: "Projects", route: "/app/projects", icon: "assignment" },
                     { name: "Project Details", route: "/app/project-details", icon: "subject" },
-                    { name: "Milestones", route: "/app/milestones", icon: "flag" }, 
-                    { name: "All Task", route: "/app/all-tasks", icon: "checklist" },
-                    { name: "Tasks Details", route: "/app/task-details", icon: "task" },
+                    { name: "Milestones", route: "/app/milestones", icon: "flag" },
                     { name: "Task Kanban", route: "/app/kanban", icon: "view_kanban" },
                     { name: "Task Gantt Chart", route: "/app/gantt-chart", icon: "event" },
                     { name: "Time Tracking", route: "/app/time-tracking", icon: "alarm" },

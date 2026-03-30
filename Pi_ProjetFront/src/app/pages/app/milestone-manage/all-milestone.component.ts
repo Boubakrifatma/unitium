@@ -112,7 +112,7 @@ import { Router } from "@angular/router";
                         <ng-container matColumnDef="projectName">
                             <th mat-header-cell *matHeaderCellDef mat-sort-header>Project</th>
                             <td mat-cell *matCellDef="let milestone">
-                                <p>{{ getProjectName(milestone.projectId) }}</p>
+                                <p>{{ getProjectName(milestoneProjectId(milestone)) }}</p>
                             </td>
                         </ng-container>
 
@@ -157,7 +157,7 @@ export class AllMilestoneComponent implements OnInit {
     milestones: Milestone[] = [];
     projects: Project[] = [];
     dataSource = new MatTableDataSource<Milestone>(this.milestones);
-    displayedColumns: string[] = ["id", "name", "description", "dueDate", "status", "completionPct", "projectName", "actions"];
+    displayedColumns: string[] = [ "name", "description", "dueDate", "status", "completionPct", "projectName", "actions"];
 
     constructor(
         private milestoneService: MilestoneService,
@@ -199,7 +199,12 @@ export class AllMilestoneComponent implements OnInit {
         });
     }
 
-    getProjectName(projectId: string): string {
+    milestoneProjectId(m: Milestone): string | undefined {
+        return m.projectId ?? m.project?.id;
+    }
+
+    getProjectName(projectId: string | undefined): string {
+        if (!projectId) return 'Unknown';
         const project = this.projects.find(p => p.id === projectId);
         return project ? project.name : 'Unknown';
     }
@@ -215,7 +220,10 @@ export class AllMilestoneComponent implements OnInit {
 
  viewTasks(milestone: Milestone) {
     this.router.navigate(['/app/all-tasks'], {
-        queryParams: { milestoneId: milestone.id }
+        queryParams: {
+            milestoneId: milestone.id,
+            projectId: this.milestoneProjectId(milestone),
+        },
     });
 
 }

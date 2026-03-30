@@ -9,7 +9,10 @@ export interface Milestone {
   dueDate?: string;
   status: string;
   completionPct?: number;
-  projectId: string;
+  /** Présent si l’API renvoie le projet à plat (création / formulaires). */
+  projectId?: string;
+  /** Backend JPA renvoie souvent le projet imbriqué plutôt que projectId. */
+  project?: { id: string };
 }
 
 @Injectable({
@@ -23,6 +26,10 @@ export class MilestoneService {
 
   getAll(): Observable<Milestone[]> {
     return this.http.get<Milestone[]>(this.apiUrl);
+  }
+
+  getById(id: number): Observable<Milestone> {
+    return this.http.get<Milestone>(`${this.apiUrl}/${id}`);
   }
 
   create(milestone: Milestone): Observable<any> {

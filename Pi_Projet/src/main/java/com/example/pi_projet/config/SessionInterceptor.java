@@ -2,6 +2,7 @@ package com.example.pi_projet.config;
 
 import com.example.pi_projet.entity.User;
 import com.example.pi_projet.service.AuthService;
+import org.springframework.beans.factory.annotation.Value;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -16,8 +17,19 @@ public class SessionInterceptor implements HandlerInterceptor {
 
     private final AuthService authService;
 
+    /**
+     * Permet de désactiver temporairement la vérification de session/token (tests Postman).
+     * IMPORTANT: ne pas laisser à false en production.
+     */
+    @Value("${session.interceptor.enabled:true}")
+    private boolean sessionInterceptorEnabled;
+
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        if (!sessionInterceptorEnabled) {
+            return true;
+        }
+
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) return true;
 
         String token = extractToken(request);

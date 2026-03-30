@@ -34,56 +34,53 @@ public class TaskController {
     @PostMapping
     public ResponseEntity<Task> create(@RequestBody TaskCreateDto dto) {
 
-        // ✅ VALIDATION
-        if (dto.getProjectId() == null || dto.getProjectId().isEmpty()) {
-            throw new RuntimeException("projectId is required");
+        String raw = dto.getProjectId().trim();
+        if (raw.startsWith("0x") || raw.startsWith("0X")) {
+            String hex = raw.substring(2);
+            raw = hex.substring(0, 8)  + "-"
+                    + hex.substring(8, 12)  + "-"
+                    + hex.substring(12, 16) + "-"
+                    + hex.substring(16, 20) + "-"
+                    + hex.substring(20, 32);
         }
+        UUID projectId = UUID.fromString(raw);
 
-        // ✅ PROJECT
-        Project project = projectService.getById(UUID.fromString(dto.getProjectId()));
+        Project project = projectService.getById(projectId);
 
-        // ✅ USER (ENTITY)
         User assignedTo = null;
         if (dto.getAssignedToId() != null) {
             assignedTo = userService.getUserByIdForTasks(dto.getAssignedToId());
         }
 
-        // ✅ MILESTONE (optionnel)
         Milestone milestone = null;
         if (dto.getMilestoneId() != null) {
             milestone = new Milestone();
             milestone.setId(dto.getMilestoneId());
         }
 
-        // ✅ BUILD TASK
         Task task = Task.builder()
                 .title(dto.getTitle())
                 .description(dto.getDescription())
-
                 .taskType(Task.TaskType.valueOf(dto.getTaskType()))
-
                 .status(Task.TaskStatus.valueOf(dto.getStatus().toLowerCase()))
-
                 .priority(dto.getPriority() != null
                         ? Task.TaskPriority.valueOf(dto.getPriority().toLowerCase())
                         : null)
-
                 .estimatedHours(dto.getEstimatedHours())
                 .actualHours(dto.getActualHours())
-
                 .startDate(dto.getStartDate())
                 .dueDate(dto.getDueDate())
-
                 .project(project)
                 .assignedTo(assignedTo)
                 .milestone(milestone)
-
                 .build();
 
-        // ✅ SAVE
         Task saved = taskService.create(task);
-
         return ResponseEntity.ok(saved);
+    }
+    @GetMapping("/{id}")
+    public ResponseEntity<Task> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(taskService.getById(id));
     }
 
     @GetMapping
@@ -94,5 +91,51 @@ public class TaskController {
     @GetMapping("/milestone/{milestoneId}")
     public ResponseEntity<List<Task>> getTasksByMilestone(@PathVariable Long milestoneId) {
         return ResponseEntity.ok(taskService.getTasksByMilestone(milestoneId));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Task> update(@PathVariable Long id, @RequestBody TaskCreateDto dto) {
+        Task existing = taskService.getById(id);
+
+        User assignedTo = existing.getAssignedTo();
+        if (dto.getAssignedToId() != null) {
+            assignedTo = userService.getUserByIdForTasks(dto.getAssignedToId());
+        }
+
+        Milestone milestone = existing.getMilestone();
+        if (dto.getMilestoneId() != null) {
+            milestone = new Milestone();
+            milestone.setId(dto.getMilestoneId());
+        }
+
+        Project project = existing.getProject();
+        if (dto.getProjectId() != null && !dto.getProjectId().isEmpty()) {
+            project = projectService.getById(UUID.fromString(dto.getProjectId()));
+        }
+
+        Task patch = Task.builder()
+                .title(dto.getTitle())
+                .description(dto.getDescription())
+                .taskType(Task.TaskType.valueOf(dto.getTaskType()))
+                .status(Task.TaskStatus.valueOf(dto.getStatus().toLowerCase()))
+                .priority(dto.getPriority() != null
+                        ? Task.TaskPriority.valueOf(dto.getPriority().toLowerCase())
+                        : null)
+                .estimatedHours(dto.getEstimatedHours())
+                .actualHours(dto.getActualHours())
+                .startDate(dto.getStartDate())
+                .dueDate(dto.getDueDate())
+                .project(project)
+                .assignedTo(assignedTo)
+                .milestone(milestone)
+                .build();
+
+        return ResponseEntity.ok(taskService.update(id, patch));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        taskService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 }

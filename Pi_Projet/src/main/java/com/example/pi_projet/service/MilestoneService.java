@@ -18,7 +18,7 @@ public class MilestoneService {
     }
 
     public Milestone getById(Long id) {
-        return repository.findById(id)
+        return repository.findByIdWithProject(id)
                 .orElseThrow(() -> new RuntimeException("Milestone not found"));
     }
 
