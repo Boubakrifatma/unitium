@@ -1,0 +1,98 @@
+package com.example.pi_projet.controller;
+
+import com.example.pi_projet.dto.TaskCreateDto;
+import com.example.pi_projet.entity.Project;
+import com.example.pi_projet.entity.TimeLineAndDeadLine.Task;
+import com.example.pi_projet.entity.TimeLineAndDeadLine.Milestone;
+import com.example.pi_projet.entity.User;
+import com.example.pi_projet.service.ProjectService;
+import com.example.pi_projet.service.TaskService;
+import com.example.pi_projet.service.UserService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/tasks")
+@CrossOrigin(origins = "http://localhost:4200")
+public class TaskController {
+
+    private final TaskService taskService;
+    private final ProjectService projectService;
+    private final UserService userService;
+
+    public TaskController(TaskService taskService,
+                          ProjectService projectService,
+                          UserService userService) {
+        this.taskService = taskService;
+        this.projectService = projectService;
+        this.userService = userService;
+    }
+
+    @PostMapping
+    public ResponseEntity<Task> create(@RequestBody TaskCreateDto dto) {
+
+        // ✅ VALIDATION
+        if (dto.getProjectId() == null || dto.getProjectId().isEmpty()) {
+            throw new RuntimeException("projectId is required");
+        }
+
+        // ✅ PROJECT
+        Project project = projectService.getById(UUID.fromString(dto.getProjectId()));
+
+        // ✅ USER (ENTITY)
+        User assignedTo = null;
+        if (dto.getAssignedToId() != null) {
+            assignedTo = userService.getUserByIdForTasks(dto.getAssignedToId());
+        }
+
+        // ✅ MILESTONE (optionnel)
+        Milestone milestone = null;
+        if (dto.getMilestoneId() != null) {
+            milestone = new Milestone();
+            milestone.setId(dto.getMilestoneId());
+        }
+
+        // ✅ BUILD TASK
+        Task task = Task.builder()
+                .title(dto.getTitle())
+                .description(dto.getDescription())
+
+                .taskType(Task.TaskType.valueOf(dto.getTaskType()))
+
+                .status(Task.TaskStatus.valueOf(dto.getStatus().toLowerCase()))
+
+                .priority(dto.getPriority() != null
+                        ? Task.TaskPriority.valueOf(dto.getPriority().toLowerCase())
+                        : null)
+
+                .estimatedHours(dto.getEstimatedHours())
+                .actualHours(dto.getActualHours())
+
+                .startDate(dto.getStartDate())
+                .dueDate(dto.getDueDate())
+
+                .project(project)
+                .assignedTo(assignedTo)
+                .milestone(milestone)
+
+                .build();
+
+        // ✅ SAVE
+        Task saved = taskService.create(task);
+
+        return ResponseEntity.ok(saved);
+    }
+
+    @GetMapping
+    public ResponseEntity<List<Task>> getAll() {
+        return ResponseEntity.ok(taskService.getAll());
+    }
+
+    @GetMapping("/milestone/{milestoneId}")
+    public ResponseEntity<List<Task>> getTasksByMilestone(@PathVariable Long milestoneId) {
+        return ResponseEntity.ok(taskService.getTasksByMilestone(milestoneId));
+    }
+}

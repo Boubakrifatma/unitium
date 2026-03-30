@@ -1,0 +1,133 @@
+.theme-custom {
+  --mat-sys-background: light-dark(#fdf9f0, #14140f);
+  --mat-sys-error: light-dark(#ba1a1a, #ffb4ab);
+  --mat-sys-error-container: light-dark(#ffdad6, #93000a);
+  --mat-sys-inverse-on-surface: light-dark(#f4f0e8, #31312b);
+  --mat-sys-inverse-primary: light-dark(#cdcd00, #626200);
+  --mat-sys-inverse-surface: light-dark(#31312b, #e6e2d9);
+  --mat-sys-on-background: light-dark(#1c1c17, #e6e2d9);
+  --mat-sys-on-error: light-dark(#ffffff, #690005);
+  --mat-sys-on-error-container: light-dark(#93000a, #ffdad6);
+  --mat-sys-on-primary: light-dark(#ffffff, #323200);
+  --mat-sys-on-primary-container: light-dark(#494900, #eaea00);
+  --mat-sys-on-primary-fixed: light-dark(#1d1d00, #1d1d00);
+  --mat-sys-on-primary-fixed-variant: light-dark(#494900, #494900);
+  --mat-sys-on-secondary: light-dark(#ffffff, #323218);
+  --mat-sys-on-secondary-container: light-dark(#49482d, #e7e4bf);
+  --mat-sys-on-secondary-fixed: light-dark(#1d1d06, #1d1d06);
+  --mat-sys-on-secondary-fixed-variant: light-dark(#49482d, #49482d);
+  --mat-sys-on-surface: light-dark(#1c1c17, #e6e2d9);
+  --mat-sys-on-surface-variant: light-dark(#48473a, #e6e3d1);
+  --mat-sys-on-tertiary: light-dark(#ffffff, #323200);
+  --mat-sys-on-tertiary-container: light-dark(#494900, #eaea00);
+  --mat-sys-on-tertiary-fixed: light-dark(#1d1d00, #1d1d00);
+  --mat-sys-on-tertiary-fixed-variant: light-dark(#494900, #494900);
+  --mat-sys-outline: light-dark(#797869, #939182);
+  --mat-sys-outline-variant: light-dark(#f4eab7, #48473a);
+  --mat-sys-primary: light-dark(#ba7e00, #c59044);
+  --mat-sys-primary-container: light-dark(#ffebb4, #502900);
+  --mat-sys-primary-fixed: light-dark(#eaea00, #eaea00);
+  --mat-sys-primary-fixed-dim: light-dark(#cdcd00, #cdcd00);
+  --mat-sys-scrim: light-dark(#000000, #000000);
+  --mat-sys-secondary: light-dark(#606043, #cac8a5);
+  --mat-sys-secondary-container: light-dark(#e7d4bf, #493e2d);
+  --mat-sys-secondary-fixed: light-dark(#e7e4bf, #e7e4bf);
+  --mat-sys-secondary-fixed-dim: light-dark(#cac8a5, #cac8a5);
+  --mat-sys-shadow: light-dark(#000000, #000000);
+  --mat-sys-surface: light-dark(#fdf9f0, #14140f);
+  --mat-sys-surface-bright: light-dark(#fdf9f0, #3a3933);
+  --mat-sys-surface-container: light-dark(#f1ede5, #20201b);
+  --mat-sys-surface-container-high: light-dark(#ece8df, #2b2a25);
+  --mat-sys-surface-container-highest: light-dark(#e6e2d9, #36352f);
+  --mat-sys-surface-container-low: light-dark(#f7f3ea, #1c1c17);
+  --mat-sys-surface-container-lowest: light-dark(#ffffff, #0f0e0a);
+  --mat-sys-surface-dim: light-dark(#dddad1, #14140f);
+  --mat-sys-surface-tint: light-dark(#626200, #cdcd00);
+  --mat-sys-surface-variant: light-dark(#e6e3d1, #48473a);
+  --mat-sys-tertiary: light-dark(#626200, #cdcd00);
+  --mat-sys-tertiary-container: light-dark(#eaea00, #494900);
+  --mat-sys-tertiary-fixed: light-dark(#eaea00, #eaea00);
+  --mat-sys-tertiary-fixed-dim: light-dark(#cdcd00, #cdcd00);
+  --mat-sys-neutral-variant20: #313125;
+
+  &.bg-theme,
+  .bg-theme {
+    background-color: var(--mat-sys-primary) !important;
+  }
+
+  &.bg-light-theme,
+  .bg-light-theme {
+    background-color: var(--mat-sys-primary-container);
+  }
+
+  .text-theme, &.text-theme {
+    color: var(--mat-sys-primary)
+  }
+}
+
+.theme-sky {
+  --mat-sys-primary: light-dark(#0088FF, #1c95ff);
+  --mat-sys-on-primary: light-dark(#ffffff, #000000);
+  --mat-sys-primary-container: light-dark(#dbeeff, #003D7A);
+  --mat-sys-on-primary-container: light-dark(#001C4D, #C3E1FF);
+  --mat-sys-inverse-primary: light-dark(#80BFFF, #0066CC);
+  --mat-sys-secondary: light-dark(#575E71, #C7C5D8);
+  --mat-sys-on-secondary: light-dark(#ffffff, #2D3244);
+  --mat-sys-secondary-container: light-dark(#DFE2EB, #404659);
+  --mat-sys-on-secondary-container: light-dark(#141B2C, #DFE2EB);
+  --mat-sys-tertiary: light-dark(#7452A1, #E3C0FF);
+  --mat-sys-on-tertiary: light-dark(#ffffff, #43276F);
+  --mat-sys-tertiary-container: light-dark(#EADDFF, #5B3A88);
+  --mat-sys-on-tertiary-container: light-dark(#2A0054, #EADDFF);
+  --mat-sys-background: light-dark(#F7F9FF, #191C20);
+  --mat-sys-on-background: light-dark(#1A1C20, #E0E2E6);
+  --mat-sys-surface: light-dark(#F7F9FF, #191C20);
+  --mat-sys-on-surface: light-dark(#1A1C20, #E0E2E6);
+  --mat-sys-surface-variant: light-dark(#DFE2EB, #43474E);
+  --mat-sys-on-surface-variant: light-dark(#43474E, #C3C6CE);
+  --mat-sys-outline: light-dark(#73777F, #8D9199);
+  --mat-sys-inverse-surface: light-dark(#2E3135, #E0E2E6);
+  --mat-sys-inverse-on-surface: light-dark(#E0E2E6, #2E3135);
+  --mat-sys-error: light-dark(#ba1a1a, #ffb4ab);
+  --mat-sys-on-error: light-dark(#ffffff, #690005);
+  --mat-sys-error-container: light-dark(#ffdad6, #93000a);
+  --mat-sys-on-error-container: light-dark(#93000a, #ffdad6);
+  --mat-sys-surface-dim: light-dark(#D8DAE0, #111418);
+  --mat-sys-surface-bright: light-dark(#F7F9FF, #33363B);
+  --mat-sys-surface-container-lowest: light-dark(#ffffff, #0D0F13);
+  --mat-sys-surface-container-low: light-dark(#F1F4FA, #1D2024);
+  --mat-sys-surface-container: light-dark(#ECEEF4, #212529);
+  --mat-sys-surface-container-high: light-dark(#E7E8EE, #2C3034);
+  --mat-sys-surface-container-highest: light-dark(#E1E2E8, #373A3E);
+  --mat-sys-surface-tint: light-dark(#0066CC, #80BFFF);
+  --mat-sys-outline-variant: light-dark(#C3C6CF, #43474E);
+  --mat-sys-scrim: light-dark(#000000, #000000);
+  --mat-sys-shadow: light-dark(#000000, #000000);
+  --mat-sys-primary-fixed: light-dark(#0088FF, #0088FF);
+  --mat-sys-primary-fixed-dim: light-dark(#7dd7ff, #7dd7ff);
+  --mat-sys-on-primary-fixed: light-dark(#001C4D, #001C4D);
+  --mat-sys-on-primary-fixed-variant: light-dark(#004D9D, #004D9D);
+  --mat-sys-secondary-fixed: light-dark(#DFE2EB, #DFE2EB);
+  --mat-sys-secondary-fixed-dim: light-dark(#C7C5D8, #C7C5D8);
+  --mat-sys-on-secondary-fixed: light-dark(#141B2C, #141B2C);
+  --mat-sys-on-secondary-fixed-variant: light-dark(#404659, #404659);
+  --mat-sys-tertiary-fixed: light-dark(#EADDFF, #EADDFF);
+  --mat-sys-tertiary-fixed-dim: light-dark(#E3C0FF, #E3C0FF);
+  --mat-sys-on-tertiary-fixed: light-dark(#2A0054, #2A0054);
+  --mat-sys-on-tertiary-fixed-variant: light-dark(#5B3A88, #5B3A88);
+  --mat-sys-neutral-variant20: #313125;
+
+  &.bg-theme,
+  .bg-theme {
+    background-color: var(--mat-sys-primary) !important;
+  }
+
+  &.bg-light-theme,
+  .bg-light-theme {
+    background-color: var(--mat-sys-primary-container);
+  }
+
+  .text-theme, &.text-theme {
+    color: var(--mat-sys-primary)
+  }
+}

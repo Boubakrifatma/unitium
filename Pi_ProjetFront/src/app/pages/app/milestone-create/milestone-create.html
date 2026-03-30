@@ -1,0 +1,38 @@
+<h2>Create Milestone</h2>
+
+<div class="form-container">
+
+  <input [(ngModel)]="milestone.name" placeholder="Name" class="form-control">
+
+  <textarea [(ngModel)]="milestone.description"
+            placeholder="Description"
+            class="form-control"></textarea>
+
+  <input type="date"
+         [(ngModel)]="milestone.dueDate"
+         class="form-control">
+
+  <select [(ngModel)]="milestone.status" class="form-control">
+    <option value="pending">Pending</option>
+    <option value="in_progress">In Progress</option>
+    <option value="at_risk">At Risk</option>
+    <option value="completed">Completed</option>
+    <option value="missed">Missed</option>
+  </select>
+
+  <input type="number"
+         [(ngModel)]="milestone.completionPct"
+         placeholder="Completion %"
+         class="form-control">
+
+  <select [(ngModel)]="milestone.projectId" class="form-control">
+    <option *ngFor="let project of projects" [value]="project.id">
+      {{ project.name }}
+    </option>
+  </select>
+
+  <button (click)="save()" class="btn btn-primary mt-3">
+    Save
+  </button>
+
+</div>
