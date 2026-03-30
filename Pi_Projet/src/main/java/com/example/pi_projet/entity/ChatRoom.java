@@ -7,8 +7,16 @@ import lombok.*;
 import java.time.LocalDateTime;
 import java.util.List;
 
+
+
+//contrainte unique "on ne peut pas avoir 2 same chatrooms"
 @Entity
-@Table(name = "chat_rooms")
+@Table(name = "chat_rooms", uniqueConstraints = {
+    @UniqueConstraint(columnNames = {"project_id", "name", "room_type"})
+})
+
+
+
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class ChatRoom {
 
@@ -33,6 +41,8 @@ public class ChatRoom {
 
     private String description;
 
+
+    //automatique
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -43,6 +53,9 @@ public class ChatRoom {
     @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RoomMember> members;
 
+
+
+    //hooks JPA qui s'exécutent automatiquement avant l'INSERT ou l'UPDATE
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

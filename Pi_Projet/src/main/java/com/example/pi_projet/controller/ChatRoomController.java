@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Authorized
+@Authorized //verifier que user est connecté avant d'acceder a n importe route
 @RestController
 @RequestMapping("/api/chat/rooms")
 @RequiredArgsConstructor
@@ -26,7 +26,7 @@ public class ChatRoomController {
     @Operation(summary = "Create a new chat room")
     @PostMapping
     public ResponseEntity<ChatRoomDTO> createRoom(@RequestBody ChatRoomRequest body, HttpServletRequest request) {
-        User currentUser = (User) request.getAttribute("currentUser");
+        User currentUser = (User) request.getAttribute("currentUser"); //recupere user connecté
         return ResponseEntity.status(201).body(chatRoomService.createRoom(body, currentUser));
     }
 

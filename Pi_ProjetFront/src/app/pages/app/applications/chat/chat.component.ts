@@ -30,6 +30,7 @@ import {
     trigger, style, transition, animate, state,
 } from '@angular/animations';
 import { QuillModule } from 'ngx-quill';
+import { SnackbarSuccessComponent } from '../calendar/snackbar-event.component';
 
 /* ══ Delete Room Confirmation Dialog ══════════════════════════════════════ */
 @Component({
@@ -192,6 +193,7 @@ export class DeleteRoomDialogComponent {
         MatDialogModule,
         QuillModule,
         DeleteRoomDialogComponent,
+        SnackbarSuccessComponent,
     ],
     template: `
         <!-- ══ Page breadcrumb header ══════════════════════════════════════ -->
@@ -216,49 +218,78 @@ export class DeleteRoomDialogComponent {
                 <!-- ══ LEFT: Channel sidebar ══════════════════════════════ -->
                 <div class="inner-sidebar chat-sidebar px-0">
 
-                    <!-- Sidebar top bar -->
-                    <div class="sidebar-top px-3 pt-3 pb-2">
-                        <div class="d-flex align-items-center gap-2 mb-2">
-                            <div class="sidebar-brand-dot"></div>
-                            <span class="sidebar-brand-label">Workspace</span>
+                    <!-- ── WhatsApp-style top bar ── -->
+                    <div class="wa-sidebar-top">
+                        <div class="wa-sidebar-top-left">
+                            <button matIconButton class="wa-icon-btn d-lg-none me-1"
+                                    (click)="innersidebar()" matTooltip="Back">
+                                <mat-icon class="material-icons-outlined">arrow_back</mat-icon>
+                            </button>
+                            <span class="wa-sidebar-title">Channels</span>
                         </div>
-                        <div class="row gx-2 align-items-center">
-                            <div class="col-auto d-lg-none">
-                                <button matIconButton (click)="innersidebar()" aria-label="Back"
-                                        matTooltip="Back">
-                                    <mat-icon class="material-icons-outlined">arrow_back</mat-icon>
+                        <div class="wa-sidebar-actions">
+                            @if (canManageMembers) {
+                                <button matIconButton class="wa-icon-btn"
+                                        (click)="openCreate()" matTooltip="New channel">
+                                    <mat-icon>add_circle_outline</mat-icon>
                                 </button>
-                            </div>
-                            <div class="col d-flex align-items-center gap-2">
-                                <mat-icon class="material-icons-outlined sidebar-channels-icon">forum</mat-icon>
-                                <span class="sidebar-channels-title">Channels</span>
-                            </div>
-                            @if (!showForm() && canManageMembers) {
-                                <div class="col-auto d-flex gap-1">
-                                    <button matIconButton (click)="openCreate()" matTooltip="New channel"
-                                            class="sidebar-action-btn">
-                                        <mat-icon style="font-size:18px;width:18px;height:18px;">add</mat-icon>
-                                    </button>
-                                    <button matIconButton (click)="loadRooms()" matTooltip="Refresh"
-                                            [disabled]="loading()" class="sidebar-action-btn">
-                                        <mat-icon class="material-icons-outlined" style="font-size:18px;width:18px;height:18px;">refresh</mat-icon>
-                                    </button>
-                                </div>
                             }
+                            <button matIconButton class="wa-icon-btn"
+                                    [matMenuTriggerFor]="sidebarMoreMenu"
+                                    matTooltip="More options">
+                                <mat-icon>more_vert</mat-icon>
+                            </button>
+                            <mat-menu #sidebarMoreMenu="matMenu" xPosition="before">
+                                <button mat-menu-item (click)="loadRooms()">
+                                    <mat-icon class="material-icons-outlined">refresh</mat-icon>
+                                    <span>Refresh</span>
+                                </button>
+                                @if (canManageMembers) {
+                                    <mat-divider></mat-divider>
+                                    <button mat-menu-item (click)="openCreate()">
+                                        <mat-icon class="material-icons-outlined">add_circle_outline</mat-icon>
+                                        <span>New channel</span>
+                                    </button>
+                                }
+                            </mat-menu>
                         </div>
                     </div>
 
-                    <!-- Search -->
+                    <!-- ── WhatsApp-style search bar ── -->
                     @if (!showForm()) {
-                        <div class="px-3 pb-2">
-                            <mat-form-field appearance="outline" class="w-100 inline-small">
-                                <mat-icon matPrefix class="material-icons-outlined"
-                                          style="font-size:18px;width:18px;height:18px;color:var(--mat-sys-on-surface-variant)">search</mat-icon>
-                                <input matInput
+                        <div class="wa-search-wrap">
+                            <div class="wa-search-box">
+                                <mat-icon class="wa-search-icon material-icons-outlined">search</mat-icon>
+                                <input class="wa-search-input"
                                        [ngModel]="searchQuery()"
                                        (ngModelChange)="searchQuery.set($event)"
-                                       placeholder="Search channels…" />
-                            </mat-form-field>
+                                       placeholder="Search or start a discussion" />
+                                @if (searchQuery()) {
+                                    <button class="wa-search-clear" (click)="searchQuery.set('')" type="button">
+                                        <mat-icon style="font-size:16px;width:16px;height:16px">close</mat-icon>
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    <!-- ── Filter chips ── -->
+                    @if (!showForm()) {
+                        <div class="wa-chips-row">
+                            <button class="wa-chip" type="button"
+                                    [class.wa-chip-active]="activeFilter() === 'all'"
+                                    (click)="activeFilter.set('all')">All</button>
+                            <button class="wa-chip" type="button"
+                                    [class.wa-chip-active]="activeFilter() === 'unread'"
+                                    (click)="activeFilter.set('unread')">
+                                Unread
+                                @if (totalUnread() > 0) {
+                                    <span class="wa-chip-badge">{{ totalUnread() }}</span>
+                                }
+                            </button>
+                            <button class="wa-chip" type="button"
+                                    [class.wa-chip-active]="activeFilter() === 'favorites'"
+                                    (click)="activeFilter.set('favorites')">Favorites</button>
                         </div>
                     }
 
@@ -270,9 +301,10 @@ export class DeleteRoomDialogComponent {
                         </div>
                     }
 
-                    <!-- Create / Edit form -->
+                    <!-- Create / Edit form (stepped wizard) -->
                     @if (showForm() && canManageMembers) {
                         <div class="sidebar-form px-3 pb-3" [@fadeSlide]>
+                            <!-- Header -->
                             <div class="sidebar-form-header mb-2">
                                 <div class="form-header-icon-wrap">
                                     <mat-icon class="material-icons-outlined form-header-icon">
@@ -281,77 +313,190 @@ export class DeleteRoomDialogComponent {
                                 </div>
                                 <div>
                                     <div class="fw-bold" style="font-size:13.5px;line-height:1.2">{{ editingRoom() ? 'Edit Channel' : 'New Channel' }}</div>
-                                    <div style="font-size:10.5px;color:var(--mat-sys-on-surface-variant);margin-top:1px">{{ editingRoom() ? "Adjust this channel's details" : 'Fill in a few details to get started' }}</div>
+                                    <div style="font-size:10.5px;color:var(--mat-sys-on-surface-variant);margin-top:1px">Step {{ formStep() }} of 3</div>
                                 </div>
                             </div>
                             <div class="form-progress-bar mb-3">
-                                <div class="form-progress-fill"
-                                     [style.width]="(+!!formProjectId + +!!formName + +!!formRoomType) * 33 + '%'"></div>
+                                <div class="form-progress-fill" [style.width]="(formStep() / 3 * 100) + '%'"></div>
                             </div>
 
                             @if (formError) {
-                                <div class="chat-error mb-3 px-3 py-2 small">{{ formError }}</div>
+                                <div class="chat-error mb-2 px-3 py-2 small" [class.form-field-shake]="formShaking()">{{ formError }}</div>
                             }
 
-                            <mat-form-field appearance="outline" class="w-100 mb-1">
-                                <mat-label>Project *</mat-label>
-                                <mat-icon matPrefix class="material-icons-outlined" style="font-size:18px;width:18px;height:18px">folder_open</mat-icon>
-                                <mat-select [(ngModel)]="formProjectId" [disabled]="projectsLoading()">
-                                    @if (projectsLoading()) {
-                                        <mat-option disabled>Loading projects…</mat-option>
-                                    } @else if (projects.length === 0) {
-                                        <mat-option disabled>No projects found</mat-option>
-                                    } @else {
-                                        @for (p of projects; track p.id) {
-                                            <mat-option [value]="p.id">{{ p.name }}</mat-option>
+                            <!-- ── STEP 1: Project ── -->
+                            @if (formStep() === 1) {
+                                <div class="form-step-label mb-2">Which project is this channel for?</div>
+                                <div [class.form-field-shake]="formShaking() && !step1Valid">
+                                    <mat-form-field appearance="outline" class="w-100 mb-0">
+                                        <mat-label>Project *</mat-label>
+                                        <mat-icon matPrefix class="material-icons-outlined" style="font-size:18px;width:18px;height:18px">folder_open</mat-icon>
+                                        <mat-select [(ngModel)]="formProjectId" [disabled]="projectsLoading()">
+                                            @if (projectsLoading()) {
+                                                <mat-option disabled>Loading projects…</mat-option>
+                                            } @else if (projects.length === 0) {
+                                                <mat-option disabled>No projects found</mat-option>
+                                            } @else {
+                                                @for (p of projects; track p.id) {
+                                                    <mat-option [value]="p.id">{{ p.name }}</mat-option>
+                                                }
+                                            }
+                                        </mat-select>
+                                        @if (step1Valid) {
+                                            <mat-icon matSuffix class="material-icons-outlined field-check-icon">check_circle</mat-icon>
                                         }
+                                    </mat-form-field>
+                                    @if (formTouched() && !step1Valid) {
+                                        <div class="form-inline-error">Please select a project to continue.</div>
                                     }
-                                </mat-select>
-                            </mat-form-field>
+                                </div>
+                                <div class="row gx-2 mt-2">
+                                    <div class="col">
+                                        <button mat-flat-button color="primary" class="w-100"
+                                                [class.form-btn-shake]="formShaking() && !step1Valid"
+                                                (click)="nextStep()"
+                                                [matTooltip]="step1Valid ? '' : 'Select a project first'">
+                                            Next
+                                            <mat-icon style="font-size:18px;width:18px;height:18px">chevron_right</mat-icon>
+                                        </button>
+                                    </div>
+                                    <div class="col-auto">
+                                        <button matButton (click)="cancelForm()">Cancel</button>
+                                    </div>
+                                </div>
+                            }
 
-                            <mat-form-field appearance="outline" class="w-100 mb-1">
-                                <mat-label>Channel Name *</mat-label>
-                                <mat-icon matPrefix style="font-size:18px;width:18px;height:18px">tag</mat-icon>
-                                <input matInput [(ngModel)]="formName" placeholder="e.g. design-review, sprint-42" />
-                            </mat-form-field>
+                            <!-- ── STEP 2: Name, Description, Type ── -->
+                            @if (formStep() === 2) {
+                                <div class="form-step-label mb-2">Channel details</div>
 
-                            <mat-form-field appearance="outline" class="w-100 mb-1">
-                                <mat-label>Description</mat-label>
-                                <textarea matInput [(ngModel)]="formDescription" rows="2"
-                                          placeholder="What will this channel be used for?"></textarea>
-                            </mat-form-field>
-
-                            <mat-form-field appearance="outline" class="w-100 mb-3">
-                                <mat-label>Channel Type</mat-label>
-                                <mat-icon matPrefix class="material-icons-outlined" style="font-size:18px;width:18px;height:18px">category</mat-icon>
-                                <mat-select [(ngModel)]="formRoomType">
-                                    @for (t of roomTypes; track t.value) {
-                                        <mat-option [value]="t.value">{{ t.label }}</mat-option>
-                                    }
-                                </mat-select>
-                            </mat-form-field>
-
-                            <div class="row gx-2">
-                                <div class="col">
-                                    <button mat-flat-button color="primary" class="w-100"
-                                            (click)="saveRoom()" [disabled]="saving()">
-                                        @if (saving()) {
-                                            <mat-spinner diameter="16" style="display:inline-block;margin-right:6px"></mat-spinner>
+                                <!-- Name field -->
+                                <div class="mb-1" [class.form-field-shake]="formShaking() && step2NameError !== null">
+                                    <mat-form-field appearance="outline" class="w-100 mb-0">
+                                        <mat-label>Channel Name *</mat-label>
+                                        <mat-icon matPrefix style="font-size:18px;width:18px;height:18px">tag</mat-icon>
+                                        <input matInput [(ngModel)]="formName" placeholder="e.g. design-review, sprint-42" maxlength="50" />
+                                        <mat-hint align="end">{{ (formName || '').length }}/50</mat-hint>
+                                        @if (!step2NameError) {
+                                            <mat-icon matSuffix class="material-icons-outlined field-check-icon">check_circle</mat-icon>
                                         }
-                                        {{ saving() ? 'Saving…' : (editingRoom() ? 'Update Channel' : 'Create Channel') }}
-                                    </button>
+                                    </mat-form-field>
+                                    @if (formTouched() && step2NameError) {
+                                        <div class="form-inline-error">{{ step2NameError }}</div>
+                                    }
                                 </div>
-                                <div class="col-auto">
-                                    <button matButton (click)="cancelForm()" [disabled]="saving()">Cancel</button>
+
+                                <!-- Description field -->
+                                <div class="mb-1" [class.form-field-shake]="formShaking() && step2DescError !== null">
+                                    <mat-form-field appearance="outline" class="w-100 mb-0">
+                                        <mat-label>Description *</mat-label>
+                                        <textarea matInput [(ngModel)]="formDescription" rows="2"
+                                                  placeholder="What will this channel be used for?" maxlength="200"></textarea>
+                                        <mat-hint align="end">{{ (formDescription || '').length }}/200</mat-hint>
+                                        @if (!step2DescError) {
+                                            <mat-icon matSuffix class="material-icons-outlined field-check-icon">check_circle</mat-icon>
+                                        }
+                                    </mat-form-field>
+                                    @if (formTouched() && step2DescError) {
+                                        <div class="form-inline-error">{{ step2DescError }}</div>
+                                    }
                                 </div>
-                            </div>
+
+                                <!-- Room type pills -->
+                                <div class="mb-2" [class.form-field-shake]="formShaking() && !formRoomType">
+                                    <div class="form-type-label">
+                                        Channel Type *
+                                        @if (formRoomType) {
+                                            <mat-icon class="material-icons-outlined field-check-icon-inline">check_circle</mat-icon>
+                                        }
+                                    </div>
+                                    <div class="room-type-pills">
+                                        @for (t of roomTypes; track t.value) {
+                                            <button class="room-type-pill-btn" type="button"
+                                                    [class.room-type-pill-active]="formRoomType === t.value"
+                                                    (click)="formRoomType = t.value">
+                                                {{ t.label }}
+                                            </button>
+                                        }
+                                    </div>
+                                    @if (formTouched() && !formRoomType) {
+                                        <div class="form-inline-error">Please select a channel type.</div>
+                                    }
+                                </div>
+
+                                <div class="row gx-2 mt-2">
+                                    <div class="col-auto">
+                                        <button matButton (click)="prevStep()">
+                                            <mat-icon style="font-size:18px;width:18px;height:18px">chevron_left</mat-icon>
+                                            Back
+                                        </button>
+                                    </div>
+                                    <div class="col">
+                                        <button mat-flat-button color="primary" class="w-100"
+                                                [class.form-btn-shake]="formShaking() && !step2Valid"
+                                                (click)="nextStep()"
+                                                [matTooltip]="step2Valid ? '' : 'Fill in all fields correctly'">
+                                            Next
+                                            <mat-icon style="font-size:18px;width:18px;height:18px">chevron_right</mat-icon>
+                                        </button>
+                                    </div>
+                                    <div class="col-auto">
+                                        <button matButton (click)="cancelForm()">Cancel</button>
+                                    </div>
+                                </div>
+                            }
+
+                            <!-- ── STEP 3: Review & Create ── -->
+                            @if (formStep() === 3) {
+                                <div class="form-step-label mb-2">Review and {{ editingRoom() ? 'update' : 'create' }}</div>
+                                <div class="form-review-card mb-3">
+                                    <div class="form-review-row">
+                                        <span class="form-review-key">Project</span>
+                                        <span class="form-review-val">{{ getProjectName(formProjectId) }}</span>
+                                    </div>
+                                    <div class="form-review-row">
+                                        <span class="form-review-key">Name</span>
+                                        <span class="form-review-val">#{{ formName.trim() }}</span>
+                                    </div>
+                                    <div class="form-review-row">
+                                        <span class="form-review-key">Description</span>
+                                        <span class="form-review-val">{{ formDescription.trim() }}</span>
+                                    </div>
+                                    <div class="form-review-row">
+                                        <span class="form-review-key">Type</span>
+                                        <span class="form-review-val">{{ getRoomTypeLabel(formRoomType) }}</span>
+                                    </div>
+                                </div>
+                                <div class="row gx-2">
+                                    <div class="col-auto">
+                                        <button matButton (click)="prevStep()" [disabled]="saving()">
+                                            <mat-icon style="font-size:18px;width:18px;height:18px">chevron_left</mat-icon>
+                                            Back
+                                        </button>
+                                    </div>
+                                    <div class="col">
+                                        <button mat-flat-button color="primary" class="w-100"
+                                                (click)="saveRoom()" [disabled]="saving()">
+                                            @if (saving()) {
+                                                <mat-spinner diameter="16" style="display:inline-block;margin-right:6px"></mat-spinner>
+                                                Saving…
+                                            } @else {
+                                                <mat-icon style="font-size:18px;width:18px;height:18px">{{ editingRoom() ? 'save' : 'add_circle' }}</mat-icon>
+                                                {{ editingRoom() ? 'Update Channel' : 'Create Channel' }}
+                                            }
+                                        </button>
+                                    </div>
+                                    <div class="col-auto">
+                                        <button matButton (click)="cancelForm()" [disabled]="saving()">Cancel</button>
+                                    </div>
+                                </div>
+                            }
                         </div>
                     }
 
-                    <!-- Channel groups list -->
+                    <!-- ── WhatsApp-style room list ── -->
                     @if (!showForm()) {
-                        <div class="sidebar-channels overflow-y-auto height-dynamic"
-                             style="--h-dynamic:calc(100vh - 320px)">
+                        <div class="wa-rooms-scroll">
 
                             @if (loading()) {
                                 <div class="text-center py-5">
@@ -361,53 +506,61 @@ export class DeleteRoomDialogComponent {
                             } @else {
 
                                 @for (group of roomsByType(); track group.type) {
-                                    <!-- Section header -->
-                                    <div class="channel-section-header px-3 pt-3 pb-1">
-                                        <mat-icon class="material-icons-outlined section-type-icon">
-                                            {{ getRoomTypeIcon(group.type) }}
-                                        </mat-icon>
-                                        <span class="section-type-label">{{ getRoomTypeLabel(group.type) }}</span>
-                                        <span class="section-count">{{ group.rooms.length }}</span>
+                                    <!-- Section divider label -->
+                                    <div class="wa-section-header">
+                                        <span class="wa-section-label">{{ getRoomTypeLabel(group.type).toUpperCase() }}</span>
                                     </div>
 
-                                    @for (room of group.rooms; track room.id) {
-                                        <div class="channel-item"
-                                             [class.channel-item-active]="activeRoom()?.id === room.id"
+                                    @for (room of group.rooms; track room.id; let i = $index) {
+                                        <div class="wa-room-item"
+                                             [class.wa-room-active]="activeRoom()?.id === room.id"
                                              (click)="selectRoom(room)"
-                                             [@channelItemEnter]>
+                                             [@channelItemEnter]
+                                             [style.--wa-item-delay]="i * 40 + 'ms'">
 
-                                            <div class="channel-item-inner px-3 py-2">
-                                                    <div class="channel-item-icon">
-                                                        <mat-icon class="material-icons-outlined"
-                                                                  style="font-size:17px;width:17px;height:17px">
-                                                            {{ getRoomTypeIcon(room.roomType ?? 'general') }}
-                                                        </mat-icon>
-                                                    </div>
-                                                    <div class="channel-item-text">
-                                                        <p class="mb-0 fw-medium text-truncate channel-name">{{ room.name }}</p>
-                                                        @if (room.description) {
-                                                            <p class="mb-0 small text-truncate channel-desc">{{ room.description }}</p>
-                                                        }
-                                                    </div>
-                                                    @if (canManageMembers) {
-                                                        <div class="channel-item-actions">
-                                                            <button matIconButton
-                                                                    style="width:26px;height:26px;line-height:26px"
-                                                                    matTooltip="Edit channel"
-                                                                    (click)="openEdit(room, $event)">
-                                                                <mat-icon class="material-icons-outlined"
-                                                                          style="font-size:15px;width:15px;height:15px">edit</mat-icon>
-                                                            </button>
-                                                            <button matIconButton
-                                                                    style="width:26px;height:26px;line-height:26px"
-                                                                    matTooltip="Delete channel"
-                                                                    (click)="confirmDelete(room.id, $event)">
-                                                                <mat-icon class="material-icons-outlined theme-red"
-                                                                          style="font-size:15px;width:15px;height:15px">delete</mat-icon>
-                                                            </button>
-                                                        </div>
+                                            <!-- Avatar -->
+                                            <div class="wa-avatar" [ngStyle]="getAvatarGradient(room.name)">
+                                                {{ getInitials(room.name) }}
+                                            </div>
+
+                                            <!-- Main content -->
+                                            <div class="wa-room-content">
+                                                <div class="wa-room-top-row">
+                                                    <span class="wa-room-name">{{ room.name }}</span>
+                                                    <span class="wa-room-type-tag"
+                                                          [class.wa-room-type-tag-unread]="(unreadCounts().get(room.id) ?? 0) > 0">
+                                                        <mat-icon class="material-icons-outlined wa-type-icon">{{ getRoomTypeIcon(room.roomType ?? 'general') }}</mat-icon>
+                                                    </span>
+                                                </div>
+                                                <div class="wa-room-bottom-row">
+                                                    <span class="wa-room-preview">{{ room.description || getRoomTypeLabel(room.roomType ?? 'general') + ' channel' }}</span>
+                                                    @if ((unreadCounts().get(room.id) ?? 0) > 0) {
+                                                        <span class="wa-unread-badge" [@pillEnter]>{{ unreadCounts().get(room.id) }}</span>
                                                     }
                                                 </div>
+                                            </div>
+
+                                            <!-- Manager three-dot menu (appears on hover) -->
+                                            @if (canManageMembers) {
+                                                <div class="wa-room-actions" (click)="$event.stopPropagation()">
+                                                    <button matIconButton class="wa-action-btn"
+                                                            [matMenuTriggerFor]="roomItemMenu"
+                                                            matTooltip="Options">
+                                                        <mat-icon style="font-size:16px;width:16px;height:16px">more_vert</mat-icon>
+                                                    </button>
+                                                    <mat-menu #roomItemMenu="matMenu" xPosition="before">
+                                                        <button mat-menu-item (click)="openEdit(room, $event)">
+                                                            <mat-icon class="material-icons-outlined">edit</mat-icon>
+                                                            <span>Edit</span>
+                                                        </button>
+                                                        <mat-divider></mat-divider>
+                                                        <button mat-menu-item (click)="confirmDelete(room.id, $event)" class="theme-red">
+                                                            <mat-icon class="material-icons-outlined">delete</mat-icon>
+                                                            <span>Delete</span>
+                                                        </button>
+                                                    </mat-menu>
+                                                </div>
+                                            }
                                         </div>
                                     }
                                 }
@@ -1017,6 +1170,13 @@ export class DeleteRoomDialogComponent {
                                                                 matTooltip="Reply">
                                                             <mat-icon class="material-icons-outlined" style="font-size:18px;width:18px;height:18px">reply</mat-icon>
                                                         </button>
+                                                        @if (message.senderId === currentUser?.id) {
+                                                            <button class="hover-action-btn"
+                                                                    (click)="startEdit(message)"
+                                                                    matTooltip="Edit">
+                                                                <mat-icon class="material-icons-outlined" style="font-size:18px;width:18px;height:18px">edit</mat-icon>
+                                                            </button>
+                                                        }
                                                         @if (message.fileUrl) {
                                                             <a class="hover-action-btn"
                                                                [href]="getFileDownloadUrl(message.fileUrl)"
@@ -1169,6 +1329,9 @@ export class DeleteRoomDialogComponent {
 
                                                         <!-- Timestamp -->
                                                         <span class="msg-time">{{ formatMessageTime(message.createdAt) }}</span>
+                                                        @if (message.isEdited) {
+                                                            <span class="msg-edited-label">(edited)</span>
+                                                        }
                                                     </div>
 
                                                     <!-- Reaction strip -->
@@ -1232,6 +1395,36 @@ export class DeleteRoomDialogComponent {
                                         <button class="rp-close" (click)="cancelReply()">
                                             <mat-icon style="font-size:16px;width:16px;height:16px">close</mat-icon>
                                         </button>
+                                    </div>
+                                }
+
+                                <!-- Edit bar -->
+                                @if (editingMessage()) {
+                                    <div class="edit-bar" [@fadeSlide]>
+                                        <div class="edit-bar-header">
+                                            <mat-icon class="material-icons-outlined rp-icon">edit</mat-icon>
+                                            <span class="edit-bar-label">Editing message</span>
+                                            <button class="rp-close" (click)="cancelEdit()">
+                                                <mat-icon style="font-size:16px;width:16px;height:16px">close</mat-icon>
+                                            </button>
+                                        </div>
+                                        <div class="edit-bar-input-row">
+                                            <mat-form-field appearance="outline" class="edit-bar-field">
+                                                <input matInput
+                                                       [ngModel]="editContent()"
+                                                       (ngModelChange)="editContent.set($event)"
+                                                       (keydown.enter)="$event.preventDefault(); saveEdit()"
+                                                       (keydown.escape)="cancelEdit()"
+                                                       placeholder="Edit message…" />
+                                            </mat-form-field>
+                                            <button mat-button (click)="cancelEdit()">Cancel</button>
+                                            <button mat-flat-button color="primary"
+                                                    [disabled]="!editContent() || editContent() === editingMessage()!.contentText"
+                                                    (click)="saveEdit()">
+                                                <mat-icon style="font-size:16px;width:16px;height:16px;margin-right:4px">check</mat-icon>
+                                                Save
+                                            </button>
+                                        </div>
                                     </div>
                                 }
 
@@ -1400,6 +1593,8 @@ export class DeleteRoomDialogComponent {
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            height: calc(100vh - 250px);
+            min-height: 0;
             box-shadow:
                 0 1px 2px rgba(0,0,0,0.04),
                 0 4px 16px rgba(0,0,0,0.06),
@@ -1650,6 +1845,117 @@ export class DeleteRoomDialogComponent {
             background: linear-gradient(90deg, var(--mat-sys-primary), var(--mat-sys-tertiary));
             border-radius: 3px;
             transition: width 0.4s cubic-bezier(0.34,1.56,0.64,1);
+        }
+
+        /* ── Form wizard ─────────────────────────────────────────────── */
+        @keyframes form-shake {
+            0%, 100% { transform: translateX(0); }
+            20%       { transform: translateX(-5px); }
+            40%       { transform: translateX(5px); }
+            60%       { transform: translateX(-3px); }
+            80%       { transform: translateX(3px); }
+        }
+        .form-field-shake {
+            animation: form-shake 0.32s ease;
+        }
+        .form-btn-shake {
+            animation: form-shake 0.32s ease;
+        }
+        .form-step-label {
+            font-size: 10.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: var(--mat-sys-on-surface-variant);
+        }
+        .form-inline-error {
+            font-size: 11px;
+            color: var(--mat-sys-error, #ef4444);
+            margin-top: -4px;
+            margin-bottom: 8px;
+            padding-left: 2px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .field-check-icon {
+            font-size: 16px !important;
+            width: 16px !important;
+            height: 16px !important;
+            color: #16a34a !important;
+        }
+        .field-check-icon-inline {
+            font-size: 14px !important;
+            width: 14px !important;
+            height: 14px !important;
+            color: #16a34a !important;
+            vertical-align: middle;
+            margin-left: 4px;
+        }
+        .form-type-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--mat-sys-on-surface-variant);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+        }
+        .room-type-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 4px;
+        }
+        .room-type-pill-btn {
+            padding: 4px 10px;
+            border-radius: 16px;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            background: transparent;
+            font-size: 11.5px;
+            font-weight: 500;
+            color: var(--mat-sys-on-surface-variant);
+            cursor: pointer;
+            transition: all 0.18s ease;
+            line-height: 1.4;
+        }
+        .room-type-pill-btn:hover {
+            border-color: var(--mat-sys-primary);
+            color: var(--mat-sys-primary);
+            background: color-mix(in srgb, var(--mat-sys-primary) 6%, transparent);
+        }
+        .room-type-pill-active {
+            background: var(--mat-sys-primary-container) !important;
+            border-color: var(--mat-sys-primary) !important;
+            color: var(--mat-sys-on-primary-container) !important;
+            font-weight: 600 !important;
+        }
+        .form-review-card {
+            border-radius: 10px;
+            border: 1px solid var(--mat-sys-outline-variant);
+            background: var(--mat-sys-surface-container);
+            overflow: hidden;
+        }
+        .form-review-row {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--mat-sys-outline-variant);
+        }
+        .form-review-row:last-child { border-bottom: none; }
+        .form-review-key {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: var(--mat-sys-on-surface-variant);
+            min-width: 72px;
+            flex-shrink: 0;
+        }
+        .form-review-val {
+            font-size: 12.5px;
+            color: var(--mat-sys-on-surface);
+            word-break: break-word;
         }
 
         /* ── Empty state ─────────────────────────────────────────────── */
@@ -3526,6 +3832,44 @@ export class DeleteRoomDialogComponent {
         }
         .rp-close:hover { background: var(--mat-sys-surface-container-high); color: var(--mat-sys-on-surface); }
 
+        /* ── Edit bar ───────────────────────────────────────────────── */
+        .edit-bar {
+            border-left: 3px solid var(--mat-sys-primary);
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 35%, var(--mat-sys-surface-container));
+            flex-shrink: 0;
+        }
+        .edit-bar-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px 4px;
+        }
+        .edit-bar-label {
+            flex: 1;
+            font-size: 11.5px;
+            font-weight: 700;
+            color: var(--mat-sys-primary);
+        }
+        .edit-bar-input-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0 8px 8px;
+        }
+        .edit-bar-field {
+            flex: 1;
+        }
+        .edit-bar-field ::ng-deep .mat-mdc-form-field-subscript-wrapper { display: none; }
+
+        /* ── Edited indicator ────────────────────────────────────────── */
+        .msg-edited-label {
+            font-size: 10px;
+            font-style: italic;
+            color: var(--mat-sys-on-surface-variant);
+            margin-left: 4px;
+            opacity: 0.75;
+        }
+
         /* ── Voice message bubble ────────────────────────────────────── */
         .voice-bubble {
             display: flex;
@@ -3833,7 +4177,363 @@ export class DeleteRoomDialogComponent {
             flex-shrink: 0;
         }
 
+        /* ══════════════════════════════════════════════════════════════
+           WhatsApp-style Left Column Redesign
+        ══════════════════════════════════════════════════════════════ */
 
+        /* ── Top bar ── */
+        .wa-sidebar-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 12px 12px;
+            border-bottom: 1px solid var(--mat-sys-outline-variant);
+            background: linear-gradient(180deg,
+                color-mix(in srgb, var(--mat-sys-primary-container) 18%, var(--mat-sys-surface-container-lowest)) 0%,
+                var(--mat-sys-surface-container-lowest) 100%);
+            flex-shrink: 0;
+        }
+        .wa-sidebar-top-left {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .wa-sidebar-title {
+            font-size: 19px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: var(--mat-sys-on-surface);
+        }
+        .wa-sidebar-actions {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+        .wa-icon-btn {
+            color: var(--mat-sys-on-surface-variant) !important;
+            transition: color 0.15s, background 0.15s !important;
+        }
+        .wa-icon-btn:hover {
+            color: var(--mat-sys-on-surface) !important;
+            background: color-mix(in srgb, var(--mat-sys-primary) 10%, transparent) !important;
+        }
+
+        /* ── Search bar ── */
+        .wa-search-wrap {
+            padding: 8px 10px 6px;
+            flex-shrink: 0;
+        }
+        .wa-search-box {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--mat-sys-surface-container);
+            border-radius: 24px;
+            padding: 6px 10px 6px 12px;
+            border: 1.5px solid transparent;
+            transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+        }
+        .wa-search-box:focus-within {
+            border-color: var(--mat-sys-primary);
+            background: var(--mat-sys-surface-container-low);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+        }
+        .wa-search-icon {
+            font-size: 18px !important;
+            width: 18px !important;
+            height: 18px !important;
+            color: var(--mat-sys-on-surface-variant);
+            flex-shrink: 0;
+        }
+        .wa-search-input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 13.5px;
+            color: var(--mat-sys-on-surface);
+            font-family: inherit;
+        }
+        .wa-search-input::placeholder {
+            color: var(--mat-sys-on-surface-variant);
+            opacity: 0.8;
+        }
+        .wa-search-clear {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            border: none;
+            background: var(--mat-sys-surface-container-high);
+            border-radius: 50%;
+            cursor: pointer;
+            color: var(--mat-sys-on-surface-variant);
+            padding: 0;
+            flex-shrink: 0;
+            transition: background 0.15s, color 0.15s;
+        }
+        .wa-search-clear:hover {
+            background: var(--mat-sys-outline-variant);
+            color: var(--mat-sys-on-surface);
+        }
+
+        /* ── Filter chips row ── */
+        .wa-chips-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px 8px;
+            overflow-x: auto;
+            flex-shrink: 0;
+            scrollbar-width: none;
+        }
+        .wa-chips-row::-webkit-scrollbar { display: none; }
+        .wa-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 5px 14px;
+            border-radius: 20px;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            background: transparent;
+            color: var(--mat-sys-on-surface-variant);
+            font-size: 12.5px;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+            transition: background 0.18s, color 0.18s, border-color 0.18s, transform 0.18s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.18s;
+        }
+        .wa-chip:hover:not(.wa-chip-active) {
+            background: var(--mat-sys-surface-container);
+            border-color: var(--mat-sys-outline);
+            color: var(--mat-sys-on-surface);
+        }
+        .wa-chip-active {
+            background: var(--mat-sys-primary) !important;
+            border-color: var(--mat-sys-primary) !important;
+            color: var(--mat-sys-on-primary) !important;
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 35%, transparent);
+            transform: scale(1.04);
+        }
+        .wa-chip-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 16px;
+            height: 16px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.30);
+            color: inherit;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 0 4px;
+        }
+        .wa-chip-active .wa-chip-badge {
+            background: rgba(255,255,255,0.35);
+        }
+
+        /* ── Room list scroll container ── */
+        .wa-rooms-scroll {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: color-mix(in srgb, var(--mat-sys-primary) 35%, transparent) transparent;
+        }
+        .wa-rooms-scroll::-webkit-scrollbar { width: 4px; }
+        .wa-rooms-scroll::-webkit-scrollbar-track { background: transparent; }
+        .wa-rooms-scroll::-webkit-scrollbar-thumb {
+            background: color-mix(in srgb, var(--mat-sys-primary) 35%, transparent);
+            border-radius: 4px;
+            transition: background 0.2s ease;
+        }
+        .wa-rooms-scroll::-webkit-scrollbar-thumb:hover {
+            background: color-mix(in srgb, var(--mat-sys-primary) 65%, transparent);
+        }
+
+        /* ── Section divider ── */
+        .wa-section-header {
+            padding: 10px 16px 4px;
+            display: flex;
+            align-items: center;
+        }
+        .wa-section-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.07em;
+            color: var(--mat-sys-on-surface-variant);
+            opacity: 0.6;
+        }
+
+        /* ── Room item ── */
+        .wa-room-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px 10px 14px;
+            cursor: pointer;
+            position: relative;
+            transition: background 0.15s ease;
+            animation: wa-item-enter 0.32s cubic-bezier(0.34,1.56,0.64,1) both;
+            animation-delay: var(--wa-item-delay, 0ms);
+        }
+        @keyframes wa-item-enter {
+            from { transform: translateY(8px); opacity: 0; }
+            to   { transform: translateY(0);   opacity: 1; }
+        }
+        .wa-room-item::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 72px;
+            right: 0;
+            height: 1px;
+            background: var(--mat-sys-outline-variant);
+            opacity: 0.5;
+        }
+        .wa-room-item:hover {
+            background: color-mix(in srgb, var(--mat-sys-on-surface) 4%, transparent);
+        }
+        .wa-room-active {
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 55%, var(--mat-sys-surface-container-lowest)) !important;
+        }
+        .wa-room-active:hover {
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 65%, var(--mat-sys-surface-container-lowest)) !important;
+        }
+        .wa-room-active::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 10%; bottom: 10%;
+            width: 3px;
+            border-radius: 0 3px 3px 0;
+            background: var(--mat-sys-primary);
+        }
+
+        /* ── Avatar ── */
+        .wa-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 800;
+            color: #fff;
+            flex-shrink: 0;
+            letter-spacing: -0.5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+            transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1);
+            user-select: none;
+        }
+        .wa-room-item:hover .wa-avatar {
+            transform: scale(1.06);
+        }
+
+        /* ── Content column ── */
+        .wa-room-content {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .wa-room-top-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+        }
+        .wa-room-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--mat-sys-on-surface);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+            min-width: 0;
+            letter-spacing: -0.01em;
+        }
+        .wa-room-active .wa-room-name {
+            color: var(--mat-sys-primary);
+        }
+        .wa-room-type-tag {
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+            color: var(--mat-sys-on-surface-variant);
+        }
+        .wa-room-type-tag-unread {
+            color: var(--mat-sys-primary);
+        }
+        .wa-type-icon {
+            font-size: 14px !important;
+            width: 14px !important;
+            height: 14px !important;
+        }
+        .wa-room-bottom-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+        }
+        .wa-room-preview {
+            font-size: 12.5px;
+            color: var(--mat-sys-on-surface-variant);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+            min-width: 0;
+        }
+        .wa-room-active .wa-room-preview {
+            color: color-mix(in srgb, var(--mat-sys-primary) 60%, var(--mat-sys-on-surface-variant));
+        }
+
+        /* ── Unread badge ── */
+        .wa-unread-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 20px;
+            border-radius: 10px;
+            background: var(--mat-sys-primary);
+            color: var(--mat-sys-on-primary);
+            font-size: 11px;
+            font-weight: 700;
+            padding: 0 5px;
+            flex-shrink: 0;
+        }
+
+        /* ── Three-dot manager actions (visible on hover) ── */
+        .wa-room-actions {
+            display: flex;
+            align-items: center;
+            opacity: 0;
+            flex-shrink: 0;
+            transition: opacity 0.15s;
+        }
+        .wa-room-item:hover .wa-room-actions {
+            opacity: 1;
+        }
+        .wa-room-active .wa-room-actions {
+            opacity: 1;
+        }
+        .wa-action-btn {
+            width: 28px !important;
+            height: 28px !important;
+            line-height: 28px !important;
+            color: var(--mat-sys-on-surface-variant) !important;
+            transition: color 0.15s, background 0.15s !important;
+        }
+        .wa-action-btn:hover {
+            color: var(--mat-sys-on-surface) !important;
+            background: var(--mat-sys-surface-container-high) !important;
+        }
 
     `],
     animations: [
@@ -4009,13 +4709,33 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     // ── Search ─────────────────────────────────────────────────────
     searchQuery = signal('');
+
+    // ── Filter chips ───────────────────────────────────────────────
+    activeFilter = signal<'all' | 'unread' | 'favorites'>('all');
+
+    // ── Unread counts (incremented by incoming WS msgs for inactive rooms) ──
+    unreadCounts = signal<Map<number, number>>(new Map());
+    totalUnread = computed(() => {
+        let sum = 0;
+        this.unreadCounts().forEach(v => sum += v);
+        return sum;
+    });
+
     filteredRooms = computed(() => {
         const q = this.searchQuery().toLowerCase();
-        if (!q) return this.rooms();
-        return this.rooms().filter(r =>
-            r.name.toLowerCase().includes(q) ||
-            (r.description ?? '').toLowerCase().includes(q)
-        );
+        const filter = this.activeFilter();
+        let rooms = this.rooms();
+        if (q) {
+            rooms = rooms.filter(r =>
+                r.name.toLowerCase().includes(q) ||
+                (r.description ?? '').toLowerCase().includes(q)
+            );
+        }
+        if (filter === 'unread') {
+            const counts = this.unreadCounts();
+            rooms = rooms.filter(r => (counts.get(r.id) ?? 0) > 0);
+        }
+        return rooms;
     });
 
     // ── Create/edit form ───────────────────────────────────────────
@@ -4023,23 +4743,55 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     editingRoom = signal<ChatRoom | null>(null);
     saving = signal(false);
     projectsLoading = signal(false);
+    formStep = signal<1 | 2 | 3>(1);
+    formTouched = signal<boolean>(false);
+    formShaking = signal<boolean>(false);
     formProjectId = '';
     formName = '';
     formDescription = '';
-    formRoomType: RoomType = 'general';
+    formRoomType: RoomType | '' = '';
     formError = '';
+
+    get step1Valid(): boolean {
+        return !!this.formProjectId?.trim();
+    }
+    get step2NameError(): string | null {
+        const v = (this.formName ?? '').trim();
+        if (!v) return 'Channel name is required.';
+        if (v.length < 3) return 'Name must be at least 3 characters.';
+        if (v.length > 50) return 'Name must be at most 50 characters.';
+        return null;
+    }
+    get step2DescError(): string | null {
+        const v = (this.formDescription ?? '').trim();
+        if (!v) return 'Description is required.';
+        if (v.length < 10) return 'Description must be at least 10 characters.';
+        if (v.length > 200) return 'Description must be at most 200 characters.';
+        return null;
+    }
+    get step2Valid(): boolean {
+        return !this.step2NameError && !this.step2DescError && !!this.formRoomType;
+    }
+
+    private triggerShake(): void {
+        this.formShaking.set(false);
+        setTimeout(() => {
+            this.formShaking.set(true);
+            setTimeout(() => this.formShaking.set(false), 350);
+        }, 0);
+    }
 
     // ── Delete confirmation ────────────────────────────────────────
     deleteConfirmId = signal<number | null>(null);
 
     // ── Room type options ──────────────────────────────────────────
-    readonly roomTypes = [
-        { value: 'general',             label: 'General'            },
-        { value: 'task_thread',         label: 'Task Thread'        },
-        { value: 'deliverable_review',  label: 'Deliverable Review' },
-        { value: 'private_room',        label: 'Private Room'       },
-        { value: 'meeting',             label: 'Meeting'            },
-    ];
+readonly roomTypes: { value: RoomType; label: string }[] = [
+    { value: 'general',             label: 'General'            },
+    { value: 'task_thread',         label: 'Task Thread'        },
+    { value: 'deliverable_review',  label: 'Deliverable Review' },
+    { value: 'private_room',        label: 'Private Room'       },
+    { value: 'meeting',             label: 'Meeting'            },
+];
 
     // ── Projects (for room form dropdown) ─────────────────────────
     projects: ProjectDTO[] = [];
@@ -4072,6 +4824,10 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     // ── Reply ──────────────────────────────────────────────────────
     replyingTo = signal<MessageDTO | null>(null);
+
+    // ── Edit ───────────────────────────────────────────────────────
+    editingMessage = signal<MessageDTO | null>(null);
+    editContent    = signal<string>('');
 
     // ── Delete (UI-only holding slot) ──────────────────────────────
     deletingMessageId = signal<number | null>(null);
@@ -4380,8 +5136,11 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.formProjectId = '';
         this.formName = '';
         this.formDescription = '';
-        this.formRoomType = 'general';
+        this.formRoomType = '';
         this.formError = '';
+        this.formStep.set(1);
+        this.formTouched.set(false);
+        this.formShaking.set(false);
         this.showForm.set(true);
         this.loadProjects();
     }
@@ -4394,30 +5153,73 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.formDescription = room.description ?? '';
         this.formRoomType = (room.roomType?.toLowerCase() as RoomType) ?? 'general';
         this.formError = '';
+        this.formStep.set(1);
+        this.formTouched.set(false);
+        this.formShaking.set(false);
         this.showForm.set(true);
         this.deleteConfirmId.set(null);
         this.loadProjects();
     }
 
     cancelForm(): void {
+        this.formStep.set(1);
+        this.formTouched.set(false);
+        this.formShaking.set(false);
         this.showForm.set(false);
+    }
+
+    nextStep(): void {
+        if (this.formStep() === 1) {
+            if (!this.step1Valid) {
+                this.formTouched.set(true);
+                this.triggerShake();
+                return;
+            }
+            this.formTouched.set(false);
+            this.formStep.set(2);
+        } else if (this.formStep() === 2) {
+            this.formTouched.set(true);
+            if (!this.step2Valid) {
+                this.triggerShake();
+                return;
+            }
+            // Duplicate detection
+            const name = this.formName.trim().toLowerCase();
+            const projectId = this.formProjectId.trim();
+            const type = this.formRoomType;
+            const editing = this.editingRoom();
+            const isDuplicate = this.rooms().some(r => {
+                if (editing && r.id === editing.id) return false;
+                return r.projectId === projectId &&
+                       (r.name ?? '').trim().toLowerCase() === name &&
+                       r.roomType === type;
+            });
+            if (isDuplicate) {
+                this.formError = 'A channel with this name and type already exists in the selected project.';
+                this.triggerShake();
+                return;
+            }
+            this.formError = '';
+            this.formTouched.set(false);
+            this.formStep.set(3);
+        }
+    }
+
+    prevStep(): void {
+        if (this.formStep() > 1) {
+            this.formStep.update(s => (s - 1) as 1 | 2 | 3);
+            this.formTouched.set(false);
+            this.formError = '';
+        }
     }
 
     saveRoom(): void {
         if (!this.canManageMembers) return;
-        if (!this.formProjectId.trim()) {
-            this.formError = 'Project ID is required.';
-            return;
-        }
-        if (!this.formName.trim()) {
-            this.formError = 'Name is required.';
-            return;
-        }
         const payload: ChatRoomPayload = {
             projectId: this.formProjectId.trim(),
             name: this.formName.trim(),
             description: this.formDescription.trim(),
-            roomType: this.formRoomType,
+            roomType: this.formRoomType as RoomType,
         };
         this.saving.set(true);
         this.formError = '';
@@ -4434,11 +5236,23 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
                 } else {
                     this.rooms.update(list => [...list, saved]);
                 }
+                this.snackBar.openFromComponent(SnackbarSuccessComponent, {
+                    duration: 4000,
+                    horizontalPosition: 'end',
+                    verticalPosition: 'top',
+                    panelClass: ['theme-green'],
+                    data: editing ? 'Chatroom updated successfully.' : 'Chatroom created successfully.',
+                });
                 this.saving.set(false);
                 this.showForm.set(false);
             },
             error: (err) => {
-                this.formError = this.formatError(err);
+                if (err?.status === 409) {
+                    this.formError = 'A channel with this name and type already exists in the selected project.';
+                    this.formStep.set(2);
+                } else {
+                    this.formError = this.formatError(err);
+                }
                 this.saving.set(false);
             },
         });
@@ -4473,6 +5287,7 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     selectRoom(room: ChatRoom): void {
         this.activeRoom.set(room);
+        this.unreadCounts.update(m => { const n = new Map(m); n.set(room.id, 0); return n; });
         this.deleteConfirmId.set(null);
         this.showAddMemberForm.set(false);
         this.membersError.set('');
@@ -4914,6 +5729,29 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
     cancelReply(): void {
         this.replyingTo.set(null);
+    }
+
+    // ── Edit ────────────────────────────────────────────────────────
+    startEdit(message: MessageDTO): void {
+        this.editingMessage.set(message);
+        this.editContent.set(message.contentText ?? '');
+    }
+    cancelEdit(): void {
+        this.editingMessage.set(null);
+        this.editContent.set('');
+    }
+    saveEdit(): void {
+        const msg = this.editingMessage();
+        const content = this.editContent();
+        const roomId = this.activeRoom()?.id;
+        if (!msg || !content || !roomId || content === msg.contentText) return;
+        this.chatMessageService.editMessage(roomId, msg.id, content).subscribe({
+            next: () => {
+                this.editingMessage.set(null);
+                this.editContent.set('');
+            },
+            error: (err) => this.notify(err?.error?.message ?? 'Failed to edit message.', true),
+        });
     }
 
     // ── Audio player ────────────────────────────────────────────────

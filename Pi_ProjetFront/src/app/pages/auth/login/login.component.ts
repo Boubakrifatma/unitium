@@ -80,7 +80,7 @@ import { AuthService } from "../../../auth/auth.service";
                     <div class="account-item" *ngFor="let a of testAccounts" (click)="fillAccount(a)">
                         <div class="account-dot" [ngClass]="'dot-' + getRoleColor(a.role)"></div>
                         <div class="account-info">
-                            <span class="account-email">{{ a.email }}</span>
+                            <span class="account-email">{{ a.fullname ? a.fullname + ' — ' + a.email : a.email }}</span>
                             <span class="account-role">{{ a.role }}</span>
                         </div>
                         <mat-icon class="account-arrow">chevron_right</mat-icon>
@@ -195,14 +195,19 @@ export class LoginComponent implements OnInit {
     errorMessage = '';
 
     testAccounts = [
-        { email: 'superadmin@cmp.com', password: 'superadmin123', role: 'SUPER_ADMIN' },
-        { email: 'admin@test.com',     password: 'admin123',      role: 'ADMIN'       },
-        { email: 'manager@test.com',   password: 'manager123',    role: 'MANAGER'        },
-        { email: 'po@test.com',        password: 'productowner123', role: 'PRODUCT_OWNER'  },
-        { email: 'tutor@test.com',     password: 'tutor123',      role: 'TUTOR'          },
-        { email: 'student@test.com',   password: 'student123',    role: 'STUDENT'        },
-        { email: 'viewer@test.com',    password: 'viewer123',     role: 'VIEWER'         },
-        { email: 'employee@test.com',  password: 'employee123',   role: 'EMPLOYEE'       },
+        { email: 'superadmin@cmp.com', password: 'superadmin123',   role: 'SUPER_ADMIN',   fullname: ''       },
+        { email: 'admin@test.com',     password: 'admin123',         role: 'ADMIN',         fullname: ''       },
+        { email: 'manager@test.com',   password: 'manager123',       role: 'MANAGER',       fullname: ''       },
+        { email: 'po@test.com',        password: 'productowner123',  role: 'PRODUCT_OWNER', fullname: ''       },
+        { email: 'tutor@test.com',     password: 'tutor123',         role: 'TUTOR',         fullname: ''       },
+        { email: 'student@test.com',   password: 'student123',       role: 'STUDENT',       fullname: ''       },
+        { email: 'student2@test.com',  password: 'student123',       role: 'STUDENT',       fullname: 'MOTAZ'  },
+        { email: 'student3@test.com',  password: 'student123',       role: 'STUDENT',       fullname: 'SONDOS' },
+        { email: 'viewer@test.com',    password: 'viewer123',        role: 'VIEWER',        fullname: ''       },
+        { email: 'employee@test.com',  password: 'employee123',      role: 'EMPLOYEE',      fullname: 'Fatma'  },
+        { email: 'employee2@test.com', password: 'employee123',      role: 'EMPLOYEE',      fullname: 'EYA'    },
+        { email: 'employee3@test.com', password: 'employee123',      role: 'EMPLOYEE',      fullname: 'YOSRA'  },
+        { email: 'employee4@test.com', password: 'employee123',      role: 'EMPLOYEE',      fullname: 'MINIAR' },
     ];
 
     constructor(private fb: FormBuilder, private router: Router, private authService: AuthService) {

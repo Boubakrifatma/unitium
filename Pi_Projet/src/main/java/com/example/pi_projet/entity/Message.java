@@ -36,9 +36,9 @@ public class Message {
     @Enumerated(EnumType.STRING)
     private ContentType contentType;
 
-    private String fileName;    // original filename e.g. "report.pdf"
-    private String fileUrl;     // download path  e.g. "/api/chat/files/uuid_report.pdf"
-    private String fileType;    // MIME type      e.g. "application/pdf"
+    private String fileName;
+    private String fileUrl;
+    private String fileType;
     private Long   fileSize;    // size in bytes
     private Double fileSizeKb;  // legacy field kept for compatibility
 
@@ -51,12 +51,14 @@ public class Message {
     @JoinColumn(name = "pinned_by")
     private User pinnedBy;
 
+    @Column(name = "is_edited")
     private boolean isEdited;
 
     @Column(name = "is_system_message")
     @Builder.Default
     private Boolean isSystemMessage = false;
 
+    @Column(name = "edited_at")
     private LocalDateTime editedAt;
     private LocalDateTime deletedAt;
     private LocalDateTime createdAt;

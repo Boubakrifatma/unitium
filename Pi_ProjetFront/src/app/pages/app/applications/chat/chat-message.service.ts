@@ -32,6 +32,7 @@ export interface MessageDTO {
   extractedUrl?: string;
   deleted?: boolean;
   isSystemMessage?: boolean;
+  isEdited?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -172,6 +173,14 @@ export class ChatMessageService {
   getSharedContent(roomId: number): Observable<MessageDTO[]> {
     return this.http.get<MessageDTO[]>(
       `${this.BASE_URL}/api/chat/rooms/${roomId}/shared`,
+    );
+  }
+
+  /** REST: edit a message's content. */
+  editMessage(roomId: number, messageId: number, content: string): Observable<any> {
+    return this.http.put<any>(
+      `${this.BASE_URL}/api/chat/rooms/${roomId}/messages/${messageId}`,
+      { content },
     );
   }
 

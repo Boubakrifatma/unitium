@@ -175,6 +175,26 @@ public class MessageService {
         messagingTemplate.convertAndSend("/topic/rooms/" + roomId, MessageDTO.deleted(messageId, roomId));
     }
 
+    // ── Edit message ───────────────────────────────────────────────────────────
+    @Transactional
+    public MessageDTO editMessage(Long roomId, Long messageId, String newContent, User currentUser) {
+        ChatRoom room = getAccessibleRoom(roomId, currentUser);
+        Message message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found."));
+        if (!message.getRoom().getId().equals(room.getId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Message does not belong to this room.");
+        }
+        if (!message.getSender().getId().equals(currentUser.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only edit your own messages.");
+        }
+        message.setContentText(newContent);
+        message.setEdited(true);
+        message.setEditedAt(java.time.LocalDateTime.now());
+        MessageDTO dto = buildDTO(messageRepository.save(message));
+        messagingTemplate.convertAndSend("/topic/rooms/" + roomId, dto);
+        return dto;
+    }
+
     // ── Shared Media & Files ────────────────────────────────────────────────────
     private static final Pattern URL_PATTERN =
             Pattern.compile("https?://[^\\s]+", Pattern.CASE_INSENSITIVE);

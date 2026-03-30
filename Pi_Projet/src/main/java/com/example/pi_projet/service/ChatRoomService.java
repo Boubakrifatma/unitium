@@ -2,6 +2,7 @@ package com.example.pi_projet.service;
 
 import com.example.pi_projet.dto.ChatRoomDTO;
 import com.example.pi_projet.dto.ChatRoomRequest;
+import org.springframework.dao.DataIntegrityViolationException;
 import com.example.pi_projet.entity.ChatRoom;
 import com.example.pi_projet.entity.Project;
 import com.example.pi_projet.entity.User;
@@ -58,14 +59,18 @@ public class ChatRoomService {
                 .roomType(body.roomType())
                 .createdBy(currentUser)
                 .build();
-        return ChatRoomDTO.from(chatRoomRepository.save(room));
+        try {
+            return ChatRoomDTO.from(chatRoomRepository.save(room));
+        } catch (DataIntegrityViolationException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "A chatroom with the same project, name, and type already exists");
+        }
     }
 
     public List<ChatRoomDTO> getRooms(User currentUser) {
         checkRole(currentUser);
         return chatRoomRepository.findByCreatedBy(currentUser)
                 .stream()
-                .map(ChatRoomDTO::from)
+                .map(ChatRoomDTO::from)   // convertit chaque ChatRoom en DTO
                 .toList();
     }
 
@@ -80,9 +85,18 @@ public class ChatRoomService {
         if (body.name() != null)        room.setName(body.name());
         if (body.description() != null) room.setDescription(body.description());
         if (body.roomType() != null)    room.setRoomType(body.roomType());
-        return ChatRoomDTO.from(chatRoomRepository.save(room));
+        try {
+            return ChatRoomDTO.from(chatRoomRepository.save(room));
+        } catch (DataIntegrityViolationException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "A chatroom with the same project, name, and type already exists");
+        }
     }
 
+
+
+    //delete avec l'ordre
+
+    //@Transactional = si une étape échoue, tout est annulé . L'ordre de suppression est important pour respecter les contraintes de clés étrangères
     @Transactional
     public void deleteRoom(Long id, User currentUser) {
         checkRole(currentUser);

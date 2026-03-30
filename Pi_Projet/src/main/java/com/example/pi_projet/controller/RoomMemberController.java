@@ -19,6 +19,8 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/chat/rooms/{roomId}/members")
 @RequiredArgsConstructor
+
+//Documentation Swagger
 @Tag(name = "Room Members", description = "Room member management — MANAGER (EMPLOYEE) and TUTOR (STUDENT) only")
 public class RoomMemberController {
 
@@ -27,9 +29,9 @@ public class RoomMemberController {
     @Operation(summary = "Add a member to a chat room")
     @PostMapping
     public ResponseEntity<RoomMemberDTO> addMember(
-            @PathVariable Long roomId,
-            @RequestBody Map<String, Long> body,
-            HttpServletRequest request) {
+            @PathVariable Long roomId, //Récupère le roomId depuis l'URL
+            @RequestBody Map<String, Long> body, //Récupère le body JSON envoyé par le client
+           HttpServletRequest request) {//pour récupérer l'utilisateur connecté via request.getAttribute
         User currentUser = (User) request.getAttribute("currentUser");
         return ResponseEntity.status(201).body(
                 roomMemberService.addMember(roomId, body.get("userId"), currentUser));

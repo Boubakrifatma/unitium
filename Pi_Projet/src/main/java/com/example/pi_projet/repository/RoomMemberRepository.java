@@ -22,6 +22,8 @@ public interface RoomMemberRepository extends JpaRepository<RoomMember, Long> {
     @Transactional
     void deleteByRoomAndUser(ChatRoom room, User user);
 
+
+    // // Met lastReadMessage à NULL pour tous les membres d'une room
     @Modifying
     @Transactional
     @Query("UPDATE RoomMember rm SET rm.lastReadMessage = null WHERE rm.room.id = :roomId")
@@ -32,6 +34,8 @@ public interface RoomMemberRepository extends JpaRepository<RoomMember, Long> {
     @Query("UPDATE RoomMember rm SET rm.lastReadMessage = null WHERE rm.lastReadMessage.id = :messageId")
     void clearLastReadMessageByMessageId(@Param("messageId") Long messageId);
 
+
+    // // Supprime tous les membres d'une room par son id
     @Modifying
     @Transactional
     @Query("DELETE FROM RoomMember rm WHERE rm.room.id = :roomId")

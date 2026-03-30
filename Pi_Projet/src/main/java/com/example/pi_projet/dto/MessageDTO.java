@@ -30,7 +30,10 @@ public record MessageDTO(
         // ── deletion event marker ────────────────────────────────────────────────
         boolean deleted,
         // ── system message flag ──────────────────────────────────────────────────
-        boolean isSystemMessage
+        boolean isSystemMessage,
+        // ── edit tracking ────────────────────────────────────────────────────────
+        boolean isEdited,
+        LocalDateTime editedAt
 ) {
     /** Backward-compatible: no reactions, no attachment, no shared-content fields. */
     public static MessageDTO from(Message m) {
@@ -59,7 +62,9 @@ public record MessageDTO(
                 null,  // category — set only by getSharedContent
                 null,  // extractedUrl — set only by getSharedContent
                 false, // deleted
-                Boolean.TRUE.equals(m.getIsSystemMessage())
+                Boolean.TRUE.equals(m.getIsSystemMessage()),
+                m.isEdited(),
+                m.getEditedAt()
         );
     }
 
@@ -86,7 +91,9 @@ public record MessageDTO(
                 category,
                 extractedUrl,
                 false, // deleted
-                Boolean.TRUE.equals(m.getIsSystemMessage())
+                Boolean.TRUE.equals(m.getIsSystemMessage()),
+                m.isEdited(),
+                m.getEditedAt()
         );
     }
 
@@ -99,7 +106,9 @@ public record MessageDTO(
                 false, null, null, null,
                 null, null,
                 true,  // deleted
-                false  // isSystemMessage
+                false, // isSystemMessage
+                false, // isEdited
+                null   // editedAt
         );
     }
 }

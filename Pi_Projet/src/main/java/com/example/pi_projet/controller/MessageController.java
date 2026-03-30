@@ -168,6 +168,21 @@ public class MessageController {
         return ResponseEntity.ok(messageService.getPinnedMessages(roomId, currentUser));
     }
 
+    // ── REST: edit a message ──────────────────────────────────────────────────
+
+    @Authorized
+    @Operation(summary = "Edit a message (only the sender can edit their own message)")
+    @PutMapping("/api/chat/rooms/{roomId}/messages/{messageId}")
+    @ResponseBody
+    public ResponseEntity<MessageDTO> editMessage(
+            @PathVariable Long roomId,
+            @PathVariable Long messageId,
+            @RequestBody Map<String, String> body,
+            HttpServletRequest request) {
+        User currentUser = (User) request.getAttribute("currentUser");
+        return ResponseEntity.ok(messageService.editMessage(roomId, messageId, body.get("content"), currentUser));
+    }
+
     // ── REST: delete a message ────────────────────────────────────────────────
 
     @Authorized

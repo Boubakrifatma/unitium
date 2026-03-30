@@ -36,6 +36,8 @@ public class RoomMemberService {
         }
     }
 
+
+    // gérer les membres de tes propres chatrooms
     private ChatRoom getOwnedRoom(Long roomId, User user) {
         ChatRoom room = chatRoomRepository.findById(roomId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Chat room not found."));
@@ -49,6 +51,9 @@ public class RoomMemberService {
         return callerRole == User.RoleName.MANAGER ? User.RoleName.EMPLOYEE : User.RoleName.STUDENT;
     }
 
+
+    //diffuse en temps réel un message système :
+    // Puis l'envoie via WebSocket dans chatrooms : ex: "Bob has been removed from the room"
     private void broadcastSystemMessage(ChatRoom room, User actor, String text) {
         Message msg = Message.builder()
                 .room(room)
