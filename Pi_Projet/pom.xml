@@ -53,6 +53,12 @@
             <artifactId>spring-security-crypto</artifactId>
         </dependency>
 
+        <!-- OAuth2 (Google login) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-client</artifactId>
+        </dependency>
+
         <!-- 2FA / TOTP (Google Authenticator) -->
         <dependency>
             <groupId>dev.samstevens.totp</groupId>

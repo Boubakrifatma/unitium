@@ -39,6 +39,7 @@ public class WebConfig implements WebMvcConfigurer {
                     "/api/auth/login",            // login public
                     "/api/auth/face-login",        // face login public
                     "/api/auth/change-password",   // changement mot de passe 1er login
+                    "/api/auth/2fa/verify",        // vérification code 2FA (avant JWT)
                     "/api/billing/payment",        // soumission paiement public
                     "/api/billing/payment/*",      // statut paiement public
                     "/api/billing/plans",          // liste plans publique

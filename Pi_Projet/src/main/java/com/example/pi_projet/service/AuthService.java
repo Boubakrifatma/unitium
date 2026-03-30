@@ -226,6 +226,16 @@ public class AuthService {
     }
 
     // ──────────────────────────────────────────────────────────────
+    // OAuth2 Google login
+    // ──────────────────────────────────────────────────────────────
+    public String loginWithOAuth2(User user, HttpServletRequest request) {
+        user.setLastLoginAt(LocalDateTime.now());
+        userRepository.save(user);
+        AnomalyDetectionService.AnomalyResult anomaly = anomalyService.evaluate(user, request);
+        return createSessionForUser(user, request, anomaly);
+    }
+
+    // ──────────────────────────────────────────────────────────────
     // Internal helpers
     // ──────────────────────────────────────────────────────────────
     private String createSessionForUser(User user, HttpServletRequest request,

@@ -48,6 +48,10 @@ export const routes: Routes = [
                 path: "signup-success",
                 loadComponent: () => import("./pages/auth/signup-success/signup-success.component").then((c) => c.SignupSuccessComponent),
             },
+            {
+                path: "oauth2-callback",
+                loadComponent: () => import("./pages/auth/oauth2-callback/oauth2-callback.component").then((c) => c.OAuth2CallbackComponent),
+            },
         ],
     },
     {
