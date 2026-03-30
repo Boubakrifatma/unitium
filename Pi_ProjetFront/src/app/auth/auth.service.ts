@@ -27,8 +27,30 @@ export class AuthService {
     }
   }
 
-  login(credentials: LoginRequest): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>(`${this.API}/login`, credentials).pipe(
+  login(credentials: LoginRequest): Observable<any> {
+    return this.http.post<any>(`${this.API}/login`, credentials).pipe(
+      tap(res => {
+        // Si 2FA requis → ne pas stocker le token, juste retourner la réponse brute
+        if (res.mfaRequired) return;
+        this.setToken(res.token);
+        this.setUserId(res.id);
+        const user: User = {
+          id: res.id,
+          email: res.email,
+          fullName: res.fullName,
+          role: res.role as User['role'],
+          mustChangePassword: res.mustChangePassword,
+          avatarUrl: (res as any).avatarUrl ?? null
+        };
+        this.currentUser.set(user);
+        if (this.isBrowser) localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+      })
+    );
+  }
+
+  // ── 2FA : vérifier le code TOTP après login ───────────────────────────────
+  verify2FA(userId: number, code: string): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.API}/2fa/verify`, { userId, code }).pipe(
       tap(res => {
         this.setToken(res.token);
         this.setUserId(res.id);
@@ -44,6 +66,21 @@ export class AuthService {
         if (this.isBrowser) localStorage.setItem(this.USER_KEY, JSON.stringify(user));
       })
     );
+  }
+
+  // ── 2FA : démarrer le setup (obtenir le secret + QR URI) ─────────────────
+  setup2FA(): Observable<{ secret: string; otpAuthUri: string }> {
+    return this.http.post<{ secret: string; otpAuthUri: string }>(`${this.API}/2fa/setup`, {});
+  }
+
+  // ── 2FA : activer après scan du QR + vérification du 1er code ───────────
+  enable2FA(secret: string, code: string): Observable<any> {
+    return this.http.post(`${this.API}/2fa/enable`, { secret, code });
+  }
+
+  // ── 2FA : désactiver (nécessite le code TOTP actuel) ─────────────────────
+  disable2FA(code: string): Observable<any> {
+    return this.http.post(`${this.API}/2fa/disable`, { code });
   }
 
   /**

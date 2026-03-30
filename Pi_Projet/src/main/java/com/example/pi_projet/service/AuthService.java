@@ -32,8 +32,22 @@ public class AuthService {
     private static final float FACE_THRESHOLD      = 0.50f;  // strict — login
     private static final float DUPLICATE_THRESHOLD = 0.60f;  // permissive — duplicate detection
 
-    /** Result returned by login() */
-    public record LoginResult(String token, AnomalyDetectionService.AnomalyResult anomaly) {}
+    /**
+     * Result returned by login().
+     * Si mfaRequired=true  → token est null, userId est rempli (attente code 2FA).
+     * Si mfaRequired=false → token est le JWT, connexion complète.
+     */
+    public record LoginResult(
+            String token,
+            AnomalyDetectionService.AnomalyResult anomaly,
+            boolean mfaRequired,
+            Long userId
+    ) {
+        // Constructeur pour connexion normale (sans 2FA)
+        public LoginResult(String token, AnomalyDetectionService.AnomalyResult anomaly) {
+            this(token, anomaly, false, null);
+        }
+    }
 
     // ──────────────────────────────────────────────────────────────
     // Password login
@@ -53,9 +67,31 @@ public class AuthService {
                 : (user.getUsualLoginHour() + hour) / 2);
         userRepository.save(user);
 
+        // ── Si 2FA activé → ne pas créer la session, demander le code ────────
+        if (Boolean.TRUE.equals(user.getMfaEnabled())) {
+            return Optional.of(new LoginResult(null, null, true, user.getId()));
+        }
+
         AnomalyDetectionService.AnomalyResult anomaly = anomalyService.evaluate(user, request);
 
         // Lock account if ACCOUNT_LOCKED action
+        if (anomaly.action() == Session.ActionTaken.ACCOUNT_LOCKED) {
+            user.setIsActive(false);
+            userRepository.save(user);
+        }
+
+        String token = createSessionForUser(user, request, anomaly);
+        return Optional.of(new LoginResult(token, anomaly));
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Connexion après validation du code 2FA
+    // ──────────────────────────────────────────────────────────────
+    public Optional<LoginResult> loginAfter2FA(Long userId, HttpServletRequest request) {
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null || !Boolean.TRUE.equals(user.getIsActive())) return Optional.empty();
+
+        AnomalyDetectionService.AnomalyResult anomaly = anomalyService.evaluate(user, request);
         if (anomaly.action() == Session.ActionTaken.ACCOUNT_LOCKED) {
             user.setIsActive(false);
             userRepository.save(user);

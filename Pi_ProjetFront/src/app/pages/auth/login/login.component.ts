@@ -1,5 +1,6 @@
-import { Component, OnInit } from "@angular/core";
+import { Component, OnInit, ChangeDetectorRef } from "@angular/core";
 import { CommonModule } from "@angular/common";
+import { FormsModule } from "@angular/forms";
 import { MatCardModule } from "@angular/material/card";
 import { MatInputModule } from "@angular/material/input";
 import { MatButtonModule } from "@angular/material/button";
@@ -17,7 +18,7 @@ import { FaceCameraComponent } from "../../../components/face-camera/face-camera
     selector: "app-login",
     standalone: true,
     imports: [
-        CommonModule, MatCardModule, MatInputModule, MatCheckboxModule,
+        CommonModule, FormsModule, MatCardModule, MatInputModule, MatCheckboxModule,
         MatButtonModule, MatIconModule, MatFormFieldModule, MatDividerModule,
         ReactiveFormsModule, RouterModule, FaceCameraComponent
     ],
@@ -45,6 +46,9 @@ import { FaceCameraComponent } from "../../../components/face-camera/face-camera
                     <mat-icon>error_outline</mat-icon>
                     {{ errorMessage }}
                 </div>
+
+                <!-- ── Étape 1 : Email + Mot de passe ── -->
+                <ng-container *ngIf="step === 'credentials'">
 
                 <!-- Tab toggle: Password / Face ID -->
                 <div class="login-tabs">
@@ -96,6 +100,40 @@ import { FaceCameraComponent } from "../../../components/face-camera/face-camera
                     <p class="face-error" *ngIf="faceError">{{ faceError }}</p>
                 </div>
 
+                </ng-container>
+
+                <!-- ── Étape 2 : Code 2FA ── -->
+                <ng-container *ngIf="step === 'mfa'">
+                    <div style="text-align:center;font-size:2.5rem;margin-bottom:12px">🔐</div>
+                    <h3 style="text-align:center;font-weight:700;margin-bottom:6px">Two-Factor Authentication</h3>
+                    <p style="text-align:center;font-size:13px;color:#6b7280;margin-bottom:20px">
+                        Open <strong>Google Authenticator</strong> and enter the 6-digit code for <strong>PiProjet</strong>
+                    </p>
+
+                    <mat-form-field appearance="outline" class="w-100 mb-1">
+                        <mat-label>6-digit code</mat-label>
+                        <input matInput [(ngModel)]="mfaCode" maxlength="6"
+                               placeholder="000000" inputmode="numeric" autocomplete="one-time-code"
+                               style="font-size:1.4rem;font-weight:700;letter-spacing:0.3em;text-align:center" />
+                    </mat-form-field>
+                    <p style="font-size:12px;color:#9ca3af;text-align:center;margin-top:-8px;margin-bottom:20px">
+                        The code refreshes every 30 seconds.
+                    </p>
+
+                    <button matButton="filled" color="primary" class="w-100 signin-btn"
+                            (click)="onVerify2FA()"
+                            [disabled]="mfaCode.length !== 6 || loading">
+                        <mat-icon *ngIf="!loading">verified_user</mat-icon>
+                        <span>{{ loading ? 'Verifying...' : 'Verify' }}</span>
+                    </button>
+
+                    <button matButton class="w-100 mt-2" style="color:#6366f1"
+                            type="button" (click)="backToCredentials()">
+                        <mat-icon>arrow_back</mat-icon> Back
+                    </button>
+                </ng-container>
+
+                <ng-container *ngIf="step === 'credentials'">
                 <mat-divider class="my-3"></mat-divider>
 
                 <!-- Quick access -->
@@ -117,6 +155,7 @@ import { FaceCameraComponent } from "../../../components/face-camera/face-camera
                         Back to Home
                     </button>
                 </div>
+                </ng-container>
             </div>
         </div>
     `,
@@ -244,22 +283,29 @@ export class LoginComponent implements OnInit {
     showFaceLogin = false;
     faceError = '';
 
+    // ── 2FA ──────────────────────────────────────────────────────────────────
+    step: 'credentials' | 'mfa' = 'credentials';
+    mfaCode = '';
+    pendingUserId: number | null = null;
+
     testAccounts = [
-        { email: 'superadmin@cmp.com', password: 'superadmin123', role: 'SUPER_ADMIN' },
-        { email: 'evenixgroup@gmail.com', password: 'Esprit1234', role: 'ADMIN'       },
-        { email: 'manager@test.com',   password: 'manager123',    role: 'MANAGER'        },
-        { email: 'po@test.com',        password: 'productowner123', role: 'PRODUCT_OWNER'  },
-        { email: 'tutor@test.com',     password: 'tutor123',      role: 'TUTOR'          },
-        { email: 'student@test.com',   password: 'student123',    role: 'STUDENT'        },
-        { email: 'viewer@test.com',    password: 'viewer123',     role: 'VIEWER'         },
-        { email: 'employee@test.com',  password: 'employee123',   role: 'EMPLOYEE'       },
+        { email: 'superadmin@cmp.com',         password: 'superadmin123',   role: 'SUPER_ADMIN'   },
+        { email: 'evenixgroup@gmail.com',       password: 'Esprit1234',      role: 'ADMIN'         },
+        { email: 'yosra.ben.alii17@gmail.com',  password: 'Yosra123.',       role: 'ADMIN'         },
+        { email: 'manager@test.com',            password: 'manager123',      role: 'MANAGER'       },
+        { email: 'po@test.com',                 password: 'productowner123', role: 'PRODUCT_OWNER' },
+        { email: 'tutor@test.com',              password: 'tutor123',        role: 'TUTOR'         },
+        { email: 'student@test.com',            password: 'student123',      role: 'STUDENT'       },
+        { email: 'viewer@test.com',             password: 'viewer123',       role: 'VIEWER'        },
+        { email: 'employee@test.com',           password: 'employee123',     role: 'EMPLOYEE'      },
     ];
 
     constructor(
         private fb: FormBuilder,
         private router: Router,
         private authService: AuthService,
-        private faceService: FaceService
+        private faceService: FaceService,
+        private cdr: ChangeDetectorRef
     ) {
         this.loginForm = this.fb.group({
             email:    ['', [Validators.required, Validators.email]],
@@ -297,6 +343,14 @@ export class LoginComponent implements OnInit {
             next: (res) => {
                 this.loading = false;
 
+                // 2FA requis → afficher l'étape du code
+                if (res.mfaRequired) {
+                    this.pendingUserId = res.userId;
+                    this.step = 'mfa';
+                    this.cdr.detectChanges();
+                    return;
+                }
+
                 // Anomaly warning
                 if (res.actionTaken === 'MFA_FORCED') {
                     this.anomalyWarning = 'Unusual login detected. Please verify your identity.';
@@ -322,6 +376,43 @@ export class LoginComponent implements OnInit {
                 this.loading = false;
             }
         });
+    }
+
+    onVerify2FA(): void {
+        if (!this.pendingUserId || this.mfaCode.length !== 6) return;
+        this.loading = true;
+        this.errorMessage = '';
+
+        this.authService.verify2FA(this.pendingUserId, this.mfaCode).subscribe({
+            next: (res) => {
+                this.loading = false;
+                this.cdr.detectChanges();
+                if (res.mustChangePassword) {
+                    this.router.navigate(['/auth/first-login'], {
+                        state: { userId: res.id }
+                    });
+                    return;
+                }
+                const redirectMap: Record<string, string> = {
+                    SUPER_ADMIN: '/app/super-admin',
+                    PRODUCT_OWNER: '/app/po',
+                };
+                this.router.navigate([redirectMap[res.role] ?? '/app/dashboard']);
+            },
+            error: (err) => {
+                this.loading = false;
+                this.errorMessage = err.error?.message ?? 'Invalid code. Please try again.';
+                this.mfaCode = '';
+                this.cdr.detectChanges();
+            }
+        });
+    }
+
+    backToCredentials(): void {
+        this.step = 'credentials';
+        this.pendingUserId = null;
+        this.mfaCode = '';
+        this.errorMessage = '';
     }
 
     onFaceLogin(descriptor: number[]): void {

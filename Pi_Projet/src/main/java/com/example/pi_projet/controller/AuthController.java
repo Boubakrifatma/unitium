@@ -9,6 +9,7 @@ import com.example.pi_projet.repository.SessionRepository;
 import com.example.pi_projet.repository.UserRepository;
 import com.example.pi_projet.service.AnomalyDetectionService;
 import com.example.pi_projet.service.AuthService;
+import com.example.pi_projet.service.TwoFactorService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -29,6 +30,7 @@ import java.util.Optional;
 public class AuthController {
 
     private final AuthService               authService;
+    private final TwoFactorService          twoFactorService;
     private final AnomalyDetectionService   anomalyService;
     private final UserRepository            userRepository;
     private final SessionRepository         sessionRepository;
@@ -45,6 +47,15 @@ public class AuthController {
         }
 
         AuthService.LoginResult lr = result.get();
+
+        // ── 2FA activé → demander le code avant d'émettre le JWT ─────────────
+        if (lr.mfaRequired()) {
+            return ResponseEntity.ok(Map.of(
+                    "mfaRequired", true,
+                    "userId", lr.userId()
+            ));
+        }
+
         User user = authService.getUserFromToken(lr.token()).orElseThrow();
 
         if (lr.anomaly().action() == Session.ActionTaken.ACCOUNT_LOCKED) {
@@ -204,6 +215,80 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         return ResponseEntity.ok(authService.findFaceDuplicates());
+    }
+
+    // ── POST /api/auth/2fa/setup ──────────────────────────────────────────
+    @Authorized
+    @Operation(summary = "Generate a new 2FA secret and return the QR code URI")
+    @PostMapping("/2fa/setup")
+    public ResponseEntity<?> setup2FA(HttpServletRequest request) {
+        User user = (User) request.getAttribute("currentUser");
+        String secret = twoFactorService.generateSecret();
+        String otpUri = twoFactorService.getOtpAuthUri(secret, user.getEmail());
+        // Retourne la clé secrète + l'URI pour afficher le QR code côté frontend
+        // Ne pas encore sauvegarder en base — attendre la confirmation avec enable2FA
+        return ResponseEntity.ok(Map.of(
+                "secret", secret,
+                "otpAuthUri", otpUri
+        ));
+    }
+
+    // ── POST /api/auth/2fa/enable ─────────────────────────────────────────
+    @Authorized
+    @Operation(summary = "Enable 2FA after user scanned QR and verified first code")
+    @PostMapping("/2fa/enable")
+    public ResponseEntity<?> enable2FA(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        User user = (User) request.getAttribute("currentUser");
+        String secret = body.get("secret").toString();
+        String code   = body.get("code").toString();
+        twoFactorService.enable2FA(user.getId(), secret, code);
+        return ResponseEntity.ok(Map.of("message", "2FA enabled successfully."));
+    }
+
+    // ── POST /api/auth/2fa/disable ────────────────────────────────────────
+    @Authorized
+    @Operation(summary = "Disable 2FA — requires current TOTP code to confirm")
+    @PostMapping("/2fa/disable")
+    public ResponseEntity<?> disable2FA(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        User user = (User) request.getAttribute("currentUser");
+        String code = body.get("code").toString();
+        twoFactorService.disable2FA(user.getId(), code);
+        return ResponseEntity.ok(Map.of("message", "2FA disabled successfully."));
+    }
+
+    // ── POST /api/auth/2fa/verify ─────────────────────────────────────────
+    @Operation(summary = "Verify TOTP code after password login — returns JWT if correct")
+    @PostMapping("/2fa/verify")
+    public ResponseEntity<?> verify2FA(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        Long userId = Long.valueOf(body.get("userId").toString());
+        String code = body.get("code").toString();
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!twoFactorService.verifyCode(user.getMfaSecret(), code)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "Invalid 2FA code. Please try again."));
+        }
+
+        // Code correct → créer la session et retourner le JWT
+        Optional<AuthService.LoginResult> result = authService.loginAfter2FA(userId, request);
+        if (result.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "Account is not active."));
+        }
+
+        AuthService.LoginResult lr = result.get();
+        return ResponseEntity.ok(new AuthResponse(
+                lr.token(),
+                user.getId(),
+                user.getEmail(),
+                user.getFullName(),
+                user.getRole().name(),
+                Boolean.TRUE.equals(user.getMustChangePassword()),
+                lr.anomaly().score(),
+                lr.anomaly().action().name()
+        ));
     }
 
     // ── GET /api/auth/anomalies ───────────────────────────────────────────

@@ -53,6 +53,13 @@
             <artifactId>spring-security-crypto</artifactId>
         </dependency>
 
+        <!-- 2FA / TOTP (Google Authenticator) -->
+        <dependency>
+            <groupId>dev.samstevens.totp</groupId>
+            <artifactId>totp</artifactId>
+            <version>1.7.1</version>
+        </dependency>
+
         <!-- JWT -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>

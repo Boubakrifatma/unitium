@@ -12,7 +12,8 @@ public record UserDTO(
         Boolean isActive,
         String avatarUrl,
         LocalDateTime createdAt,
-        LocalDateTime faceRegisteredAt
+        LocalDateTime faceRegisteredAt,
+        Boolean mfaEnabled
 ) {
     public static UserDTO from(User user) {
         return new UserDTO(
@@ -23,7 +24,8 @@ public record UserDTO(
                 user.getIsActive(),
                 user.getAvatarUrl(),
                 user.getCreatedAt(),
-                user.getFaceRegisteredAt()
+                user.getFaceRegisteredAt(),
+                user.getMfaEnabled()
         );
     }
 }

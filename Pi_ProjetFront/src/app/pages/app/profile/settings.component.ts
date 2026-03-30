@@ -1,5 +1,6 @@
 import { Component, OnInit, computed, inject, ChangeDetectorRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ReactiveFormsModule, FormBuilder, FormGroup, FormGroupDirective, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -25,7 +26,7 @@ function passwordMatchValidator(control: AbstractControl): ValidationErrors | nu
   selector: 'app-settings',
   standalone: true,
   imports: [
-    CommonModule, ReactiveFormsModule,
+    CommonModule, ReactiveFormsModule, FormsModule,
     MatCardModule, MatIconModule, MatButtonModule,
     MatFormFieldModule, MatInputModule, MatDividerModule,
     MatProgressSpinnerModule, FaceCameraComponent
@@ -215,6 +216,111 @@ function passwordMatchValidator(control: AbstractControl): ValidationErrors | nu
             </div>
           </mat-card>
 
+          <!-- ─── Two-Factor Authentication (2FA) ──────────────── -->
+          <mat-card class="p-4 mb-4">
+            <h4 class="section-title">
+              <mat-icon class="material-icons-outlined">security</mat-icon>
+              Two-Factor Authentication (2FA)
+            </h4>
+            <mat-divider class="mb-3"></mat-divider>
+
+            <!-- 2FA désactivé — afficher le bouton d'activation -->
+            <div *ngIf="!mfaEnabled && !showMfaSetup">
+              <div class="face-not-registered">
+                <mat-icon class="text-secondary">lock_open</mat-icon>
+                <div>
+                  <strong>2FA is not enabled</strong>
+                  <p class="text-secondary small mb-0">
+                    Protect your account with Google Authenticator
+                  </p>
+                </div>
+              </div>
+              <div class="face-btns mt-3">
+                <button matButton color="primary" (click)="startMfaSetup()">
+                  <mat-icon class="material-icons-outlined">add_circle</mat-icon>
+                  Enable 2FA
+                </button>
+              </div>
+            </div>
+
+            <!-- 2FA activé — afficher le statut + bouton de désactivation -->
+            <div *ngIf="mfaEnabled && !showMfaDisable">
+              <div class="face-registered">
+                <mat-icon class="text-success">verified_user</mat-icon>
+                <div>
+                  <strong>2FA is enabled</strong>
+                  <p class="text-secondary small mb-0">
+                    Your account is protected with Google Authenticator
+                  </p>
+                </div>
+              </div>
+              <div class="face-btns mt-3">
+                <button matButton color="warn" (click)="showMfaDisable = true">
+                  <mat-icon>block</mat-icon>
+                  Disable 2FA
+                </button>
+              </div>
+            </div>
+
+            <!-- Setup : afficher le QR code à scanner -->
+            <div *ngIf="showMfaSetup && !mfaEnabled">
+              <p class="text-secondary small mb-3">
+                <strong>Step 1</strong> — Scan this QR code with <strong>Google Authenticator</strong>
+              </p>
+
+              <!-- QR Code généré via l'API qrserver.com (gratuit, pas de librairie npm) -->
+              <div class="text-center mb-3" *ngIf="mfaQrUrl">
+                <img [src]="'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeUri(mfaQrUrl)"
+                     alt="QR Code 2FA" style="border-radius:8px; border:1px solid #e5e7eb" />
+                <p class="text-secondary small mt-2">
+                  Or enter manually: <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px">{{ mfaSecret }}</code>
+                </p>
+              </div>
+
+              <p class="text-secondary small mb-2">
+                <strong>Step 2</strong> — Enter the 6-digit code shown in the app to confirm
+              </p>
+              <mat-form-field appearance="outline" class="w-100 mb-2">
+                <mat-label>6-digit code</mat-label>
+                <input matInput [(ngModel)]="mfaVerifyCode" maxlength="6"
+                       placeholder="000000" inputmode="numeric" />
+              </mat-form-field>
+
+              <button matButton="filled" color="primary"
+                      (click)="confirmEnableMfa()"
+                      [disabled]="mfaVerifyCode.length !== 6 || mfaSaving">
+                <mat-spinner diameter="16" *ngIf="mfaSaving"></mat-spinner>
+                <mat-icon *ngIf="!mfaSaving">check_circle</mat-icon>
+                {{ mfaSaving ? 'Activating…' : 'Activate 2FA' }}
+              </button>
+              <button matButton (click)="cancelMfaSetup()" class="ms-2">Cancel</button>
+            </div>
+
+            <!-- Désactivation : demander le code pour confirmer -->
+            <div *ngIf="showMfaDisable && mfaEnabled">
+              <p class="text-secondary small mb-2">
+                Enter your current 6-digit code from Google Authenticator to disable 2FA.
+              </p>
+              <mat-form-field appearance="outline" class="w-100 mb-2">
+                <mat-label>6-digit code</mat-label>
+                <input matInput [(ngModel)]="mfaVerifyCode" maxlength="6"
+                       placeholder="000000" inputmode="numeric" />
+              </mat-form-field>
+
+              <button matButton="filled" color="warn"
+                      (click)="confirmDisableMfa()"
+                      [disabled]="mfaVerifyCode.length !== 6 || mfaSaving">
+                <mat-spinner diameter="16" *ngIf="mfaSaving"></mat-spinner>
+                <mat-icon *ngIf="!mfaSaving">block</mat-icon>
+                {{ mfaSaving ? 'Disabling…' : 'Confirm Disable' }}
+              </button>
+              <button matButton (click)="showMfaDisable = false; mfaVerifyCode = ''" class="ms-2">Cancel</button>
+            </div>
+
+            <p class="feedback success mt-2" *ngIf="mfaMsg">{{ mfaMsg }}</p>
+            <p class="feedback error mt-2" *ngIf="mfaError">{{ mfaError }}</p>
+          </mat-card>
+
           <!-- ─── Active Sessions ────────────────────────────────── -->
           <mat-card class="p-4 mb-4">
             <h4 class="section-title">
@@ -337,6 +443,17 @@ export class SettingsComponent implements OnInit {
   // Sessions
   sessions: any[] = [];
 
+  // ── Two-Factor Authentication (2FA) ──────────────────────────────────────
+  mfaEnabled     = false;       // si 2FA est déjà activé pour ce user
+  showMfaSetup   = false;       // afficher l'étape de configuration
+  showMfaDisable = false;       // afficher le formulaire de désactivation
+  mfaSecret      = '';          // secret temporaire généré par le backend
+  mfaQrUrl       = '';          // URI otpauth:// pour le QR code
+  mfaVerifyCode  = '';          // code 6 chiffres saisi par l'user
+  mfaSaving      = false;
+  mfaMsg         = '';
+  mfaError       = '';
+
   // Face ID
   showFaceRegistration = false;
   faceRegistered = false;
@@ -371,12 +488,13 @@ export class SettingsComponent implements OnInit {
     if (u) {
       this.infoForm.patchValue({ fullName: u.fullName, email: u.email });
     }
-    // Load full user data for face info
+    // Load full user data for face info + mfa status
     const userId = this.authService.getUserId();
     if (userId) {
       this.userService.getById(userId).subscribe(dto => {
         this.faceRegistered    = !!dto.faceRegisteredAt;
         this.faceRegisteredAt  = dto.faceRegisteredAt ?? null;
+        this.mfaEnabled        = !!(dto as any).mfaEnabled;
       });
     }
     // Load active sessions
@@ -498,6 +616,77 @@ export class SettingsComponent implements OnInit {
     this.http.delete(`http://localhost:8084/api/auth/sessions/${s.id}`).subscribe({
       next: () => { this.sessions = this.sessions.filter(x => x.id !== s.id); this.cdr.detectChanges(); },
       error: () => {}
+    });
+  }
+
+  // ── Two-Factor Authentication ─────────────────────────────────────────────
+
+  encodeUri(uri: string): string {
+    return encodeURIComponent(uri);
+  }
+
+  startMfaSetup(): void {
+    this.mfaMsg = ''; this.mfaError = '';
+    this.authService.setup2FA().subscribe({
+      next: (res) => {
+        this.mfaSecret    = res.secret;
+        this.mfaQrUrl     = res.otpAuthUri;
+        this.showMfaSetup = true;
+        this.cdr.detectChanges();
+      },
+      error: () => { this.mfaError = 'Failed to start 2FA setup.'; }
+    });
+  }
+
+  confirmEnableMfa(): void {
+    this.mfaSaving = true; this.mfaError = '';
+    this.authService.enable2FA(this.mfaSecret, this.mfaVerifyCode).subscribe({
+      next: () => {
+        this.mfaSaving     = false;
+        this.mfaEnabled    = true;
+        this.showMfaSetup  = false;
+        this.mfaVerifyCode = '';
+        this.mfaSecret     = '';
+        this.mfaQrUrl      = '';
+        this.mfaMsg = '2FA enabled! Your account is now protected.';
+        this.cdr.detectChanges();
+        setTimeout(() => { this.mfaMsg = ''; this.cdr.detectChanges(); }, 4000);
+      },
+      error: (err) => {
+        this.mfaSaving     = false;
+        this.mfaError      = err.error?.message ?? 'Invalid code. Try again.';
+        this.mfaVerifyCode = '';
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  cancelMfaSetup(): void {
+    this.showMfaSetup  = false;
+    this.mfaSecret     = '';
+    this.mfaQrUrl      = '';
+    this.mfaVerifyCode = '';
+    this.mfaError      = '';
+  }
+
+  confirmDisableMfa(): void {
+    this.mfaSaving = true; this.mfaError = '';
+    this.authService.disable2FA(this.mfaVerifyCode).subscribe({
+      next: () => {
+        this.mfaSaving      = false;
+        this.mfaEnabled     = false;
+        this.showMfaDisable = false;
+        this.mfaVerifyCode  = '';
+        this.mfaMsg = '2FA has been disabled.';
+        this.cdr.detectChanges();
+        setTimeout(() => { this.mfaMsg = ''; this.cdr.detectChanges(); }, 3000);
+      },
+      error: (err) => {
+        this.mfaSaving     = false;
+        this.mfaError      = err.error?.message ?? 'Invalid code.';
+        this.mfaVerifyCode = '';
+        this.cdr.detectChanges();
+      }
     });
   }
 
