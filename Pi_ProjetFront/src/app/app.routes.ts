@@ -52,6 +52,10 @@ export const routes: Routes = [
                 path: "oauth2-callback",
                 loadComponent: () => import("./pages/auth/oauth2-callback/oauth2-callback.component").then((c) => c.OAuth2CallbackComponent),
             },
+            {
+                path: "magic-callback",
+                loadComponent: () => import("./pages/auth/magic-callback/magic-callback.component").then((c) => c.MagicCallbackComponent),
+            },
         ],
     },
     {

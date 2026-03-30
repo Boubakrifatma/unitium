@@ -471,4 +471,46 @@ public class EmailService {
         return "<tr><td style='padding:6px 0;color:#64748b;font-size:13px;width:150px'>" + label + ":</td>" +
                "<td style='padding:6px 0;color:#1e293b;font-size:13px;font-weight:600'>" + value + "</td></tr>";
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Magic Link
+    // ─────────────────────────────────────────────────────────────────────────
+    @Async
+    public void sendMagicLink(String toEmail, String fullName, String magicUrl) {
+        try {
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
+            helper.setFrom(fromEmail, fromName);
+            helper.setTo(toEmail);
+            helper.setSubject("Your sign-in link for Unitum");
+            helper.setText(buildMagicLinkEmail(fullName, magicUrl), true);
+            mailSender.send(msg);
+        } catch (Exception e) {
+            log.error("Failed to send magic link to {}: {}", toEmail, e.getMessage());
+        }
+    }
+
+    private String buildMagicLinkEmail(String fullName, String magicUrl) {
+        String name = (fullName != null && !fullName.isBlank()) ? fullName : "there";
+        return """
+            <div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
+              <div style="background:linear-gradient(135deg,#6366f1,#4f46e5);padding:32px;text-align:center">
+                <div style="width:52px;height:52px;background:rgba(255,255,255,0.2);border-radius:14px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px">
+                  <span style="font-size:24px">🔑</span>
+                </div>
+                <h1 style="color:#fff;font-size:22px;font-weight:700;margin:0">Sign in to Unitum</h1>
+              </div>
+              <div style="padding:32px">
+                <p style="color:#374151;font-size:15px;margin:0 0 8px">Hi <strong>%s</strong>,</p>
+                <p style="color:#6b7280;font-size:14px;margin:0 0 28px">Click the button below to sign in. This link expires in <strong>10 minutes</strong> and can only be used once.</p>
+                <div style="text-align:center;margin-bottom:28px">
+                  <a href="%s" style="display:inline-block;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;padding:14px 32px;border-radius:10px;font-size:15px;font-weight:600;text-decoration:none">
+                    Sign In to Unitum
+                  </a>
+                </div>
+                <p style="color:#9ca3af;font-size:12px;text-align:center;margin:0">If you didn't request this link, you can safely ignore this email.</p>
+              </div>
+            </div>
+            """.formatted(name, magicUrl);
+    }
 }

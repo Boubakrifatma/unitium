@@ -9,6 +9,7 @@ import { MatCheckboxModule } from "@angular/material/checkbox";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatDividerModule } from "@angular/material/divider";
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from "@angular/forms";
+import { HttpClient } from "@angular/common/http";
 import { Router, RouterModule } from "@angular/router";
 import { AuthService } from "../../../auth/auth.service";
 import { FaceService } from "../../../auth/face.service";
@@ -50,18 +51,21 @@ import { FaceCameraComponent } from "../../../components/face-camera/face-camera
                 <!-- ── Étape 1 : Email + Mot de passe ── -->
                 <ng-container *ngIf="step === 'credentials'">
 
-                <!-- Tab toggle: Password / Face ID -->
+                <!-- Tab toggle: Password / Face ID / Magic Link -->
                 <div class="login-tabs">
-                    <button [class.active]="!showFaceLogin" (click)="showFaceLogin = false">
+                    <button [class.active]="loginTab === 'password'" (click)="loginTab = 'password'">
                         <mat-icon class="material-icons-outlined">lock</mat-icon> Password
                     </button>
-                    <button [class.active]="showFaceLogin" (click)="showFaceLogin = true">
+                    <button [class.active]="loginTab === 'face'" (click)="loginTab = 'face'">
                         <mat-icon class="material-icons-outlined">face</mat-icon> Face ID
+                    </button>
+                    <button [class.active]="loginTab === 'magic'" (click)="loginTab = 'magic'">
+                        <mat-icon class="material-icons-outlined">auto_awesome</mat-icon> Magic Link
                     </button>
                 </div>
 
                 <!-- Password form -->
-                <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" *ngIf="!showFaceLogin">
+                <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" *ngIf="loginTab === 'password'">
                     <mat-form-field appearance="outline" class="w-100 mb-1">
                         <mat-label>Email address</mat-label>
                         <input matInput formControlName="email" type="email" autocomplete="email" />
@@ -95,9 +99,32 @@ import { FaceCameraComponent } from "../../../components/face-camera/face-camera
                 </form>
 
                 <!-- Face ID panel -->
-                <div *ngIf="showFaceLogin" class="face-panel">
+                <div *ngIf="loginTab === 'face'" class="face-panel">
                     <app-face-camera (descriptor)="onFaceLogin($event)"></app-face-camera>
                     <p class="face-error" *ngIf="faceError">{{ faceError }}</p>
+                </div>
+
+                <!-- Magic Link panel -->
+                <div *ngIf="loginTab === 'magic'">
+                    <p style="color:#6b7280;font-size:13px;margin-bottom:16px;text-align:center">
+                        Enter your email and we'll send you a sign-in link — no password needed.
+                    </p>
+                    <mat-form-field appearance="outline" class="w-100 mb-1">
+                        <mat-label>Email address</mat-label>
+                        <input matInput [(ngModel)]="magicEmail" type="email" name="magicEmail"
+                               placeholder="you@example.com" />
+                        <mat-icon matSuffix class="material-icons-outlined">mail</mat-icon>
+                    </mat-form-field>
+                    <button matButton="filled" color="primary" class="w-100 signin-btn"
+                            (click)="sendMagicLink()"
+                            [disabled]="!magicEmail || magicLoading">
+                        <mat-icon *ngIf="!magicLoading">auto_awesome</mat-icon>
+                        <span>{{ magicLoading ? 'Sending...' : 'Send Magic Link' }}</span>
+                    </button>
+                    <div *ngIf="magicSent" style="margin-top:14px;padding:12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;display:flex;align-items:center;gap:8px">
+                        <mat-icon style="color:#10b981;font-size:18px;width:18px;height:18px">check_circle</mat-icon>
+                        <span style="color:#065f46;font-size:13px">Link sent! Check your inbox — it expires in 10 minutes.</span>
+                    </div>
                 </div>
 
                 </ng-container>
@@ -301,8 +328,13 @@ export class LoginComponent implements OnInit {
     loading = false;
     errorMessage = '';
     anomalyWarning = '';
-    showFaceLogin = false;
+    loginTab: 'password' | 'face' | 'magic' = 'password';
     faceError = '';
+
+    // Magic Link
+    magicEmail = '';
+    magicLoading = false;
+    magicSent = false;
 
     // ── 2FA ──────────────────────────────────────────────────────────────────
     step: 'credentials' | 'mfa' = 'credentials';
@@ -323,6 +355,7 @@ export class LoginComponent implements OnInit {
 
     constructor(
         private fb: FormBuilder,
+        private http: HttpClient,
         private router: Router,
         private authService: AuthService,
         private faceService: FaceService,
@@ -338,7 +371,7 @@ export class LoginComponent implements OnInit {
 
     fillAccount(a: { email: string; password: string }): void {
         this.loginForm.patchValue({ email: a.email, password: a.password });
-        this.showFaceLogin = false;
+        this.loginTab = 'password';
     }
 
     getRoleColor(role: string): string {
@@ -354,6 +387,17 @@ export class LoginComponent implements OnInit {
 
     loginWithGoogle(): void {
         window.location.href = 'http://localhost:8084/oauth2/authorization/google';
+    }
+
+    sendMagicLink(): void {
+        if (!this.magicEmail) return;
+        this.magicLoading = true;
+        this.magicSent = false;
+        this.http.post('http://localhost:8084/api/auth/magic-link', { email: this.magicEmail })
+            .subscribe({
+                next: () => { this.magicLoading = false; this.magicSent = true; },
+                error: () => { this.magicLoading = false; this.magicSent = true; } // always show success
+            });
     }
 
     onSubmit() {

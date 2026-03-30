@@ -9,6 +9,7 @@ import com.example.pi_projet.repository.SessionRepository;
 import com.example.pi_projet.repository.UserRepository;
 import com.example.pi_projet.service.AnomalyDetectionService;
 import com.example.pi_projet.service.AuthService;
+import com.example.pi_projet.service.MagicLinkService;
 import com.example.pi_projet.service.TwoFactorService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,6 +32,7 @@ public class AuthController {
 
     private final AuthService               authService;
     private final TwoFactorService          twoFactorService;
+    private final MagicLinkService          magicLinkService;
     private final AnomalyDetectionService   anomalyService;
     private final UserRepository            userRepository;
     private final SessionRepository         sessionRepository;
@@ -288,6 +290,30 @@ public class AuthController {
                 Boolean.TRUE.equals(user.getMustChangePassword()),
                 lr.anomaly().score(),
                 lr.anomaly().action().name()
+        ));
+    }
+
+    // ── POST /api/auth/magic-link ─────────────────────────────────────────
+    @Operation(summary = "Send a magic link to the given email address")
+    @PostMapping("/magic-link")
+    public ResponseEntity<?> sendMagicLink(@RequestBody Map<String, Object> body) {
+        String email = body.get("email").toString();
+        magicLinkService.sendMagicLink(email);
+        // Always return success — don't reveal if email exists
+        return ResponseEntity.ok(Map.of("message", "If this email is registered, a sign-in link has been sent."));
+    }
+
+    // ── POST /api/auth/magic-link/verify ──────────────────────────────────
+    @Operation(summary = "Verify a magic link token and return a JWT")
+    @PostMapping("/magic-link/verify")
+    public ResponseEntity<?> verifyMagicLink(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        String token = body.get("token").toString();
+        AuthService.LoginResult result = magicLinkService.verifyMagicLink(token, request);
+        User user = authService.getUserFromToken(result.token()).orElseThrow();
+        return ResponseEntity.ok(new AuthResponse(
+                result.token(),
+                user.getId(), user.getEmail(), user.getFullName(), user.getRole().name(),
+                Boolean.TRUE.equals(user.getMustChangePassword())
         ));
     }
 
