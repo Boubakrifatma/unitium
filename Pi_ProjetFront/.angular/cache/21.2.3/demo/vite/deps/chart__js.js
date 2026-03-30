@@ -48,10 +48,6 @@ import {
   scales
 } from "./chunk-GYNBVVPS.js";
 import "./chunk-7GOANPIK.js";
-
-// node_modules/chart.js/auto/auto.js
-Chart.register(...registerables);
-var auto_default = Chart;
 export {
   Animation,
   Animations,
@@ -93,7 +89,6 @@ export {
   _detectPlatform,
   animator,
   controllers,
-  auto_default as default,
   defaults,
   elements,
   layouts,
@@ -102,4 +97,3 @@ export {
   registry,
   scales
 };
-//# sourceMappingURL=chart__js_auto.js.map

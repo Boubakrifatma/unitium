@@ -56,6 +56,10 @@ export const routes: Routes = [
                 path: "magic-callback",
                 loadComponent: () => import("./pages/auth/magic-callback/magic-callback.component").then((c) => c.MagicCallbackComponent),
             },
+            {
+                path: "invitation",
+                loadComponent: () => import("./pages/auth/invitation/invitation-response.component").then((c) => c.InvitationResponseComponent),
+            },
         ],
     },
     {
@@ -211,6 +215,10 @@ export const routes: Routes = [
             {
                 path: "po",
                 loadComponent: () => import("./pages/app/po/po-dashboard.component").then((c) => c.PoDashboardComponent),
+            },
+            {
+                path: "activity-stats",
+                loadComponent: () => import("./pages/app/activity-stats/activity-stats.component").then((c) => c.ActivityStatsComponent),
             },
         ],
     },

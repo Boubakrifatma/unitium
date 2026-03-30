@@ -7,10 +7,7 @@ import {
 } from "./chunk-VMN7LE55.js";
 import {
   DomSanitizer
-} from "./chunk-AEGTLTZO.js";
-import {
-  BreakpointObserver
-} from "./chunk-FLBPFH5Q.js";
+} from "./chunk-JUB24EXE.js";
 import {
   A,
   ALT,
@@ -32,6 +29,9 @@ import {
   ZERO,
   hasModifierKey
 } from "./chunk-GQDNQF7P.js";
+import {
+  BreakpointObserver
+} from "./chunk-FLBPFH5Q.js";
 import {
   isFakeMousedownFromScreenReader,
   isFakeTouchstartFromScreenReader
@@ -2440,4 +2440,4 @@ export {
   FOCUS_TRAP_INERT_STRATEGY,
   ConfigurableFocusTrapFactory
 };
-//# sourceMappingURL=chunk-GN4PHCKZ.js.map
+//# sourceMappingURL=chunk-Z3UPBTH7.js.map

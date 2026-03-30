@@ -180,10 +180,11 @@ export class AddMemberDialogComponent {
         this.loading = false;
         this.cdr.detectChanges();
         let msg: string;
+        const errMsg = err.error?.message || err.error?.detail;
         if      (err.status === 0)   msg = 'Cannot connect to server. Make sure the backend is running.';
         else if (err.status === 404) msg = 'Endpoint not found (404). Please restart the backend server.';
-        else if (err.status === 409) msg = err.error?.message || 'A user with this email already exists.';
-        else                         msg = err.error?.message || `Error ${err.status}: Failed to send invite.`;
+        else if (err.status === 409) msg = errMsg || 'An invitation is already pending for this email.';
+        else                         msg = errMsg || `Error ${err.status}: Failed to send invite.`;
         this.snackBar.open(msg, 'Close', { duration: 6000, panelClass: ['snack-error'] });
       }
     });

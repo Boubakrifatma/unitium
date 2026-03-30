@@ -59,11 +59,19 @@ public class OrganizationMemberService {
         if (memberRepository.existsByOrganizationIdAndUserId(orgId, body.userId()))
             throw new ResponseStatusException(HttpStatus.CONFLICT, "User is already a member of this organization.");
         validateRoleCompatibility(org.getOrgType(), user.getRole());
-        OrganizationMember member = OrganizationMember.builder()
-                .organization(org)
-                .userId(user.getId())
-                .role(parseRole(body.role()))
-                .build();
+        // Handle previously soft-deleted row to avoid UK constraint violation
+        OrganizationMember member = memberRepository
+                .findByOrganizationIdAndUserIdIncludingDeleted(orgId, user.getId())
+                .map(existing -> {
+                    existing.setDeletedAt(null);
+                    existing.setRole(parseRole(body.role()));
+                    return existing;
+                })
+                .orElseGet(() -> OrganizationMember.builder()
+                        .organization(org)
+                        .userId(user.getId())
+                        .role(parseRole(body.role()))
+                        .build());
         OrgMemberDTO saved = OrgMemberDTO.from(memberRepository.save(member));
         auditLogService.log(org.getOwnerId(), AuditLog.ActionType.MEMBER_ADDED, "ORG_MEMBER", saved.id().toString(),
                 "User " + user.getEmail() + " added to org " + org.getName() + " as " + saved.role());
@@ -84,10 +92,6 @@ public class OrganizationMemberService {
     public OrgMemberDTO inviteMember(UUID orgId, InviteMemberRequest body, Long invitedBy) {
         Organization org = findOrgOrThrow(orgId);
 
-        // Reject if email already in use
-        if (userRepository.existsByEmail(body.email()))
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "A user with this email already exists.");
-
         // Parse and validate platform role
         User.RoleName platformRole;
         try {
@@ -97,21 +101,37 @@ public class OrganizationMemberService {
         }
         validateRoleCompatibility(org.getOrgType(), platformRole);
 
-        // Generate temporary password
-        String tempPassword = generateTempPassword();
-        String hashedPassword = passwordEncoder.encode(tempPassword);
+        User savedUser;
+        String tempPassword = null;
 
-        // Create the user
-        User newUser = User.builder()
-                .fullName(body.fullName())
-                .email(body.email())
-                .passwordHash(hashedPassword)
-                .role(platformRole)
-                .isVerified(true)
-                .isActive(true)
-                .mustChangePassword(true)
-                .build();
-        User savedUser = userRepository.save(newUser);
+        // If user already exists → add them to the org instead of creating a new account
+        if (userRepository.existsByEmail(body.email())) {
+            savedUser = userRepository.findByEmail(body.email())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
+
+            // Already a member of this org?
+            if (memberRepository.existsByOrganizationIdAndUserId(orgId, savedUser.getId()))
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "This user is already a member of this organization.");
+
+            // Update role to the requested platform role
+            savedUser.setRole(platformRole);
+            userRepository.save(savedUser);
+
+        } else {
+            // New user → create account with temporary password
+            tempPassword = generateTempPassword();
+            savedUser = User.builder()
+                    .fullName(body.fullName())
+                    .email(body.email())
+                    .passwordHash(passwordEncoder.encode(tempPassword))
+                    .role(platformRole)
+                    .isVerified(true)
+                    .isActive(true)
+                    .mustChangePassword(true)
+                    .build();
+            userRepository.save(savedUser);
+        }
 
         // Add to organization
         OrganizationMember member = OrganizationMember.builder()
@@ -125,8 +145,9 @@ public class OrganizationMemberService {
         auditLogService.log(invitedBy, AuditLog.ActionType.MEMBER_ADDED, "ORG_MEMBER", saved.id().toString(),
                 "Invited " + body.email() + " to org " + org.getName() + " as " + platformRole);
 
-        // Send invite email (async)
-        emailService.sendMemberInviteEmail(body.email(), body.fullName(), org.getName(), platformRole.name(), tempPassword);
+        // Send invite email (async) — only for new users
+        if (tempPassword != null)
+            emailService.sendMemberInviteEmail(body.email(), body.fullName(), org.getName(), platformRole.name(), tempPassword);
 
         return saved;
     }

@@ -20,4 +20,10 @@ public interface OrganizationMemberRepository extends JpaRepository<Organization
     List<OrganizationMember> findByUserId(Long userId);
     Optional<OrganizationMember> findByOrganizationIdAndUserId(UUID organizationId, Long userId);
     boolean existsByOrganizationIdAndUserId(UUID organizationId, Long userId);
+
+    /** Native SQL — bypasses @SQLRestriction so soft-deleted rows are also returned. */
+    @Query(value = "SELECT * FROM org_members WHERE organization_id = :orgId AND user_id = :userId LIMIT 1",
+           nativeQuery = true)
+    Optional<OrganizationMember> findByOrganizationIdAndUserIdIncludingDeleted(
+            @Param("orgId") UUID orgId, @Param("userId") Long userId);
 }

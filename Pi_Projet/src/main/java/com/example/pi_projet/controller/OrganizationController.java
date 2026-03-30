@@ -84,16 +84,6 @@ public class OrganizationController {
         return ResponseEntity.status(201).body(memberService.addMember(id, body));
     }
 
-    @Operation(summary = "Invite a new user to an organization (creates account + sends email)")
-    @PostMapping("/{id}/members/invite")
-    public ResponseEntity<OrgMemberDTO> inviteMember(
-            @PathVariable UUID id,
-            @RequestBody InviteMemberRequest body,
-            HttpServletRequest request) {
-        User currentUser = (User) request.getAttribute("currentUser");
-        return ResponseEntity.status(201).body(memberService.inviteMember(id, body, currentUser.getId()));
-    }
-
     @Operation(summary = "Change a member's role")
     @PatchMapping("/{id}/members/{memberId}/role")
     public ResponseEntity<OrgMemberDTO> changeRole(

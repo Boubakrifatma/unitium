@@ -4,8 +4,8 @@ import {
   setClassMetadata,
   ɵɵdefineInjectable
 } from "./chunk-KXDYBHZG.js";
-import "./chunk-JRFR6BLO.js";
 import "./chunk-HWYXSU2G.js";
+import "./chunk-JRFR6BLO.js";
 import "./chunk-MARUHEWW.js";
 import {
   __objRest,
@@ -4330,4 +4330,4 @@ export {
   validateStyleProperty as ɵvalidateStyleProperty,
   validateWebAnimatableStyleProperty as ɵvalidateWebAnimatableStyleProperty
 };
-//# sourceMappingURL=browser-S563FXGI.js.map
+//# sourceMappingURL=browser-6L7WH5GY.js.map

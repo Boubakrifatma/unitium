@@ -22,4 +22,14 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
 
     @Query("SELECT s FROM Session s WHERE s.anomalyScore >= :threshold ORDER BY s.createdAt DESC")
     List<Session> findRecentAnomalies(@Param("threshold") float threshold);
+
+    @Query(value = "SELECT DATE(created_at) as day, COUNT(*) as cnt FROM sessions WHERE created_at >= :since GROUP BY DATE(created_at) ORDER BY DATE(created_at)",
+           nativeQuery = true)
+    List<Object[]> countLoginsPerDaySince(@Param("since") java.time.LocalDateTime since);
+
+    @Query("SELECT COUNT(DISTINCT s.userId) FROM Session s WHERE s.createdAt >= :since")
+    long countDistinctActiveUsersSince(@Param("since") java.time.LocalDateTime since);
+
+    @Query("SELECT COUNT(s) FROM Session s WHERE s.createdAt >= :since")
+    long countLoginsSince(@Param("since") java.time.LocalDateTime since);
 }

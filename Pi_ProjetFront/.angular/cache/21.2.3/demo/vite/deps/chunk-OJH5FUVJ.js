@@ -6,14 +6,7 @@ import {
 } from "./chunk-4M2WKR4R.js";
 import {
   MatFormFieldModule
-} from "./chunk-BHU2R6PJ.js";
-import {
-  CdkConnectedOverlay,
-  CdkOverlayOrigin,
-  OVERLAY_DEFAULT_CONFIG,
-  OverlayModule,
-  createRepositionScrollStrategy
-} from "./chunk-OIQKADIE.js";
+} from "./chunk-RTFTVEJR.js";
 import {
   MatOptionModule
 } from "./chunk-ALB4Q65E.js";
@@ -24,6 +17,13 @@ import {
   _countGroupLabelsBeforeOption,
   _getOptionScrollPosition
 } from "./chunk-4VP7LTFY.js";
+import {
+  CdkConnectedOverlay,
+  CdkOverlayOrigin,
+  OVERLAY_DEFAULT_CONFIG,
+  OverlayModule,
+  createRepositionScrollStrategy
+} from "./chunk-FPF6PF3Z.js";
 import {
   MAT_FORM_FIELD,
   MatFormFieldControl
@@ -45,7 +45,7 @@ import {
   LiveAnnouncer,
   addAriaReferencedId,
   removeAriaReferencedId
-} from "./chunk-GN4PHCKZ.js";
+} from "./chunk-Z3UPBTH7.js";
 import {
   A,
   DOWN_ARROW,
@@ -1389,4 +1389,4 @@ export {
   MatSelectTrigger,
   MatSelectModule
 };
-//# sourceMappingURL=chunk-U7TSHW47.js.map
+//# sourceMappingURL=chunk-OJH5FUVJ.js.map

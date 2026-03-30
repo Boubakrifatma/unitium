@@ -20,6 +20,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -314,6 +316,40 @@ public class AuthController {
                 result.token(),
                 user.getId(), user.getEmail(), user.getFullName(), user.getRole().name(),
                 Boolean.TRUE.equals(user.getMustChangePassword())
+        ));
+    }
+
+    // ── GET /api/auth/stats/activity ─────────────────────────────────────
+    @Authorized
+    @Operation(summary = "Get login activity statistics (SUPER_ADMIN or ADMIN)")
+    @GetMapping("/stats/activity")
+    public ResponseEntity<?> getActivityStats(HttpServletRequest request) {
+        User user = (User) request.getAttribute("currentUser");
+        if (user.getRole() != User.RoleName.SUPER_ADMIN && user.getRole() != User.RoleName.ADMIN) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime since30 = now.minusDays(30);
+        LocalDateTime todayStart = now.toLocalDate().atStartOfDay();
+
+        // Logins per day for last 30 days
+        List<Object[]> rows = sessionRepository.countLoginsPerDaySince(since30);
+        Map<String, Long> loginsPerDay = new LinkedHashMap<>();
+        for (Object[] row : rows) {
+            String day = row[0].toString().substring(0, 10);
+            loginsPerDay.put(day, ((Number) row[1]).longValue());
+        }
+
+        long todayLogins = sessionRepository.countLoginsSince(todayStart);
+        long activeUsersLast7Days = sessionRepository.countDistinctActiveUsersSince(now.minusDays(7));
+        long totalLogins30Days = sessionRepository.countLoginsSince(since30);
+
+        return ResponseEntity.ok(Map.of(
+                "loginsPerDay", loginsPerDay,
+                "todayLogins", todayLogins,
+                "activeUsersLast7Days", activeUsersLast7Days,
+                "totalLogins30Days", totalLogins30Days
         ));
     }
 

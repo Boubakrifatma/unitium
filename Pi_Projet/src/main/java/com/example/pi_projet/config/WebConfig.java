@@ -42,6 +42,7 @@ public class WebConfig implements WebMvcConfigurer {
                     "/api/auth/2fa/verify",        // vérification code 2FA (avant JWT)
                     "/api/auth/magic-link",        // envoi du magic link (public)
                     "/api/auth/magic-link/verify", // vérification du magic link (public)
+                    "/api/invitations/respond",    // réponse à une invitation (public — GET redirect)
                     "/api/billing/payment",        // soumission paiement public
                     "/api/billing/payment/*",      // statut paiement public
                     "/api/billing/plans",          // liste plans publique

@@ -8,13 +8,15 @@ import { MatTableModule } from '@angular/material/table';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { HttpClient } from '@angular/common/http';
 import { OrganizationService, OrganizationDTO, OrgMemberDTO } from './organization.service';
 import { AddMemberDialogComponent } from './add-member-dialog.component';
 
 @Component({
   selector: 'app-organization-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule, MatCardModule, MatIconModule, MatButtonModule, MatTableModule, MatMenuModule, MatDialogModule, MatSnackBarModule],
+  imports: [CommonModule, RouterModule, MatCardModule, MatIconModule, MatButtonModule, MatTableModule, MatMenuModule, MatDialogModule, MatSnackBarModule, MatProgressSpinnerModule],
   template: `
     <div class="container-fluid fade-in mb-3 mb-lg-4">
       <mat-card class="bg-light-theme shadow-none pt-3 pb-lg-3 px-3">
@@ -126,9 +128,48 @@ import { AddMemberDialogComponent } from './add-member-dialog.component';
           </tr>
         </table>
       </mat-card>
+
+      <!-- Pending Invitations -->
+      <mat-card class="mb-3 mb-lg-4" *ngIf="pendingInvitations.length > 0">
+        <mat-card-header>
+          <div class="w-100">
+            <div class="row gx-3 align-items-center">
+              <div class="col-auto mb-3"><div class="avatar avatar-40 text-theme rounded theme-yellow"><mat-icon class="material-icons-outlined">schedule_send</mat-icon></div></div>
+              <div class="col mb-3">
+                <h3 class="mb-1">Pending Invitations <span class="badge badge-light theme-yellow ms-2">{{ pendingInvitations.length }}</span></h3>
+                <p class="text-secondary small">Waiting for the recipient's response</p>
+              </div>
+            </div>
+          </div>
+        </mat-card-header>
+        <div class="px-3 pb-3">
+          <div *ngFor="let inv of pendingInvitations" class="pending-row d-flex align-items-center justify-content-between py-2">
+            <div class="d-flex align-items-center gap-3">
+              <div class="avatar avatar-36 rounded-circle d-flex align-items-center justify-content-center" style="background:#fef3c7">
+                <mat-icon class="material-icons-outlined" style="font-size:18px;color:#f59e0b">schedule</mat-icon>
+              </div>
+              <div>
+                <p class="mb-0 fw-semibold small">{{ inv.fullName }}</p>
+                <p class="text-secondary mb-0" style="font-size:12px">{{ inv.email }} &nbsp;·&nbsp;
+                  <span class="badge badge-light theme-yellow" style="font-size:11px">{{ inv.platformRole }}</span>
+                  <span class="badge badge-light theme-cyan ms-1" style="font-size:11px">PENDING</span>
+                </p>
+              </div>
+            </div>
+            <button mat-icon-button color="warn" (click)="cancelInvitation(inv)" title="Cancel invitation">
+              <mat-icon style="font-size:18px">close</mat-icon>
+            </button>
+          </div>
+        </div>
+      </mat-card>
+
     </div>
   `,
-  styles: [`.badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }`]
+  styles: [`
+    .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+    .pending-row { border-bottom: 1px solid var(--bs-border-color, #e5e7eb); }
+    .pending-row:last-child { border-bottom: none; }
+  `]
 })
 export class OrganizationDetailComponent implements OnInit {
   private route    = inject(ActivatedRoute);
@@ -136,9 +177,11 @@ export class OrganizationDetailComponent implements OnInit {
   private dialog   = inject(MatDialog);
   private snackBar = inject(MatSnackBar);
   private cdr      = inject(ChangeDetectorRef);
+  private http     = inject(HttpClient);
 
   org: OrganizationDTO | null = null;
   members: OrgMemberDTO[] = [];
+  pendingInvitations: any[] = [];
   cols = ['user', 'role', 'joinedAt', 'actions'];
   private orgId = '';
 
@@ -158,6 +201,8 @@ export class OrganizationDetailComponent implements OnInit {
       next: d => { this.members = d; this.cdr.detectChanges(); },
       error: () => this.notify('Failed to load members', true)
     });
+
+    this.loadPendingInvitations();
   }
 
   loadMembers() {
@@ -167,15 +212,35 @@ export class OrganizationDetailComponent implements OnInit {
     });
   }
 
+  loadPendingInvitations() {
+    this.http.get<any[]>(`http://localhost:8084/api/organizations/${this.orgId}/invitations`).subscribe({
+      next: d => { this.pendingInvitations = d; this.cdr.detectChanges(); },
+      error: () => {}
+    });
+  }
+
   openAddMember() {
     this.dialog.open(AddMemberDialogComponent, {
       width: '500px',
       autoFocus: false,
       data: { orgId: this.orgId, orgType: this.org?.orgType ?? 'ENTERPRISE' }
-    }).afterClosed().subscribe(member => {
-      if (!member) return;
-      this.members = [...this.members, member];
-      this.notify('Invite sent — credentials emailed to the new member');
+    }).afterClosed().subscribe(inv => {
+      if (!inv) return;
+      this.pendingInvitations = [...this.pendingInvitations, inv];
+      this.notify('Invitation sent — waiting for the recipient to accept');
+      this.cdr.detectChanges();
+    });
+  }
+
+  cancelInvitation(inv: any) {
+    if (!confirm(`Cancel invitation for "${inv.email}"?`)) return;
+    this.http.delete(`http://localhost:8084/api/invitations/${inv.id}`).subscribe({
+      next: () => {
+        this.pendingInvitations = this.pendingInvitations.filter(i => i.id !== inv.id);
+        this.notify('Invitation cancelled');
+        this.cdr.detectChanges();
+      },
+      error: () => this.notify('Failed to cancel invitation', true)
     });
   }
 

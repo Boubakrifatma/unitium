@@ -11,6 +11,9 @@ import {
   coerceArray
 } from "./chunk-N4DOILP3.js";
 import {
+  _CdkPrivateStyleLoader
+} from "./chunk-XQ64VVUL.js";
+import {
   CdkScrollable,
   CdkScrollableModule,
   ScrollDispatcher,
@@ -21,9 +24,6 @@ import "./chunk-GUGIMSVJ.js";
 import {
   Directionality
 } from "./chunk-GQCAR6WF.js";
-import {
-  _CdkPrivateStyleLoader
-} from "./chunk-XQ64VVUL.js";
 import {
   coerceElement,
   coerceNumberProperty
@@ -67,11 +67,11 @@ import {
   ɵɵdefineInjector,
   ɵɵdefineNgModule
 } from "./chunk-KXDYBHZG.js";
-import "./chunk-JRFR6BLO.js";
 import {
   animationFrameScheduler,
   merge
 } from "./chunk-HWYXSU2G.js";
+import "./chunk-JRFR6BLO.js";
 import {
   BehaviorSubject,
   Observable,

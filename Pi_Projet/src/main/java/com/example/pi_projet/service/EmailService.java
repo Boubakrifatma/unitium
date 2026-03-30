@@ -221,6 +221,56 @@ public class EmailService {
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // EMAIL 8 : Invitation avec boutons Accept / Decline
+    // ─────────────────────────────────────────────────────────────────────────
+    @Async
+    public void sendInvitationEmail(String toEmail, String fullName, String orgName,
+                                    String platformRole, String acceptUrl, String declineUrl) {
+        try {
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
+            helper.setFrom(fromEmail, fromName);
+            helper.setTo(toEmail);
+            helper.setSubject("You're invited to join " + orgName + " on Unitum");
+            String name = (fullName != null && !fullName.isBlank()) ? fullName : "there";
+            String html = """
+                <div style="font-family:Inter,Arial,sans-serif;max-width:540px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
+                  <div style="background:linear-gradient(135deg,#6366f1,#4f46e5);padding:36px;text-align:center">
+                    <div style="font-size:2.8rem;margin-bottom:12px">🏢</div>
+                    <h1 style="color:#fff;font-size:22px;font-weight:700;margin:0">You're invited!</h1>
+                    <p style="color:rgba(255,255,255,0.8);font-size:14px;margin:8px 0 0">Join <strong>%s</strong> on Unitum</p>
+                  </div>
+                  <div style="padding:36px">
+                    <p style="color:#374151;font-size:15px;margin:0 0 8px">Hi <strong>%s</strong>,</p>
+                    <p style="color:#6b7280;font-size:14px;margin:0 0 8px">
+                      You have been invited to join the organization <strong>%s</strong> with the role <strong>%s</strong>.
+                    </p>
+                    <p style="color:#6b7280;font-size:13px;margin:0 0 28px">This invitation expires in <strong>48 hours</strong>.</p>
+
+                    <div style="display:flex;gap:12px;justify-content:center;margin-bottom:28px">
+                      <a href="%s" style="display:inline-block;background:#10b981;color:#fff;padding:13px 28px;border-radius:10px;font-size:14px;font-weight:700;text-decoration:none">
+                        ✅ Accept Invitation
+                      </a>
+                      <a href="%s" style="display:inline-block;background:#f3f4f6;color:#374151;padding:13px 28px;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none;border:1px solid #e5e7eb">
+                        ❌ Decline
+                      </a>
+                    </div>
+
+                    <p style="color:#9ca3af;font-size:12px;text-align:center;margin:0">
+                      If you didn't expect this invitation, you can safely ignore this email.
+                    </p>
+                  </div>
+                </div>
+                """.formatted(orgName, name, orgName, platformRole, acceptUrl, declineUrl);
+            helper.setText(html, true);
+            mailSender.send(msg);
+            log.info("✉️  Invitation email sent to {}", toEmail);
+        } catch (Exception e) {
+            log.error("❌ Failed to send invitation email to {}: {}", toEmail, e.getMessage());
+        }
+    }
+
     // ═════════════════════════════════════════════════════════════════════════
     // HTML Templates
     // ═════════════════════════════════════════════════════════════════════════

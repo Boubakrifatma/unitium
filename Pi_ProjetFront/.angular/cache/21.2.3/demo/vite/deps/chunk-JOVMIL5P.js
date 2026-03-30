@@ -3,13 +3,13 @@ import {
 } from "./chunk-VMN7LE55.js";
 import {
   DomSanitizer
-} from "./chunk-AEGTLTZO.js";
-import {
-  BidiModule
-} from "./chunk-GQCAR6WF.js";
+} from "./chunk-JUB24EXE.js";
 import {
   HttpClient
 } from "./chunk-WJPCSQDH.js";
+import {
+  BidiModule
+} from "./chunk-GQCAR6WF.js";
 import {
   ChangeDetectionStrategy,
   Component,
@@ -726,4 +726,4 @@ export {
   MatIcon,
   MatIconModule
 };
-//# sourceMappingURL=chunk-N3HN2UOO.js.map
+//# sourceMappingURL=chunk-JOVMIL5P.js.map

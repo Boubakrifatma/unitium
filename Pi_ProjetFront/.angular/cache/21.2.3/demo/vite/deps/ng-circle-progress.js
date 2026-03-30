@@ -39,8 +39,8 @@ import {
   ɵɵtext,
   ɵɵtextInterpolate
 } from "./chunk-KXDYBHZG.js";
-import "./chunk-JRFR6BLO.js";
 import "./chunk-HWYXSU2G.js";
+import "./chunk-JRFR6BLO.js";
 import {
   timer
 } from "./chunk-MARUHEWW.js";
