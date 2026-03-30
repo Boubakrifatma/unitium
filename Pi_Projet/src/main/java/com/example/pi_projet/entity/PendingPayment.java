@@ -72,7 +72,7 @@ public class PendingPayment {
     @Builder.Default
     private PaymentStatus status = PaymentStatus.PENDING;
 
-    @Column(name = "temp_password", nullable = false)
+    @Column(name = "temp_password")
     private String tempPassword;
 
     // Card info stored masked (last 4 digits only)

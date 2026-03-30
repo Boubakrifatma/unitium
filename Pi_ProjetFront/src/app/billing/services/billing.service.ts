@@ -115,6 +115,23 @@ export class BillingService {
       limits: { users: 50, workspaces: 2, projects: 5, storage: '5 GB' },
     },
     {
+      id: 'academic-faculty',
+      name: 'Faculty',
+      subtitle: 'Departments & labs',
+      icon: 'menu_book',
+      monthlyPrice: 39,
+      annualPrice: 31,
+      orgType: 'academic',
+      features: [
+        '100 students',
+        '5 professors',
+        'Grade management',
+        'Plagiarism signals',
+        'Email support',
+      ],
+      limits: { users: 100, workspaces: 5, projects: 20, storage: '20 GB' },
+    },
+    {
       id: 'academic-institution',
       name: 'Institution',
       subtitle: 'For the whole school',
@@ -164,7 +181,8 @@ export class BillingService {
   academicPlans = signal<Plan[]>([]);
 
   getPlanById(id: string): Plan | undefined {
-    return [...this.enterprisePlans(), ...this.academicPlans()].find(p => p.id === id);
+    return [...this.enterprisePlans(), ...this.academicPlans()].find(p => p.id === id)
+      ?? [...this.defaultEnterprisePlans, ...this.defaultAcademicPlans].find(p => p.id === id);
   }
 
   constructor(private http: HttpClient) {
@@ -177,19 +195,29 @@ export class BillingService {
       next: (apiPlans) => {
         if (apiPlans && apiPlans.length > 0) {
           // Merge API prices into default plans (keep visual/feature data from defaults)
+          const mergePlan = (defaultPlan: Plan, apiMatch: any): Plan => {
+            const storageMb: number = apiMatch.storageMb ?? 10240;
+            const storageLabel = storageMb >= 1024 ? `${Math.round(storageMb / 1024)} GB` : `${storageMb} MB`;
+            return {
+              ...defaultPlan,
+              monthlyPrice: apiMatch.priceMonthly ?? defaultPlan.monthlyPrice,
+              annualPrice:  apiMatch.priceYearly  ?? defaultPlan.annualPrice,
+              limits: {
+                users:      apiMatch.maxMembersPerWs   ?? defaultPlan.limits?.users,
+                workspaces: apiMatch.maxWorkspaces     ?? defaultPlan.limits?.workspaces,
+                projects:   apiMatch.maxActiveProjects ?? defaultPlan.limits?.projects,
+                storage:    storageLabel,
+              },
+            };
+          };
+
           const mergedEnterprise = this.defaultEnterprisePlans.map(defaultPlan => {
             const apiMatch = apiPlans.find((p: any) => p.name === defaultPlan.id || p.displayName === defaultPlan.name);
-            if (apiMatch) {
-              return { ...defaultPlan, monthlyPrice: apiMatch.priceMonthly ?? defaultPlan.monthlyPrice, annualPrice: apiMatch.priceYearly ?? defaultPlan.annualPrice };
-            }
-            return defaultPlan;
+            return apiMatch ? mergePlan(defaultPlan, apiMatch) : defaultPlan;
           });
           const mergedAcademic = this.defaultAcademicPlans.map(defaultPlan => {
             const apiMatch = apiPlans.find((p: any) => p.name === defaultPlan.id || p.displayName === defaultPlan.name);
-            if (apiMatch) {
-              return { ...defaultPlan, monthlyPrice: apiMatch.priceMonthly ?? defaultPlan.monthlyPrice, annualPrice: apiMatch.priceYearly ?? defaultPlan.annualPrice };
-            }
-            return defaultPlan;
+            return apiMatch ? mergePlan(defaultPlan, apiMatch) : defaultPlan;
           });
 
           // Find plans added via admin that are not in the hardcoded defaults

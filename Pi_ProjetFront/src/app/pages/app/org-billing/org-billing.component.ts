@@ -509,7 +509,7 @@ import { CheckoutStateService } from '../../../billing/services/checkout-state.s
                           <div class="meta-row"><mat-icon class="material-icons-outlined">support_agent</mat-icon>{{ p.supportTier }}</div>
                           <div class="meta-row"><mat-icon class="material-icons-outlined">lock_open</mat-icon>API: {{ p.apiAccess?'Yes':'No' }} · SSO: {{ p.ssoEnabled?'Yes':'No' }}</div>
                         </div>
-                        <button mat-flat-button color="primary" class="w-100" *ngIf="!isCurrentPlan(p)" (click)="goUpgrade()">
+                        <button mat-flat-button color="primary" class="w-100" *ngIf="!isCurrentPlan(p)" (click)="goUpgrade(p)">
                           Upgrade to {{ p.displayName }}
                         </button>
                         <button mat-stroked-button class="w-100" *ngIf="isCurrentPlan(p)" disabled>✓ Your Current Plan</button>
@@ -604,9 +604,19 @@ export class OrgBillingComponent implements OnInit {
   private router = inject(Router);
   private checkoutState = inject(CheckoutStateService);
 
-  goUpgrade(): void {
+  goUpgrade(plan?: PlanDTO): void {
     this.checkoutState.setUpgradeMode();
-    this.router.navigate(['/billing/pricing']);
+    if (plan) {
+      this.router.navigate(['/billing/checkout'], {
+        queryParams: {
+          plan: plan.name,
+          type: plan.orgType ?? 'enterprise',
+          cycle: 'monthly'
+        }
+      });
+    } else {
+      this.router.navigate(['/billing/pricing']);
+    }
   }
 
   subscription: SubscriptionDTO | null = null;

@@ -33,11 +33,12 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addInterceptor(sessionInterceptor)
                 .addPathPatterns("/api/**")
                 .excludePathPatterns(
-                    "/api/auth/login",            // login public
-                    "/api/auth/change-password",  // changement mot de passe 1er login
-                    "/api/billing/payment",        // soumission paiement public
-                    "/api/billing/payment/*",      // statut paiement public
-                    "/api/billing/plans",          // liste plans publique
+                    "/api/auth/login",                    // login public
+                    "/api/auth/change-password",          // changement mot de passe 1er login
+                    "/api/billing/create-payment-intent", // création PaymentIntent Stripe public
+                    "/api/billing/payment",               // soumission paiement public
+                    "/api/billing/payment/*",             // statut paiement public
+                    "/api/billing/plans",                 // liste plans publique
                     "/swagger-ui/**",
                     "/v3/api-docs/**"
                 );

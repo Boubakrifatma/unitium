@@ -449,6 +449,7 @@ export class PaymentComponent implements OnInit, OnDestroy {
       vatNumber:             s.vatNumber,
       institution:           s.institution,
       department:            s.department,
+      studentCount:          s.studentCount,
       cardHolder:            cardHolder,
       cardNumber:            '****',
       expiryDate:            '**/**',

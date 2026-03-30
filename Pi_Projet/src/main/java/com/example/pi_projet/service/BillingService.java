@@ -48,24 +48,6 @@ public class BillingService {
     private final BCryptPasswordEncoder     passwordEncoder;
     private final EmailService              emailService;
 
-    // ── Plan prices in cents (USD) ─────────────────────────────────────────
-    private static final java.util.Map<String, int[]> PLAN_PRICES = java.util.Map.of(
-        "starter",              new int[]{4900,  3900},
-        "pro",                  new int[]{14900, 11900},
-        "business",             new int[]{34900, 27900},
-        "academic-starter",     new int[]{2900,  2300},
-        "academic-institution", new int[]{9900,  7900}
-    );
-
-    private static final java.util.Map<String, String> PLAN_DISPLAY_NAMES = java.util.Map.of(
-        "starter",              "Starter",
-        "pro",                  "Pro",
-        "business",             "Business",
-        "enterprise",           "Enterprise",
-        "academic-starter",     "Academic Starter",
-        "academic-institution", "Institution",
-        "academic-campus",      "Campus"
-    );
 
     // ─────────────────────────────────────────────────────────────────────────
     // CREATE STRIPE PAYMENT INTENT
@@ -74,11 +56,11 @@ public class BillingService {
         try {
             Stripe.apiKey = stripeSecretKey;
 
-            int[] prices = PLAN_PRICES.get(planId);
-            int amountCents = 0;
-            if (prices != null) {
-                amountCents = "annual".equalsIgnoreCase(billingCycle) ? prices[1] * 12 : prices[0];
-            }
+            Plan plan = planRepository.findByName(planId)
+                .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + planId));
+            int amountCents = "annual".equalsIgnoreCase(billingCycle)
+                ? plan.getPriceYearlyCents()
+                : plan.getPriceMonthlyCents();
             int taxCents   = (int) Math.round(amountCents * 0.19);
             int totalCents = amountCents + taxCents;
 
@@ -110,16 +92,15 @@ public class BillingService {
     @Transactional
     public PaymentResponseDTO submitPayment(PaymentRequestDTO req) {
 
-        String paymentId    = generatePaymentId();
-        String tempPassword = generatePassword();
-        String planName     = PLAN_DISPLAY_NAMES.getOrDefault(req.getPlanId(), req.getPlanId());
+        String paymentId = generatePaymentId();
 
-        int[] prices    = PLAN_PRICES.get(req.getPlanId());
-        int amountCents = 0;
-        if (prices != null) {
-            amountCents = "annual".equalsIgnoreCase(req.getBillingCycle())
-                ? prices[1] * 12 : prices[0];
-        }
+        // ── Plan (fetch from DB first to get real prices) ─────────────────────
+        Plan plan = planRepository.findByName(req.getPlanId())
+            .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + req.getPlanId()));
+        String planName = plan.getDisplayName() != null ? plan.getDisplayName() : plan.getName();
+        int amountCents = "annual".equalsIgnoreCase(req.getBillingCycle())
+            ? plan.getPriceYearlyCents()
+            : plan.getPriceMonthlyCents();
         double amount = amountCents / 100.0;
 
         String cardLast4 = req.getCardNumber() != null && req.getCardNumber().length() >= 4
@@ -129,11 +110,12 @@ public class BillingService {
 
         // ── 1. User ──────────────────────────────────────────────────────────
         User orgAdmin;
-        if (userRepository.existsByEmail(req.getAdminEmail())) {
+        boolean isNewUser = !userRepository.existsByEmail(req.getAdminEmail());
+        String tempPassword = isNewUser ? generatePassword() : null;
+
+        if (!isNewUser) {
+            // Utilisateur déjà authentifié → ne pas toucher au mot de passe
             orgAdmin = userRepository.findByEmail(req.getAdminEmail()).orElseThrow();
-            orgAdmin.setPasswordHash(passwordEncoder.encode(tempPassword));
-            orgAdmin.setMustChangePassword(true);
-            orgAdmin = userRepository.save(orgAdmin);
         } else {
             orgAdmin = User.builder()
                 .email(req.getAdminEmail())
@@ -165,25 +147,7 @@ public class BillingService {
                     .build());
             });
 
-        // ── 3. Plan ───────────────────────────────────────────────────────────
-        Plan plan = planRepository.findByName(req.getPlanId()).orElseGet(() -> {
-            int[] p = PLAN_PRICES.getOrDefault(req.getPlanId(), new int[]{0, 0});
-            return planRepository.save(Plan.builder()
-                .name(req.getPlanId())
-                .displayName(planName)
-                .priceMonthlyCents(p[0])
-                .priceYearlyCents(p[1])
-                .storageMb(10240L)
-                .mlTier(Plan.MlTier.BASIC)
-                .supportTier(Plan.SupportTier.EMAIL)
-                .apiAccess(false)
-                .ssoEnabled(false)
-                .lmsIntegration(false)
-                .gradeExport(false)
-                .customIntegrations(Plan.CustomIntegrations.NONE)
-                .isActive(true)
-                .build());
-        });
+        // ── 3. Plan (already fetched above) ──────────────────────────────────
 
         // ── 4. Subscription ───────────────────────────────────────────────────
         Subscription.BillingCycle cycle = "annual".equalsIgnoreCase(req.getBillingCycle())
@@ -192,15 +156,37 @@ public class BillingService {
         LocalDateTime periodEnd   = "annual".equalsIgnoreCase(req.getBillingCycle())
             ? periodStart.plusYears(1) : periodStart.plusMonths(1);
 
-        Subscription subscription = subscriptionRepository.save(Subscription.builder()
+        // Detect previous active subscription (for upgrade/downgrade tracking)
+        Subscription previousSub = subscriptionRepository
+            .findTopByOrganizationIdAndStatusOrderByCreatedAtDesc(
+                organization.getId(), Subscription.SubscriptionStatus.ACTIVE)
+            .orElse(null);
+
+        Plan previousPlan = previousSub != null ? previousSub.getPlan() : null;
+        boolean isDowngrade = previousPlan != null
+            && plan.getPriceMonthlyCents() < previousPlan.getPriceMonthlyCents();
+
+        // Cancel previous subscription before creating the new one
+        if (previousSub != null) {
+            previousSub.setStatus(Subscription.SubscriptionStatus.CANCELED);
+            previousSub.setCanceledAt(LocalDateTime.now());
+            subscriptionRepository.save(previousSub);
+        }
+
+        Subscription.SubscriptionBuilder subBuilder = Subscription.builder()
             .organization(organization)
             .plan(plan)
             .status(Subscription.SubscriptionStatus.ACTIVE)
             .billingCycle(cycle)
             .currentPeriodStart(periodStart)
             .currentPeriodEnd(periodEnd)
-            .cancelAtPeriodEnd(false)
-            .build());
+            .cancelAtPeriodEnd(false);
+
+        if (isDowngrade) {
+            subBuilder.downgradedFromPlan(previousPlan);
+        }
+
+        Subscription subscription = subscriptionRepository.save(subBuilder.build());
 
         // ── 5. Invoice ────────────────────────────────────────────────────────
         int taxCents   = (int) Math.round(amountCents * 0.19);
@@ -224,7 +210,7 @@ public class BillingService {
 
         // ── 6. Invoice Line Items (détail de la facture) ──────────────────────
         // Line 1 : abonnement principal
-        invoiceLineItemRepository.save(InvoiceLineItem.builder()
+        InvoiceLineItem lineItemSub = invoiceLineItemRepository.save(InvoiceLineItem.builder()
             .invoice(invoice)
             .description(planName + " Plan – " + (cycle == Subscription.BillingCycle.ANNUAL ? "Annual" : "Monthly") + " Subscription")
             .quantity(1)
@@ -236,7 +222,7 @@ public class BillingService {
             .build());
 
         // Line 2 : TVA
-        invoiceLineItemRepository.save(InvoiceLineItem.builder()
+        InvoiceLineItem lineItemTax = invoiceLineItemRepository.save(InvoiceLineItem.builder()
             .invoice(invoice)
             .description("VAT 19%")
             .quantity(1)
@@ -252,6 +238,7 @@ public class BillingService {
         // ── 7. Payment Attempt (SUCCEEDED) ────────────────────────────────────
         // If a real Stripe PaymentIntent ID is provided, verify it with Stripe
         String resolvedStripeId;
+        String resolvedPaymentMethodId = null;
         if (req.getStripePaymentIntentId() != null && !req.getStripePaymentIntentId().isBlank()) {
             try {
                 Stripe.apiKey = stripeSecretKey;
@@ -260,6 +247,7 @@ public class BillingService {
                     throw new RuntimeException("Payment not confirmed by Stripe. Status: " + intent.getStatus());
                 }
                 resolvedStripeId = intent.getId();
+                resolvedPaymentMethodId = intent.getPaymentMethod();
                 log.info("Stripe payment verified: {} status={}", resolvedStripeId, intent.getStatus());
             } catch (StripeException e) {
                 log.error("Stripe verification failed: {}", e.getMessage());
@@ -270,6 +258,22 @@ public class BillingService {
             resolvedStripeId = "pi_sim_" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12);
             log.warn("No Stripe PaymentIntent ID provided — using simulated ID: {}", resolvedStripeId);
         }
+
+        // Update subscription with Stripe identifiers
+        subscription.setStripeSubscriptionId(resolvedStripeId);
+        subscription.setStripePaymentMethodId(resolvedPaymentMethodId);
+        subscription.setPaymentMethodType(Subscription.PaymentMethodType.CARD);
+        subscriptionRepository.save(subscription);
+
+        // Update line items with Stripe reference IDs
+        lineItemSub.setStripeLineItemId("il_" + resolvedStripeId + "_sub");
+        lineItemTax.setStripeLineItemId("il_" + resolvedStripeId + "_tax");
+        invoiceLineItemRepository.save(lineItemSub);
+        invoiceLineItemRepository.save(lineItemTax);
+
+        // Update invoice with Stripe reference ID
+        invoice.setStripeInvoiceId(resolvedStripeId);
+        invoiceRepository.save(invoice);
 
         paymentAttemptRepository.save(PaymentAttempt.builder()
             .organization(organization)
@@ -328,7 +332,7 @@ public class BillingService {
             .studentCount(req.getStudentCount())
             .amountCents(amountCents)
             .currency("USD")
-            .tempPassword(tempPassword)
+            .tempPassword(isNewUser ? tempPassword : null)
             .cardLast4(cardLast4)
             .cardHolder(req.getCardHolder())
             .status(PendingPayment.PaymentStatus.CONFIRMED)
@@ -343,22 +347,38 @@ public class BillingService {
         double totalUsd    = totalCents / 100.0;
 
         try {
-            emailService.sendWelcomeWithInvoiceEmail(
-                req.getAdminEmail(),
-                req.getAdminName(),
-                req.getOrgName(),
-                planName,
-                "annual".equalsIgnoreCase(req.getBillingCycle()) ? "Annual" : "Monthly",
-                subtotalUsd,
-                taxUsd,
-                totalUsd,
-                "USD",
-                "INV-" + paymentId,
-                paymentId,
-                tempPassword
-            );
+            if (isNewUser) {
+                emailService.sendWelcomeWithInvoiceEmail(
+                    req.getAdminEmail(),
+                    req.getAdminName(),
+                    req.getOrgName(),
+                    planName,
+                    "annual".equalsIgnoreCase(req.getBillingCycle()) ? "Annual" : "Monthly",
+                    subtotalUsd,
+                    taxUsd,
+                    totalUsd,
+                    "USD",
+                    "INV-" + paymentId,
+                    paymentId,
+                    tempPassword
+                );
+            } else {
+                emailService.sendUpgradeInvoiceEmail(
+                    req.getAdminEmail(),
+                    req.getAdminName(),
+                    req.getOrgName(),
+                    planName,
+                    "annual".equalsIgnoreCase(req.getBillingCycle()) ? "Annual" : "Monthly",
+                    subtotalUsd,
+                    taxUsd,
+                    totalUsd,
+                    "USD",
+                    "INV-" + paymentId,
+                    paymentId
+                );
+            }
         } catch (Exception emailEx) {
-            log.warn("Welcome email failed for {} — payment still confirmed: {}", req.getAdminEmail(), emailEx.getMessage());
+            log.warn("Email failed for {} — payment still confirmed: {}", req.getAdminEmail(), emailEx.getMessage());
         }
 
         return PaymentResponseDTO.builder()
@@ -370,7 +390,7 @@ public class BillingService {
             .currency("USD")
             .createdAt(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
             .estimatedValidationDate(LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy")))
-            .tempPassword(tempPassword)
+            .tempPassword(isNewUser ? tempPassword : null)
             .adminEmail(req.getAdminEmail())
             .build();
     }
@@ -446,7 +466,6 @@ public class BillingService {
     public List<PlanDTO> getAllActivePlans() {
         return planRepository.findByIsActiveTrueOrderByPriceMonthlyCentsAsc()
             .stream()
-            .filter(plan -> !"academic-faculty".equalsIgnoreCase(plan.getName()))
             .map(PlanDTO::from).collect(Collectors.toList());
     }
 
