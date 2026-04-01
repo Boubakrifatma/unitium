@@ -1,28 +1,44 @@
+// src/app/services/TaskService/task.service.ts
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
+
+export interface AssignedTo {
+  id: number;
+  fullName: string;
+  email?: string;
+  avatarUrl?: string;
+}
+
+export interface ProjectRef {
+  id: string;
+  name?: string;
+}
 
 export interface TaskResponseDto {
   id: number;
   title: string;
-  description?: string;
-  status: string;
+  description: string;
   taskType: string;
-  priority?: string;
-  estimatedHours?: number;
-  actualHours?: number;
-  startDate?: string;
-  dueDate?: string;
-  milestone?: { id: number };
-  /** UUID projet — présent quand l’API charge la relation `project`. */
-  project?: { id: string };
-  assignedTo?: {
-    id: number;
-    fullName?: string;
-  };
+  status: string;
+  priority: string;
+  estimatedHours: number | null;
+  actualHours: number | null;
+  startDate: string | null;
+  dueDate: string | null;
+  createdAt: string | null;
+  projectId: string | null;
+  projectName: string | null;
+  assignedToId: number | null;
+  assignedToName: string | null;
+  assignedToEmail: string | null;
+  milestoneId: number | null;
+  milestoneName: string | null;
+  // used by AllTaskComponent which maps task.assignedTo?.fullName
+  assignedTo?: AssignedTo;
+  project?: ProjectRef;
 }
 
-/** Body aligned with backend TaskCreateDto */
 export interface TaskWritePayload {
   title: string;
   description?: string;
@@ -33,40 +49,87 @@ export interface TaskWritePayload {
   actualHours?: number;
   projectId: string;
   milestoneId?: number;
-  assignedToId?: number | null;
+  assignedToId?: number;
   startDate?: string;
   dueDate?: string;
 }
 
-@Injectable({
-  providedIn: 'root',
-})
+export interface UserDTO {
+  id: number;
+  email: string;
+  fullName: string;
+  role: string;
+  isActive: boolean;
+  avatarUrl?: string;
+}
+
+@Injectable({ providedIn: 'root' })
 export class TaskService {
-  private apiUrl = 'http://localhost:8084/api/tasks';
+  private api = 'http://localhost:8084/api/tasks';
 
   constructor(private http: HttpClient) {}
 
-  getAllTasks(): Observable<TaskResponseDto[]> {
-    return this.http.get<TaskResponseDto[]>(this.apiUrl);
+  private getHeaders(): HttpHeaders {
+    const token = localStorage.getItem('token');
+    return new HttpHeaders({ Authorization: `Bearer ${token}` });
   }
 
+  // ── Kanban (employé connecté) ──────────────────────────────────
+  getMyTasks(): Observable<TaskResponseDto[]> {
+    return this.http.get<TaskResponseDto[]>(
+      `${this.api}/my-tasks`,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  // ── Manager : tâches par milestone ────────────────────────────
   getTasksByMilestone(milestoneId: number): Observable<TaskResponseDto[]> {
-    return this.http.get<TaskResponseDto[]>(`${this.apiUrl}/milestone/${milestoneId}`);
+    return this.http.get<TaskResponseDto[]>(
+      `${this.api}/milestone/${milestoneId}/dto`,
+      { headers: this.getHeaders() }
+    );
   }
 
+  // ── Détail d'une tâche ─────────────────────────────────────────
   getById(id: number): Observable<TaskResponseDto> {
-    return this.http.get<TaskResponseDto>(`${this.apiUrl}/${id}`);
+    return this.http.get<TaskResponseDto>(
+      `${this.api}/dto/${id}`,
+      { headers: this.getHeaders() }
+    );
   }
 
-  create(body: TaskWritePayload): Observable<TaskResponseDto> {
-    return this.http.post<TaskResponseDto>(this.apiUrl, body);
+  // ── Créer ──────────────────────────────────────────────────────
+  create(payload: TaskWritePayload): Observable<TaskResponseDto> {
+    return this.http.post<TaskResponseDto>(
+      this.api,
+      payload,
+      { headers: this.getHeaders() }
+    );
   }
 
-  update(id: number, body: TaskWritePayload): Observable<TaskResponseDto> {
-    return this.http.put<TaskResponseDto>(`${this.apiUrl}/${id}`, body);
+  // ── Mettre à jour ──────────────────────────────────────────────
+  update(id: number, payload: Partial<TaskWritePayload>): Observable<TaskResponseDto> {
+    return this.http.put<TaskResponseDto>(
+      `${this.api}/${id}`,
+      payload,
+      { headers: this.getHeaders() }
+    );
   }
 
+  // ── Mise à jour du statut (drag & drop Kanban) ─────────────────
+  updateStatus(id: number, status: string): Observable<any> {
+    return this.http.put(
+      `${this.api}/${id}`,
+      { status },
+      { headers: this.getHeaders() }
+    );
+  }
+
+  // ── Supprimer ──────────────────────────────────────────────────
   delete(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/${id}`);
+    return this.http.delete<void>(
+      `${this.api}/${id}`,
+      { headers: this.getHeaders() }
+    );
   }
 }

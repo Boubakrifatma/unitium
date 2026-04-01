@@ -1,6 +1,7 @@
 package com.example.pi_projet.controller;
 
 import com.example.pi_projet.dto.TaskCreateDto;
+import com.example.pi_projet.dto.TaskResponseDto;
 import com.example.pi_projet.entity.Project;
 import com.example.pi_projet.entity.TimeLineAndDeadLine.Task;
 import com.example.pi_projet.entity.TimeLineAndDeadLine.Milestone;
@@ -8,11 +9,14 @@ import com.example.pi_projet.entity.User;
 import com.example.pi_projet.service.ProjectService;
 import com.example.pi_projet.service.TaskService;
 import com.example.pi_projet.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/tasks")
@@ -30,6 +34,9 @@ public class TaskController {
         this.projectService = projectService;
         this.userService = userService;
     }
+
+
+
 
     @PostMapping
     public ResponseEntity<Task> create(@RequestBody TaskCreateDto dto) {
@@ -97,45 +104,116 @@ public class TaskController {
     public ResponseEntity<Task> update(@PathVariable Long id, @RequestBody TaskCreateDto dto) {
         Task existing = taskService.getById(id);
 
-        User assignedTo = existing.getAssignedTo();
+        if (dto.getTitle() != null) {
+            existing.setTitle(dto.getTitle());
+        }
+
+        if (dto.getDescription() != null) {
+            existing.setDescription(dto.getDescription());
+        }
+
+        if (dto.getTaskType() != null && !dto.getTaskType().isBlank()) {
+            existing.setTaskType(Task.TaskType.valueOf(dto.getTaskType()));
+        }
+
+        if (dto.getStatus() != null && !dto.getStatus().isBlank()) {
+            existing.setStatus(Task.TaskStatus.valueOf(dto.getStatus().toLowerCase()));
+        }
+
+        if (dto.getPriority() != null && !dto.getPriority().isBlank()) {
+            existing.setPriority(Task.TaskPriority.valueOf(dto.getPriority().toLowerCase()));
+        }
+
+        if (dto.getEstimatedHours() != null) {
+            existing.setEstimatedHours(dto.getEstimatedHours());
+        }
+
+        if (dto.getActualHours() != null) {
+            existing.setActualHours(dto.getActualHours());
+        }
+
+        if (dto.getStartDate() != null) {
+            existing.setStartDate(dto.getStartDate());
+        }
+
+        if (dto.getDueDate() != null) {
+            existing.setDueDate(dto.getDueDate());
+        }
+
+        // assignedTo
         if (dto.getAssignedToId() != null) {
-            assignedTo = userService.getUserByIdForTasks(dto.getAssignedToId());
+            existing.setAssignedTo(userService.getUserByIdForTasks(dto.getAssignedToId()));
         }
 
-        Milestone milestone = existing.getMilestone();
+        // milestone
         if (dto.getMilestoneId() != null) {
-            milestone = new Milestone();
+            Milestone milestone = new Milestone();
             milestone.setId(dto.getMilestoneId());
+            existing.setMilestone(milestone);
         }
 
-        Project project = existing.getProject();
-        if (dto.getProjectId() != null && !dto.getProjectId().isEmpty()) {
-            project = projectService.getById(UUID.fromString(dto.getProjectId()));
+        // project
+        if (dto.getProjectId() != null && !dto.getProjectId().isBlank()) {
+            existing.setProject(projectService.getById(UUID.fromString(dto.getProjectId())));
         }
 
-        Task patch = Task.builder()
-                .title(dto.getTitle())
-                .description(dto.getDescription())
-                .taskType(Task.TaskType.valueOf(dto.getTaskType()))
-                .status(Task.TaskStatus.valueOf(dto.getStatus().toLowerCase()))
-                .priority(dto.getPriority() != null
-                        ? Task.TaskPriority.valueOf(dto.getPriority().toLowerCase())
-                        : null)
-                .estimatedHours(dto.getEstimatedHours())
-                .actualHours(dto.getActualHours())
-                .startDate(dto.getStartDate())
-                .dueDate(dto.getDueDate())
-                .project(project)
-                .assignedTo(assignedTo)
-                .milestone(milestone)
-                .build();
-
-        return ResponseEntity.ok(taskService.update(id, patch));
+        return ResponseEntity.ok(taskService.update(id, existing));
     }
-
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         taskService.delete(id);
         return ResponseEntity.noContent().build();
     }
-}
+    @GetMapping("/my-tasks")
+    public ResponseEntity<List<TaskResponseDto>> getMyTasks(HttpServletRequest request) {
+        User currentUser = (User) request.getAttribute("currentUser");
+        if (currentUser == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        List<Task> tasks = taskService.getTasksByUser(currentUser.getId());
+        List<TaskResponseDto> dtos = tasks.stream()
+                .map(this::toDto)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(dtos);
+    }
+
+    @GetMapping("/dto/{id}")
+    public ResponseEntity<TaskResponseDto> getByIdDto(@PathVariable Long id) {
+        return ResponseEntity.ok(toDto(taskService.getById(id)));
+    }
+
+    @GetMapping("/milestone/{milestoneId}/dto")
+    public ResponseEntity<List<TaskResponseDto>> getTasksByMilestoneDto(@PathVariable Long milestoneId) {
+        return ResponseEntity.ok(
+                taskService.getTasksByMilestone(milestoneId)
+                        .stream().map(this::toDto).collect(Collectors.toList())
+        );
+    }
+
+    private TaskResponseDto toDto(Task t) {
+        return TaskResponseDto.builder()
+                .id(t.getId())
+                .title(t.getTitle())
+                .description(t.getDescription())
+                .taskType(t.getTaskType() != null ? t.getTaskType().name() : null)
+                .status(t.getStatus() != null ? t.getStatus().name() : null)
+                .priority(t.getPriority() != null ? t.getPriority().name() : null)
+                .estimatedHours(t.getEstimatedHours() != null ? t.getEstimatedHours().doubleValue() : null)
+                .actualHours(t.getActualHours() != null ? t.getActualHours().doubleValue() : null)
+                .startDate(t.getStartDate())
+                .dueDate(t.getDueDate())
+                .createdAt(t.getCreatedAt())
+                .projectId(t.getProject() != null ? t.getProject().getId().toString() : null)
+                .projectName(t.getProject() != null ? t.getProject().getName() : null)
+                .assignedToId(t.getAssignedTo() != null ? t.getAssignedTo().getId() : null)
+                .assignedToName(t.getAssignedTo() != null ? t.getAssignedTo().getFullName() : null)
+                .assignedToEmail(t.getAssignedTo() != null ? t.getAssignedTo().getEmail() : null)
+                .milestoneId(t.getMilestone() != null ? t.getMilestone().getId() : null)
+                .milestoneName(t.getMilestone() != null ? t.getMilestone().getName() : null)
+                .build();
+    }
+
+    }
+

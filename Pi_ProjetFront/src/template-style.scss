@@ -1,12 +1,12 @@
-// Include theming for Angular Material with `mat.theme()`.
-// This Sass mixin will define CSS variables that are used for styling Angular Material
-// components according to the Material 3 design spec.
-// Learn more about theming and how to use it for your application's
-// custom components at https://material.angular.dev/guide/theming
+//Include theming for Angular Material with `mat.theme()`.
+//This Sass mixin will define CSS variables that are used for styling Angular Material
+//components according to the Material 3 design spec.
+//Learn more about theming and how to use it for your application's
+//custom components at https://material.angular.dev/guide/theming
 @use '@angular/material' as mat;
 // theme colors
 @use '_theme.scss';
-//custom theme 
+//custom theme
 @use '_custom-theme.scss';
 // reposnive grid (Only grid css)
 @import 'assets/css/bootstrap-grid.css';
@@ -42,7 +42,7 @@ html {
   --inner-sidebar-width: 290px;
   //label
   --mat-checkbox-label-text-size: var(--mat-sys-body-large-size);
-  // divider 
+  // divider
   --mat-divider-color: light-dark(#dddddd, #444444);
   // shape dropdown
   --mat-menu-container-shape: 10px;
@@ -51,7 +51,7 @@ html {
   --mat-form-field-filled-container-color: light-dark(#f3f3f3, #444444);
   // header background
   --mat-header-background-color: light-dark(#ffffff, #444444);
-  // template background 
+  // template background
   --mat-template-background: light-dark(#ffffff, #000000)
 }
 
@@ -66,7 +66,7 @@ body {
   flex: 1 1 auto;
 }
 
-// text 
+// text
 p,
 h1,
 h2,
@@ -160,7 +160,7 @@ mat-paginator {
   background: transparent !important;
 }
 
-/// gradient 
+/// gradient
 .bg-light-gradient, .mat-mdc-menu-panel, .sidenav-container .sidenav app-app-sidebar .sidebar .mat-accordion mat-expansion-panel.mat-expanded {
   background-image: linear-gradient(-135deg, rgba(255, 238, 81, 0.1) 0%, rgba(255, 238, 81, 0) 35%, rgba(79, 163, 253, 0.0) 65%, rgba(136, 221, 255, 0.15) 100%);
 }
@@ -286,7 +286,7 @@ mat-paginator {
   background-color: rgba(255, 255, 255, 0.15);
 }
 
-// opacity 
+// opacity
 .opacity-0 {
   opacity: 0;
 }
@@ -461,7 +461,7 @@ mat-paginator {
 .border-light {
   // fields
   --mat-form-field-outlined-outline-color: var(--mat-button-toggle-divider-color);
-  // button 
+  // button
   --mat-button-toggle-divider-color: light-dark(#f7f7f7, #444444);
 }
 
@@ -567,7 +567,7 @@ mat-paginator {
   overflow-y: auto;
 }
 
-//align 
+//align
 .align-middle,
 .mat-mdc-icon-button {
   vertical-align: middle;
@@ -645,7 +645,7 @@ mat-paginator {
   height: 50%;
 }
 
-// avatar squares 
+// avatar squares
 .avatar {
   text-align: center;
   vertical-align: middle;
@@ -758,12 +758,12 @@ mat-paginator {
   right: 0 !important;
 }
 
-//login 
+//login
 .login-box {
   max-width: 400px;
 }
 
-// header 
+// header
 app-auth-header {
   display: block;
   position: relative;
@@ -846,7 +846,7 @@ app-app-header, app-index-header {
       }
     }
 
-    // style - 1 for header 
+    // style - 1 for header
     &.style-1 {
       width: calc(100% - 2rem);
       max-width: 992px;
@@ -890,7 +890,7 @@ app-index-header {
   }
 }
 
-// sidebar 
+// sidebar
 .sidenav-container:after, .auth-layout:after {
   content: "";
   position: fixed;
@@ -1215,7 +1215,7 @@ app-index-header {
   }
 }
 
-//footer 
+//footer
 app-auth-footer {
   display: block;
   position: relative;
@@ -1237,7 +1237,7 @@ app-app-footer, app-index-footer {
   }
 }
 
-// content 
+// content
 .main-content {
   border-radius: 1rem;
   margin: 0.5rem 0rem;
@@ -1687,7 +1687,7 @@ mat-snack-bar-container[class*="theme-"] .mat-mdc-snackbar-surface {
   }
 }
 
-// chat list 
+// chat list
 .chat-list {
   .mat-mdc-card {
     position: relative;
@@ -1734,7 +1734,7 @@ mat-snack-bar-container[class*="theme-"] .mat-mdc-snackbar-surface {
   }
 }
 
-// contact list 
+// contact list
 .contact-list {
   --mat-list-list-item-one-line-container-height: 60px;
   padding: 8px 0.5rem !important;
@@ -1796,7 +1796,7 @@ pre code {
   }
 }
 
-// is mobile 
+// is mobile
 .responsive-table {
   .mat-mdc-cell {
     .mat-mobile-label {
@@ -2021,7 +2021,7 @@ pre code {
   }
 }
 
-// accordion 
+// accordion
 .mat-accordion {
   mat-expansion-panel {
     --mat-expansion-container-shape: 12px;
@@ -2034,14 +2034,14 @@ pre code {
   }
 }
 
-// list 
+// list
 mat-list-item .mdc-list-item__primary-text {
   font-size: inherit;
   line-height: inherit;
   letter-spacing: inherit;
 }
 
-// direction 
+// direction
 :dir(rtl) {
   .main-sidenav-content {
     margin-right: 280px;

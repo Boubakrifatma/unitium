@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface TaskRepository extends JpaRepository<Task, Long> {
 
@@ -17,4 +18,10 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     @EntityGraph(attributePaths = {"project", "assignedTo", "milestone"})
     @Query("SELECT t FROM Task t WHERE t.id = :id")
     Optional<Task> findByIdWithDetails(@Param("id") Long id);
+
+    @EntityGraph(attributePaths = {"project", "assignedTo", "milestone"})
+    List<Task> findByAssignedTo_Id(Long userId);
+
+    // ✅ NOUVEAU
+    List<Task> findByProject_Id(UUID projectId);
 }

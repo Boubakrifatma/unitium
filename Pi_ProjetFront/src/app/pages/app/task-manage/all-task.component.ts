@@ -1,11 +1,12 @@
+// all-task.component.ts
 import { Component, OnInit, ViewChild, AfterViewInit, inject } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { ActivatedRoute } from "@angular/router";
+import { FormsModule } from "@angular/forms";
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from "@angular/forms";
-
-import { MatTableDataSource, MatTableModule } from "@angular/material/table";
+import { MatTableDataSource } from "@angular/material/table";
 import { MatPaginator, MatPaginatorModule } from "@angular/material/paginator";
-import { MatSort, MatSortModule } from "@angular/material/sort";
+import { MatCardModule } from "@angular/material/card";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInputModule } from "@angular/material/input";
 import { MatIconModule } from "@angular/material/icon";
@@ -15,12 +16,10 @@ import { MatSnackBar, MatSnackBarModule } from "@angular/material/snack-bar";
 import { MatSelectModule } from "@angular/material/select";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
-
-import {
-  TaskService,
-  TaskResponseDto,
-  TaskWritePayload,
-} from "../../../services/TaskService/task.service";
+import { MatButtonToggleModule } from "@angular/material/button-toggle";
+import { MatAutocompleteModule } from "@angular/material/autocomplete";
+import { MatOptionModule } from "@angular/material/core";
+import { TaskService, TaskResponseDto, TaskWritePayload } from "../../../services/TaskService/task.service";
 import { MilestoneService, Milestone } from "../../../services/mileStoneService/milestone.service";
 import { UserDTO, UserService } from "../../../users/user.service";
 
@@ -31,8 +30,8 @@ export interface TaskItem {
   type: string;
   assignedTo: string;
   assignedToId: number | null;
-  assignHours: string;
-  loggedHours: string;
+  assignHours: number;
+  loggedHours: number;
   priority: string;
   dueDate: string;
   description: string;
@@ -48,32 +47,26 @@ export interface TaskManageDialogData {
   users: UserDTO[];
 }
 
-const TASK_TYPES = ["epic", "story", "task", "bug", "subtask"] as const;
-const TASK_STATUSES = ["todo", "in_progress", "review", "done", "blocked"] as const;
+const TASK_TYPES     = ["epic", "story", "task", "bug", "subtask"] as const;
+const TASK_STATUSES  = ["todo", "in_progress", "review", "done", "blocked"] as const;
 const TASK_PRIORITIES = ["low", "medium", "high", "critical"] as const;
 
-function statusLabel(s: string): string {
+export function statusLabel(s: string): string {
   const map: Record<string, string> = {
-    todo: "À faire",
-    in_progress: "En cours",
-    review: "Révision",
-    done: "Terminé",
-    blocked: "Bloqué",
+    todo: "À faire", in_progress: "En cours",
+    review: "Révision", done: "Terminé", blocked: "Bloqué",
   };
   return map[s] ?? s;
 }
 
-function priorityLabel(p: string): string {
+export function priorityLabel(p: string): string {
   const map: Record<string, string> = {
-    low: "Basse",
-    medium: "Moyenne",
-    high: "Haute",
-    critical: "Critique",
+    low: "Basse", medium: "Moyenne", high: "Haute", critical: "Critique",
   };
   return map[p] ?? p;
 }
 
-function typeLabel(t: string): string {
+export function typeLabel(t: string): string {
   return t.replace(/_/g, " ");
 }
 
@@ -84,269 +77,268 @@ function toLocalISODate(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+// ── Dialog Composant ───────────────────────────────────────────────────────────
 @Component({
   selector: "app-task-manage-dialog",
   standalone: true,
-  imports: [
-    CommonModule,
-    ReactiveFormsModule,
-    MatDialogModule,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
-    MatProgressSpinnerModule,
-  ],
   template: `
-    <h2 mat-dialog-title>{{ title }}</h2>
-    <form [formGroup]="taskForm" (ngSubmit)="save()">
-      <mat-dialog-content class="task-dialog-content">
-        @if (data.mode !== "view") {
-          <mat-form-field appearance="outline" class="w-100">
-            <mat-label>Titre</mat-label>
-            <input matInput formControlName="title" />
-            @if (taskForm.get("title")?.invalid && taskForm.get("title")?.touched) {
-              <mat-error>Titre requis</mat-error>
-            }
-          </mat-form-field>
+    <div class="dialog-container">
+      <h2 mat-dialog-title class="dialog-title">
+        <mat-icon class="title-icon">{{ getTitleIcon() }}</mat-icon>
+        {{ title }}
+      </h2>
+      <mat-dialog-content class="dialog-content">
+        <form [formGroup]="taskForm" class="task-form">
+          <div class="row g-3">
+            <!-- Titre -->
+            <div class="col-12">
+              <mat-form-field appearance="outline" class="w-100">
+                <mat-label>Titre de la tâche</mat-label>
+                <input matInput formControlName="title" placeholder="Saisissez le titre" />
+                <mat-error *ngIf="taskForm.get('title')?.hasError('required')">
+                  Le titre est requis
+                </mat-error>
+              </mat-form-field>
+            </div>
 
-          <mat-form-field appearance="outline" class="w-100">
-            <mat-label>Description</mat-label>
-            <textarea matInput formControlName="description" rows="3"></textarea>
-          </mat-form-field>
+            <!-- Description -->
+            <div class="col-12">
+              <mat-form-field appearance="outline" class="w-100">
+                <mat-label>Description</mat-label>
+                <textarea matInput formControlName="description" rows="3" placeholder="Description détaillée..."></textarea>
+              </mat-form-field>
+            </div>
 
-          <div class="row-fields">
-            <mat-form-field appearance="outline" class="flex-1">
-              <mat-label>Type</mat-label>
-              <mat-select formControlName="taskType">
-                @for (t of taskTypes; track t) {
-                  <mat-option [value]="t">{{ typeLabel(t) }}</mat-option>
-                }
-              </mat-select>
-              @if (taskForm.get("taskType")?.invalid && taskForm.get("taskType")?.touched) {
-                <mat-error>Type requis</mat-error>
-              }
-            </mat-form-field>
-            <mat-form-field appearance="outline" class="flex-1">
-              <mat-label>Statut</mat-label>
-              <mat-select formControlName="status">
-                @for (s of taskStatuses; track s) {
-                  <mat-option [value]="s">{{ statusLabel(s) }}</mat-option>
-                }
-              </mat-select>
-              @if (taskForm.get("status")?.invalid && taskForm.get("status")?.touched) {
-                <mat-error>Statut requis</mat-error>
-              }
-            </mat-form-field>
+            <!-- Type et Statut -->
+            <div class="col-md-6">
+              <mat-form-field appearance="outline" class="w-100">
+                <mat-label>Type</mat-label>
+                <mat-select formControlName="taskType">
+                  <mat-option *ngFor="let type of taskTypes" [value]="type">
+                    <mat-icon class="type-icon">{{ getTypeIcon(type) }}</mat-icon>
+                    {{ typeLabel(type) }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <div class="col-md-6">
+              <mat-form-field appearance="outline" class="w-100">
+                <mat-label>Statut</mat-label>
+                <mat-select formControlName="status">
+                  <mat-option *ngFor="let status of taskStatuses" [value]="status">
+                    <span [class]="'status-dot status-' + status"></span>
+                    {{ statusLabel(status) }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <!-- Priorité et Assignation -->
+            <div class="col-md-6">
+              <mat-form-field appearance="outline" class="w-100">
+                <mat-label>Priorité</mat-label>
+                <mat-select formControlName="priority">
+                  <mat-option *ngFor="let priority of taskPriorities" [value]="priority">
+                    <span [class]="'priority-dot priority-' + priority"></span>
+                    {{ priorityLabel(priority) }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <div class="col-md-6">
+              <mat-form-field appearance="outline" class="w-100">
+                <mat-label>Assigné à</mat-label>
+                <mat-select formControlName="assignedToId">
+                  <mat-option [value]="null">Non assigné</mat-option>
+                  <mat-option *ngFor="let user of data.users" [value]="user.id">
+                    <div class="user-option">
+                      <div class="user-avatar-small" [style.backgroundColor]="getUserColor(user.fullName)">
+                        {{ getInitials(user.fullName) }}
+                      </div>
+                      {{ user.fullName }}
+                    </div>
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <!-- Heures -->
+            <div class="col-md-6">
+              <mat-form-field appearance="outline" class="w-100">
+                <mat-label>Heures estimées</mat-label>
+                <input matInput type="number" formControlName="estimatedHours" step="0.5" />
+                <span matSuffix>h</span>
+                <mat-error *ngIf="taskForm.get('estimatedHours')?.hasError('min')">
+                  Les heures doivent être positives
+                </mat-error>
+              </mat-form-field>
+            </div>
+
+            <div class="col-md-6">
+              <mat-form-field appearance="outline" class="w-100">
+                <mat-label>Heures effectuées</mat-label>
+                <input matInput type="number" formControlName="actualHours" step="0.5" />
+                <span matSuffix>h</span>
+              </mat-form-field>
+            </div>
+
+            <!-- Dates -->
+            <div class="col-md-6">
+              <mat-form-field appearance="outline" class="w-100">
+                <mat-label>Date de début</mat-label>
+                <input matInput type="date" formControlName="startDate" [min]="minDate" />
+                <mat-error *ngIf="taskForm.hasError('startDatePast')">
+                  La date ne peut pas être dans le passé
+                </mat-error>
+              </mat-form-field>
+            </div>
+
+            <div class="col-md-6">
+              <mat-form-field appearance="outline" class="w-100">
+                <mat-label>Date d'échéance</mat-label>
+                <input matInput type="date" formControlName="dueDate" [min]="minDate" />
+                <mat-error *ngIf="taskForm.hasError('dueDatePast')">
+                  La date ne peut pas être dans le passé
+                </mat-error>
+                <mat-error *ngIf="taskForm.hasError('dateRangeInvalid')">
+                  La date d'échéance doit être après la date de début
+                </mat-error>
+              </mat-form-field>
+            </div>
           </div>
-
-          <div class="row-fields">
-            <mat-form-field appearance="outline" class="flex-1">
-              <mat-label>Priorité</mat-label>
-              <mat-select formControlName="priority">
-                @for (p of taskPriorities; track p) {
-                  <mat-option [value]="p">{{ priorityLabel(p) }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field appearance="outline" class="flex-1">
-              <mat-label>Assigné à</mat-label>
-              <mat-select formControlName="assignedToId">
-                <mat-option [value]="null">Non assigné</mat-option>
-                @for (u of data.users; track u.id) {
-                  <mat-option [value]="u.id">{{ u.fullName }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-          </div>
-
-          <div class="row-fields">
-            <mat-form-field appearance="outline" class="flex-1">
-              <mat-label>Heures estimées</mat-label>
-              <input matInput type="number" min="0" step="0.5" formControlName="estimatedHours" />
-              @if (taskForm.get("estimatedHours")?.touched && taskForm.get("estimatedHours")?.invalid) {
-                @if (taskForm.get("estimatedHours")?.hasError("required")) {
-                  <mat-error>Heures estimées requises</mat-error>
-                } @else if (taskForm.get("estimatedHours")?.hasError("min")) {
-                  <mat-error>Les heures estimées doivent être >= 0</mat-error>
-                }
-              }
-            </mat-form-field>
-            <mat-form-field appearance="outline" class="flex-1">
-              <mat-label>Heures réelles</mat-label>
-              <input matInput type="number" min="0" step="0.5" formControlName="actualHours" />
-              @if (taskForm.get("actualHours")?.touched && taskForm.get("actualHours")?.invalid) {
-                @if (taskForm.get("actualHours")?.hasError("min")) {
-                  <mat-error>Les heures réelles doivent être >= 0</mat-error>
-                }
-              }
-            </mat-form-field>
-          </div>
-
-          <div class="row-fields">
-            <mat-form-field appearance="outline" class="flex-1">
-              <mat-label>Date de début</mat-label>
-              <input matInput type="date" formControlName="startDate" [min]="minDate" />
-              @if (taskForm.get("startDate")?.touched && taskForm.hasError("startDatePast")) {
-                <mat-error>La date de début ne peut pas être dans le passé</mat-error>
-              }
-            </mat-form-field>
-            <mat-form-field appearance="outline" class="flex-1">
-              <mat-label>Échéance</mat-label>
-              <input matInput type="date" formControlName="dueDate" [min]="minDate" />
-              @if (taskForm.get("dueDate")?.touched && taskForm.hasError("dueDatePast")) {
-                <mat-error>L'échéance ne peut pas être dans le passé</mat-error>
-              }
-              @if (taskForm.hasError("dateRangeInvalid") && taskForm.get("dueDate")?.touched) {
-                <mat-error>L'échéance doit être >= à la date de début</mat-error>
-              }
-            </mat-form-field>
-          </div>
-        } @else {
-          <dl class="detail-grid">
-            <dt>Titre</dt>
-            <dd>{{ data.task?.title }}</dd>
-            <dt>Description</dt>
-            <dd class="pre">{{ data.task?.description || "—" }}</dd>
-            <dt>Type</dt>
-            <dd>{{ typeLabel(data.task?.type || "") }}</dd>
-            <dt>Statut</dt>
-            <dd>{{ statusLabel(data.task?.status || "") }}</dd>
-            <dt>Priorité</dt>
-            <dd>{{ priorityLabel(data.task?.priority || "") }}</dd>
-            <dt>Assigné à</dt>
-            <dd>{{ data.task?.assignedTo }}</dd>
-            <dt>Heures est. / réelles</dt>
-            <dd>{{ data.task?.assignHours }}h / {{ data.task?.loggedHours }}h</dd>
-            <dt>Dates</dt>
-            <dd>
-              {{ data.task?.startDate || "—" }} → {{ data.task?.dueDate || "—" }}
-            </dd>
-          </dl>
-        }
+        </form>
       </mat-dialog-content>
-
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" (click)="dialogRef.close(false)">
-          {{ data.mode === "view" ? "Fermer" : "Annuler" }}
+      <mat-dialog-actions align="end" class="dialog-actions">
+        <button mat-button [mat-dialog-close]="false" [disabled]="saving">
+          <mat-icon>close</mat-icon>
+          Annuler
         </button>
-        @if (data.mode === "edit") {
-          <button mat-flat-button color="primary" type="submit" [disabled]="taskForm.invalid || saving">
-            @if (saving) {
-              <span>Enregistrement…</span>
-            } @else {
-              <span>Enregistrer</span>
-            }
-          </button>
-        }
-        @if (data.mode === "create") {
-          <button mat-flat-button color="primary" type="submit" [disabled]="taskForm.invalid || saving">
-            @if (saving) {
-              <span>Création…</span>
-            } @else {
-              <span>Créer</span>
-            }
-          </button>
-        }
+        <button *ngIf="data.mode !== 'view'"
+                mat-flat-button
+                color="primary"
+                (click)="save()"
+                [disabled]="saving || taskForm.invalid">
+          <mat-icon *ngIf="!saving">save</mat-icon>
+          <mat-spinner *ngIf="saving" diameter="20"></mat-spinner>
+          {{ saving ? 'Enregistrement...' : 'Enregistrer' }}
+        </button>
       </mat-dialog-actions>
-    </form>
+    </div>
   `,
-  styles: [
-    `
-      .task-dialog-content {
-        min-width: min(100vw - 48px, 480px);
-        padding-top: 0.5rem;
-      }
-      .w-100 {
-        width: 100%;
-      }
-      .row-fields {
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
-      }
-      .flex-1 {
-        flex: 1 1 200px;
-      }
-      .detail-grid {
-        display: grid;
-        grid-template-columns: 120px 1fr;
-        gap: 8px 16px;
-        margin: 0;
-      }
-      .detail-grid dt {
-        margin: 0;
-        color: rgba(0, 0, 0, 0.6);
-        font-size: 13px;
-      }
-      .detail-grid dd {
-        margin: 0;
-        font-weight: 500;
-      }
-      .pre {
-        white-space: pre-wrap;
-        font-weight: 400;
-      }
-    `,
+  styles: [`
+    .dialog-container { padding: 8px 0; }
+    .dialog-title { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .title-icon { color: #1976d2; }
+    .dialog-content { max-height: 70vh; overflow-y: auto; }
+    .task-form { margin-top: 8px; }
+    .type-icon { font-size: 18px; margin-right: 8px; vertical-align: middle; }
+    .status-dot, .priority-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
+    .status-todo { background: #9e9e9e; }
+    .status-in_progress { background: #1976d2; }
+    .status-review { background: #ed6c02; }
+    .status-done { background: #2e7d32; }
+    .status-blocked { background: #d32f2f; }
+    .priority-low { background: #2e7d32; }
+    .priority-medium { background: #ed6c02; }
+    .priority-high { background: #d32f2f; }
+    .priority-critical { background: #c2185b; }
+    .user-option { display: flex; align-items: center; gap: 8px; }
+    .user-avatar-small { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: 500; }
+    .dialog-actions { padding: 16px 24px; border-top: 1px solid #e0e0e0; margin-top: 16px; }
+  `],
+  imports: [
+    CommonModule, ReactiveFormsModule, MatDialogModule, MatButtonModule,
+    MatFormFieldModule, MatInputModule, MatSelectModule, MatProgressSpinnerModule,
+    MatIconModule, FormsModule
   ],
 })
 export class TaskManageDialogComponent implements OnInit {
   dialogRef = inject(MatDialogRef<TaskManageDialogComponent, boolean>);
-  data = inject<TaskManageDialogData>(MAT_DIALOG_DATA);
-  private fb = inject(FormBuilder);
+  data      = inject<TaskManageDialogData>(MAT_DIALOG_DATA);
+  private fb          = inject(FormBuilder);
   private taskService = inject(TaskService);
-  private snack = inject(MatSnackBar);
+  private snack       = inject(MatSnackBar);
 
-  taskTypes = TASK_TYPES;
-  taskStatuses = TASK_STATUSES;
+  taskTypes      = TASK_TYPES;
+  taskStatuses   = TASK_STATUSES;
   taskPriorities = TASK_PRIORITIES;
-  typeLabel = typeLabel;
-  statusLabel = statusLabel;
-  priorityLabel = priorityLabel;
+  typeLabel      = typeLabel;
+  statusLabel    = statusLabel;
+  priorityLabel  = priorityLabel;
 
-  saving = false;
+  saving  = false;
   minDate = toLocalISODate(new Date());
 
   taskForm = this.fb.group(
     {
-      title: ["", Validators.required],
-      description: [""],
-      taskType: ["task", Validators.required],
-      status: ["todo", Validators.required],
-      priority: ["medium"],
+      title:          ["", Validators.required],
+      description:    [""],
+      taskType:       ["task", Validators.required],
+      status:         ["todo", Validators.required],
+      priority:       ["medium"],
       estimatedHours: [0, [Validators.required, Validators.min(0)]],
-      actualHours: [0 as number | null, Validators.min(0)],
-      assignedToId: [null as number | null],
-      startDate: [""],
-      dueDate: [""],
+      actualHours:    [0 as number | null, Validators.min(0)],
+      assignedToId:   [null as number | null],
+      startDate:      [""],
+      dueDate:        [""],
     },
     { validators: [this.dateRangeValidator()] },
   );
 
+  getTitleIcon(): string {
+    const icons = { create: "add_task", edit: "edit", view: "visibility" };
+    return icons[this.data.mode] || "task";
+  }
+
+  getTypeIcon(type: string): string {
+    const icons: any = {
+      bug: "bug_report",
+      epic: "stars",
+      story: "auto_stories",
+      task: "checklist",
+      subtask: "subdirectory_arrow_right"
+    };
+    return icons[type] || "task";
+  }
+
+  getUserColor(name: string): string {
+    const colors = ['#1976d2', '#2e7d32', '#ed6c02', '#9c27b0', '#d32f2f', '#0288d1', '#7b1fa2', '#388e3c'];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = ((hash << 5) - hash) + name.charCodeAt(i);
+      hash |= 0;
+    }
+    return colors[Math.abs(hash) % colors.length];
+  }
+
+  getInitials(name: string): string {
+    if (!name || name === 'Non assigné') return '?';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  }
+
   get title(): string {
     if (this.data.mode === "create") return "Nouvelle tâche";
-    if (this.data.mode === "edit") return "Modifier la tâche";
+    if (this.data.mode === "edit")   return "Modifier la tâche";
     return "Détails de la tâche";
   }
 
   ngOnInit(): void {
-    if (this.data.mode === "view") {
-      this.taskForm.disable();
-      return;
-    }
+    if (this.data.mode === "view") { this.taskForm.disable(); return; }
     const t = this.data.task;
     if (t && this.data.mode === "edit") {
       this.taskForm.patchValue({
-        title: t.title,
-        description: t.description || "",
-        taskType: t.type,
-        status: t.status,
-        priority: t.priority || "medium",
+        title:          t.title,
+        description:    t.description || "",
+        taskType:       t.type,
+        status:         t.status,
+        priority:       t.priority || "medium",
         estimatedHours: Number(t.assignHours) || 0,
-        actualHours: Number(t.loggedHours) || 0,
-        assignedToId: t.assignedToId,
-        startDate: this.normalizeDateInput(t.startDate),
-        dueDate: this.normalizeDateInput(t.dueDate === "-" ? "" : t.dueDate),
+        actualHours:    Number(t.loggedHours) || 0,
+        assignedToId:   t.assignedToId,
+        startDate:      this.normDate(t.startDate),
+        dueDate:        this.normDate(t.dueDate === "-" ? "" : t.dueDate),
       });
     }
   }
@@ -354,64 +346,53 @@ export class TaskManageDialogComponent implements OnInit {
   private dateRangeValidator(): ValidatorFn {
     return (control: AbstractControl): ValidationErrors | null => {
       const start = control.get("startDate")?.value as string | null;
-      const due = control.get("dueDate")?.value as string | null;
-
-      // dates are in YYYY-MM-DD format from <input type="date">
+      const due   = control.get("dueDate")?.value   as string | null;
       const errors: ValidationErrors = {};
-
-      if (start && String(start) < this.minDate) {
-        errors["startDatePast"] = true;
-      }
-
-      if (due && String(due) < this.minDate) {
-        errors["dueDatePast"] = true;
-      }
-
-      if (start && due && String(due) < String(start)) {
-        errors["dateRangeInvalid"] = true;
-      }
-
+      if (start && String(start) < this.minDate) errors["startDatePast"]    = true;
+      if (due   && String(due)   < this.minDate) errors["dueDatePast"]      = true;
+      if (start && due && String(due) < String(start)) errors["dateRangeInvalid"] = true;
       return Object.keys(errors).length ? errors : null;
     };
   }
 
-  private normalizeDateInput(d: string): string {
+  private normDate(d: string): string {
     if (!d || d === "-") return "";
     return d.length >= 10 ? d.slice(0, 10) : d;
   }
 
   save(): void {
     if (this.data.mode === "view") return;
-    if (this.taskForm.invalid) {
-      this.taskForm.markAllAsTouched();
-      return;
-    }
+    if (this.taskForm.invalid) { this.taskForm.markAllAsTouched(); return; }
+
     const v = this.taskForm.getRawValue();
     const payload: TaskWritePayload = {
-      title: v.title!,
-      description: v.description?.trim() || undefined,
-      taskType: v.taskType!,
-      status: v.status!,
-      priority: v.priority || undefined,
+      title:          v.title!,
+      description:    v.description?.trim() || undefined,
+      taskType:       v.taskType!,
+      status:         v.status!,
+      priority:       v.priority || undefined,
       estimatedHours: v.estimatedHours != null ? Number(v.estimatedHours) : undefined,
-      actualHours: v.actualHours != null && v.actualHours !== ("" as unknown as number) ? Number(v.actualHours) : undefined,
-      projectId: this.data.projectId,
-      milestoneId: this.data.milestoneId,
-      assignedToId: v.assignedToId != null ? v.assignedToId : undefined,
-      startDate: v.startDate || undefined,
-      dueDate: v.dueDate || undefined,
+      actualHours:    v.actualHours    != null && v.actualHours !== ("" as any)
+                        ? Number(v.actualHours) : undefined,
+      projectId:      this.data.projectId,
+      milestoneId:    this.data.milestoneId,
+      assignedToId:   v.assignedToId ?? undefined,
+      startDate:      v.startDate || undefined,
+      dueDate:        v.dueDate   || undefined,
     };
 
     this.saving = true;
-    const req$ =
-      this.data.mode === "create"
-        ? this.taskService.create(payload)
-        : this.taskService.update(this.data.task!.taskId, payload);
+    const req$ = this.data.mode === "create"
+      ? this.taskService.create(payload)
+      : this.taskService.update(this.data.task!.taskId, payload);
 
     req$.subscribe({
       next: () => {
         this.saving = false;
-        this.snack.open(this.data.mode === "create" ? "Tâche créée." : "Tâche mise à jour.", "OK", { duration: 3200 });
+        this.snack.open(
+          this.data.mode === "create" ? "Tâche créée avec succès." : "Tâche mise à jour avec succès.",
+          "OK", { duration: 3200 }
+        );
         this.dialogRef.close(true);
       },
       error: (err) => {
@@ -423,280 +404,87 @@ export class TaskManageDialogComponent implements OnInit {
   }
 }
 
+// ── Dialog Suppression ─────────────────────────────────────────────────────────
 @Component({
   selector: "app-confirm-task-delete-dialog",
   standalone: true,
-  imports: [MatDialogModule, MatButtonModule],
+  imports: [MatDialogModule, MatButtonModule, MatIconModule],
   template: `
-    <h2 mat-dialog-title>Supprimer cette tâche ?</h2>
-    <mat-dialog-content>
-      <p class="mb-0">{{ data.title }}</p>
-      <p class="text-secondary small mb-0">Cette action est définitive.</p>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button [mat-dialog-close]="false">Annuler</button>
-      <button mat-flat-button color="warn" [mat-dialog-close]="true">Supprimer</button>
-    </mat-dialog-actions>
+    <div class="delete-dialog">
+      <h2 mat-dialog-title class="delete-title">
+        <mat-icon color="warn">warning</mat-icon>
+        Supprimer cette tâche ?
+      </h2>
+      <mat-dialog-content class="delete-content">
+        <p class="task-title-preview"><strong>{{ data.title }}</strong></p>
+        <p class="text-secondary">Cette action est irréversible. Toutes les données associées seront perdues.</p>
+      </mat-dialog-content>
+      <mat-dialog-actions align="end" class="delete-actions">
+        <button mat-button [mat-dialog-close]="false">
+          <mat-icon>cancel</mat-icon>
+          Annuler
+        </button>
+        <button mat-flat-button color="warn" [mat-dialog-close]="true">
+          <mat-icon>delete_forever</mat-icon>
+          Supprimer définitivement
+        </button>
+      </mat-dialog-actions>
+    </div>
   `,
+  styles: [`
+    .delete-dialog { padding: 8px; }
+    .delete-title { display: flex; align-items: center; gap: 12px; color: #d32f2f; }
+    .delete-content { margin: 16px 0; }
+    .task-title-preview { background: #f5f5f5; padding: 12px; border-radius: 8px; margin: 16px 0; }
+    .delete-actions { padding: 16px 0 8px; border-top: 1px solid #e0e0e0; }
+  `],
 })
 export class ConfirmTaskDeleteDialogComponent {
   data = inject<{ title: string }>(MAT_DIALOG_DATA);
 }
 
+// ── Composant Principal ────────────────────────────────────────────────────────
 @Component({
   selector: "app-all-task",
   standalone: true,
+  templateUrl: "./all-task.component.html",
+  styleUrls: ["./all-task.component.scss"],
   imports: [
-    CommonModule,
-    MatTableModule,
-    MatPaginatorModule,
-    MatSortModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatIconModule,
-    MatButtonModule,
-    MatDialogModule,
-    MatSnackBarModule,
-    MatTooltipModule,
-    MatProgressSpinnerModule,
-  ],
-  template: `
-    <div class="container mt-3">
-      <div class="page-head row align-items-start gx-3 mb-3">
-        <div class="col">
-          <h2 class="mb-1">Tâches — jalon #{{ milestoneId ?? "?" }}</h2>
-          @if (!milestoneId) {
-            <p class="text-warning small mb-0">
-              Indiquez un jalon dans l’URL (<code class="small">?milestoneId=…</code>) ou ouvrez cette page depuis la
-              liste des jalons.
-            </p>
-          }
-        </div>
-        <div class="col-auto">
-          <button
-            mat-flat-button
-            color="primary"
-            (click)="openCreate()"
-            [disabled]="!milestoneId || loadingUsers"
-          >
-            <mat-icon>add_task</mat-icon>
-            Nouvelle tâche
-          </button>
-        </div>
-      </div>
-
-      @if (loading) {
-        <div class="loading-wrap text-center py-5">
-          <mat-spinner diameter="40"></mat-spinner>
-          <p class="text-secondary small mt-2 mb-0">Chargement des tâches…</p>
-        </div>
-      } @else {
-        <mat-form-field appearance="outline" class="w-100 mb-2">
-          <mat-label>Rechercher</mat-label>
-          <input matInput placeholder="Titre, statut, assigné…" (keyup)="applyFilter($event)" />
-          <mat-icon matSuffix>search</mat-icon>
-        </mat-form-field>
-
-        @if (dataSource.data.length === 0) {
-          <div class="empty-state text-center py-5">
-            <mat-icon class="empty-icon">assignment</mat-icon>
-            <p class="text-muted mb-1">Aucune tâche pour ce jalon.</p>
-            <button mat-stroked-button color="primary" (click)="openCreate()" [disabled]="!milestoneId">
-              Créer une tâche
-            </button>
-          </div>
-        } @else {
-          <div class="table-wrap mat-elevation-z2">
-            <table mat-table [dataSource]="dataSource" matSort class="tasks-table">
-              <ng-container matColumnDef="taskId">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>#</th>
-                <td mat-cell *matCellDef="let task">{{ task.taskId }}</td>
-              </ng-container>
-
-              <ng-container matColumnDef="title">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>Titre</th>
-                <td mat-cell *matCellDef="let task" class="cell-title">{{ task.title }}</td>
-              </ng-container>
-
-              <ng-container matColumnDef="type">
-                <th mat-header-cell *matHeaderCellDef>Type</th>
-                <td mat-cell *matCellDef="let task">
-                  <span class="badge-type">{{ typeLabel(task.type) }}</span>
-                </td>
-              </ng-container>
-
-              <ng-container matColumnDef="assignedTo">
-                <th mat-header-cell *matHeaderCellDef>Assigné à</th>
-                <td mat-cell *matCellDef="let task">{{ task.assignedTo }}</td>
-              </ng-container>
-
-              <ng-container matColumnDef="status">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>Statut</th>
-                <td mat-cell *matCellDef="let task">
-                  <span [class]="'badge-status st-' + task.status">{{ statusLabel(task.status) }}</span>
-                </td>
-              </ng-container>
-
-              <ng-container matColumnDef="priority">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>Priorité</th>
-                <td mat-cell *matCellDef="let task">
-                  <span [class]="'badge-priority pr-' + task.priority">{{ priorityLabel(task.priority) }}</span>
-                </td>
-              </ng-container>
-
-              <ng-container matColumnDef="assignHours">
-                <th mat-header-cell *matHeaderCellDef>Heures est.</th>
-                <td mat-cell *matCellDef="let task">{{ task.assignHours }}h</td>
-              </ng-container>
-
-              <ng-container matColumnDef="dueDate">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>Échéance</th>
-                <td mat-cell *matCellDef="let task">{{ task.dueDate }}</td>
-              </ng-container>
-
-              <ng-container matColumnDef="actions">
-                <th mat-header-cell *matHeaderCellDef class="col-actions">Actions</th>
-                <td mat-cell *matCellDef="let task" class="col-actions">
-                  <button mat-icon-button color="primary" (click)="openView(task)" matTooltip="Détails">
-                    <mat-icon>visibility</mat-icon>
-                  </button>
-                  <button mat-icon-button (click)="openEdit(task)" matTooltip="Modifier">
-                    <mat-icon>edit</mat-icon>
-                  </button>
-                  <button mat-icon-button color="warn" (click)="confirmDelete(task)" matTooltip="Supprimer">
-                    <mat-icon>delete</mat-icon>
-                  </button>
-                </td>
-              </ng-container>
-
-              <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-              <tr mat-row *matRowDef="let row; columns: displayedColumns" class="task-row"></tr>
-            </table>
-          </div>
-
-          <mat-paginator [pageSizeOptions]="[5, 10, 25]" showFirstLastButtons></mat-paginator>
-        }
-      }
-    </div>
-  `,
-  styles: [
-    `
-      .page-head h2 {
-        font-size: 1.35rem;
-      }
-      .w-100 {
-        width: 100%;
-      }
-      .tasks-table {
-        width: 100%;
-      }
-      .cell-title {
-        max-width: 220px;
-      }
-      .col-actions {
-        width: 156px;
-        text-align: right;
-        white-space: nowrap;
-      }
-      .badge-status {
-        padding: 4px 10px;
-        border-radius: 12px;
-        font-size: 12px;
-        font-weight: 500;
-      }
-      .st-todo {
-        background: #e0e0e0;
-        color: #333;
-      }
-      .st-in_progress {
-        background: #fff3e0;
-        color: #e65100;
-      }
-      .st-review {
-        background: #e3f2fd;
-        color: #1565c0;
-      }
-      .st-done {
-        background: #e8f5e9;
-        color: #2e7d32;
-      }
-      .st-blocked {
-        background: #ffebee;
-        color: #c62828;
-      }
-      .badge-priority {
-        padding: 4px 10px;
-        border-radius: 12px;
-        font-size: 12px;
-        font-weight: 500;
-      }
-      .pr-high,
-      .pr-critical {
-        background: #ffebee;
-        color: #c62828;
-      }
-      .pr-medium {
-        background: #fff8e1;
-        color: #f57f17;
-      }
-      .pr-low {
-        background: #e8f5e9;
-        color: #2e7d32;
-      }
-      .badge-type {
-        padding: 3px 8px;
-        border-radius: 8px;
-        background: #e3f2fd;
-        color: #1565c0;
-        font-size: 12px;
-        text-transform: capitalize;
-      }
-      .empty-icon {
-        font-size: 48px;
-        width: 48px;
-        height: 48px;
-        color: #bdbdbd;
-        margin-bottom: 8px;
-      }
-      .task-row:hover {
-        background: rgba(0, 0, 0, 0.02);
-      }
-    `,
+    CommonModule, MatCardModule, MatPaginatorModule,
+    MatFormFieldModule, MatInputModule, MatIconModule, MatButtonModule,
+    MatDialogModule, MatSnackBarModule, MatTooltipModule, MatProgressSpinnerModule,
+    MatButtonToggleModule, MatAutocompleteModule, MatOptionModule, FormsModule
   ],
 })
 export class AllTaskComponent implements OnInit, AfterViewInit {
-  private route = inject(ActivatedRoute);
-  private taskService = inject(TaskService);
+  private route            = inject(ActivatedRoute);
+  private taskService      = inject(TaskService);
   private milestoneService = inject(MilestoneService);
-  private userService = inject(UserService);
-  private dialog = inject(MatDialog);
-  private snack = inject(MatSnackBar);
+  private userService      = inject(UserService);
+  private dialog           = inject(MatDialog);
+  private snack            = inject(MatSnackBar);
 
   @ViewChild(MatPaginator) paginator!: MatPaginator;
-  @ViewChild(MatSort) sort!: MatSort;
 
-  displayedColumns: string[] = [
-    "title",
-    "type",
-    "assignedTo",
-    "status",
-    "priority",
-    "assignHours",
-    "dueDate",
-    "actions",
-  ];
-
-  dataSource = new MatTableDataSource<TaskItem>([]);
+  dataSource   = new MatTableDataSource<TaskItem>([]);
   milestoneId: number | null = null;
-  projectId: string | null = null;
-  loading = false;
+  projectId:   string | null = null;
+  loading      = false;
   loadingUsers = true;
   users: UserDTO[] = [];
 
-  statusLabel = statusLabel;
+  statusLabel   = statusLabel;
   priorityLabel = priorityLabel;
-  typeLabel = typeLabel;
+  typeLabel     = typeLabel;
 
+  // Nouvelles propriétés pour l'UI améliorée
+  viewMode: 'grid' | 'list' = 'grid';
+  currentPage = 0;
+  pageSize = 12;
+  searchSuggestions: string[] = [];
+  activeFiltersCount = 0;
+  hasActiveFilters = false;
+  filterValue = '';
   constructor() {
     this.dataSource.filterPredicate = (data: TaskItem, filter: string) => {
       const q = filter.trim().toLowerCase();
@@ -715,53 +503,32 @@ export class AllTaskComponent implements OnInit, AfterViewInit {
 
   ngAfterViewInit(): void {
     this.dataSource.paginator = this.paginator;
-    this.dataSource.sort = this.sort;
   }
 
   ngOnInit(): void {
     this.userService.getAll().subscribe({
-      next: (users) => {
-        this.users = users.filter((u) => u.isActive !== false);
-        this.loadingUsers = false;
-      },
-      error: () => {
-        this.users = [];
-        this.loadingUsers = false;
-      },
+      next:  (users) => { this.users = users.filter(u => u.isActive !== false); this.loadingUsers = false; },
+      error: ()      => { this.users = []; this.loadingUsers = false; },
     });
 
     this.route.queryParamMap.subscribe((params) => {
       const mid = params.get("milestoneId");
       const pid = params.get("projectId");
-
-      if (!mid) {
-        this.milestoneId = null;
-        this.projectId = pid;
-        this.dataSource.data = [];
-        return;
-      }
+      if (!mid) { this.milestoneId = null; this.projectId = pid; this.dataSource.data = []; return; }
 
       this.milestoneId = Number(mid);
-
       if (pid) {
         this.projectId = pid;
         this.loadTasks();
       } else {
         this.milestoneService.getById(this.milestoneId).subscribe({
-          next: (m) => {
-            this.projectId = this.projectIdFromMilestone(m);
-            this.loadTasks();
-          },
-          error: () => {
-            this.snack.open("Impossible de charger le jalon.", "OK", { duration: 4000 });
-            this.loadTasks();
-          },
+          next:  (m)  => { this.projectId = this.projectIdFromMilestone(m); this.loadTasks(); },
+          error: ()   => { this.snack.open("Impossible de charger le jalon.", "OK", { duration: 4000 }); this.loadTasks(); },
         });
       }
     });
   }
 
-  /** L’API Spring renvoie souvent `project: { id }` au lieu de `projectId`. */
   private projectIdFromMilestone(m: Milestone): string | null {
     const raw = m.projectId ?? m.project?.id;
     if (raw == null || raw === "") return null;
@@ -773,11 +540,12 @@ export class AllTaskComponent implements OnInit, AfterViewInit {
     this.loading = true;
     this.taskService.getTasksByMilestone(this.milestoneId).subscribe({
       next: (tasks) => {
-        this.dataSource.data = tasks.map((t) => this.mapTask(t));
+        this.dataSource.data = tasks.map(t => this.mapTask(t));
         if (!this.projectId && this.dataSource.data.length > 0) {
-          const fromRow = this.dataSource.data.find((row) => row.projectId)?.projectId;
+          const fromRow = this.dataSource.data.find(r => r.projectId)?.projectId;
           if (fromRow) this.projectId = fromRow;
         }
+        this.updateSearchSuggestions();
         this.dataSource._updateChangeSubscription();
         this.loading = false;
       },
@@ -791,44 +559,61 @@ export class AllTaskComponent implements OnInit, AfterViewInit {
 
   private mapTask(task: TaskResponseDto): TaskItem {
     return {
-      taskId: task.id,
-      title: task.title,
-      status: (task.status || "todo").toLowerCase(),
-      type: (task.taskType || "task").toLowerCase(),
-      assignedTo: task.assignedTo?.fullName ?? "Non assigné",
-      assignedToId: task.assignedTo?.id ?? null,
-      assignHours: task.estimatedHours != null ? String(task.estimatedHours) : "0",
-      loggedHours: task.actualHours != null ? String(task.actualHours) : "0",
-      priority: (task.priority || "medium").toLowerCase(),
-      dueDate: task.dueDate ? String(task.dueDate).slice(0, 10) : "-",
-      description: task.description ?? "",
-      startDate: task.startDate ? String(task.startDate).slice(0, 10) : "",
-      projectId: task.project?.id != null ? String(task.project.id) : this.projectId,
+      taskId:      task.id,
+      title:       task.title,
+      status:      (task.status   || "todo").toLowerCase(),
+      type:        (task.taskType || "task").toLowerCase(),
+      assignedTo:  task.assignedToName ?? task.assignedTo?.fullName ?? "Non assigné",
+      assignedToId: task.assignedToId ?? task.assignedTo?.id ?? null,
+      assignHours:  task.estimatedHours != null ? Number(task.estimatedHours) : 0,
+      loggedHours:  task.actualHours    != null ? Number(task.actualHours)    : 0,
+      priority:     (task.priority || "medium").toLowerCase(),
+      dueDate:      task.dueDate ? String(task.dueDate).slice(0, 10) : "-",
+      description:  task.description ?? "",
+      startDate:    task.startDate ? String(task.startDate).slice(0, 10) : "",
+      projectId:    task.projectId ?? (task.project?.id != null ? String(task.project.id) : this.projectId),
     };
   }
 
-  openCreate(): void {
-    this.openDialog("create", null);
+  // Nouvelles méthodes utilitaires
+  private updateSearchSuggestions(): void {
+    const suggestions = new Set<string>();
+    this.dataSource.data.forEach(task => {
+      suggestions.add(task.title);
+      suggestions.add(task.status);
+      suggestions.add(task.assignedTo);
+      suggestions.add(task.priority);
+    });
+    this.searchSuggestions = Array.from(suggestions).slice(0, 10);
   }
 
-  openView(task: TaskItem): void {
-    this.openDialog("view", task);
+  getUserColor(name: string): string {
+    if (name === 'Non assigné') return '#9e9e9e';
+    const colors = ['#1976d2', '#2e7d32', '#ed6c02', '#9c27b0', '#d32f2f', '#0288d1'];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = ((hash << 5) - hash) + name.charCodeAt(i);
+      hash |= 0;
+    }
+    return colors[Math.abs(hash) % colors.length];
   }
 
-  openEdit(task: TaskItem): void {
-    this.openDialog("edit", task);
+  getInitials(name: string): string {
+    if (!name || name === 'Non assigné') return '?';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   }
 
-  /**
-   * Ouvre le dialogue. Résout `projectId` depuis le contexte, la ligne ou GET /tasks/:id.
-   */
-  private openDialog(
-    mode: "create" | "edit" | "view",
-    task: TaskItem | null,
-    projectIdResolved?: string | null,
-  ): void {
+  truncateDescription(description: string, maxLength: number = 120): string {
+    if (!description) return '';
+    return description.length > maxLength ? description.substring(0, maxLength) + '...' : description;
+  }
+
+  openCreate(): void { this.openDialog("create", null); }
+  openView(task: TaskItem): void { this.openDialog("view", task); }
+  openEdit(task: TaskItem): void { this.openDialog("edit", task); }
+
+  private openDialog(mode: "create" | "edit" | "view", task: TaskItem | null, projectIdResolved?: string | null): void {
     if (this.milestoneId == null) return;
-
     const projectId = projectIdResolved ?? task?.projectId ?? this.projectId;
 
     if (!projectId) {
@@ -837,69 +622,149 @@ export class AllTaskComponent implements OnInit, AfterViewInit {
           next: (dto) => {
             const mapped = this.mapTask(dto);
             const pid = mapped.projectId ?? this.projectId;
-            if (!pid) {
-              this.snack.open("Projet introuvable pour cette tâche.", "OK", { duration: 5000 });
-              return;
-            }
+            if (!pid) { this.snack.open("Projet introuvable.", "OK", { duration: 5000 }); return; }
             if (!this.projectId) this.projectId = pid;
             this.openDialog(mode, mapped, pid);
           },
-          error: () =>
-            this.snack.open("Impossible de charger le détail de la tâche.", "OK", { duration: 4000 }),
+          error: () => this.snack.open("Impossible de charger la tâche.", "OK", { duration: 4000 }),
         });
         return;
       }
-      this.snack.open(
-        "Projet non lié : impossible de créer ou d’enregistrer. Rechargez depuis la liste des jalons.",
-        "OK",
-        { duration: 5000 },
-      );
+      this.snack.open("Projet non lié. Rechargez depuis la liste des jalons.", "OK", { duration: 5000 });
       return;
     }
 
     const ref = this.dialog.open(TaskManageDialogComponent, {
-      width: "520px",
-      maxWidth: "95vw",
-      autoFocus: false,
+      width: "620px", maxWidth: "95vw", autoFocus: false,
       panelClass: "custom-dialog-container",
-      data: {
-        mode,
-        task,
-        milestoneId: this.milestoneId,
-        projectId,
-        users: this.users,
-      } satisfies TaskManageDialogData,
+      data: { mode, task, milestoneId: this.milestoneId, projectId, users: this.users } satisfies TaskManageDialogData,
     });
-    ref.afterClosed().subscribe((saved) => {
-      if (saved) this.loadTasks();
-    });
+    ref.afterClosed().subscribe(saved => { if (saved) this.loadTasks(); });
   }
 
   confirmDelete(task: TaskItem): void {
     const ref = this.dialog.open(ConfirmTaskDeleteDialogComponent, {
-      width: "400px",
-      data: { title: task.title },
+      width: "450px", data: { title: task.title },
     });
     ref.afterClosed().subscribe((confirmed: boolean | undefined) => {
       if (confirmed !== true) return;
       this.taskService.delete(task.taskId).subscribe({
-        next: () => {
-          this.snack.open("Tâche supprimée.", "OK", { duration: 3000 });
-          this.loadTasks();
-        },
-        error: (err) => {
-          const msg = err?.error?.message || "Suppression impossible.";
-          this.snack.open(msg, "OK", { duration: 5000 });
-        },
+        next: () => { this.snack.open("Tâche supprimée avec succès.", "OK", { duration: 3000 }); this.loadTasks(); },
+        error: (err) => this.snack.open(err?.error?.message || "Suppression impossible.", "OK", { duration: 5000 }),
       });
     });
   }
 
   applyFilter(event: Event): void {
     const value = (event.target as HTMLInputElement).value;
+    this.filterValue = value;
     this.dataSource.filter = value.trim().toLowerCase();
-    if (this.dataSource.paginator) {
-      this.dataSource.paginator.firstPage();
-    }
+    this.hasActiveFilters = !!this.dataSource.filter;
+    this.activeFiltersCount = this.hasActiveFilters ? 1 : 0;
+    this.currentPage = 0;
+    if (this.dataSource.paginator) this.dataSource.paginator.firstPage();
+  }
+
+  clearSearch(input: any): void {
+    input.value = '';
+    this.filterValue = '';
+    this.dataSource.filter = '';
+    this.hasActiveFilters = false;
+    this.activeFiltersCount = 0;
+  }
+
+  getStatusIcon(status: string): string {
+    const icons: Record<string, string> = {
+      'todo': 'radio_button_unchecked',
+      'in_progress': 'schedule',
+      'review': 'visibility',
+      'done': 'check_circle',
+      'blocked': 'block'
+    };
+    return icons[status] || 'help';
+  }
+
+  getPriorityIcon(priority: string): string {
+    const icons: Record<string, string> = {
+      'high': 'priority_high',
+      'medium': 'unfold_more',
+      'low': 'arrow_downward',
+      'critical': 'warning'
+    };
+    return icons[priority] || 'help';
+  }
+
+  getDueIcon(dueDate: string): string {
+    if (dueDate === '-') return 'calendar_today';
+    if (this.isOverdue(dueDate)) return 'error';
+    return 'calendar_today';
+  }
+
+  clearAllFilters(): void {
+    this.filterValue = '';
+    this.dataSource.filter = '';
+    this.hasActiveFilters = false;
+    this.activeFiltersCount = 0;
+    if (this.dataSource.paginator) this.dataSource.paginator.firstPage();
+  }
+
+  openFilterDialog(): void {
+    // TODO: Implémenter un dialogue de filtres avancés
+    this.snack.open("Filtres avancés à venir", "OK", { duration: 2000 });
+  }
+
+  onPageChange(event: any): void {
+    this.currentPage = event.pageIndex;
+    this.pageSize = event.pageSize;
+  }
+
+  isOverdue(dueDate: string): boolean {
+    if (!dueDate || dueDate === '-') return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(dueDate);
+    due.setHours(0, 0, 0, 0);
+    return due < today;
+  }
+
+  getCompletedTasksCount(): number {
+    return this.dataSource.filteredData.filter(t => t.status === 'done').length;
+  }
+
+  getInProgressTasksCount(): number {
+    return this.dataSource.filteredData.filter(t => t.status === 'in_progress').length;
+  }
+
+  getTaskProgress(task: TaskItem): number {
+    if (task.status === 'done') return 100;
+    if (task.status === 'todo') return 0;
+    const logged = Number(task.loggedHours) || 0;
+    const assigned = Number(task.assignHours) || 1;
+    return Math.min(Math.round((logged / assigned) * 100), 100);
+  }
+
+  getTypeIcon(type: string): string {
+    const icons: any = {
+      bug: 'bug_report',
+      epic: 'stars',
+      story: 'auto_stories',
+      task: 'checklist',
+      subtask: 'subdirectory_arrow_right'
+    };
+    return icons[type] || 'task';
+  }
+
+  get paginatedTasks(): TaskItem[] {
+    const start = this.currentPage * this.pageSize;
+    const end = start + this.pageSize;
+    return this.dataSource.filteredData.slice(start, end);
+  }
+
+  get paginationStart(): number {
+    return this.dataSource.filteredData.length === 0 ? 0 : this.currentPage * this.pageSize + 1;
+  }
+
+  get paginationEnd(): number {
+    return Math.min((this.currentPage + 1) * this.pageSize, this.dataSource.filteredData.length);
   }
 }

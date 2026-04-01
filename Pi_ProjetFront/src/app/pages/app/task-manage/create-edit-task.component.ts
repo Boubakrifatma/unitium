@@ -248,4 +248,8 @@ export class CreateEditTaskComponent {
 
     ngOnInit() {}
     ngAfterViewInit() {}
+    isOverdue(dueDate: string): boolean {
+  if (!dueDate || dueDate === '-') return false;
+  return new Date(dueDate) < new Date();
+}
 }

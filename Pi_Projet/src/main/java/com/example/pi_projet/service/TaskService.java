@@ -6,12 +6,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class TaskService {
 
     private final TaskRepository repository;
+    private final ProjectService projectService;
 
     public List<Task> getAll() {
         return repository.findAll();
@@ -23,7 +25,12 @@ public class TaskService {
     }
 
     public Task create(Task task) {
-        return repository.save(task);
+        Task saved = repository.save(task);
+        // ✅ recalcul projet
+        if (saved.getProject() != null) {
+            projectService.updateStatusFromTasks(saved.getProject().getId());
+        }
+        return saved;
     }
 
     public Task update(Long id, Task t) {
@@ -41,20 +48,37 @@ public class TaskService {
         existing.setDueDate(t.getDueDate());
         existing.setCompletedAt(t.getCompletedAt());
 
-        if (t.getMilestone() != null) {
-            existing.setMilestone(t.getMilestone());
-        }
-        if (t.getProject() != null) {
-            existing.setProject(t.getProject());
+        if (t.getMilestone() != null) existing.setMilestone(t.getMilestone());
+        if (t.getProject()   != null) existing.setProject(t.getProject());
+
+        Task saved = repository.save(existing);
+
+        if (saved.getProject() != null) {
+            projectService.updateStatusFromTasks(saved.getProject().getId());
         }
 
-        return repository.save(existing);
+        return saved;
     }
 
     public void delete(Long id) {
+        Task task = getById(id);
+        UUID projectId = task.getProject() != null
+                ? task.getProject().getId()
+                : null;
+
         repository.deleteById(id);
+
+        // ✅ recalcul après suppression
+        if (projectId != null) {
+            projectService.updateStatusFromTasks(projectId);
+        }
     }
+
     public List<Task> getTasksByMilestone(Long milestoneId) {
         return repository.findByMilestoneId(milestoneId);
+    }
+
+    public List<Task> getTasksByUser(Long userId) {
+        return repository.findByAssignedTo_Id(userId);
     }
 }
