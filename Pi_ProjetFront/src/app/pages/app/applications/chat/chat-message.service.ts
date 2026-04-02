@@ -1,11 +1,49 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, Subject, BehaviorSubject } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { Client, IMessage, StompSubscription } from '@stomp/stompjs';
 
 export interface ReactionDTO {
   emoji: string;
   userId: number;
+}
+
+// ── Scheduled Messages ────────────────────────────────────────────────────
+export interface ScheduledMessageDTO {
+  id: number;
+  roomId: number;
+  roomName: string;
+  senderId: number;
+  senderName: string;
+  content: string;
+  scheduledAt: string;
+  nextSendAt: string;
+  recurrenceType: 'ONCE' | 'DAILY' | 'WEEKDAYS' | 'WEEKLY' | 'CUSTOM';
+  recurrenceDays: string[];
+  status: 'PENDING' | 'SENT' | 'CANCELLED' | 'FAILED';
+  createdAt: string;
+}
+
+export interface ScheduledPayload {
+  content: string;
+  scheduledAt: string;
+  recurrenceType: 'ONCE' | 'DAILY' | 'WEEKDAYS' | 'WEEKLY' | 'CUSTOM';
+  recurrenceDays?: string[];
+}
+
+export interface ScheduledRoomEvent {
+  type: 'CANCELLED';
+  scheduledMessageId: number;
+}
+
+export interface ScheduledNotificationEvent {
+  type: 'SCHEDULED_SENT' | 'SCHEDULED_REMINDER' | 'SCHEDULED_FAILED';
+  roomId: number;
+  roomName: string;
+  messagePreview: string;
+  sentAt?: string;
+  nextSendAt?: string;
 }
 
 export interface MessageDTO {
@@ -188,6 +226,90 @@ export class ChatMessageService {
   deleteMessage(roomId: number, messageId: number): Observable<void> {
     return this.http.delete<void>(
       `${this.BASE_URL}/api/chat/rooms/${roomId}/messages/${messageId}`,
+    );
+  }
+
+  // ── Scheduled Messages REST ──────────────────────────────────────────────
+
+  /** GET all pending scheduled messages for a room. */
+  getScheduledMessages(roomId: number): Observable<ScheduledMessageDTO[]> {
+    return this.http.get<ScheduledMessageDTO[]>(
+      `${this.BASE_URL}/api/chat/rooms/${roomId}/scheduled`,
+    );
+  }
+
+  /** POST create a new scheduled message. */
+  createScheduled(roomId: number, body: ScheduledPayload): Observable<ScheduledMessageDTO> {
+    return this.http.post<ScheduledMessageDTO>(
+      `${this.BASE_URL}/api/chat/rooms/${roomId}/scheduled`, body,
+    );
+  }
+
+  /** PUT update an existing scheduled message. */
+  updateScheduled(roomId: number, id: number, body: ScheduledPayload): Observable<ScheduledMessageDTO> {
+    return this.http.put<ScheduledMessageDTO>(
+      `${this.BASE_URL}/api/chat/rooms/${roomId}/scheduled/${id}`, body,
+    );
+  }
+
+  /** DELETE cancel a scheduled message. */
+  deleteScheduled(roomId: number, id: number): Observable<void> {
+    return this.http.delete<void>(
+      `${this.BASE_URL}/api/chat/rooms/${roomId}/scheduled/${id}`,
+    );
+  }
+
+  // ── Scheduled Messages WebSocket ─────────────────────────────────────────
+
+  /** Subscribe to room-level scheduled events (CANCELLED). */
+  subscribeToScheduled(roomId: number): Observable<ScheduledRoomEvent> {
+    return new Observable<ScheduledRoomEvent>(observer => {
+      let stompSub: StompSubscription | null = null;
+      const doSubscribe = () => {
+        stompSub?.unsubscribe();
+        stompSub = this.client.subscribe(
+          `/topic/rooms/${roomId}/scheduled`,
+          (msg: IMessage) => {
+            try { observer.next(JSON.parse(msg.body) as ScheduledRoomEvent); } catch { /* ignore */ }
+          },
+        );
+      };
+      if (this.client?.connected) doSubscribe();
+      const reconnectSub = this.connect$.subscribe(() => doSubscribe());
+      return () => { stompSub?.unsubscribe(); reconnectSub.unsubscribe(); };
+    });
+  }
+
+  /** Subscribe to user-scoped scheduled notification events (SENT / REMINDER / FAILED). */
+  subscribeToUserNotifications(userId: number): Observable<ScheduledNotificationEvent> {
+    return new Observable<ScheduledNotificationEvent>(observer => {
+      let stompSub: StompSubscription | null = null;
+      const doSubscribe = () => {
+        stompSub?.unsubscribe();
+        stompSub = this.client.subscribe(
+          `/topic/notifications/${userId}`,
+          (msg: IMessage) => {
+            try { observer.next(JSON.parse(msg.body) as ScheduledNotificationEvent); } catch { /* ignore */ }
+          },
+        );
+      };
+      if (this.client?.connected) doSubscribe();
+      const reconnectSub = this.connect$.subscribe(() => doSubscribe());
+      return () => { stompSub?.unsubscribe(); reconnectSub.unsubscribe(); };
+    });
+  }
+
+  /** Client-side only: translate text to English via Google Translate (no API key, auto-detects source language). */
+  translateMessage(text: string): Observable<string> {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=${encodeURIComponent(text)}`;
+    return this.http.get<any>(url).pipe(
+      map(res => {
+        // Response shape: [ [ ["translated","original",...], ... ], null, "detectedLang", ... ]
+        const segments: string[] = (res[0] as any[]).map((seg: any) => seg[0] ?? '');
+        const translated = segments.join('').trim();
+        if (!translated) throw new Error('Translation unavailable');
+        return translated;
+      })
     );
   }
 

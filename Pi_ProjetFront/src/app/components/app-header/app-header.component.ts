@@ -7,16 +7,18 @@ import { MatIconModule } from "@angular/material/icon";
 import { MatButtonModule } from "@angular/material/button";
 import { MatMenuModule } from "@angular/material/menu";
 import { MatBadgeModule } from "@angular/material/badge";
+import { MatDividerModule } from "@angular/material/divider";
 import { MatSidenav } from "@angular/material/sidenav";
 import { Router, RouterLink } from "@angular/router";
 import { MatListModule } from "@angular/material/list";
 import { MatInput } from "@angular/material/input";
 import { MatFormFieldModule } from "@angular/material/form-field";
+import { ScheduledNotificationService, ScheduledNotification } from "../../pages/app/applications/chat/scheduled-notification.service";
 
 @Component({
     selector: "app-app-header",
     standalone: true,
-    imports: [CommonModule, RouterLink, MatToolbarModule, MatListModule, MatFormFieldModule, MatInput, MatIconModule, MatButtonModule, MatMenuModule, MatBadgeModule],
+    imports: [CommonModule, RouterLink, MatToolbarModule, MatListModule, MatFormFieldModule, MatInput, MatIconModule, MatButtonModule, MatMenuModule, MatBadgeModule, MatDividerModule],
     template: `
         <mat-toolbar class="app-header" color="primary">
             <button matIconButton (click)="drawers.toggle()" class="menu-button">
@@ -61,8 +63,50 @@ import { MatFormFieldModule } from "@angular/material/form-field";
                 <!-- light dark -->
                 <button matIconButton (click)="toggleMode()"><mat-icon class="dark">dark_mode</mat-icon><mat-icon class="light">sunny</mat-icon></button>
 
-                <!-- settings -->
-                <button matIconButton (click)="openSettingsMenu.emit()" [matBadge]="3" matBadgeColor="warn" matBadgeSize="small"><mat-icon class="material-icons-outlined">notifications</mat-icon></button>
+                <!-- notifications -->
+                <button matIconButton
+                        [matMenuTriggerFor]="notifMenu"
+                        (menuOpened)="notifService.markAllRead()"
+                        [matBadge]="notifService.unreadCount() > 0 ? notifService.unreadCount() : null"
+                        [class.notif-bell-pulse]="notifService.bellPulsing()"
+                        matBadgeColor="warn"
+                        matBadgeSize="small">
+                    <mat-icon class="material-icons-outlined">notifications</mat-icon>
+                </button>
+                <mat-menu #notifMenu="matMenu" xPosition="before" class="notif-dropdown">
+                    <div class="notif-panel-header" (click)="$event.stopPropagation()">
+                        <span>Notifications</span>
+                        @if (notifService.notifications().length > 0) {
+                            <button mat-button style="font-size:11px;min-width:0;padding:0 6px;height:24px"
+                                    (click)="notifService.markAllRead()">Mark all read</button>
+                        }
+                    </div>
+                    <mat-divider></mat-divider>
+                    @if (notifService.notifications().length === 0) {
+                        <div class="notif-empty">
+                            <mat-icon class="material-icons-outlined" style="font-size:32px;width:32px;height:32px;opacity:.35">notifications_none</mat-icon>
+                            <p>No notifications yet</p>
+                        </div>
+                    }
+                    @for (n of notifService.notifications(); track n.id) {
+                        <div class="notif-entry" [class.notif-unread]="!n.read" (click)="$event.stopPropagation()">
+                            <mat-icon [style.color]="n.iconColor"
+                                      style="font-size:20px;width:20px;height:20px;flex-shrink:0;margin-top:1px">{{ n.icon }}</mat-icon>
+                            <div class="notif-entry-body">
+                                <div class="notif-msg">{{ n.message }}</div>
+                                <div class="notif-time">{{ formatRelativeTime(n.timestamp) }}</div>
+                                @if (n.type === 'SCHEDULED_REMINDER') {
+                                    <button mat-stroked-button class="notif-action-btn"
+                                            (click)="onViewRoom(n.roomId)">View Room</button>
+                                }
+                                @if (n.type === 'SCHEDULED_FAILED') {
+                                    <button mat-stroked-button class="notif-action-btn"
+                                            (click)="onRetry(n)">Retry</button>
+                                }
+                            </div>
+                        </div>
+                    }
+                </mat-menu>
 
                 <!-- language -->
                 <button mat-icon-button [matMenuTriggerFor]="language" class="d-none d-lg-inline-block">
@@ -115,7 +159,75 @@ import { MatFormFieldModule } from "@angular/material/form-field";
             </div>
         </mat-toolbar>
     `,
-    styles: [``],
+    styles: [`
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50%       { transform: scale(1.4); }
+        }
+        @keyframes slideInRight {
+            from { transform: translateX(40px); opacity: 0; }
+            to   { transform: translateX(0);    opacity: 1; }
+        }
+        .notif-bell-pulse ::ng-deep .mat-badge-content {
+            animation: pulse 600ms ease-in-out;
+        }
+        ::ng-deep .notif-dropdown {
+            max-width: 340px !important;
+            min-width: 300px !important;
+        }
+        ::ng-deep .notif-dropdown .mat-mdc-menu-content {
+            padding: 0 !important;
+            max-height: 420px;
+            overflow-y: auto;
+        }
+        .notif-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px 8px;
+            font-size: 13px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .notif-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 24px 16px;
+            color: rgba(0,0,0,.38);
+        }
+        .notif-empty p { font-size: 12px; margin: 6px 0 0; }
+        .notif-entry {
+            display: flex;
+            gap: 10px;
+            padding: 10px 14px;
+            border-bottom: 1px solid rgba(0,0,0,.06);
+            animation: slideInRight 350ms cubic-bezier(0.34,1.56,0.64,1) forwards;
+        }
+        .notif-entry:last-child { border-bottom: none; }
+        .notif-unread {
+            background: rgba(99,102,241,.04);
+        }
+        .notif-entry-body { flex: 1; min-width: 0; }
+        .notif-msg {
+            font-size: 12.5px;
+            line-height: 1.4;
+            color: #1e1e2d;
+            word-break: break-word;
+        }
+        .notif-time {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+        .notif-action-btn {
+            font-size: 11px !important;
+            height: 26px !important;
+            line-height: 26px !important;
+            margin-top: 6px !important;
+            padding: 0 10px !important;
+        }
+    `],
 })
 export class AppHeaderComponent {
     currentMode = signal<string>(localStorage.getItem("app-mode") || "");
@@ -124,6 +236,8 @@ export class AppHeaderComponent {
 
     @Input() drawers!: MatSidenav;
     @Output() openSettingsMenu = new EventEmitter<void>();
+
+    readonly notifService = inject(ScheduledNotificationService);
 
     // language
     languages = signal([
@@ -175,5 +289,30 @@ export class AppHeaderComponent {
     // language changes
     onLanguageSelect(lang: any) {
         this.selectedLanguage.set(lang);
+    }
+
+    onViewRoom(roomId: number): void {
+        this.router.navigate(['/app/chat']);
+    }
+
+    onRetry(n: ScheduledNotification): void {
+        this.notifService.requestRetry({
+            content: n.originalContent ?? '',
+            recurrenceType: n.recurrenceType ?? 'ONCE',
+            recurrenceDays: [],
+            scheduledAt: n.scheduledAt,
+            roomId: n.roomId,
+        });
+        this.router.navigate(['/app/chat']);
+    }
+
+    formatRelativeTime(date: Date): string {
+        const diffMs = Date.now() - date.getTime();
+        const diffMin = Math.floor(diffMs / 60_000);
+        if (diffMin < 1)  return 'just now';
+        if (diffMin < 60) return `${diffMin}m ago`;
+        const diffH = Math.floor(diffMin / 60);
+        if (diffH < 24)   return `${diffH}h ago`;
+        return `${Math.floor(diffH / 24)}d ago`;
     }
 }

@@ -1,9 +1,12 @@
 import {
     Component, OnInit, OnDestroy, AfterViewChecked,
     ViewChild, ElementRef, HostListener,
-    signal, computed,
+    signal, computed, effect,
     Renderer2, Inject, DOCUMENT, CUSTOM_ELEMENTS_SCHEMA
 } from "@angular/core";
+import { provideNativeDateAdapter } from '@angular/material/core';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatChipsModule } from '@angular/material/chips';
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { MatListModule } from "@angular/material/list";
@@ -25,12 +28,619 @@ import { ChatRoomMemberService, RoomMemberDTO } from "./chat-room-member.service
 import { AuthService } from "../../../../auth/auth.service";
 import { UserService, UserDTO } from "../../../../users/user.service";
 import { Subscription } from 'rxjs';
-import { ChatMessageService, MessageDTO, ReactionDTO } from './chat-message.service';
+import { ChatMessageService, MessageDTO, ReactionDTO, ScheduledMessageDTO, ScheduledPayload, ScheduledNotificationEvent } from './chat-message.service';
+import { ScheduledNotificationService, ScheduledNotification, ScheduledRetryRequest } from './scheduled-notification.service';
 import {
     trigger, style, transition, animate, state,
 } from '@angular/animations';
 import { QuillModule } from 'ngx-quill';
 import { SnackbarSuccessComponent } from '../calendar/snackbar-event.component';
+
+/* ══ Room Creation / Edit Wizard Dialog ══════════════════════════════════ */
+@Component({
+    selector: 'app-room-wizard-dialog',
+    standalone: true,
+    imports: [CommonModule, FormsModule, MatButtonModule, MatIconModule,
+              MatFormFieldModule, MatInputModule, MatSelectModule,
+              MatProgressSpinnerModule, MatDialogModule],
+    template: `
+        <div class="wiz-wrap">
+            <!-- X close button -->
+            <button class="wiz-close-btn" mat-icon-button (click)="cancel()" aria-label="Close">
+                <mat-icon>close</mat-icon>
+            </button>
+
+            <!-- Header -->
+            <div class="wiz-header">
+                <div class="wiz-header-icon">
+                    <mat-icon class="material-icons-outlined">
+                        {{ editingRoom ? 'edit_note' : 'add_circle_outline' }}
+                    </mat-icon>
+                </div>
+                <h2 class="wiz-title">{{ editingRoom ? 'Edit Channel' : 'New Channel' }}</h2>
+                <p class="wiz-subtitle">{{ stepSubtitles[formStep() - 1] }}</p>
+            </div>
+
+            <!-- Step indicator -->
+            <div class="wiz-steps-row">
+                @for (s of [1,2,3]; track s) {
+                    <div class="wiz-step-dot"
+                         [class.wiz-step-active]="formStep() >= s"
+                         [class.wiz-step-current]="formStep() === s">
+                        @if (formStep() > s) {
+                            <mat-icon style="font-size:13px;width:13px;height:13px;line-height:13px">check</mat-icon>
+                        } @else {
+                            {{ s }}
+                        }
+                    </div>
+                    @if (s < 3) {
+                        <div class="wiz-step-line" [class.wiz-step-line-done]="formStep() > s"></div>
+                    }
+                }
+            </div>
+
+            @if (formError) {
+                <div class="wiz-error" [class.wiz-shake]="formShaking()">{{ formError }}</div>
+            }
+
+            <!-- ── STEP 1: Project ────────────────────────────────── -->
+            @if (formStep() === 1) {
+                <p class="wiz-step-hint">Which project is this channel for?</p>
+                <div [class.wiz-shake]="formShaking() && !step1Valid">
+                    <mat-form-field appearance="outline" class="w-100">
+                        <mat-label>Project *</mat-label>
+                        <mat-icon matPrefix class="material-icons-outlined" style="font-size:18px;width:18px;height:18px">folder_open</mat-icon>
+                        <mat-select [(ngModel)]="formProjectId" [disabled]="projectsLoading()">
+                            @if (projectsLoading()) {
+                                <mat-option disabled>Loading projects…</mat-option>
+                            } @else if (projects.length === 0) {
+                                <mat-option disabled>No projects found</mat-option>
+                            } @else {
+                                @for (p of projects; track p.id) {
+                                    <mat-option [value]="p.id">{{ p.name }}</mat-option>
+                                }
+                            }
+                        </mat-select>
+                        @if (step1Valid) {
+                            <mat-icon matSuffix class="field-check-icon material-icons-outlined">check_circle</mat-icon>
+                        }
+                    </mat-form-field>
+                    @if (formTouched() && !step1Valid) {
+                        <div class="wiz-inline-error">Please select a project to continue.</div>
+                    }
+                </div>
+                <div class="wiz-actions">
+                    <button mat-stroked-button class="wiz-back-btn" (click)="cancel()">Cancel</button>
+                    <button mat-flat-button color="primary" class="wiz-next-btn"
+                            [class.wiz-shake]="formShaking() && !step1Valid"
+                            (click)="nextStep()">
+                        Next <mat-icon iconPositionEnd style="font-size:18px;width:18px;height:18px">chevron_right</mat-icon>
+                    </button>
+                </div>
+            }
+
+            <!-- ── STEP 2: Name, Description, Type ───────────────── -->
+            @if (formStep() === 2) {
+                <p class="wiz-step-hint">Channel details</p>
+
+                <div class="mb-2" [class.wiz-shake]="formShaking() && step2NameError !== null">
+                    <mat-form-field appearance="outline" class="w-100">
+                        <mat-label>Channel Name *</mat-label>
+                        <mat-icon matPrefix style="font-size:18px;width:18px;height:18px">tag</mat-icon>
+                        <input matInput [(ngModel)]="formName" placeholder="e.g. design-review, sprint-42" maxlength="50" />
+                        <mat-hint align="end">{{ (formName || '').length }}/50</mat-hint>
+                        @if (!step2NameError) {
+                            <mat-icon matSuffix class="field-check-icon material-icons-outlined">check_circle</mat-icon>
+                        }
+                    </mat-form-field>
+                    @if (formTouched() && step2NameError) {
+                        <div class="wiz-inline-error">{{ step2NameError }}</div>
+                    }
+                </div>
+
+                <div class="mb-2" [class.wiz-shake]="formShaking() && step2DescError !== null">
+                    <mat-form-field appearance="outline" class="w-100">
+                        <mat-label>Description *</mat-label>
+                        <textarea matInput [(ngModel)]="formDescription" rows="3"
+                                  placeholder="What will this channel be used for?" maxlength="200"></textarea>
+                        <mat-hint align="end">{{ (formDescription || '').length }}/200</mat-hint>
+                        @if (!step2DescError) {
+                            <mat-icon matSuffix class="field-check-icon material-icons-outlined">check_circle</mat-icon>
+                        }
+                    </mat-form-field>
+                    @if (formTouched() && step2DescError) {
+                        <div class="wiz-inline-error">{{ step2DescError }}</div>
+                    }
+                </div>
+
+                <!-- Room type pills -->
+                <div class="mb-3" [class.wiz-shake]="formShaking() && !formRoomType">
+                    <div class="wiz-type-label">
+                        Channel Type *
+                        @if (formRoomType) {
+                            <mat-icon class="field-check-icon-inline material-icons-outlined">check_circle</mat-icon>
+                        }
+                    </div>
+                    <div class="wiz-type-pills">
+                        @for (t of roomTypes; track t.value) {
+                            <button class="wiz-type-pill" type="button"
+                                    [class.wiz-type-pill-active]="formRoomType === t.value"
+                                    (click)="formRoomType = t.value">
+                                {{ t.label }}
+                            </button>
+                        }
+                    </div>
+                    @if (formTouched() && !formRoomType) {
+                        <div class="wiz-inline-error">Please select a channel type.</div>
+                    }
+                </div>
+
+                <div class="wiz-actions">
+                    <button mat-stroked-button class="wiz-back-btn" (click)="prevStep()">
+                        <mat-icon style="font-size:18px;width:18px;height:18px">chevron_left</mat-icon>
+                        Back
+                    </button>
+                    <button mat-flat-button color="primary" class="wiz-next-btn"
+                            [class.wiz-shake]="formShaking() && !step2Valid"
+                            (click)="nextStep()">
+                        Next <mat-icon iconPositionEnd style="font-size:18px;width:18px;height:18px">chevron_right</mat-icon>
+                    </button>
+                    <button mat-button class="wiz-cancel-link" (click)="cancel()">Cancel</button>
+                </div>
+            }
+
+            <!-- ── STEP 3: Review & Create ────────────────────────── -->
+            @if (formStep() === 3) {
+                <p class="wiz-step-hint">Review and {{ editingRoom ? 'update' : 'create' }}</p>
+                <div class="wiz-review-card mb-3">
+                    <div class="wiz-review-row">
+                        <span class="wiz-review-key">Project</span>
+                        <span class="wiz-review-val">{{ getProjectName(formProjectId) }}</span>
+                    </div>
+                    <div class="wiz-review-row">
+                        <span class="wiz-review-key">Name</span>
+                        <span class="wiz-review-val">#{{ formName.trim() }}</span>
+                    </div>
+                    <div class="wiz-review-row">
+                        <span class="wiz-review-key">Description</span>
+                        <span class="wiz-review-val">{{ formDescription.trim() }}</span>
+                    </div>
+                    <div class="wiz-review-row" style="border-bottom:none">
+                        <span class="wiz-review-key">Type</span>
+                        <span class="wiz-review-val">{{ getRoomTypeLabel(formRoomType) }}</span>
+                    </div>
+                </div>
+                <div class="wiz-actions">
+                    <button mat-stroked-button class="wiz-back-btn" (click)="prevStep()" [disabled]="saving()">
+                        <mat-icon style="font-size:18px;width:18px;height:18px">chevron_left</mat-icon>
+                        Back
+                    </button>
+                    <button mat-flat-button color="primary" class="wiz-submit-btn"
+                            (click)="saveRoom()" [disabled]="saving()">
+                        @if (saving()) {
+                            <mat-spinner diameter="18" style="display:inline-block;margin-right:6px"></mat-spinner>
+                            Saving…
+                        } @else {
+                            <mat-icon style="font-size:18px;width:18px;height:18px;margin-right:6px">
+                                {{ editingRoom ? 'save' : 'add_circle' }}
+                            </mat-icon>
+                            {{ editingRoom ? 'Update Channel' : 'Create Channel' }}
+                        }
+                    </button>
+                    <button mat-button class="wiz-cancel-link" (click)="cancel()" [disabled]="saving()">Cancel</button>
+                </div>
+            }
+        </div>
+    `,
+    styles: [`
+        ::ng-deep .wiz-spinner circle { stroke: #fff !important; }
+
+        @keyframes wiz-shake {
+            0%, 100% { transform: translateX(0); }
+            20%       { transform: translateX(-5px); }
+            40%       { transform: translateX(5px); }
+            60%       { transform: translateX(-3px); }
+            80%       { transform: translateX(3px); }
+        }
+        .wiz-shake { animation: wiz-shake 0.32s ease; }
+
+        .wiz-wrap {
+            position: relative;
+            padding: 36px 32px 28px;
+            width: 100%;
+            box-sizing: border-box;
+            max-height: 88vh;
+            overflow-y: auto;
+        }
+
+        /* ── Close button ── */
+        .wiz-close-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            opacity: 0.55;
+            transition: opacity 0.18s;
+        }
+        .wiz-close-btn:hover { opacity: 1; }
+
+        /* ── Header ── */
+        .wiz-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .wiz-header-icon {
+            width: 58px;
+            height: 58px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, var(--mat-sys-primary-container), var(--mat-sys-tertiary-container));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 14px;
+            box-shadow: 0 4px 18px color-mix(in srgb, var(--mat-sys-primary) 22%, transparent);
+        }
+        .wiz-header-icon mat-icon {
+            font-size: 27px !important;
+            width: 27px !important;
+            height: 27px !important;
+            color: var(--mat-sys-primary);
+        }
+        .wiz-title {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            margin: 0 0 4px;
+        }
+        .wiz-subtitle {
+            font-size: 13.5px;
+            color: var(--mat-sys-on-surface-variant);
+            margin: 0;
+        }
+
+        /* ── Step indicator ── */
+        .wiz-steps-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 22px;
+        }
+        .wiz-step-dot {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 2px solid var(--mat-sys-outline-variant);
+            background: var(--mat-sys-surface-container-high);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--mat-sys-on-surface-variant);
+            flex-shrink: 0;
+            transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        .wiz-step-active {
+            border-color: var(--mat-sys-primary);
+            background: var(--mat-sys-primary-container);
+            color: var(--mat-sys-primary);
+        }
+        .wiz-step-current {
+            background: var(--mat-sys-primary) !important;
+            border-color: var(--mat-sys-primary) !important;
+            color: #fff !important;
+            box-shadow: 0 2px 10px color-mix(in srgb, var(--mat-sys-primary) 40%, transparent);
+        }
+        .wiz-step-line {
+            flex: 1;
+            max-width: 72px;
+            height: 2px;
+            background: var(--mat-sys-outline-variant);
+            transition: background 0.35s ease;
+        }
+        .wiz-step-line-done { background: var(--mat-sys-primary); }
+
+        /* ── Step hint label ── */
+        .wiz-step-hint {
+            font-size: 10.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: var(--mat-sys-on-surface-variant);
+            margin-bottom: 14px;
+        }
+
+        /* ── Error banner ── */
+        .wiz-error {
+            background: rgba(239,68,68,0.07);
+            border: 1px solid rgba(239,68,68,0.25);
+            border-radius: 10px;
+            color: #ef4444;
+            font-size: 12.5px;
+            padding: 10px 14px;
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+
+        /* ── Inline field error ── */
+        .wiz-inline-error {
+            font-size: 11.5px;
+            color: var(--mat-sys-error, #ef4444);
+            margin: -4px 0 10px 2px;
+            display: block;
+        }
+
+        /* ── Field check icon ── */
+        .field-check-icon {
+            font-size: 16px !important;
+            width: 16px !important;
+            height: 16px !important;
+            color: #16a34a !important;
+        }
+        .field-check-icon-inline {
+            font-size: 14px !important;
+            width: 14px !important;
+            height: 14px !important;
+            color: #16a34a !important;
+            vertical-align: middle;
+            margin-left: 4px;
+        }
+
+        /* ── Room type pills ── */
+        .wiz-type-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--mat-sys-on-surface-variant);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+        }
+        .wiz-type-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .wiz-type-pill {
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            background: transparent;
+            font-size: 12.5px;
+            font-weight: 500;
+            color: var(--mat-sys-on-surface-variant);
+            cursor: pointer;
+            transition: all 0.18s ease;
+            line-height: 1.4;
+        }
+        .wiz-type-pill:hover {
+            border-color: var(--mat-sys-primary);
+            color: var(--mat-sys-primary);
+            background: color-mix(in srgb, var(--mat-sys-primary) 6%, transparent);
+        }
+        .wiz-type-pill-active {
+            background: var(--mat-sys-primary-container) !important;
+            border-color: var(--mat-sys-primary) !important;
+            color: var(--mat-sys-on-primary-container) !important;
+            font-weight: 600 !important;
+        }
+
+        /* ── Review card ── */
+        .wiz-review-card {
+            border-radius: 12px;
+            border: 1px solid var(--mat-sys-outline-variant);
+            background: var(--mat-sys-surface-container);
+            overflow: hidden;
+        }
+        .wiz-review-row {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--mat-sys-outline-variant);
+        }
+        .wiz-review-key {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: var(--mat-sys-on-surface-variant);
+            min-width: 80px;
+            flex-shrink: 0;
+        }
+        .wiz-review-val {
+            font-size: 13px;
+            color: var(--mat-sys-on-surface);
+            word-break: break-word;
+        }
+
+        /* ── Action buttons ── */
+        .wiz-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 6px;
+        }
+        .wiz-back-btn {
+            height: 44px;
+            min-width: 90px;
+            border-radius: 10px !important;
+            font-size: 13.5px;
+            flex-shrink: 0;
+        }
+        .wiz-next-btn, .wiz-submit-btn {
+            flex: 1;
+            height: 44px;
+            border-radius: 10px !important;
+            font-size: 13.5px;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .wiz-cancel-link {
+            flex-shrink: 0;
+            font-size: 12.5px;
+            opacity: 0.65;
+            min-width: 0;
+            padding: 0 8px;
+        }
+    `],
+})
+export class RoomWizardDialogComponent {
+    editingRoom: ChatRoom | null;
+    rooms: ChatRoom[];
+    saving        = signal(false);
+    formStep      = signal<1 | 2 | 3>(1);
+    formTouched   = signal<boolean>(false);
+    formShaking   = signal<boolean>(false);
+    formProjectId = '';
+    formName      = '';
+    formDescription = '';
+    formRoomType: RoomType | '' = '';
+    formError = '';
+    projects: ProjectDTO[] = [];
+    projectsLoading = signal(false);
+
+    readonly stepSubtitles = [
+        'Choose the project this channel belongs to',
+        'Set the name, description, and type',
+        'Confirm the details and save',
+    ];
+
+    readonly roomTypes: { value: RoomType; label: string }[] = [
+        { value: 'general',             label: 'General'            },
+        { value: 'task_thread',         label: 'Task Thread'        },
+        { value: 'deliverable_review',  label: 'Deliverable Review' },
+        { value: 'private_room',        label: 'Private Room'       },
+        { value: 'meeting',             label: 'Meeting'            },
+    ];
+
+    get step1Valid(): boolean { return !!this.formProjectId?.trim(); }
+    get step2NameError(): string | null {
+        const v = (this.formName ?? '').trim();
+        if (!v) return 'Channel name is required.';
+        if (v.length < 3) return 'Name must be at least 3 characters.';
+        if (v.length > 50) return 'Name must be at most 50 characters.';
+        return null;
+    }
+    get step2DescError(): string | null {
+        const v = (this.formDescription ?? '').trim();
+        if (!v) return 'Description is required.';
+        if (v.length < 10) return 'Description must be at least 10 characters.';
+        if (v.length > 200) return 'Description must be at most 200 characters.';
+        return null;
+    }
+    get step2Valid(): boolean {
+        return !this.step2NameError && !this.step2DescError && !!this.formRoomType;
+    }
+
+    constructor(
+        public dialogRef: MatDialogRef<RoomWizardDialogComponent>,
+        @Inject(MAT_DIALOG_DATA) data: { editingRoom: ChatRoom | null; rooms: ChatRoom[] },
+        private chatRoomService: ChatRoomService,
+    ) {
+        this.editingRoom = data.editingRoom;
+        this.rooms = data.rooms;
+        if (data.editingRoom) {
+            this.formProjectId  = data.editingRoom.projectId ?? '';
+            this.formName       = data.editingRoom.name;
+            this.formDescription = data.editingRoom.description ?? '';
+            this.formRoomType   = (data.editingRoom.roomType?.toLowerCase() as RoomType) ?? 'general';
+        }
+        this.loadProjectsInternal();
+    }
+
+    private loadProjectsInternal(): void {
+        this.projectsLoading.set(true);
+        this.chatRoomService.getProjects().subscribe({
+            next: (list) => { this.projects = list; this.projectsLoading.set(false); },
+            error: ()     => { this.projectsLoading.set(false); },
+        });
+    }
+
+    private triggerShake(): void {
+        this.formShaking.set(false);
+        setTimeout(() => {
+            this.formShaking.set(true);
+            setTimeout(() => this.formShaking.set(false), 350);
+        }, 0);
+    }
+
+    getProjectName(id: string): string {
+        return this.projects.find(p => p.id === id)?.name ?? id;
+    }
+    getRoomTypeLabel(type: string): string {
+        return this.roomTypes.find(t => t.value === type?.toLowerCase())?.label ?? type ?? '';
+    }
+
+    cancel(): void { this.dialogRef.close(); }
+
+    nextStep(): void {
+        if (this.formStep() === 1) {
+            if (!this.step1Valid) { this.formTouched.set(true); this.triggerShake(); return; }
+            this.formTouched.set(false);
+            this.formStep.set(2);
+        } else if (this.formStep() === 2) {
+            this.formTouched.set(true);
+            if (!this.step2Valid) { this.triggerShake(); return; }
+            // Duplicate detection
+            const name = this.formName.trim().toLowerCase();
+            const projectId = this.formProjectId.trim();
+            const type = this.formRoomType;
+            const isDuplicate = this.rooms.some(r => {
+                if (this.editingRoom && r.id === this.editingRoom.id) return false;
+                return r.projectId === projectId &&
+                       (r.name ?? '').trim().toLowerCase() === name &&
+                       r.roomType === type;
+            });
+            if (isDuplicate) {
+                this.formError = 'A channel with this name and type already exists in the selected project.';
+                this.triggerShake(); return;
+            }
+            this.formError = '';
+            this.formTouched.set(false);
+            this.formStep.set(3);
+        }
+    }
+
+    prevStep(): void {
+        if (this.formStep() > 1) {
+            this.formStep.update(s => (s - 1) as 1 | 2 | 3);
+            this.formTouched.set(false);
+            this.formError = '';
+        }
+    }
+
+    saveRoom(): void {
+        const payload: ChatRoomPayload = {
+            projectId:   this.formProjectId.trim(),
+            name:        this.formName.trim(),
+            description: this.formDescription.trim(),
+            roomType:    this.formRoomType as RoomType,
+        };
+        this.saving.set(true);
+        this.formError = '';
+        const editing = this.editingRoom;
+        const op = editing
+            ? this.chatRoomService.updateRoom(editing.id, payload)
+            : this.chatRoomService.createRoom(payload);
+        op.subscribe({
+            next: (saved) => {
+                this.saving.set(false);
+                this.dialogRef.close({ saved, isEdit: !!editing });
+            },
+            error: (err) => {
+                if (err?.status === 409) {
+                    this.formError = 'A channel with this name and type already exists in the selected project.';
+                    this.formStep.set(2);
+                } else {
+                    this.formError = err?.error?.message ?? 'Failed to save. Please try again.';
+                }
+                this.saving.set(false);
+            },
+        });
+    }
+}
 
 /* ══ Delete Room Confirmation Dialog ══════════════════════════════════════ */
 @Component({
@@ -179,9 +789,209 @@ export class DeleteRoomDialogComponent {
     }
 }
 
+/* ══ Cancel Scheduled Message Confirmation Dialog ════════════════════════ */
+@Component({
+    selector: 'app-cancel-scheduled-dialog',
+    standalone: true,
+    imports: [CommonModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatDialogModule],
+    template: `
+        <div class="drd-wrap">
+            <div class="drd-icon-ring" style="background:linear-gradient(135deg,rgba(251,146,60,0.15),rgba(249,115,22,0.1));border-color:rgba(251,146,60,0.3)">
+                <mat-icon class="drd-icon" style="color:#f97316">schedule</mat-icon>
+            </div>
+            <h2 class="drd-title">Cancel Scheduled Message</h2>
+            <p class="drd-subtitle" style="margin-top:0">This message will not be sent. This action cannot be undone.</p>
+            @if (dialogError()) { <p class="drd-error">{{ dialogError() }}</p> }
+            <div class="drd-actions">
+                <button mat-stroked-button class="drd-cancel-btn" (click)="cancel()" [disabled]="deleting()">Keep it</button>
+                <button mat-flat-button style="background:#f97316;color:#fff" (click)="confirm()" [disabled]="deleting()">
+                    @if (deleting()) { <mat-spinner diameter="18" class="drd-spinner"></mat-spinner> }
+                    @else { <mat-icon style="font-size:18px;width:18px;height:18px;margin-right:6px">cancel_schedule_send</mat-icon> Cancel Message }
+                </button>
+            </div>
+        </div>
+    `,
+    styles: [`
+        .drd-wrap{display:flex;flex-direction:column;align-items:center;padding:32px 28px 24px;text-align:center;min-width:320px;max-width:400px}
+        .drd-icon-ring{width:64px;height:64px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;margin-bottom:20px}
+        .drd-icon{font-size:30px!important;width:30px!important;height:30px!important}
+        .drd-title{font-size:18px;font-weight:700;margin:0 0 8px}
+        .drd-subtitle{font-size:13px;color:var(--mat-sys-on-surface-variant);margin-bottom:20px;line-height:1.5}
+        .drd-error{color:#ef4444;font-size:13px;margin-bottom:12px}
+        .drd-actions{display:flex;gap:10px;width:100%}
+        .drd-cancel-btn{flex:1}
+        .drd-spinner{display:inline-block}
+    `],
+})
+export class CancelScheduledDialogComponent {
+    deleting  = signal(false);
+    dialogError = signal('');
+    constructor(
+        private dialogRef: MatDialogRef<CancelScheduledDialogComponent>,
+        @Inject(MAT_DIALOG_DATA) public data: { item: ScheduledMessageDTO },
+        private chatMessageService: ChatMessageService,
+    ) {}
+    cancel(): void { this.dialogRef.close({ cancelled: false }); }
+    confirm(): void {
+        this.deleting.set(true);
+        this.chatMessageService.deleteScheduled(this.data.item.roomId, this.data.item.id).subscribe({
+            next: () => this.dialogRef.close({ cancelled: true, id: this.data.item.id }),
+            error: (err) => { this.dialogError.set(err?.error?.message ?? 'Failed.'); this.deleting.set(false); },
+        });
+    }
+}
+
+/* ══ Remove Member Confirmation Dialog ═══════════════════════════════════ */
+@Component({
+    selector: 'app-remove-member-dialog',
+    standalone: true,
+    imports: [CommonModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatDialogModule],
+    template: `
+        <div class="drd-wrap">
+            <div class="drd-icon-ring">
+                <mat-icon class="drd-icon">person_remove</mat-icon>
+            </div>
+            <h2 class="drd-title">Remove Member</h2>
+            <p class="drd-room-name">{{ data.member.userFullName }}</p>
+            <p class="drd-subtitle">Are you sure you want to remove <strong>{{ data.member.userFullName }}</strong> from this chatroom? They will lose access immediately.</p>
+            @if (dialogError()) {
+                <p class="drd-error">{{ dialogError() }}</p>
+            }
+            <div class="drd-actions">
+                <button mat-stroked-button class="drd-cancel-btn" (click)="cancel()" [disabled]="removing()">
+                    Cancel
+                </button>
+                <button mat-flat-button class="drd-remove-btn" (click)="confirm()" [disabled]="removing()">
+                    @if (removing()) {
+                        <mat-spinner diameter="18" class="drd-spinner"></mat-spinner>
+                    } @else {
+                        <mat-icon style="font-size:18px;width:18px;height:18px;margin-right:6px">person_remove</mat-icon>
+                        Remove
+                    }
+                </button>
+            </div>
+        </div>
+    `,
+    styles: [`
+        .drd-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 32px 28px 24px;
+            text-align: center;
+            min-width: 320px;
+            max-width: 400px;
+        }
+        @keyframes rmd-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.35); }
+            50%       { box-shadow: 0 0 0 10px rgba(239,68,68,0); }
+        }
+        .drd-icon-ring {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(251,113,133,0.1));
+            border: 2px solid rgba(239,68,68,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            animation: rmd-pulse 2s ease-in-out infinite;
+        }
+        .drd-icon {
+            font-size: 30px !important;
+            width: 30px !important;
+            height: 30px !important;
+            color: #ef4444;
+        }
+        .drd-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 0 0 6px;
+            letter-spacing: -0.02em;
+        }
+        .drd-room-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--mat-sys-primary);
+            margin: 0 0 12px;
+            letter-spacing: -0.01em;
+        }
+        .drd-subtitle {
+            font-size: 13px;
+            color: var(--mat-sys-on-surface-variant);
+            margin: 0 0 20px;
+            line-height: 1.6;
+        }
+        .drd-error {
+            font-size: 12.5px;
+            color: #ef4444;
+            background: rgba(239,68,68,0.08);
+            border: 1px solid rgba(239,68,68,0.25);
+            border-radius: 8px;
+            padding: 8px 14px;
+            margin: 0 0 16px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .drd-actions {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            justify-content: center;
+        }
+        .drd-cancel-btn {
+            flex: 1;
+            height: 40px;
+        }
+        .drd-remove-btn {
+            flex: 1.4;
+            height: 40px;
+            background: #ef4444 !important;
+            color: #fff !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+        }
+        .drd-remove-btn:hover:not(:disabled) {
+            background: #dc2626 !important;
+        }
+        .drd-spinner { display: inline-block; }
+        ::ng-deep .drd-spinner circle { stroke: #fff !important; }
+    `],
+})
+export class RemoveMemberDialogComponent {
+    removing    = signal(false);
+    dialogError = signal('');
+
+    constructor(
+        public dialogRef: MatDialogRef<RemoveMemberDialogComponent>,
+        @Inject(MAT_DIALOG_DATA) public data: { member: RoomMemberDTO; roomId: number },
+        private memberService: ChatRoomMemberService,
+    ) {}
+
+    confirm(): void {
+        this.removing.set(true);
+        this.dialogError.set('');
+        this.memberService.removeMember(this.data.roomId, this.data.member.userId).subscribe({
+            next: () => this.dialogRef.close({ removed: true, memberId: this.data.member.id }),
+            error: (err) => {
+                this.removing.set(false);
+                this.dialogError.set(err?.error?.message ?? 'Failed to remove member. Please try again.');
+            },
+        });
+    }
+
+    cancel(): void {
+        if (!this.removing()) this.dialogRef.close();
+    }
+}
+
 @Component({
     selector: "app-chat",
     standalone: true,
+    providers: [provideNativeDateAdapter()],
     imports: [
         CommonModule, FormsModule,
         MatListModule, MatMenuModule, MatIconModule,
@@ -191,8 +1001,12 @@ export class DeleteRoomDialogComponent {
         MatSnackBarModule,
         MatDividerModule, MatTooltipModule,
         MatDialogModule,
+        MatDatepickerModule, MatChipsModule,
         QuillModule,
+        RoomWizardDialogComponent,
         DeleteRoomDialogComponent,
+        CancelScheduledDialogComponent,
+        RemoveMemberDialogComponent,
         SnackbarSuccessComponent,
     ],
     template: `
@@ -256,42 +1070,38 @@ export class DeleteRoomDialogComponent {
                     </div>
 
                     <!-- ── WhatsApp-style search bar ── -->
-                    @if (!showForm()) {
-                        <div class="wa-search-wrap">
-                            <div class="wa-search-box">
-                                <mat-icon class="wa-search-icon material-icons-outlined">search</mat-icon>
-                                <input class="wa-search-input"
-                                       [ngModel]="searchQuery()"
-                                       (ngModelChange)="searchQuery.set($event)"
-                                       placeholder="Search or start a discussion" />
-                                @if (searchQuery()) {
-                                    <button class="wa-search-clear" (click)="searchQuery.set('')" type="button">
-                                        <mat-icon style="font-size:16px;width:16px;height:16px">close</mat-icon>
-                                    </button>
-                                }
-                            </div>
+                    <div class="wa-search-wrap">
+                        <div class="wa-search-box">
+                            <mat-icon class="wa-search-icon material-icons-outlined">search</mat-icon>
+                            <input class="wa-search-input"
+                                   [ngModel]="searchQuery()"
+                                   (ngModelChange)="searchQuery.set($event)"
+                                   placeholder="Search or start a discussion" />
+                            @if (searchQuery()) {
+                                <button class="wa-search-clear" (click)="searchQuery.set('')" type="button">
+                                    <mat-icon style="font-size:16px;width:16px;height:16px">close</mat-icon>
+                                </button>
+                            }
                         </div>
-                    }
+                    </div>
 
                     <!-- ── Filter chips ── -->
-                    @if (!showForm()) {
-                        <div class="wa-chips-row">
-                            <button class="wa-chip" type="button"
-                                    [class.wa-chip-active]="activeFilter() === 'all'"
-                                    (click)="activeFilter.set('all')">All</button>
-                            <button class="wa-chip" type="button"
-                                    [class.wa-chip-active]="activeFilter() === 'unread'"
-                                    (click)="activeFilter.set('unread')">
-                                Unread
-                                @if (totalUnread() > 0) {
-                                    <span class="wa-chip-badge">{{ totalUnread() }}</span>
-                                }
-                            </button>
-                            <button class="wa-chip" type="button"
-                                    [class.wa-chip-active]="activeFilter() === 'favorites'"
-                                    (click)="activeFilter.set('favorites')">Favorites</button>
-                        </div>
-                    }
+                    <div class="wa-chips-row">
+                        <button class="wa-chip" type="button"
+                                [class.wa-chip-active]="activeFilter() === 'all'"
+                                (click)="activeFilter.set('all')">All</button>
+                        <button class="wa-chip" type="button"
+                                [class.wa-chip-active]="activeFilter() === 'unread'"
+                                (click)="activeFilter.set('unread')">
+                            Unread
+                            @if (totalUnread() > 0) {
+                                <span class="wa-chip-badge">{{ totalUnread() }}</span>
+                            }
+                        </button>
+                        <button class="wa-chip" type="button"
+                                [class.wa-chip-active]="activeFilter() === 'favorites'"
+                                (click)="activeFilter.set('favorites')">Favorites</button>
+                    </div>
 
                     <!-- Global error -->
                     @if (error()) {
@@ -301,201 +1111,9 @@ export class DeleteRoomDialogComponent {
                         </div>
                     }
 
-                    <!-- Create / Edit form (stepped wizard) -->
-                    @if (showForm() && canManageMembers) {
-                        <div class="sidebar-form px-3 pb-3" [@fadeSlide]>
-                            <!-- Header -->
-                            <div class="sidebar-form-header mb-2">
-                                <div class="form-header-icon-wrap">
-                                    <mat-icon class="material-icons-outlined form-header-icon">
-                                        {{ editingRoom() ? 'edit_note' : 'add_circle_outline' }}
-                                    </mat-icon>
-                                </div>
-                                <div>
-                                    <div class="fw-bold" style="font-size:13.5px;line-height:1.2">{{ editingRoom() ? 'Edit Channel' : 'New Channel' }}</div>
-                                    <div style="font-size:10.5px;color:var(--mat-sys-on-surface-variant);margin-top:1px">Step {{ formStep() }} of 3</div>
-                                </div>
-                            </div>
-                            <div class="form-progress-bar mb-3">
-                                <div class="form-progress-fill" [style.width]="(formStep() / 3 * 100) + '%'"></div>
-                            </div>
-
-                            @if (formError) {
-                                <div class="chat-error mb-2 px-3 py-2 small" [class.form-field-shake]="formShaking()">{{ formError }}</div>
-                            }
-
-                            <!-- ── STEP 1: Project ── -->
-                            @if (formStep() === 1) {
-                                <div class="form-step-label mb-2">Which project is this channel for?</div>
-                                <div [class.form-field-shake]="formShaking() && !step1Valid">
-                                    <mat-form-field appearance="outline" class="w-100 mb-0">
-                                        <mat-label>Project *</mat-label>
-                                        <mat-icon matPrefix class="material-icons-outlined" style="font-size:18px;width:18px;height:18px">folder_open</mat-icon>
-                                        <mat-select [(ngModel)]="formProjectId" [disabled]="projectsLoading()">
-                                            @if (projectsLoading()) {
-                                                <mat-option disabled>Loading projects…</mat-option>
-                                            } @else if (projects.length === 0) {
-                                                <mat-option disabled>No projects found</mat-option>
-                                            } @else {
-                                                @for (p of projects; track p.id) {
-                                                    <mat-option [value]="p.id">{{ p.name }}</mat-option>
-                                                }
-                                            }
-                                        </mat-select>
-                                        @if (step1Valid) {
-                                            <mat-icon matSuffix class="material-icons-outlined field-check-icon">check_circle</mat-icon>
-                                        }
-                                    </mat-form-field>
-                                    @if (formTouched() && !step1Valid) {
-                                        <div class="form-inline-error">Please select a project to continue.</div>
-                                    }
-                                </div>
-                                <div class="row gx-2 mt-2">
-                                    <div class="col">
-                                        <button mat-flat-button color="primary" class="w-100"
-                                                [class.form-btn-shake]="formShaking() && !step1Valid"
-                                                (click)="nextStep()"
-                                                [matTooltip]="step1Valid ? '' : 'Select a project first'">
-                                            Next
-                                            <mat-icon style="font-size:18px;width:18px;height:18px">chevron_right</mat-icon>
-                                        </button>
-                                    </div>
-                                    <div class="col-auto">
-                                        <button matButton (click)="cancelForm()">Cancel</button>
-                                    </div>
-                                </div>
-                            }
-
-                            <!-- ── STEP 2: Name, Description, Type ── -->
-                            @if (formStep() === 2) {
-                                <div class="form-step-label mb-2">Channel details</div>
-
-                                <!-- Name field -->
-                                <div class="mb-1" [class.form-field-shake]="formShaking() && step2NameError !== null">
-                                    <mat-form-field appearance="outline" class="w-100 mb-0">
-                                        <mat-label>Channel Name *</mat-label>
-                                        <mat-icon matPrefix style="font-size:18px;width:18px;height:18px">tag</mat-icon>
-                                        <input matInput [(ngModel)]="formName" placeholder="e.g. design-review, sprint-42" maxlength="50" />
-                                        <mat-hint align="end">{{ (formName || '').length }}/50</mat-hint>
-                                        @if (!step2NameError) {
-                                            <mat-icon matSuffix class="material-icons-outlined field-check-icon">check_circle</mat-icon>
-                                        }
-                                    </mat-form-field>
-                                    @if (formTouched() && step2NameError) {
-                                        <div class="form-inline-error">{{ step2NameError }}</div>
-                                    }
-                                </div>
-
-                                <!-- Description field -->
-                                <div class="mb-1" [class.form-field-shake]="formShaking() && step2DescError !== null">
-                                    <mat-form-field appearance="outline" class="w-100 mb-0">
-                                        <mat-label>Description *</mat-label>
-                                        <textarea matInput [(ngModel)]="formDescription" rows="2"
-                                                  placeholder="What will this channel be used for?" maxlength="200"></textarea>
-                                        <mat-hint align="end">{{ (formDescription || '').length }}/200</mat-hint>
-                                        @if (!step2DescError) {
-                                            <mat-icon matSuffix class="material-icons-outlined field-check-icon">check_circle</mat-icon>
-                                        }
-                                    </mat-form-field>
-                                    @if (formTouched() && step2DescError) {
-                                        <div class="form-inline-error">{{ step2DescError }}</div>
-                                    }
-                                </div>
-
-                                <!-- Room type pills -->
-                                <div class="mb-2" [class.form-field-shake]="formShaking() && !formRoomType">
-                                    <div class="form-type-label">
-                                        Channel Type *
-                                        @if (formRoomType) {
-                                            <mat-icon class="material-icons-outlined field-check-icon-inline">check_circle</mat-icon>
-                                        }
-                                    </div>
-                                    <div class="room-type-pills">
-                                        @for (t of roomTypes; track t.value) {
-                                            <button class="room-type-pill-btn" type="button"
-                                                    [class.room-type-pill-active]="formRoomType === t.value"
-                                                    (click)="formRoomType = t.value">
-                                                {{ t.label }}
-                                            </button>
-                                        }
-                                    </div>
-                                    @if (formTouched() && !formRoomType) {
-                                        <div class="form-inline-error">Please select a channel type.</div>
-                                    }
-                                </div>
-
-                                <div class="row gx-2 mt-2">
-                                    <div class="col-auto">
-                                        <button matButton (click)="prevStep()">
-                                            <mat-icon style="font-size:18px;width:18px;height:18px">chevron_left</mat-icon>
-                                            Back
-                                        </button>
-                                    </div>
-                                    <div class="col">
-                                        <button mat-flat-button color="primary" class="w-100"
-                                                [class.form-btn-shake]="formShaking() && !step2Valid"
-                                                (click)="nextStep()"
-                                                [matTooltip]="step2Valid ? '' : 'Fill in all fields correctly'">
-                                            Next
-                                            <mat-icon style="font-size:18px;width:18px;height:18px">chevron_right</mat-icon>
-                                        </button>
-                                    </div>
-                                    <div class="col-auto">
-                                        <button matButton (click)="cancelForm()">Cancel</button>
-                                    </div>
-                                </div>
-                            }
-
-                            <!-- ── STEP 3: Review & Create ── -->
-                            @if (formStep() === 3) {
-                                <div class="form-step-label mb-2">Review and {{ editingRoom() ? 'update' : 'create' }}</div>
-                                <div class="form-review-card mb-3">
-                                    <div class="form-review-row">
-                                        <span class="form-review-key">Project</span>
-                                        <span class="form-review-val">{{ getProjectName(formProjectId) }}</span>
-                                    </div>
-                                    <div class="form-review-row">
-                                        <span class="form-review-key">Name</span>
-                                        <span class="form-review-val">#{{ formName.trim() }}</span>
-                                    </div>
-                                    <div class="form-review-row">
-                                        <span class="form-review-key">Description</span>
-                                        <span class="form-review-val">{{ formDescription.trim() }}</span>
-                                    </div>
-                                    <div class="form-review-row">
-                                        <span class="form-review-key">Type</span>
-                                        <span class="form-review-val">{{ getRoomTypeLabel(formRoomType) }}</span>
-                                    </div>
-                                </div>
-                                <div class="row gx-2">
-                                    <div class="col-auto">
-                                        <button matButton (click)="prevStep()" [disabled]="saving()">
-                                            <mat-icon style="font-size:18px;width:18px;height:18px">chevron_left</mat-icon>
-                                            Back
-                                        </button>
-                                    </div>
-                                    <div class="col">
-                                        <button mat-flat-button color="primary" class="w-100"
-                                                (click)="saveRoom()" [disabled]="saving()">
-                                            @if (saving()) {
-                                                <mat-spinner diameter="16" style="display:inline-block;margin-right:6px"></mat-spinner>
-                                                Saving…
-                                            } @else {
-                                                <mat-icon style="font-size:18px;width:18px;height:18px">{{ editingRoom() ? 'save' : 'add_circle' }}</mat-icon>
-                                                {{ editingRoom() ? 'Update Channel' : 'Create Channel' }}
-                                            }
-                                        </button>
-                                    </div>
-                                    <div class="col-auto">
-                                        <button matButton (click)="cancelForm()" [disabled]="saving()">Cancel</button>
-                                    </div>
-                                </div>
-                            }
-                        </div>
-                    }
+                    <!-- wizard moved to MatDialog (RoomWizardDialogComponent) -->
 
                     <!-- ── WhatsApp-style room list ── -->
-                    @if (!showForm()) {
                         <div class="wa-rooms-scroll">
 
                             @if (loading()) {
@@ -533,7 +1151,12 @@ export class DeleteRoomDialogComponent {
                                                     </span>
                                                 </div>
                                                 <div class="wa-room-bottom-row">
-                                                    <span class="wa-room-preview">{{ room.description || getRoomTypeLabel(room.roomType ?? 'general') + ' channel' }}</span>
+                                                    <span class="wa-room-preview">
+                                                        @if (translatedRooms().has(room.id)) {
+                                                            <span class="wa-translated-globe" title="You translated a message in this room">🌐</span>
+                                                        }
+                                                        {{ room.description || getRoomTypeLabel(room.roomType ?? 'general') + ' channel' }}
+                                                    </span>
                                                     @if ((unreadCounts().get(room.id) ?? 0) > 0) {
                                                         <span class="wa-unread-badge" [@pillEnter]>{{ unreadCounts().get(room.id) }}</span>
                                                     }
@@ -578,7 +1201,6 @@ export class DeleteRoomDialogComponent {
                                 }
                             }
                         </div>
-                    }
                 </div>
                 <!-- ══ /LEFT sidebar ══════════════════════════════════════ -->
 
@@ -672,6 +1294,13 @@ export class DeleteRoomDialogComponent {
                                                 [class.header-btn-active]="sharedPanelOpen()">
                                             <mat-icon class="material-icons-outlined" style="font-size:19px;width:19px;height:19px">perm_media</mat-icon>
                                         </button>
+                                        @if (canManageMembers) {
+                                            <button matIconButton matTooltip="Scheduled messages"
+                                                    (click)="toggleScheduledPanel()"
+                                                    [class.header-btn-active]="scheduledPanelOpen()">
+                                                <mat-icon class="material-icons-outlined" style="font-size:19px;width:19px;height:19px">schedule_send</mat-icon>
+                                            </button>
+                                        }
                                         <button matIconButton matTooltip="{{ isSearchVisible() ? 'Close search' : 'Search messages' }}"
                                                 (click)="toggleSearch()"
                                                 [class.header-btn-active]="isSearchVisible()">
@@ -1099,6 +1728,58 @@ export class DeleteRoomDialogComponent {
                                     </div>
                                 }
 
+                                <!-- Scheduled messages side panel -->
+                                @if (scheduledPanelOpen() && canManageMembers) {
+                                    <div class="members-panel sched-panel" [@scheduledPanelSlide] (click)="$event.stopPropagation()">
+                                        <div class="members-panel-header">
+                                            <div class="members-panel-title">
+                                                <mat-icon class="material-icons-outlined" style="font-size:18px;width:18px;height:18px">schedule_send</mat-icon>
+                                                <span>Scheduled Messages</span>
+                                                @if (scheduledMessages().length > 0) {
+                                                    <span class="mp-count">{{ scheduledMessages().length }}</span>
+                                                }
+                                            </div>
+                                            <button class="pp-close-btn" (click)="scheduledPanelOpen.set(false)">
+                                                <mat-icon style="font-size:18px;width:18px;height:18px">close</mat-icon>
+                                            </button>
+                                        </div>
+
+                                        <div class="pinned-panel-body" style="overflow-y:auto;flex:1">
+                                            @if (scheduledLoading()) {
+                                                <div class="d-flex justify-content-center py-4">
+                                                    <mat-spinner diameter="28"></mat-spinner>
+                                                </div>
+                                            } @else if (scheduledError()) {
+                                                <p class="pp-empty" style="color:var(--mat-sys-error)">{{ scheduledError() }}</p>
+                                            } @else if (scheduledMessages().length === 0) {
+                                                <div class="sched-empty">
+                                                    <mat-icon class="sched-empty-icon material-icons-outlined">schedule_send</mat-icon>
+                                                    <p>No scheduled messages yet</p>
+                                                </div>
+                                            } @else {
+                                                @for (item of scheduledMessages(); track item.id; let i = $index) {
+                                                    <div class="sched-item" [style.animation-delay]="i * 55 + 'ms'" [@schedItemLeave]>
+                                                        <div class="sched-item-preview">{{ item.content | slice:0:60 }}{{ item.content.length > 60 ? '…' : '' }}</div>
+                                                        <div class="sched-item-meta">
+                                                            <span class="sched-date">{{ formatScheduledDate(item.nextSendAt || item.scheduledAt) }}</span>
+                                                            <span class="sched-chip" [style.background]="getRecurrenceChipStyle(item.recurrenceType)">{{ item.recurrenceType }}</span>
+                                                        </div>
+                                                        <div class="sched-item-countdown">{{ getScheduledCountdown(item.nextSendAt || item.scheduledAt) }}</div>
+                                                        <div class="sched-item-actions">
+                                                            <button class="hover-action-btn" matTooltip="Edit" (click)="editScheduled(item)">
+                                                                <mat-icon style="font-size:16px;width:16px;height:16px">edit</mat-icon>
+                                                            </button>
+                                                            <button class="hover-action-btn" matTooltip="Cancel" (click)="confirmCancelScheduled(item)">
+                                                                <mat-icon style="font-size:16px;width:16px;height:16px;color:var(--mat-sys-error)">cancel_schedule_send</mat-icon>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            }
+                                        </div>
+                                    </div>
+                                }
+
                                 <!-- Messages scroll area -->
                                 <div class="messages-scroll overflow-y-auto h-100" #messagePane>
 
@@ -1205,6 +1886,22 @@ export class DeleteRoomDialogComponent {
                                                                 <mat-icon [style.color]="message.isPinned ? 'var(--mat-sys-primary)' : null">push_pin</mat-icon>
                                                                 <span>{{ message.isPinned ? 'Unpin' : 'Pin' }}</span>
                                                             </button>
+                                                            @if (message.contentText && !message.isSystemMessage) {
+                                                                <mat-divider></mat-divider>
+                                                                <button mat-menu-item (click)="translateMsg(message)">
+                                                                    <mat-icon style="color:var(--mat-sys-primary)"
+                                                                              [class.translate-icon-spin]="translationMap().get(message.id)?.loading">translate</mat-icon>
+                                                                    <span>
+                                                                        @if (translationMap().get(message.id)?.loading) {
+                                                                            Translating...
+                                                                        } @else if (translationMap().get(message.id)?.showTranslation) {
+                                                                            Show original
+                                                                        } @else {
+                                                                            Translate to English
+                                                                        }
+                                                                    </span>
+                                                                </button>
+                                                            }
                                                         </mat-menu>
                                                     </div>
 
@@ -1226,7 +1923,22 @@ export class DeleteRoomDialogComponent {
 
                                                         <!-- Message text -->
                                                         @if (message.contentText) {
-                                                            <div class="msg-text" [innerHTML]="message.contentText"></div>
+                                                            <div class="msg-text-wrap"
+                                                                 [class.msg-text-loading]="translationMap().get(message.id)?.loading">
+                                                                @if (translationMap().get(message.id)?.showTranslation) {
+                                                                    <div class="msg-text" [@translationSwap]>{{ translationMap().get(message.id)?.translated }}</div>
+                                                                } @else {
+                                                                    <div class="msg-text" [innerHTML]="message.contentText" [@translationSwap]></div>
+                                                                }
+                                                                @if (translationMap().get(message.id)?.loading) {
+                                                                    <div class="translate-bubble-overlay">
+                                                                        <mat-icon class="translate-spin-icon">translate</mat-icon>
+                                                                    </div>
+                                                                }
+                                                            </div>
+                                                        }
+                                                        @if (translationMap().get(message.id)?.loading) {
+                                                            <div class="translate-loading-label">Translating...</div>
                                                         }
 
                                                         <!-- File attachment -->
@@ -1358,6 +2070,20 @@ export class DeleteRoomDialogComponent {
                                                             </div>
                                                         }
                                                     </div>
+
+                                                    <!-- Translation indicator pill -->
+                                                    @if (translationMap().get(message.id)?.showTranslation) {
+                                                        <div class="translation-pill-wrap"
+                                                             [class.my-msg]="message.senderId === currentUser?.id"
+                                                             [@translationPillEnter]>
+                                                            <span class="translation-pill-badge">
+                                                                <span class="translation-pill-globe">🌐</span>
+                                                                <span class="translation-pill-text">Translated to English</span>
+                                                            </span>
+                                                            <button class="translation-show-orig-btn"
+                                                                    (click)="translateMsg(message)">Show original</button>
+                                                        </div>
+                                                    }
                                                 </div>
                                             </div>
                                             } <!-- /else not system message -->
@@ -1464,6 +2190,91 @@ export class DeleteRoomDialogComponent {
                                     </div>
                                 }
 
+                                <!-- "Send Later" / "Schedule Recurring" slide-up panel -->
+                                @if (scheduleFormType() !== 'none' && activeRoom()) {
+                                    <div class="schedule-panel" [@schedFormSlide]>
+                                        <div class="schedule-panel-header">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <mat-icon class="material-icons-outlined" style="font-size:17px;width:17px;height:17px;color:var(--mat-sys-primary)">
+                                                    {{ scheduleFormType() === 'once' ? 'schedule' : 'repeat' }}
+                                                </mat-icon>
+                                                <span style="font-weight:600;font-size:13px">
+                                                    {{ editingScheduledId() ? 'Edit Scheduled Message' : (scheduleFormType() === 'once' ? 'Send Later' : 'Schedule Recurring') }}
+                                                </span>
+                                            </div>
+                                            <button class="pp-close-btn" (click)="closeSchedulePanel()">
+                                                <mat-icon style="font-size:16px;width:16px;height:16px">close</mat-icon>
+                                            </button>
+                                        </div>
+
+                                        <div class="schedule-panel-body">
+                                            <!-- Content textarea -->
+                                            <mat-form-field appearance="outline" class="w-100 inline-small">
+                                                <mat-label>Message</mat-label>
+                                                <textarea matInput [(ngModel)]="scheduleContent" rows="2" placeholder="What do you want to say?"></textarea>
+                                            </mat-form-field>
+
+                                            <div class="d-flex gap-2">
+                                                <!-- Date picker -->
+                                                <mat-form-field appearance="outline" class="inline-small" style="flex:1">
+                                                    <mat-label>Date</mat-label>
+                                                    <input matInput [matDatepicker]="schedPicker"
+                                                           [(ngModel)]="scheduleDate"
+                                                           [min]="today"
+                                                           placeholder="Pick date">
+                                                    <mat-datepicker-toggle matIconSuffix [for]="schedPicker"></mat-datepicker-toggle>
+                                                    <mat-datepicker #schedPicker></mat-datepicker>
+                                                </mat-form-field>
+
+                                                <!-- Time input -->
+                                                <mat-form-field appearance="outline" class="inline-small" style="flex:1">
+                                                    <mat-label>Time</mat-label>
+                                                    <input matInput type="time" [(ngModel)]="scheduleTime">
+                                                </mat-form-field>
+                                            </div>
+
+                                            <!-- Recurrence pills (only for recurring) -->
+                                            @if (scheduleFormType() === 'recurring') {
+                                                <div class="sched-recurrence-row">
+                                                    @for (r of [['DAILY','Daily'],['WEEKDAYS','Weekdays'],['WEEKLY','Weekly'],['CUSTOM','Custom']]; track r[0]) {
+                                                        <button class="sched-pill"
+                                                                [class.sched-pill-active]="scheduleRecurrence() === r[0]"
+                                                                (click)="setScheduleRecurrence(r[0])">{{ r[1] }}</button>
+                                                    }
+                                                </div>
+
+                                                @if (scheduleRecurrence() === 'CUSTOM') {
+                                                    <div class="sched-recurrence-row mt-1">
+                                                        @for (d of DAYS_LIST; track d.key) {
+                                                            <button class="sched-pill sched-day-pill"
+                                                                    [class.sched-pill-active]="scheduleCustomDays().has(d.key)"
+                                                                    (click)="toggleCustomDay(d.key)">{{ d.label }}</button>
+                                                        }
+                                                    </div>
+                                                }
+                                            }
+
+                                            <!-- Validation error -->
+                                            @if (scheduleFormError()) {
+                                                <div class="chat-error px-2 py-1 small mt-1">{{ scheduleFormError() }}</div>
+                                            }
+
+                                            <!-- Actions -->
+                                            <div class="d-flex gap-2 mt-2">
+                                                <button mat-stroked-button style="flex:1;height:34px;font-size:12px"
+                                                        (click)="closeSchedulePanel()">Cancel</button>
+                                                <button mat-flat-button color="primary"
+                                                        style="flex:1.5;height:34px;font-size:12px"
+                                                        [disabled]="scheduleSaving()"
+                                                        (click)="submitScheduled()">
+                                                    @if (scheduleSaving()) { <mat-spinner diameter="15" style="display:inline-block"></mat-spinner> }
+                                                    @else { {{ editingScheduledId() ? 'Save Changes' : 'Schedule' }} }
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+
                                 <!-- Input card -->
                                 <div class="input-card"
                                      [class.input-card-disabled]="!activeRoom()"
@@ -1556,12 +2367,41 @@ export class DeleteRoomDialogComponent {
 
                                             <div class="input-right-actions">
                                                 <span class="input-hint-text">Ctrl+Enter</span>
-                                                <button class="send-fab"
-                                                        [disabled]="!activeRoom() || (!hasText && !selectedFile)"
-                                                        (click)="sendRichMessage()"
-                                                        matTooltip="Send message">
-                                                    <mat-icon style="font-size:20px;width:20px;height:20px">send</mat-icon>
-                                                </button>
+                                                @if (canManageMembers) {
+                                                    <!-- Split button: Send Now (left) + expand (right) -->
+                                                    <div class="send-split" [class.send-split-disabled]="!activeRoom() || (!hasText && !selectedFile)">
+                                                        <button class="send-fab send-fab-main"
+                                                                [disabled]="!activeRoom() || (!hasText && !selectedFile)"
+                                                                (click)="sendRichMessage()"
+                                                                matTooltip="Send now">
+                                                            <mat-icon style="font-size:20px;width:20px;height:20px">send</mat-icon>
+                                                        </button>
+                                                        <button class="send-fab send-fab-arrow"
+                                                                [disabled]="!activeRoom()"
+                                                                [matMenuTriggerFor]="sendLaterMenu"
+                                                                matTooltip="More send options">
+                                                            <mat-icon style="font-size:16px;width:16px;height:16px">expand_more</mat-icon>
+                                                        </button>
+                                                        <mat-menu #sendLaterMenu="matMenu" xPosition="before">
+                                                            <button mat-menu-item (click)="openSchedulePanel('once')">
+                                                                <mat-icon>schedule</mat-icon>
+                                                                <span>Send Later</span>
+                                                            </button>
+                                                            <button mat-menu-item (click)="openSchedulePanel('recurring')">
+                                                                <mat-icon>repeat</mat-icon>
+                                                                <span>Schedule Recurring</span>
+                                                            </button>
+                                                        </mat-menu>
+                                                    </div>
+                                                } @else {
+                                                    <!-- Original send button for non-managers -->
+                                                    <button class="send-fab"
+                                                            [disabled]="!activeRoom() || (!hasText && !selectedFile)"
+                                                            (click)="sendRichMessage()"
+                                                            matTooltip="Send message">
+                                                        <mat-icon style="font-size:20px;width:20px;height:20px">send</mat-icon>
+                                                    </button>
+                                                }
                                             </div>
                                         </div>
                                     }
@@ -4535,6 +5375,265 @@ export class DeleteRoomDialogComponent {
             background: var(--mat-sys-surface-container-high) !important;
         }
 
+        /* ── Translation feature ────────────────────────────────────── */
+        @keyframes translate-spin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        @keyframes translation-border-pulse {
+            0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--mat-sys-primary) 45%, transparent); }
+            50%  { box-shadow: 0 0 0 4px color-mix(in srgb, var(--mat-sys-primary) 0%, transparent); }
+            100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--mat-sys-primary) 0%, transparent); }
+        }
+
+        .translate-icon-spin {
+            animation: translate-spin 1s linear infinite;
+        }
+
+        /* Wrap around msg-text to hold loading overlay */
+        .msg-text-wrap {
+            position: relative;
+        }
+        .msg-text-loading .msg-text {
+            opacity: 0.3;
+            transition: opacity 0.25s ease;
+        }
+        .translate-bubble-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+        .translate-bubble-overlay .translate-spin-icon {
+            font-size: 22px;
+            width: 22px;
+            height: 22px;
+            color: var(--mat-sys-primary);
+            animation: translate-spin 1s linear infinite;
+        }
+
+        /* "Translating…" label below bubble */
+        .translate-loading-label {
+            font-size: 11px;
+            font-style: italic;
+            color: var(--mat-sys-on-surface-variant);
+            margin-top: 4px;
+            margin-bottom: 2px;
+            opacity: 0.8;
+            animation: fadeInDown 0.25s ease;
+        }
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-4px); }
+            to   { opacity: 0.8; transform: translateY(0); }
+        }
+
+        /* Translation pill indicator */
+        .translation-pill-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 4px;
+            flex-wrap: nowrap;
+        }
+        .translation-pill-wrap.my-msg {
+            justify-content: flex-end;
+        }
+        .translation-pill-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px 3px 8px;
+            border-radius: 20px;
+            background: color-mix(in srgb, var(--mat-sys-primary) 10%, var(--mat-sys-surface));
+            border: 1.5px solid color-mix(in srgb, var(--mat-sys-primary) 35%, transparent);
+            animation: translation-border-pulse 2.4s ease-in-out infinite;
+            font-size: 11.5px;
+            white-space: nowrap;
+            line-height: 1;
+        }
+        .translation-pill-globe {
+            font-size: 12px;
+            line-height: 1;
+        }
+        .translation-pill-text {
+            color: var(--mat-sys-primary);
+            font-weight: 600;
+            font-size: 11px;
+            letter-spacing: 0.01em;
+        }
+        .translation-show-orig-btn {
+            background: none;
+            border: none;
+            padding: 2px 4px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--mat-sys-primary);
+            opacity: 0.75;
+            border-radius: 4px;
+            transition: opacity 0.15s, background 0.15s;
+            white-space: nowrap;
+        }
+        .translation-show-orig-btn:hover {
+            opacity: 1;
+            background: color-mix(in srgb, var(--mat-sys-primary) 10%, transparent);
+        }
+
+        /* Tiny 🌐 globe in room list preview */
+        .wa-translated-globe {
+            font-size: 11px;
+            margin-right: 2px;
+            line-height: 1;
+            opacity: 0.7;
+        }
+
+        /* ── Scheduled Messages ─────────────────────────────────── */
+        @keyframes schedItemFadeIn {
+            from { transform: translateY(10px); opacity: 0; }
+            to   { transform: translateY(0);    opacity: 1; }
+        }
+        @keyframes schedPulse {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50%       { opacity: 1;   transform: scale(1.06); }
+        }
+
+        /* Split send button */
+        .send-split {
+            display: flex;
+            align-items: stretch;
+            border-radius: 50px;
+        }
+        .send-split-disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        .send-fab-main {
+            border-radius: 50px 0 0 50px !important;
+            padding-right: 10px !important;
+        }
+        .send-fab-arrow {
+            border-radius: 0 50px 50px 0 !important;
+            padding-left: 4px !important;
+            padding-right: 4px !important;
+            border-left: 1px solid rgba(255,255,255,0.25) !important;
+            min-width: 28px !important;
+        }
+
+        /* Slide-up schedule panel */
+        .schedule-panel {
+            background: var(--mat-sys-surface-container);
+            border: 1px solid var(--mat-sys-outline-variant);
+            border-radius: 14px;
+            margin-bottom: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .schedule-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px 8px;
+            border-bottom: 1px solid var(--mat-sys-outline-variant);
+            background: var(--mat-sys-surface-container-high);
+        }
+        .schedule-panel-body {
+            padding: 14px;
+        }
+
+        /* Recurrence pills */
+        .sched-recurrence-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 6px;
+        }
+        .sched-pill {
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            background: var(--mat-sys-surface);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s, color 0.15s;
+            color: var(--mat-sys-on-surface-variant);
+        }
+        .sched-pill-active {
+            background: var(--mat-sys-primary) !important;
+            border-color: var(--mat-sys-primary) !important;
+            color: var(--mat-sys-on-primary) !important;
+        }
+        .sched-day-pill {
+            padding: 3px 9px;
+            font-size: 11px;
+        }
+
+        /* Scheduled side panel */
+        .sched-panel {
+            width: 320px;
+        }
+        .sched-item {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--mat-sys-outline-variant);
+            animation: schedItemFadeIn 220ms cubic-bezier(0.34,1.56,0.64,1) both;
+        }
+        .sched-item:last-child { border-bottom: none; }
+        .sched-item-preview {
+            font-size: 12.5px;
+            font-weight: 500;
+            color: var(--mat-sys-on-surface);
+            margin-bottom: 5px;
+            line-height: 1.4;
+        }
+        .sched-item-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 3px;
+        }
+        .sched-date {
+            font-size: 11px;
+            color: var(--mat-sys-on-surface-variant);
+        }
+        .sched-chip {
+            font-size: 10px;
+            font-weight: 700;
+            color: #fff;
+            padding: 2px 7px;
+            border-radius: 10px;
+            letter-spacing: 0.3px;
+        }
+        .sched-item-countdown {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--mat-sys-primary);
+            margin-bottom: 4px;
+        }
+        .sched-item-actions {
+            display: flex;
+            gap: 4px;
+            justify-content: flex-end;
+        }
+        .sched-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 32px 16px;
+            text-align: center;
+            color: var(--mat-sys-on-surface-variant);
+        }
+        .sched-empty-icon {
+            font-size: 56px !important;
+            width: 56px !important;
+            height: 56px !important;
+            margin-bottom: 12px;
+            animation: schedPulse 2.5s ease-in-out infinite;
+            color: var(--mat-sys-outline);
+        }
+        .sched-empty p { font-size: 13px; margin: 0; }
+
     `],
     animations: [
         trigger('pillEnter', [
@@ -4694,6 +5793,56 @@ export class DeleteRoomDialogComponent {
                     style({ transform: 'translateY(12px) scale(0.92)', opacity: 0 })),
             ]),
         ]),
+        trigger('scheduledPanelSlide', [
+            transition(':enter', [
+                style({ transform: 'translateX(100%)', opacity: 0 }),
+                animate('300ms cubic-bezier(0.34,1.56,0.64,1)',
+                    style({ transform: 'translateX(0)', opacity: 1 })),
+            ]),
+            transition(':leave', [
+                animate('200ms cubic-bezier(0.4,0,1,1)',
+                    style({ transform: 'translateX(100%)', opacity: 0 })),
+            ]),
+        ]),
+        trigger('schedItemLeave', [
+            transition(':leave', [
+                animate('280ms cubic-bezier(0.4,0,1,1)',
+                    style({ transform: 'translateY(-8px)', opacity: 0, height: '0px', marginBottom: '0px', paddingTop: '0px', paddingBottom: '0px' })),
+            ]),
+        ]),
+        trigger('schedFormSlide', [
+            transition(':enter', [
+                style({ transform: 'translateY(-10px)', opacity: 0 }),
+                animate('220ms cubic-bezier(0.34,1.56,0.64,1)',
+                    style({ transform: 'translateY(0)', opacity: 1 })),
+            ]),
+            transition(':leave', [
+                animate('150ms ease-in',
+                    style({ transform: 'translateY(-8px)', opacity: 0 })),
+            ]),
+        ]),
+        trigger('translationSwap', [
+            transition(':enter', [
+                style({ opacity: 0, transform: 'translateY(-6px) scale(0.97)' }),
+                animate('350ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    style({ opacity: 1, transform: 'translateY(0) scale(1)' })),
+            ]),
+            transition(':leave', [
+                animate('200ms ease-in',
+                    style({ opacity: 0, transform: 'translateY(6px) scale(0.97)' })),
+            ]),
+        ]),
+        trigger('translationPillEnter', [
+            transition(':enter', [
+                style({ opacity: 0, transform: 'translateY(4px)' }),
+                animate('250ms cubic-bezier(0.34,1.56,0.64,1)',
+                    style({ opacity: 1, transform: 'translateY(0)' })),
+            ]),
+            transition(':leave', [
+                animate('180ms ease-in',
+                    style({ opacity: 0, transform: 'translateY(4px)' })),
+            ]),
+        ]),
     ],
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
@@ -4831,6 +5980,38 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
 
     // ── Delete (UI-only holding slot) ──────────────────────────────
     deletingMessageId = signal<number | null>(null);
+
+    // ── Scheduled Messages ─────────────────────────────────────────
+    scheduledPanelOpen   = signal(false);
+    scheduledMessages    = signal<ScheduledMessageDTO[]>([]);
+    scheduledLoading     = signal(false);
+    scheduledError       = signal('');
+    /** 'none' = closed, 'once' = one-time, 'recurring' = recurring */
+    scheduleFormType     = signal<'none' | 'once' | 'recurring'>('none');
+    scheduleDate: Date | null = null;
+    scheduleTime         = '';
+    scheduleContent      = '';
+    scheduleRecurrence   = signal<'DAILY' | 'WEEKDAYS' | 'WEEKLY' | 'CUSTOM'>('DAILY');
+    scheduleCustomDays   = signal<Set<string>>(new Set());
+    scheduleSaving       = signal(false);
+    scheduleFormError    = signal('');
+    editingScheduledId   = signal<number | null>(null);
+    /** Countdown display; refreshed every 60 s */
+    private scheduledNow = signal(new Date());
+    private scheduledNowInterval: ReturnType<typeof setInterval> | null = null;
+    private scheduledRoomSub: Subscription | null = null;
+    private userNotifSub: Subscription | null = null;
+
+    readonly DAYS_LIST = [
+        { key: 'MONDAY', label: 'Mon' }, { key: 'TUESDAY',   label: 'Tue' },
+        { key: 'WEDNESDAY', label: 'Wed' }, { key: 'THURSDAY', label: 'Thu' },
+        { key: 'FRIDAY', label: 'Fri' }, { key: 'SATURDAY',  label: 'Sat' },
+        { key: 'SUNDAY', label: 'Sun' },
+    ];
+
+    // ── Translation ─────────────────────────────────────────────────
+    translationMap = signal<Map<number, { translated: string; showTranslation: boolean; loading: boolean }>>(new Map());
+    translatedRooms = signal<Set<number>>(new Set());
 
     // ── Audio player ───────────────────────────────────────────────
     playingAudioId   = signal<number | null>(null);
@@ -5038,8 +6219,31 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         private snackBar: MatSnackBar,
         private renderer: Renderer2,
         private dialog: MatDialog,
+        readonly notifService: ScheduledNotificationService,
         @Inject(DOCUMENT) private document: Document,
-    ) {}
+    ) {
+        // Watch retry requests from the notification panel and pre-fill the schedule form
+        effect(() => {
+            const req = this.notifService.retryRequest();
+            if (req) {
+                const type = req.recurrenceType === 'ONCE' ? 'once' : 'recurring';
+                this.openSchedulePanel(type);
+                this.scheduleContent = req.content;
+                if (req.scheduledAt) {
+                    const d = new Date(req.scheduledAt);
+                    this.scheduleDate = d;
+                    this.scheduleTime = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                }
+                if (type === 'recurring' && req.recurrenceType) {
+                    this.scheduleRecurrence.set(req.recurrenceType as any);
+                    if (req.recurrenceDays?.length) {
+                        this.scheduleCustomDays.set(new Set(req.recurrenceDays));
+                    }
+                }
+                this.notifService.clearRetry();
+            }
+        });
+    }
 
     ngOnInit(): void {
         if (this.canManageMembers) {
@@ -5061,6 +6265,19 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
             this.emojiPickerOpen.set(false);
             this.contextMenu.set({ visible: false, x: 0, y: 0, message: null });
         });
+
+        // Subscribe to personal scheduled-message notifications (MANAGER / TUTOR only)
+        if (this.canManageMembers) {
+            const userId = this.authService.currentUser()?.id;
+            if (userId) {
+                this.userNotifSub = this.chatMessageService
+                    .subscribeToUserNotifications(userId)
+                    .subscribe((event: ScheduledNotificationEvent) => this.handleScheduledNotificationEvent(event));
+            }
+        }
+
+        // Refresh the countdown every 60 s
+        this.scheduledNowInterval = setInterval(() => this.scheduledNow.set(new Date()), 60_000);
     }
 
     ngAfterViewChecked(): void {
@@ -5075,6 +6292,9 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         this.roomSub?.unsubscribe();
         this.wsErrSub?.unsubscribe();
         this.pinSub?.unsubscribe();
+        this.scheduledRoomSub?.unsubscribe();
+        this.userNotifSub?.unsubscribe();
+        if (this.scheduledNowInterval) clearInterval(this.scheduledNowInterval);
         this.chatMessageService.disconnect();
         this.docClickUnlisten?.();
         this.cancelRecording();
@@ -5132,33 +6352,48 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
     }
 
     openCreate(): void {
-        this.editingRoom.set(null);
-        this.formProjectId = '';
-        this.formName = '';
-        this.formDescription = '';
-        this.formRoomType = '';
-        this.formError = '';
-        this.formStep.set(1);
-        this.formTouched.set(false);
-        this.formShaking.set(false);
-        this.showForm.set(true);
-        this.loadProjects();
+        const dialogRef = this.dialog.open(RoomWizardDialogComponent, {
+            data: { editingRoom: null, rooms: this.rooms() },
+            width: '520px',
+            maxWidth: '95vw',
+            maxHeight: '92vh',
+            panelClass: 'delete-room-dialog-panel',
+            enterAnimationDuration: '0ms',
+            exitAnimationDuration: '0ms',
+        });
+        dialogRef.afterClosed().subscribe((result: { saved: ChatRoom; isEdit: boolean } | undefined) => {
+            if (result?.saved) {
+                this.rooms.update(list => [...list, result.saved]);
+                this.snackBar.openFromComponent(SnackbarSuccessComponent, {
+                    duration: 4000, horizontalPosition: 'end', verticalPosition: 'top',
+                    panelClass: ['theme-green'], data: 'Chatroom created successfully.',
+                });
+            }
+        });
     }
 
     openEdit(room: ChatRoom, event: Event): void {
         event.stopPropagation();
-        this.editingRoom.set(room);
-        this.formProjectId = room.projectId ?? '';
-        this.formName = room.name;
-        this.formDescription = room.description ?? '';
-        this.formRoomType = (room.roomType?.toLowerCase() as RoomType) ?? 'general';
-        this.formError = '';
-        this.formStep.set(1);
-        this.formTouched.set(false);
-        this.formShaking.set(false);
-        this.showForm.set(true);
         this.deleteConfirmId.set(null);
-        this.loadProjects();
+        const dialogRef = this.dialog.open(RoomWizardDialogComponent, {
+            data: { editingRoom: room, rooms: this.rooms() },
+            width: '520px',
+            maxWidth: '95vw',
+            maxHeight: '92vh',
+            panelClass: 'delete-room-dialog-panel',
+            enterAnimationDuration: '0ms',
+            exitAnimationDuration: '0ms',
+        });
+        dialogRef.afterClosed().subscribe((result: { saved: ChatRoom; isEdit: boolean } | undefined) => {
+            if (result?.saved) {
+                this.rooms.update(list => list.map(r => r.id === result.saved.id ? result.saved : r));
+                if (this.activeRoom()?.id === result.saved.id) this.activeRoom.set(result.saved);
+                this.snackBar.openFromComponent(SnackbarSuccessComponent, {
+                    duration: 4000, horizontalPosition: 'end', verticalPosition: 'top',
+                    panelClass: ['theme-green'], data: 'Chatroom updated successfully.',
+                });
+            }
+        });
     }
 
     cancelForm(): void {
@@ -5306,6 +6541,24 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         this.roomSub = null;
         this.pinSub?.unsubscribe();
         this.pinSub = null;
+        this.scheduledRoomSub?.unsubscribe();
+        this.scheduledRoomSub = null;
+        this.scheduledMessages.set([]);
+        this.scheduledPanelOpen.set(false);
+        this.scheduleFormType.set('none');
+
+        // Subscribe to real-time scheduled-message cancellations for this room
+        if (this.canManageMembers) {
+            this.scheduledRoomSub = this.chatMessageService
+                .subscribeToScheduled(room.id)
+                .subscribe(event => {
+                    if (event.type === 'CANCELLED') {
+                        this.scheduledMessages.update(list =>
+                            list.filter(m => m.id !== event.scheduledMessageId)
+                        );
+                    }
+                });
+        }
 
         // Load pinned messages for this room
         this.chatMessageService.getPinnedMessages(room.id).subscribe({
@@ -5457,13 +6710,20 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         if (!this.canManageMembers) return;
         const roomId = this.activeRoom()?.id;
         if (!roomId) return;
-        this.memberService.removeMember(roomId, member.userId).subscribe({
-            next: () => {
-                this.members.update(list => list.filter(m => m.id !== member.id));
-            },
-            error: (err) => {
-                this.notify(this.formatMemberError(err, err?.status), true);
-            },
+        const dialogRef = this.dialog.open(RemoveMemberDialogComponent, {
+            data: { member, roomId },
+            width: '420px',
+            maxWidth: '95vw',
+            panelClass: 'delete-room-dialog-panel',
+            disableClose: true,
+            enterAnimationDuration: '0ms',
+            exitAnimationDuration: '0ms',
+        });
+        dialogRef.afterClosed().subscribe((result: { removed: boolean; memberId: number } | undefined) => {
+            if (result?.removed) {
+                this.members.update(list => list.filter(m => m.id !== result.memberId));
+                this.notify('Member removed successfully.');
+            }
         });
     }
 
@@ -5614,6 +6874,248 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
                 }
             },
             error: (err) => this.notify(err?.error?.message ?? 'Failed to update pin.', true),
+        });
+    }
+
+    // ── Scheduled Messages ──────────────────────────────────────────────────
+
+    get today(): Date { return new Date(); }
+
+    toggleScheduledPanel(): void {
+        const open = !this.scheduledPanelOpen();
+        this.scheduledPanelOpen.set(open);
+        if (open) {
+            const roomId = this.activeRoom()?.id;
+            if (roomId) this.loadScheduledMessages(roomId);
+        }
+    }
+
+    loadScheduledMessages(roomId: number): void {
+        this.scheduledLoading.set(true);
+        this.scheduledError.set('');
+        this.chatMessageService.getScheduledMessages(roomId).subscribe({
+            next: list => { this.scheduledMessages.set(list); this.scheduledLoading.set(false); },
+            error: err => { this.scheduledError.set(err?.error?.message ?? 'Failed to load scheduled messages.'); this.scheduledLoading.set(false); },
+        });
+    }
+
+    openSchedulePanel(type: 'once' | 'recurring'): void {
+        this.scheduleFormType.set(type);
+        this.scheduleDate = null;
+        this.scheduleTime = '';
+        this.scheduleContent = this.richContent ? this.stripHtml(this.richContent) : '';
+        this.scheduleRecurrence.set('DAILY');
+        this.scheduleCustomDays.set(new Set());
+        this.scheduleFormError.set('');
+        this.editingScheduledId.set(null);
+    }
+
+    closeSchedulePanel(): void {
+        this.scheduleFormType.set('none');
+        this.scheduleFormError.set('');
+        this.editingScheduledId.set(null);
+    }
+
+    setScheduleRecurrence(value: string): void {
+        this.scheduleRecurrence.set(value as 'DAILY' | 'WEEKDAYS' | 'WEEKLY' | 'CUSTOM');
+    }
+
+    editScheduled(item: ScheduledMessageDTO): void {
+        const type = item.recurrenceType === 'ONCE' ? 'once' : 'recurring';
+        this.scheduleFormType.set(type);
+        this.scheduleContent = item.content;
+        const d = new Date(item.scheduledAt);
+        this.scheduleDate = d;
+        this.scheduleTime = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        this.scheduleRecurrence.set(item.recurrenceType as any);
+        this.scheduleCustomDays.set(new Set(item.recurrenceDays ?? []));
+        this.scheduleFormError.set('');
+        this.editingScheduledId.set(item.id);
+        this.scheduledPanelOpen.set(true);
+    }
+
+    toggleCustomDay(day: string): void {
+        this.scheduleCustomDays.update(s => {
+            const n = new Set(s);
+            n.has(day) ? n.delete(day) : n.add(day);
+            return n;
+        });
+    }
+
+    submitScheduled(): void {
+        const roomId = this.activeRoom()?.id;
+        if (!roomId) return;
+
+        if (!this.scheduleContent.trim()) {
+            this.scheduleFormError.set('Message content is required.'); return;
+        }
+        if (!this.scheduleDate) {
+            this.scheduleFormError.set('Please pick a date.'); return;
+        }
+        if (!this.scheduleTime) {
+            this.scheduleFormError.set('Please enter a time (HH:MM).'); return;
+        }
+        const [hh, mm] = this.scheduleTime.split(':').map(Number);
+        const dt = new Date(this.scheduleDate);
+        dt.setHours(hh, mm, 0, 0);
+        if (dt <= new Date()) {
+            this.scheduleFormError.set('Scheduled time must be in the future.'); return;
+        }
+
+        const recType = this.scheduleFormType() === 'once' ? 'ONCE' : this.scheduleRecurrence();
+        if (recType === 'CUSTOM' && this.scheduleCustomDays().size === 0) {
+            this.scheduleFormError.set('Select at least one day for Custom recurrence.'); return;
+        }
+
+        const body: ScheduledPayload = {
+            content: this.scheduleContent.trim(),
+            scheduledAt: this.formatIso(dt),
+            recurrenceType: recType,
+            ...(recType === 'CUSTOM' ? { recurrenceDays: [...this.scheduleCustomDays()] } : {}),
+        };
+
+        this.scheduleSaving.set(true);
+        this.scheduleFormError.set('');
+        const editId = this.editingScheduledId();
+        const req$ = editId
+            ? this.chatMessageService.updateScheduled(roomId, editId, body)
+            : this.chatMessageService.createScheduled(roomId, body);
+
+        req$.subscribe({
+            next: (dto) => {
+                this.scheduledMessages.update(list => {
+                    const idx = list.findIndex(m => m.id === dto.id);
+                    if (idx !== -1) { const u = [...list]; u[idx] = dto; return u; }
+                    return [dto, ...list];
+                });
+                this.scheduleSaving.set(false);
+                this.closeSchedulePanel();
+                this.clearInput();
+                this.notify('Message scheduled!');
+            },
+            error: err => { this.scheduleFormError.set(err?.error?.message ?? 'Failed to save.'); this.scheduleSaving.set(false); },
+        });
+    }
+
+    confirmCancelScheduled(item: ScheduledMessageDTO): void {
+        const ref = this.dialog.open(CancelScheduledDialogComponent, {
+            data: { item },
+            width: '420px',
+            maxWidth: '95vw',
+            panelClass: 'delete-room-dialog-panel',
+            disableClose: true,
+            enterAnimationDuration: '0ms',
+            exitAnimationDuration: '0ms',
+        });
+        ref.afterClosed().subscribe((result: { cancelled: boolean; id: number } | undefined) => {
+            if (result?.cancelled) {
+                this.scheduledMessages.update(list => list.filter(m => m.id !== result.id));
+            }
+        });
+    }
+
+    getScheduledCountdown(isoStr: string): string {
+        const now = this.scheduledNow();
+        const diff = Math.floor((new Date(isoStr).getTime() - now.getTime()) / 1000);
+        if (diff < 60)  return 'Sending soon…';
+        if (diff < 3600) return `Sends in ${Math.floor(diff / 60)}m`;
+        const h = Math.floor(diff / 3600);
+        const m = Math.floor((diff % 3600) / 60);
+        return `Sends in ${h}h ${m}m`;
+    }
+
+    formatScheduledDate(isoStr: string): string {
+        try {
+            return new Date(isoStr).toLocaleString('en-US', {
+                month: 'short', day: 'numeric', year: 'numeric',
+                hour: '2-digit', minute: '2-digit', hour12: false,
+            }).replace(',', '').replace(/(\d{4}), (\d)/, '$1 at $2');
+        } catch { return isoStr; }
+    }
+
+    getRecurrenceChipStyle(type: string): string {
+        const map: Record<string, string> = {
+            ONCE: '#78909c', DAILY: '#1976d2', WEEKDAYS: '#00897b',
+            WEEKLY: '#7b1fa2', CUSTOM: '#e65100',
+        };
+        return map[type] ?? '#78909c';
+    }
+
+    private formatIso(d: Date): string {
+        const pad = (n: number) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+    }
+
+    private handleScheduledNotificationEvent(event: ScheduledNotificationEvent): void {
+        let notif: ScheduledNotification;
+        if (event.type === 'SCHEDULED_SENT') {
+            notif = {
+                id: crypto.randomUUID(), type: 'SCHEDULED_SENT',
+                icon: 'check_circle', iconColor: '#4caf50',
+                message: `Your scheduled message was sent to #${event.roomName}`,
+                roomId: event.roomId, roomName: event.roomName,
+                timestamp: new Date(), read: false,
+            };
+        } else if (event.type === 'SCHEDULED_REMINDER') {
+            notif = {
+                id: crypto.randomUUID(), type: 'SCHEDULED_REMINDER',
+                icon: 'alarm', iconColor: '#ff9800',
+                message: `⏰ Sending in 15 min to #${event.roomName} — ${event.messagePreview}`,
+                roomId: event.roomId, roomName: event.roomName,
+                timestamp: new Date(), read: false,
+                nextSendAt: event.nextSendAt,
+            };
+            this.snackBar.open(`Sending in 15 min to #${event.roomName}`, 'View Room', {
+                duration: 6000,
+                panelClass: ['snack-success'],
+                horizontalPosition: 'end',
+            });
+        } else {
+            notif = {
+                id: crypto.randomUUID(), type: 'SCHEDULED_FAILED',
+                icon: 'error', iconColor: '#f44336',
+                message: `❌ Scheduled message failed in #${event.roomName}`,
+                roomId: event.roomId, roomName: event.roomName,
+                timestamp: new Date(), read: false,
+                originalContent: event.messagePreview,
+                recurrenceType: 'ONCE',
+            };
+        }
+        this.notifService.push(notif);
+    }
+
+    translateMsg(message: MessageDTO): void {
+        const state = this.translationMap().get(message.id);
+        if (state?.translated) {
+            // Already translated — just toggle visibility
+            const m = new Map(this.translationMap());
+            m.set(message.id, { ...state, showTranslation: !state.showTranslation });
+            this.translationMap.set(m);
+            return;
+        }
+        // First time: fetch translation
+        const m = new Map(this.translationMap());
+        m.set(message.id, { translated: '', showTranslation: false, loading: true });
+        this.translationMap.set(m);
+
+        const text = this.stripHtml(message.contentText ?? '');
+        this.chatMessageService.translateMessage(text).subscribe({
+            next: (translated) => {
+                const m2 = new Map(this.translationMap());
+                m2.set(message.id, { translated, showTranslation: true, loading: false });
+                this.translationMap.set(m2);
+                const roomId = this.activeRoom()?.id;
+                if (roomId != null) {
+                    this.translatedRooms.update(s => new Set([...s, roomId]));
+                }
+            },
+            error: (err: any) => {
+                console.error('[Translation] failed:', err);
+                const m2 = new Map(this.translationMap());
+                m2.delete(message.id);
+                this.translationMap.set(m2);
+                this.notify('Translation failed, please try again', true);
+            },
         });
     }
 
