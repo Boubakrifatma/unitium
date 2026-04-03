@@ -28,7 +28,7 @@ import {
   sortEventSegs,
   startOfDay,
   y
-} from "./chunk-GCBVG7HN.js";
+} from "./chunk-HF3J4EVA.js";
 import "./chunk-3OV72XIM.js";
 
 // node_modules/@fullcalendar/list/internal.js

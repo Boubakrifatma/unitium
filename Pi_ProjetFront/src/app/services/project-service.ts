@@ -22,4 +22,14 @@ export class ProjectService {
   getAll(): Observable<Project[]> {
     return this.http.get<Project[]>(this.apiUrl);
   }
+
+  getMembers(projectId: string): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/${projectId}/members`);
+  }
+
+  getUserProjects(userId: number): Observable<Project[]> {
+    return this.http.get<Project[]>(`${this.apiUrl}/user/${userId}`);
+  }
+
+ 
 }

@@ -1,9 +1,12 @@
 package com.example.pi_projet.service;
 
 import com.example.pi_projet.entity.Project;
+import com.example.pi_projet.entity.ProjectMember;
 import com.example.pi_projet.entity.TimeLineAndDeadLine.Task;
+import com.example.pi_projet.entity.User;
 import com.example.pi_projet.repository.ProjectRepository;
 import com.example.pi_projet.repository.TaskRepository;
+import com.example.pi_projet.repository.ProjectMemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +18,7 @@ import java.util.UUID;
 public class ProjectService {
     private final TaskRepository taskRepository;
     private final ProjectRepository repository;
+    private final ProjectMemberRepository projectMemberRepository;
 
     public List<Project> getAll() {
         return repository.findAll();
@@ -42,6 +46,21 @@ public class ProjectService {
 
     public void delete(UUID id) {
         repository.deleteById(id);
+    }
+
+    public List<User> getMembers(UUID projectId) {
+        return projectMemberRepository.findMembersByProjectId(projectId)
+                .stream()
+                .map(ProjectMember::getUser)
+                .toList();
+    }
+
+    public List<Project> getUserProjects(Long userId) {
+        return projectMemberRepository.findByUserId(userId)
+                .stream()
+                .map(ProjectMember::getProject)
+                .distinct()
+                .toList();
     }
 
 

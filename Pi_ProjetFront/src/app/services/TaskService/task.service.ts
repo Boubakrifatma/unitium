@@ -27,11 +27,15 @@ export interface TaskResponseDto {
   startDate: string | null;
   dueDate: string | null;
   createdAt: string | null;
+  updatedAt: string | null;
+  completedAt: string | null;
   projectId: string | null;
   projectName: string | null;
   assignedToId: number | null;
   assignedToName: string | null;
   assignedToEmail: string | null;
+  createdById: number | null;
+  createdByName: string | null;
   milestoneId: number | null;
   milestoneName: string | null;
   // used by AllTaskComponent which maps task.assignedTo?.fullName

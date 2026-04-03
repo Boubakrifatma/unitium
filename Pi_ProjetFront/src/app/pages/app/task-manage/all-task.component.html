@@ -1,337 +1,213 @@
-<div class="container mt-3">
-  <!-- Header amélioré avec plus d'informations -->
-  <div class="page-head row align-items-start gx-3 mb-4">
-    <div class="col">
-      <div class="d-flex align-items-center gap-2 mb-2">
-        <mat-icon class="header-icon">task_alt</mat-icon>
-        <h2 class="mb-0 fw-semibold">Tâches — Jalon #{{ milestoneId ?? "?" }}</h2>
+<div class="container-fluid fade-in mb-3 mb-lg-4">
+  <mat-card class="header-card shadow-none pt-3 pb-lg-3 px-3">
+    <div class="row gx-3 align-items-center">
+      <div class="col-12 col-md mb-3 mb-xl-0 py-1">
+        <h2 class="header-title mb-1">Tasks</h2>
+        <p class="breadcrumb-text">
+          <span routerLink="/app/dashboard" class="breadcrumb-link">
+            <mat-icon class="material-icons-outlined">home</mat-icon>
+            Dashboard
+          </span>
+          <mat-icon class="material-icons-outlined">chevron_right</mat-icon>
+          <span>Milestone #{{ milestoneId() ?? "?" }}</span>
+        </p>
       </div>
-      @if (!milestoneId) {
-        <div class="alert alert-warning alert-sm mt-2 p-2">
-          <mat-icon class="me-1" style="font-size: 18px;">info</mat-icon>
-          <small>Indiquez un jalon dans l'URL (<code class="small">?milestoneId=…</code>) ou ouvrez depuis la liste des jalons.</small>
-        </div>
-      }
+      <div class="col-auto order-2 mb-3 mb-xl-0">
+        <button mat-raised-button color="primary" class="create-btn" (click)="openCreate()" [disabled]="!milestoneId()">
+          <mat-icon class="material-icons-outlined">add</mat-icon>
+          New Task
+        </button>
+      </div>
     </div>
-    <div class="col-auto">
-      <button
-        mat-flat-button
-        color="primary"
-        (click)="openCreate()"
-        [disabled]="!milestoneId || loadingUsers"
-        class="px-4"
-      >
-        <mat-icon>add_task</mat-icon>
-        Nouvelle tâche
-      </button>
-    </div>
+  </mat-card>
+</div>
+
+<div class="container fade-in">
+  <!-- Search Section -->
+  <div class="search-section mb-4">
+    <mat-form-field appearance="outline" class="search-field">
+      <mat-icon matPrefix class="search-icon">search</mat-icon>
+      <input matInput 
+        (keyup)="applyFilter($event)" 
+        placeholder="Search tasks by title, status..." 
+        #input />
+    </mat-form-field>
   </div>
 
-  <!-- Spinner amélioré -->
-  @if (loading) {
+  <!-- Loading -->
+  @if (loading()) {
     <div class="text-center py-5">
       <mat-spinner diameter="48"></mat-spinner>
-      <p class="text-secondary mt-3 mb-0">Chargement des tâches…</p>
+      <p class="text-secondary mt-3 mb-0">Loading tasks…</p>
     </div>
   } @else {
-
-    <!-- Barre de recherche améliorée avec filtres -->
-    <div class="search-section mb-4">
-      <div class="row g-3">
-        <div class="col-md-6">
-          <mat-form-field appearance="outline" class="w-100 search-field">
-            <mat-label>Rechercher une tâche</mat-label>
-            <input
-              matInput
-              [matAutocomplete]="auto"
-              placeholder="Titre, statut, assigné…"
-              (keyup)="applyFilter($event)"
-              #searchInput
-            />
-            <mat-icon matPrefix>search</mat-icon>
-            @if (searchInput.value) {
-              <button matSuffix mat-icon-button (click)="clearSearch(searchInput)">
-                <mat-icon>close</mat-icon>
+    <!-- Tasks Grid -->
+    <div class="tasks-grid" *ngIf="filteredTasks().length > 0; else noTasks">
+      <div class="task-card-wrapper" *ngFor="let task of filteredTasks(); let i = index" 
+        [attr.data-status]="task.status">
+        <mat-card class="task-card" [class.expanded]="expandedTaskIds().has(task.taskId)">
+          <!-- Card Header -->
+          <div class="card-header">
+            <div class="header-content">
+              <div class="task-id-badge">{{ task.taskId }}</div>
+              <div class="task-info">
+                <h3 class="task-name">{{ task.title }}</h3>
+                <p class="task-type">{{ task.type | titlecase }}</p>
+              </div>
+            </div>
+            <div class="header-actions">
+              <span class="status-badge" [ngClass]="'status-' + task.status">
+                {{ task.status | titlecase }}
+              </span>
+              <button mat-icon-button 
+                (click)="toggleDetails(task.taskId)"
+                class="expand-btn"
+                [class.rotated]="expandedTaskIds().has(task.taskId)">
+                <mat-icon>expand_more</mat-icon>
               </button>
-            }
-            <mat-autocomplete #auto="matAutocomplete">
-              <mat-option *ngFor="let suggestion of searchSuggestions" [value]="suggestion">
-                {{ suggestion }}
-              </mat-option>
-            </mat-autocomplete>
-          </mat-form-field>
-        </div>
-        <div class="col-md-6">
-          <div class="d-flex gap-2 justify-content-md-end">
-            <button mat-stroked-button (click)="openFilterDialog()" class="filter-btn">
-              <mat-icon>filter_list</mat-icon>
-              Filtres
-              @if (activeFiltersCount > 0) {
-                <span class="filter-badge">{{ activeFiltersCount }}</span>
-              }
-            </button>
-            <div class="stats-summary">
-              <div class="stat-badge" matTooltip="Total des tâches">
-                <mat-icon>assignment</mat-icon>
-                <span>{{ dataSource.filteredData.length }}</span>
+            </div>
+          </div>
+
+          <!-- Card Body -->
+          <div class="card-body">
+            <!-- Progress Section -->
+            <div class="progress-section">
+              <div class="progress-header">
+                <span class="progress-label">Progress</span>
+                <span class="progress-value">{{ getProgress(task) }}%</span>
               </div>
-              <div class="stat-badge" matTooltip="Tâches terminées">
-                <mat-icon>check_circle</mat-icon>
-                <span>{{ getCompletedTasksCount() }}</span>
+              <mat-progress-bar 
+                mode="determinate" 
+                [value]="getProgress(task)"
+                class="custom-progress-bar">
+              </mat-progress-bar>
+            </div>
+
+            <!-- Key Info -->
+            <div class="info-grid">
+              <div class="info-item">
+                <span class="info-label">
+                  <mat-icon>person</mat-icon>
+                  Assigned
+                </span>
+                <span class="info-value">{{ task.assignedTo || 'Unassigned' }}</span>
               </div>
-              <div class="stat-badge" matTooltip="Tâches en cours">
-                <mat-icon>pending</mat-icon>
-                <span>{{ getInProgressTasksCount() }}</span>
+              <div class="info-item">
+                <span class="info-label">
+                  <mat-icon>schedule</mat-icon>
+                  Hours
+                </span>
+                <span class="info-value">{{ task.loggedHours }}h / {{ task.assignHours }}h</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">
+                  <mat-icon>flag</mat-icon>
+                  Priority
+                </span>
+                <span class="priority-badge" [ngClass]="'priority-' + task.priority">
+                  {{ task.priority | titlecase }}
+                </span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">
+                  <mat-icon>event</mat-icon>
+                  Due
+                </span>
+                <span class="info-value" [class.overdue]="isOverdue(task.dueDate)">
+                  {{ formatDate(task.dueDate) }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Expandable Details -->
+            <div class="expandable-content" *ngIf="expandedTaskIds().has(task.taskId)">
+              <div class="details-section">
+                <h4 class="details-title">Description</h4>
+                <p class="details-text">{{ task.description || 'No description provided' }}</p>
+              </div>
+
+              <div class="details-section">
+                <h4 class="details-title">Additional Details</h4>
+                <div class="details-grid">
+                  <div class="detail-item">
+                    <span class="detail-label">Status</span>
+                    <span class="detail-value">{{ task.status | titlecase }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Type</span>
+                    <span class="detail-value">{{ task.type | titlecase }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Priority</span>
+                    <span class="detail-value">{{ task.priority | titlecase }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Assigned To</span>
+                    <span class="detail-value">{{ task.assignedTo || 'Unassigned' }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="action-buttons">
+                <button mat-stroked-button 
+                  class="action-btn view-btn"
+                  (click)="openView(task)">
+                  <mat-icon>visibility</mat-icon>
+                  View
+                </button>
+                <button mat-stroked-button 
+                  class="action-btn edit-btn"
+                  (click)="openEdit(task)">
+                  <mat-icon>edit</mat-icon>
+                  Edit
+                </button>
+                <button mat-stroked-button 
+                  class="action-btn delete-btn"
+                  (click)="confirmDelete(task)">
+                  <mat-icon>delete</mat-icon>
+                  Delete
+                </button>
               </div>
             </div>
           </div>
-        </div>
+
+          <!-- Hover Actions -->
+          <div class="card-actions" *ngIf="!expandedTaskIds().has(task.taskId)">
+            <button mat-icon-button 
+              (click)="openView(task)" 
+              matTooltip="View"
+              class="hover-action-btn">
+              <mat-icon>visibility</mat-icon>
+            </button>
+            <button mat-icon-button 
+              (click)="openEdit(task)" 
+              matTooltip="Edit"
+              class="hover-action-btn">
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button mat-icon-button 
+              (click)="confirmDelete(task)" 
+              matTooltip="Delete"
+              class="hover-action-btn">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </div>
+        </mat-card>
       </div>
     </div>
 
-    <!-- Empty state amélioré -->
-    @if (dataSource.filteredData.length === 0) {
-      <div class="empty-state text-center py-5">
-        <mat-icon class="empty-icon mb-3">assignment_turned_in</mat-icon>
-        <h5 class="text-muted mb-2">
-          @if (hasActiveFilters) {
-            Aucune tâche ne correspond aux filtres
-          } @else {
-            Aucune tâche pour ce jalon
-          }
-        </h5>
-        <p class="text-secondary mb-3">
-          @if (hasActiveFilters) {
-            Essayez de modifier vos critères de recherche
-          } @else {
-            Commencez par créer votre première tâche
-          }
-        </p>
-        @if (!hasActiveFilters) {
-          <button
-            mat-raised-button
-            color="primary"
-            (click)="openCreate()"
-            [disabled]="!milestoneId"
-          >
-            <mat-icon>add</mat-icon>
-            Créer une tâche
-          </button>
-        } @else {
-          <button mat-stroked-button (click)="clearAllFilters()">
-            <mat-icon>clear_all</mat-icon>
-            Effacer tous les filtres
-          </button>
-        }
+    <!-- Empty State -->
+    <ng-template #noTasks>
+      <div class="empty-state">
+        <mat-icon class="empty-icon">assignment</mat-icon>
+        <h3>No Tasks Found</h3>
+        <p>Start by creating a new task to track your work</p>
+        <button mat-raised-button color="primary" (click)="openCreate()" [disabled]="!milestoneId()">
+          <mat-icon>add</mat-icon>
+          Create Task
+        </button>
       </div>
-    } @else {
-
-      <!-- Vue grille/carte avec vue alternative -->
-      <div class="view-toggle mb-3">
-        <mat-button-toggle-group [(ngModel)]="viewMode" aria-label="Mode d'affichage">
-          <mat-button-toggle value="grid">
-            <mat-icon>grid_view</mat-icon>
-            Grille
-          </mat-button-toggle>
-          <mat-button-toggle value="list">
-            <mat-icon>list</mat-icon>
-            Liste
-          </mat-button-toggle>
-        </mat-button-toggle-group>
-      </div>
-
-      <!-- Vue Grille -->
-      @if (viewMode === 'grid') {
-        <div class="cards-grid">
-          @for (task of paginatedTasks; track task.taskId) {
-            <mat-card class="task-card mat-elevation-z2" (click)="openView(task)">
-              <!-- Badge de statut en overlay -->
-              <div class="status-overlay" [class]="'status-' + task.status"></div>
-
-              <mat-card-header>
-                <div class="card-header-top">
-                  <div class="task-id-title">
-                    <span class="task-id-badge">#{{ task.taskId }}</span>
-                    <h3 class="task-title">{{ task.title }}</h3>
-                  </div>
-                  <div class="card-badges">
-                    <span class="badge-type type-{{ task.type }}">
-                      <mat-icon class="badge-icon">{{ getTypeIcon(task.type) }}</mat-icon>
-                      {{ typeLabel(task.type) }}
-                    </span>
-                  </div>
-                </div>
-              </mat-card-header>
-
-              <mat-card-content>
-                @if (task.description) {
-                  <p class="card-description">
-                    {{ truncateDescription(task.description, 120) }}
-                  </p>
-                }
-
-                <div class="card-info-grid">
-                  <div class="info-item">
-                    <span class="info-label">
-                      <mat-icon>flag</mat-icon>
-                      Statut
-                    </span>
-                    <span [class]="'badge-status status-badge st-' + task.status">
-                      <mat-icon class="status-icon">{{ getStatusIcon(task.status) }}</mat-icon>
-                      {{ statusLabel(task.status) }}
-                    </span>
-                  </div>
-
-                  <div class="info-item">
-                    <span class="info-label">
-                      <mat-icon>priority_high</mat-icon>
-                      Priorité
-                    </span>
-                    <span [class]="'priority-badge priority-' + task.priority">
-                      <mat-icon class="priority-icon">{{ getPriorityIcon(task.priority) }}</mat-icon>
-                      {{ priorityLabel(task.priority) }}
-                    </span>
-                  </div>
-
-                  <div class="info-item">
-                    <span class="info-label">
-                      <mat-icon>person</mat-icon>
-                      Assigné
-                    </span>
-                    <div class="assigned-user">
-                      <div class="user-avatar" [style.backgroundColor]="getUserColor(task.assignedTo)">
-                        {{ getInitials(task.assignedTo) }}
-                      </div>
-                      <span class="info-value">{{ task.assignedTo || 'Non assigné' }}</span>
-                    </div>
-                  </div>
-
-                  <div class="info-item">
-                    <span class="info-label">
-                      <mat-icon>schedule</mat-icon>
-                      Temps
-                    </span>
-                    <div class="time-info">
-                      <span class="info-value">{{ task.assignHours }}h / {{ task.loggedHours || 0 }}h</span>
-                      @if (task.assignHours > 0) {
-                        <div class="progress-bar">
-                          <div class="progress-fill" [style.width.%]="(task.loggedHours / task.assignHours) * 100"></div>
-                        </div>
-                      }
-                    </div>
-                  </div>
-
-                  <div class="info-item">
-                    <span class="info-label">
-                      <mat-icon>event</mat-icon>
-                      Échéance
-                    </span>
-                    <div class="due-date" [class.overdue]="task.dueDate !== '-' && isOverdue(task.dueDate)">
-                      <mat-icon class="due-icon">{{ getDueIcon(task.dueDate) }}</mat-icon>
-                      <span class="info-value">{{ task.dueDate }}</span>
-                      @if (task.dueDate !== '-' && isOverdue(task.dueDate)) {
-                        <span class="overdue-badge">Retard</span>
-                      }
-                    </div>
-                  </div>
-
-                  <div class="info-item full-width">
-                    <span class="info-label">
-                      <mat-icon>assessment</mat-icon>
-                      Progression
-                    </span>
-                    <div class="task-progress">
-                      <div class="progress-bar-large">
-                        <div class="progress-fill" [style.width.%]="getTaskProgress(task)"></div>
-                      </div>
-                      <span class="progress-percentage">{{ getTaskProgress(task) }}%</span>
-                    </div>
-                  </div>
-                </div>
-              </mat-card-content>
-
-              <mat-card-actions align="end">
-                <button mat-button (click)="$event.stopPropagation(); openView(task)">
-                  <mat-icon>visibility</mat-icon>
-                  Détails
-                </button>
-                <button mat-button color="primary" (click)="$event.stopPropagation(); openEdit(task)">
-                  <mat-icon>edit</mat-icon>
-                  Modifier
-                </button>
-                <button mat-button color="warn" (click)="$event.stopPropagation(); confirmDelete(task)">
-                  <mat-icon>delete</mat-icon>
-                  Supprimer
-                </button>
-              </mat-card-actions>
-            </mat-card>
-          }
-        </div>
-      }
-
-      <!-- Vue Liste -->
-      @if (viewMode === 'list') {
-        <div class="list-view">
-          @for (task of paginatedTasks; track task.taskId) {
-            <div class="list-item" (click)="openView(task)">
-              <div class="list-item-status" [class]="'status-' + task.status"></div>
-              <div class="list-item-content">
-                <div class="list-item-header">
-                  <div class="list-item-title">
-                    <span class="task-id">#{{ task.taskId }}</span>
-                    <h4>{{ task.title }}</h4>
-                  </div>
-                  <div class="list-item-badges">
-                    <span [class]="'priority-badge priority-' + task.priority">
-                      {{ priorityLabel(task.priority) }}
-                    </span>
-                    <span [class]="'badge-status st-' + task.status">
-                      {{ statusLabel(task.status) }}
-                    </span>
-                  </div>
-                </div>
-                <div class="list-item-details">
-                  <div class="detail">
-                    <mat-icon>person</mat-icon>
-                    <span>{{ task.assignedTo || 'Non assigné' }}</span>
-                  </div>
-                  <div class="detail">
-                    <mat-icon>schedule</mat-icon>
-                    <span>{{ task.assignHours }}h</span>
-                  </div>
-                  <div class="detail" [class.overdue]="task.dueDate !== '-' && isOverdue(task.dueDate)">
-                    <mat-icon>event</mat-icon>
-                    <span>{{ task.dueDate }}</span>
-                  </div>
-                </div>
-              </div>
-              <div class="list-item-actions">
-                <button mat-icon-button (click)="$event.stopPropagation(); openEdit(task)">
-                  <mat-icon>edit</mat-icon>
-                </button>
-                <button mat-icon-button color="warn" (click)="$event.stopPropagation(); confirmDelete(task)">
-                  <mat-icon>delete</mat-icon>
-                </button>
-              </div>
-            </div>
-          }
-        </div>
-      }
-
-      <!-- Pagination améliorée -->
-      <div class="pagination-wrapper mt-4">
-        <mat-paginator
-          [length]="dataSource.filteredData.length"
-          [pageSize]="pageSize"
-          [pageSizeOptions]="[6, 12, 24, 48]"
-          (page)="onPageChange($event)"
-          showFirstLastButtons>
-        </mat-paginator>
-
-        <div class="pagination-info">
-          Affichage de {{ paginationStart }} à {{ paginationEnd }} sur {{ dataSource.filteredData.length }} tâches
-        </div>
-      </div>
-    }
+    </ng-template>
   }
 </div>

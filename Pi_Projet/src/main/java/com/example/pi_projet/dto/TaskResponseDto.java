@@ -32,4 +32,7 @@ public class TaskResponseDto {
 
     private Long createdById;
     private String createdByName;
+
+    private LocalDateTime updatedAt;
+    private LocalDateTime completedAt;
 }

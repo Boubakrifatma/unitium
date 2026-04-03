@@ -1,6 +1,7 @@
 package com.example.pi_projet.controller;
 
 import com.example.pi_projet.entity.Project;
+import com.example.pi_projet.entity.User;
 import com.example.pi_projet.service.ProjectService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -39,5 +40,15 @@ public class ProjectController {
     @DeleteMapping("/{id}")
     public void delete(@PathVariable UUID id) {
         service.delete(id);
+    }
+
+    @GetMapping("/{id}/members")
+    public List<User> getMembers(@PathVariable UUID id) {
+        return service.getMembers(id);
+    }
+
+    @GetMapping("/user/{userId}")
+    public List<Project> getUserProjects(@PathVariable Long userId) {
+        return service.getUserProjects(userId);
     }
 }

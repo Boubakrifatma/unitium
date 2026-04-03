@@ -148,6 +148,7 @@ export class AppSidebarComponent {
     get isSuperAdmin(): boolean { return this.role === 'SUPER_ADMIN'; }
     get isAdmin(): boolean      { return this.role === 'ADMIN' || this.isSuperAdmin; }
     get isManager(): boolean    { return this.role === 'MANAGER' || this.isAdmin; }
+    get isTutor(): boolean      { return this.role === 'TUTOR' || this.isManager; }
 
     get navItems(): NavItem[] {
         const all: NavItem[] = [];
@@ -168,7 +169,7 @@ export class AppSidebarComponent {
         }
 
         // MANAGER + above
-        if (this.isManager) {
+        if (this.isManager||this.isTutor) {
             all.push({
                 name: "Projects",
                 icon: "dashboard",

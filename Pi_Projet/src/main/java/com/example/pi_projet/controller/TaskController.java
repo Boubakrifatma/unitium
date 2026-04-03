@@ -14,6 +14,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -39,7 +40,11 @@ public class TaskController {
 
 
     @PostMapping
-    public ResponseEntity<Task> create(@RequestBody TaskCreateDto dto) {
+    public ResponseEntity<TaskResponseDto> create(@RequestBody TaskCreateDto dto, HttpServletRequest request) {
+        User currentUser = (User) request.getAttribute("currentUser");
+        if (currentUser == null) {
+            return ResponseEntity.status(401).build();
+        }
 
         String raw = dto.getProjectId().trim();
         if (raw.startsWith("0x") || raw.startsWith("0X")) {
@@ -80,14 +85,15 @@ public class TaskController {
                 .project(project)
                 .assignedTo(assignedTo)
                 .milestone(milestone)
+                .createdBy(currentUser)
                 .build();
 
         Task saved = taskService.create(task);
-        return ResponseEntity.ok(saved);
+        return ResponseEntity.ok(toDto(saved));
     }
     @GetMapping("/{id}")
-    public ResponseEntity<Task> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(taskService.getById(id));
+    public ResponseEntity<TaskResponseDto> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(toDto(taskService.getById(id)));
     }
 
     @GetMapping
@@ -101,7 +107,7 @@ public class TaskController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Task> update(@PathVariable Long id, @RequestBody TaskCreateDto dto) {
+    public ResponseEntity<TaskResponseDto> update(@PathVariable Long id, @RequestBody TaskCreateDto dto) {
         Task existing = taskService.getById(id);
 
         if (dto.getTitle() != null) {
@@ -117,7 +123,11 @@ public class TaskController {
         }
 
         if (dto.getStatus() != null && !dto.getStatus().isBlank()) {
-            existing.setStatus(Task.TaskStatus.valueOf(dto.getStatus().toLowerCase()));
+            Task.TaskStatus newStatus = Task.TaskStatus.valueOf(dto.getStatus().toLowerCase());
+            if (newStatus == Task.TaskStatus.done && existing.getStatus() != Task.TaskStatus.done) {
+                existing.setCompletedAt(LocalDateTime.now());
+            }
+            existing.setStatus(newStatus);
         }
 
         if (dto.getPriority() != null && !dto.getPriority().isBlank()) {
@@ -157,7 +167,7 @@ public class TaskController {
             existing.setProject(projectService.getById(UUID.fromString(dto.getProjectId())));
         }
 
-        return ResponseEntity.ok(taskService.update(id, existing));
+        return ResponseEntity.ok(toDto(taskService.update(id, existing)));
     }
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
@@ -205,11 +215,15 @@ public class TaskController {
                 .startDate(t.getStartDate())
                 .dueDate(t.getDueDate())
                 .createdAt(t.getCreatedAt())
+                .updatedAt(t.getUpdatedAt())
+                .completedAt(t.getCompletedAt())
                 .projectId(t.getProject() != null ? t.getProject().getId().toString() : null)
                 .projectName(t.getProject() != null ? t.getProject().getName() : null)
                 .assignedToId(t.getAssignedTo() != null ? t.getAssignedTo().getId() : null)
                 .assignedToName(t.getAssignedTo() != null ? t.getAssignedTo().getFullName() : null)
                 .assignedToEmail(t.getAssignedTo() != null ? t.getAssignedTo().getEmail() : null)
+                .createdById(t.getCreatedBy() != null ? t.getCreatedBy().getId() : null)
+                .createdByName(t.getCreatedBy() != null ? t.getCreatedBy().getFullName() : null)
                 .milestoneId(t.getMilestone() != null ? t.getMilestone().getId() : null)
                 .milestoneName(t.getMilestone() != null ? t.getMilestone().getName() : null)
                 .build();
