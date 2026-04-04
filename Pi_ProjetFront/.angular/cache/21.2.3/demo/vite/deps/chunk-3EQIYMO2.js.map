@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../node_modules/@angular/cdk/fesm2022/_passive-listeners-chunk.mjs"],
+  "sourcesContent": ["let supportsPassiveEvents;\nfunction supportsPassiveEventListeners() {\n  if (supportsPassiveEvents == null && typeof window !== 'undefined') {\n    try {\n      window.addEventListener('test', null, Object.defineProperty({}, 'passive', {\n        get: () => supportsPassiveEvents = true\n      }));\n    } finally {\n      supportsPassiveEvents = supportsPassiveEvents || false;\n    }\n  }\n  return supportsPassiveEvents;\n}\nfunction normalizePassiveListenerOptions(options) {\n  return supportsPassiveEventListeners() ? options : !!options.capture;\n}\n\nexport { normalizePassiveListenerOptions, supportsPassiveEventListeners };\n\n"],
+  "mappings": ";AAAA,IAAI;AACJ,SAAS,gCAAgC;AACvC,MAAI,yBAAyB,QAAQ,OAAO,WAAW,aAAa;AAClE,QAAI;AACF,aAAO,iBAAiB,QAAQ,MAAM,OAAO,eAAe,CAAC,GAAG,WAAW;AAAA,QACzE,KAAK,MAAM,wBAAwB;AAAA,MACrC,CAAC,CAAC;AAAA,IACJ,UAAE;AACA,8BAAwB,yBAAyB;AAAA,IACnD;AAAA,EACF;AACA,SAAO;AACT;AACA,SAAS,gCAAgC,SAAS;AAChD,SAAO,8BAA8B,IAAI,UAAU,CAAC,CAAC,QAAQ;AAC/D;",
+  "names": []
+}

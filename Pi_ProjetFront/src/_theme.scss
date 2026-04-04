@@ -1,0 +1,246 @@
+@use '@angular/material' as mat;
+
+// Themes
+.light-mode {
+    color-scheme: light;
+
+    .light {
+        display: none;
+    }
+
+    .dark {
+        display: inline-block;
+    }
+}
+
+.dark-mode {
+    color-scheme: dark;
+
+    .light {
+        display: block;
+    }
+
+    .dark {
+        display: none;
+    }
+}
+
+.theme-azure {
+    @include mat.theme((color: (primary: mat.$azure-palette, tertiary: mat.$spring-green-palette, )));
+
+    &.bg-theme,
+    .bg-theme {
+        background-color: var(--mat-sys-on-primary-fixed-variant) !important;
+    }
+
+    &.bg-light-theme,
+    .bg-light-theme {
+        background-color: var(--mat-sys-primary-container);
+    }
+
+    .text-theme, &.text-theme {
+        color: var(--mat-sys-primary)
+    }
+}
+
+.theme-blue {
+    @include mat.theme((color: (primary: mat.$blue-palette )));
+
+    &.bg-theme,
+    .bg-theme {
+        background-color: var(--mat-sys-on-primary-fixed-variant) !important;
+    }
+
+    &.bg-light-theme,
+    .bg-light-theme {
+        background-color: var(--mat-sys-primary-container);
+    }
+
+    .text-theme, &.text-theme {
+        color: var(--mat-sys-primary)
+    }
+}
+
+.theme-red {
+    @include mat.theme((color: (primary: mat.$red-palette )));
+
+    &.bg-theme,
+    .bg-theme {
+        background-color: var(--mat-sys-on-primary-fixed-variant) !important;
+    }
+
+    &.bg-light-theme,
+    .bg-light-theme {
+        background-color: var(--mat-sys-primary-container);
+    }
+
+    .text-theme, &.text-theme {
+        color: var(--mat-sys-primary) !important
+    }
+}
+
+.theme-orange {
+    @include mat.theme((color: (primary: mat.$orange-palette )));
+
+    &.bg-theme,
+    .bg-theme {
+        background-color: var(--mat-sys-on-primary-fixed-variant)
+    }
+
+    &.bg-light-theme,
+    .bg-light-theme {
+        background-color: var(--mat-sys-primary-container);
+    }
+
+    .text-theme, &.text-theme {
+        color: var(--mat-sys-primary) !important
+    }
+}
+
+.theme-green {
+    @include mat.theme((color: (primary: mat.$green-palette )));
+    --mat-sys-primary-container: light-dark(#c1f8ce, #015300);
+
+    &.bg-theme,
+    .bg-theme {
+        background-color: var(--mat-sys-on-primary-fixed-variant) !important
+    }
+
+    &.bg-light-theme,
+    .bg-light-theme {
+        background-color: var(--mat-sys-primary-container);
+    }
+
+    .text-theme, &.text-theme {
+        color: var(--mat-sys-primary)
+    }
+}
+
+.theme-violet {
+    @include mat.theme((color: (primary: mat.$violet-palette )));
+
+    &.bg-theme,
+    .bg-theme {
+        background-color: var(--mat-sys-on-primary-fixed-variant) !important;
+    }
+
+    &.bg-light-theme,
+    .bg-light-theme {
+        background-color: var(--mat-sys-primary-container);
+    }
+
+    .text-theme, &.text-theme {
+        color: var(--mat-sys-primary)
+    }
+}
+
+.theme-magenta {
+    @include mat.theme((color: (primary: mat.$magenta-palette )));
+
+    &.bg-theme,
+    .bg-theme {
+        background-color: var(--mat-sys-on-primary-fixed-variant) !important
+    }
+
+    &.bg-light-theme,
+    .bg-light-theme {
+        background-color: var(--mat-sys-primary-container);
+    }
+
+    .text-theme, &.text-theme {
+        color: var(--mat-sys-primary)
+    }
+}
+
+.theme-cyan {
+    @include mat.theme((color: (primary: mat.$cyan-palette )));
+    --mat-sys-primary-container: light-dark(#bdfafa, #004f4f);
+
+    &.bg-theme,
+    .bg-theme {
+        background-color: var(--mat-sys-on-primary-fixed-variant) !important;
+    }
+
+    &.bg-light-theme,
+    .bg-light-theme {
+        background-color: var(--mat-sys-primary-container);
+    }
+
+    .text-theme, &.text-theme {
+        color: var(--mat-sys-primary)
+    }
+}
+
+.theme-chartreuse {
+    @include mat.theme((color: (primary: mat.$chartreuse-palette )));
+
+    &.bg-theme,
+    .bg-theme {
+        background-color: var(--mat-sys-on-primary-fixed-variant) !important;
+    }
+
+    &.bg-light-theme,
+    .bg-light-theme {
+        background-color: var(--mat-sys-primary-container);
+    }
+
+    .text-theme, &.text-theme {
+        color: var(--mat-sys-primary)
+    }
+}
+
+.theme-spring-green {
+    @include mat.theme((color: (primary: mat.$spring-green-palette )));
+
+    &.bg-theme,
+    .bg-theme {
+        background-color: var(--mat-sys-on-primary-fixed-variant) !important;
+    }
+
+    &.bg-light-theme,
+    .bg-light-theme {
+        background-color: var(--mat-sys-primary-container);
+    }
+
+    .text-theme, &.text-theme {
+        color: var(--mat-sys-primary)
+    }
+}
+
+.theme-yellow {
+    @include mat.theme((color: (primary: mat.$yellow-palette )));
+    --mat-sys-primary-container: light-dark(#f8f89b, #494900);
+    --mat-sys-primary-fixed: light-dark(#cbb906, #eaea00);
+
+    &.bg-theme,
+    .bg-theme {
+        background-color: var(--mat-sys-on-primary-fixed-variant) !important;
+    }
+
+    &.bg-light-theme,
+    .bg-light-theme {
+        background-color: var(--mat-sys-primary-container);
+    }
+
+    .text-theme, &.text-theme {
+        color: var(--mat-sys-primary-fixed)
+    }
+}
+
+.theme-rose {
+    @include mat.theme((color: (primary: mat.$rose-palette )));
+
+    &.bg-theme,
+    .bg-theme {
+        background-color: var(--mat-sys-on-primary-fixed-variant) !important;
+    }
+
+    &.bg-light-theme,
+    .bg-light-theme {
+        background-color: var(--mat-sys-primary-container);
+    }
+
+    .text-theme, &.text-theme {
+        color: var(--mat-sys-primary)
+    }
+}
