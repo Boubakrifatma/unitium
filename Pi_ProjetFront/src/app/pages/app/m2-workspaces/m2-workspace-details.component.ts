@@ -18,13 +18,15 @@ import { catchError, take } from "rxjs/operators";
 import { AuthService } from "../../../auth/auth.service";
 import { CircleProgressBlueComponent } from "../../../components/charts/circle-progress-blue.component";
 import { CreateProjectWorkflowDialogComponent, CreateProjectWorkflowDialogResult } from "../m2-projects/create-project-workflow-dialog.component";
+import { CreateWithAiComponent, CreateWithAiDialogResult } from "../m2-projects/create-with-ai.component";
+import { ProjectPermissionService } from "../m2-projects/project-permission.service";
 import { UseTemplateWizardDialogComponent, UseTemplateWizardResult } from "../m2-templates/use-template-wizard-dialog.component";
 import { M2ProjectService } from "../m2-projects/m2-project.service";
 import { InviteMemberModalComponent } from "./invite-member-modal.component";
 import { MemberRoleEditDialogComponent, MemberRoleEditDialogResult } from "./member-role-edit-dialog.component";
 import { MemberUnassignDialogComponent, MemberUnassignDialogResult } from "./member-unassign-dialog.component";
 import { WorkspaceMember, WorkspaceMemberCapacity } from "./models/workspace-member.model";
-import { M2ProjectSummary, M2Workspace, M2WorkspaceService } from "./m2-workspace.service";
+import { M2ProjectSummary, M2Workspace, M2WorkspaceCapacity, M2WorkspaceProjectCapacity, M2WorkspaceService } from "./m2-workspace.service";
 import { WorkspaceMemberService } from "./services/workspace-member.service";
 import { WorkspaceDeleteConfirmDialogComponent, WorkspaceDeleteConfirmDialogResult } from "./workspace-delete-confirm-dialog.component";
 import { WorkspaceEditDialogComponent, WorkspaceEditDialogResult } from "./workspace-edit-dialog.component";
@@ -283,6 +285,42 @@ interface WorkspaceActivity {
                                                     </mat-card-content>
                                                 </mat-card>
                                             </div>
+
+                                            <div class="col-12">
+                                                <mat-card class="mb-3">
+                                                    <mat-card-content class="pb-2">
+                                                        @if (workspaceCapacity(); as capacity) {
+                                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                                            <span class="stat-label">Workspace capacity</span>
+                                                            <span class="badge badge-light" style="font-size:10px;">{{ capacity.planName }}</span>
+                                                        </div>
+                                                        <mat-progress-bar mode="determinate"
+                                                            [value]="workspaceCapacityPercentage()"
+                                                            [color]="workspaceCapacityBarColor()"
+                                                            style="height:8px;">
+                                                        </mat-progress-bar>
+                                                        <div class="d-flex justify-content-between mt-1">
+                                                            <span class="text-secondary" style="font-size:11px;">{{ capacity.currentWorkspaces }} / {{ capacity.maxWorkspaces }} workspaces</span>
+                                                            <span class="text-secondary" style="font-size:11px;">{{ workspaceCapacityPercentage() }}%</span>
+                                                        </div>
+                                                        <div class="text-secondary mt-1" style="font-size:11px;">
+                                                            {{ capacity.remainingWorkspaces }} workspace{{ capacity.remainingWorkspaces !== 1 ? 's' : '' }} remaining
+                                                        </div>
+                                                        <div class="mt-2 d-flex gap-2 flex-wrap">
+                                                            <span class="capacity-badge capacity-healthy">Healthy</span>
+                                                            @if (workspaceCapacityPercentage() >= 60) {
+                                                                <span class="capacity-badge capacity-warning">⚠ Warning Zone</span>
+                                                            }
+                                                            @if (workspaceCapacityPercentage() >= 85) {
+                                                                <span class="capacity-badge capacity-critical">⚠ Critical</span>
+                                                            }
+                                                        </div>
+                                                        } @else {
+                                                        <p class="small mb-0 text-secondary">Workspace plan capacity is loading...</p>
+                                                        }
+                                                    </mat-card-content>
+                                                </mat-card>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -475,16 +513,53 @@ interface WorkspaceActivity {
                             </ng-template>
 
                             <div class="p-3">
-                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-                                    <div>
-                                        <p class="small text-secondary mb-0">{{ totalProjects() }} project{{ totalProjects() !== 1 ? 's' : '' }} · {{ activeProjects() }} active · {{ completedProjects() }} completed</p>
+                                <div class="mb-2">
+                                    <p class="small text-secondary mb-0">{{ totalProjects() }} project{{ totalProjects() !== 1 ? 's' : '' }} · {{ activeProjectsForDisplay() }} active · {{ completedProjects() }} completed</p>
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                                    <div class="flex-grow-1" style="max-width:420px;">
+                                        @if (projectCapacity(); as capacity) {
+                                        <div class="stat-card mb-2">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <span class="stat-label">Active projects capacity</span>
+                                                <span class="badge badge-light" style="font-size:10px;">{{ capacity.planName }}</span>
+                                            </div>
+                                            <mat-progress-bar mode="determinate"
+                                                [value]="projectCapacityPercentage()"
+                                                [color]="projectCapacityBarColor()"
+                                                style="height:8px;">
+                                            </mat-progress-bar>
+                                            <div class="d-flex justify-content-between mt-1">
+                                                <span class="text-secondary" style="font-size:11px;">{{ capacity.currentActiveProjects }} / {{ capacity.maxActiveProjects }} active projects</span>
+                                                <span class="text-secondary" style="font-size:11px;">{{ projectCapacityPercentage() }}%</span>
+                                            </div>
+                                            <div class="text-secondary mt-1" style="font-size:11px;">
+                                                {{ capacity.remainingActiveProjects }} active project{{ capacity.remainingActiveProjects !== 1 ? 's' : '' }} remaining
+                                            </div>
+                                            <div class="mt-2 d-flex gap-2 flex-wrap">
+                                                <span class="capacity-badge capacity-healthy">Healthy</span>
+                                                @if (projectCapacityPercentage() >= 60) {
+                                                    <span class="capacity-badge capacity-warning">⚠ Warning Zone</span>
+                                                }
+                                                @if (projectCapacityPercentage() >= 85) {
+                                                    <span class="capacity-badge capacity-critical">⚠ Critical</span>
+                                                }
+                                            </div>
+                                        </div>
+                                        } @else {
+                                        <p class="small mb-0 text-secondary">Project plan capacity is loading...</p>
+                                        }
                                     </div>
-                                    <div class="d-flex gap-2 flex-wrap">
+                                    <div class="d-flex gap-2 flex-wrap projects-action-wrap">
                                         <button matButton (click)="goToRealProjects()">
                                             <mat-icon class="material-icons-outlined">open_in_new</mat-icon> Full View
                                         </button>
                                         <button matButton [disabled]="!canManageWorkspace()" (click)="openTemplateWizard(route.snapshot.paramMap.get('workspaceId') || '')">
                                             <mat-icon class="material-icons-outlined">layers</mat-icon> From Template
+                                        </button>
+                                        <button matButton="filled" class="ai-pill-btn" [disabled]="!canManageWorkspace()" (click)="openCreateWithAiDialog()">
+                                            <mat-icon class="material-icons-outlined">auto_awesome</mat-icon> AI 4-Stage Bootstrap
                                         </button>
                                         <button matButton="filled" [disabled]="!canManageWorkspace()" (click)="openCreateProjectDialog()">
                                             <mat-icon class="material-icons-outlined">add</mat-icon> New Project
@@ -500,6 +575,9 @@ interface WorkspaceActivity {
                                     <h4 class="mb-2">No projects yet</h4>
                                     <p class="text-secondary mb-3 small">Start a new project from a template to save time, or create a blank project to customize from scratch.</p>
                                     <div class="d-flex gap-2 justify-content-center flex-wrap">
+                                        <button matButton="filled" class="ai-pill-btn gap-2" [disabled]="!canManageWorkspace()" (click)="openCreateWithAiDialog()">
+                                            <mat-icon class="material-icons-outlined">auto_awesome</mat-icon> AI 4-Stage Bootstrap
+                                        </button>
                                         <button matButton [disabled]="!canManageWorkspace()" (click)="openCreateProjectDialog()" class="gap-2">
                                             <mat-icon class="material-icons-outlined">add</mat-icon> Create Project
                                         </button>
@@ -654,6 +732,29 @@ interface WorkspaceActivity {
                 border: 1px solid rgba(0, 136, 255, 0.5);
                 background: rgba(0, 136, 255, 0.1);
             }
+
+            .projects-action-wrap .ai-pill-btn {
+                background: linear-gradient(135deg, #0f766e 0%, #0ea5a4 100%);
+                color: #ffffff;
+                border: 0;
+                box-shadow: 0 8px 18px rgba(15, 118, 110, 0.32);
+            }
+
+            .projects-action-wrap .ai-pill-btn:hover {
+                filter: brightness(1.05);
+                transform: translateY(-1px);
+            }
+
+            .ai-pill-btn {
+                transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+            }
+
+            .ai-pill-btn mat-icon {
+                margin-right: 4px;
+                font-size: 19px;
+                width: 19px;
+                height: 19px;
+            }
     `],
 })
 export class M2WorkspaceDetailsComponent implements OnInit {
@@ -662,6 +763,7 @@ export class M2WorkspaceDetailsComponent implements OnInit {
     private readonly workspaceService = inject(M2WorkspaceService);
     private readonly workspaceMemberService = inject(WorkspaceMemberService);
     private readonly projectService = inject(M2ProjectService);
+    private readonly projectPermissionService = inject(ProjectPermissionService);
     private readonly authService = inject(AuthService);
     private readonly dialog = inject(MatDialog);
     private readonly snackBar = inject(MatSnackBar);
@@ -672,6 +774,8 @@ export class M2WorkspaceDetailsComponent implements OnInit {
     readonly workspace = signal<M2Workspace | null>(null);
     readonly members = signal<WorkspaceMember[]>([]);
     readonly memberCapacity = signal<WorkspaceMemberCapacity | null>(null);
+    readonly workspaceCapacity = signal<M2WorkspaceCapacity | null>(null);
+    readonly projectCapacity = signal<M2WorkspaceProjectCapacity | null>(null);
     readonly projects = signal<M2ProjectSummary[]>([]);
     readonly isLoading = signal(true);
     readonly membersLoading = signal(false);
@@ -703,6 +807,7 @@ export class M2WorkspaceDetailsComponent implements OnInit {
     readonly joinedLast7DaysCount = computed(() => this.members().filter((m) => this.isJoinedWithinDays(m.joinedAt, 7)).length);
     readonly totalProjects = computed(() => this.projects().length);
     readonly activeProjects = computed(() => this.projects().filter((p) => this.normalizeStatus(p.status) === "ACTIVE").length);
+    readonly activeProjectsForDisplay = computed(() => this.projectCapacity()?.currentActiveProjects ?? this.activeProjects());
     readonly completedProjects = computed(() => this.projects().filter((p) => {
         const status = this.normalizeStatus(p.status);
         return status === "COMPLETED" || status === "ARCHIVED";
@@ -809,6 +914,10 @@ export class M2WorkspaceDetailsComponent implements OnInit {
         return this.canEditWorkspace();
     });
 
+    readonly canShowCreateWithAi = computed(() => {
+        return this.canManageWorkspace();
+    });
+
     readonly currentUserOrgRole = computed(() => {
         return (this.authService.currentOrganization()?.membershipRole || "").toUpperCase();
     });
@@ -889,6 +998,32 @@ export class M2WorkspaceDetailsComponent implements OnInit {
         const c = this.memberCapacity();
         if (!c || c.maxMembers === 0) return 'primary';
         const ratio = c.currentMembers / c.maxMembers;
+        return ratio >= 1 ? 'warn' : ratio >= 0.8 ? 'accent' : 'primary';
+    });
+
+    readonly workspaceCapacityPercentage = computed(() => {
+        const c = this.workspaceCapacity();
+        if (!c || c.maxWorkspaces === 0) return 0;
+        return Math.round((c.currentWorkspaces / c.maxWorkspaces) * 100);
+    });
+
+    readonly workspaceCapacityBarColor = computed(() => {
+        const c = this.workspaceCapacity();
+        if (!c || c.maxWorkspaces === 0) return 'primary';
+        const ratio = c.currentWorkspaces / c.maxWorkspaces;
+        return ratio >= 1 ? 'warn' : ratio >= 0.8 ? 'accent' : 'primary';
+    });
+
+    readonly projectCapacityPercentage = computed(() => {
+        const c = this.projectCapacity();
+        if (!c || c.maxActiveProjects === 0) return 0;
+        return Math.round((c.currentActiveProjects / c.maxActiveProjects) * 100);
+    });
+
+    readonly projectCapacityBarColor = computed(() => {
+        const c = this.projectCapacity();
+        if (!c || c.maxActiveProjects === 0) return 'primary';
+        const ratio = c.currentActiveProjects / c.maxActiveProjects;
         return ratio >= 1 ? 'warn' : ratio >= 0.8 ? 'accent' : 'primary';
     });
 
@@ -1100,6 +1235,42 @@ export class M2WorkspaceDetailsComponent implements OnInit {
                     );
                 },
             });
+        });
+    }
+
+    openCreateWithAiDialog(): void {
+        if (!this.canShowCreateWithAi()) {
+            this.snackBar.open("You need workspace management access to use AI bootstrap.", "Close", { duration: 3500 });
+            return;
+        }
+
+        const workspaceId = this.route.snapshot.paramMap.get("workspaceId");
+        if (!workspaceId) {
+            return;
+        }
+
+        const ref = this.dialog.open(CreateWithAiComponent, {
+            width: "1080px",
+            maxWidth: "98vw",
+            maxHeight: "92vh",
+            autoFocus: false,
+            data: {
+                workspaceId,
+                workspaceName: this.workspace()?.name || "Workspace",
+                orgType: this.normalizedOrgType(),
+            },
+        });
+
+        ref.afterClosed().pipe(take(1)).subscribe((result?: CreateWithAiDialogResult) => {
+            if (!result?.createdProjectId) {
+                return;
+            }
+            this.snackBar.open("Project created with AI successfully.", "Open", { duration: 3500 })
+                .onAction()
+                .pipe(take(1))
+                .subscribe(() => this.router.navigate(["/app/real-projects", workspaceId, result.createdProjectId]));
+
+            this.loadWorkspaceDetails(workspaceId);
         });
     }
 
@@ -1594,14 +1765,24 @@ export class M2WorkspaceDetailsComponent implements OnInit {
         this.error.set(null);
         this.members.set([]);
         this.memberCapacity.set(null);
+        this.workspaceCapacity.set(null);
+        this.projectCapacity.set(null);
 
         forkJoin({
             workspace: this.workspaceService.getWorkspaceById(workspaceId),
             projectsPage: this.workspaceService.getWorkspaceProjects(workspaceId),
+            workspaceCapacity: this.workspaceService.getWorkspaceCapacity(workspaceId).pipe(
+                catchError(() => of(null))
+            ),
+            projectCapacity: this.workspaceService.getWorkspaceProjectCapacity(workspaceId).pipe(
+                catchError(() => of(null))
+            ),
         }).subscribe({
-            next: ({ workspace, projectsPage }) => {
+            next: ({ workspace, projectsPage, workspaceCapacity, projectCapacity }) => {
                 this.workspace.set(workspace);
                 this.projects.set(projectsPage?.content || []);
+                this.workspaceCapacity.set(workspaceCapacity);
+                this.projectCapacity.set(projectCapacity);
                 this.isLoading.set(false);
                 this.loadMembers(workspaceId);
             },

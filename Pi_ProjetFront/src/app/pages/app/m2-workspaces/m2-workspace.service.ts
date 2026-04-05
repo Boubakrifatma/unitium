@@ -52,6 +52,22 @@ export interface M2ProjectPage {
     totalElements?: number;
 }
 
+export interface M2WorkspaceCapacity {
+    currentWorkspaces: number;
+    maxWorkspaces: number;
+    remainingWorkspaces: number;
+    planName: string;
+    orgType: string;
+}
+
+export interface M2WorkspaceProjectCapacity {
+    currentActiveProjects: number;
+    maxActiveProjects: number;
+    remainingActiveProjects: number;
+    planName: string;
+    orgType: string;
+}
+
 export interface M2CreateWorkspaceRequest {
     name: string;
     slug?: string;
@@ -116,5 +132,13 @@ export class M2WorkspaceService {
 
     getWorkspaceProjects(workspaceId: string, page = 0, size = 20): Observable<M2ProjectPage> {
         return this.http.get<M2ProjectPage>(`${this.base}/${workspaceId}/projects?page=${page}&size=${size}`);
+    }
+
+    getWorkspaceCapacity(workspaceId: string): Observable<M2WorkspaceCapacity> {
+        return this.http.get<M2WorkspaceCapacity>(`${this.base}/${workspaceId}/capacity`);
+    }
+
+    getWorkspaceProjectCapacity(workspaceId: string): Observable<M2WorkspaceProjectCapacity> {
+        return this.http.get<M2WorkspaceProjectCapacity>(`${this.base}/${workspaceId}/projects/capacity`);
     }
 }

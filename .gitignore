@@ -28,5 +28,22 @@ Pi_Projet/target/
 .DS_Store
 Thumbs.db
 
+# ── Python / ML generated artifacts ────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Module 2 ML runtime/training outputs (generated)
+m2_ml_service/seed_run.log
+m2_ml_service/cmp_pib_artifacts.zip
+m2_ml_service/cmp_training_export.csv
+m2_ml_service/models/member_profiles.csv
+m2_ml_service/models/model_metadata.json
+m2_ml_service/models/role_classifier.joblib
+m2_ml_service/models/role_thresholds.json
+m2_ml_service/models/template_embeddings.npy
+m2_ml_service/models/template_metadata.csv
+
 # ── Claude Code memory ─────────────────────────────────────────────────────────
 .claude/

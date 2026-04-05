@@ -39,6 +39,14 @@ public class ProjectTemplateService {
     public Optional<ProjectTemplate> getById(UUID id) {
         return projectTemplateRepository.findById(id);
     }
+
+    public Optional<ProjectTemplate> findFirstByNameIgnoreCase(String name) {
+        if (!StringUtils.hasText(name)) {
+            return Optional.empty();
+        }
+        return projectTemplateRepository.findFirstByNameIgnoreCase(name.trim());
+    }
+
     public ProjectTemplate createTemplate(ProjectTemplate template) {
         // Name is the only strictly required field — validated with min/max
         M2ValidationUtils.requireTemplateName(template.getName());

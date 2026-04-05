@@ -22,6 +22,8 @@ import { ProjectsGridComponent } from "./projects-grid.component";
 import { CreateProjectWorkflowDialogComponent, CreateProjectWorkflowDialogResult } from "./create-project-workflow-dialog.component";
 import { UseTemplateWizardDialogComponent, UseTemplateWizardResult } from "../m2-templates/use-template-wizard-dialog.component";
 import { WorkspaceSelectorDialogComponent } from "./workspace-selector-dialog.component";
+import { ProjectPermissionService } from "./project-permission.service";
+import { CreateWithAiComponent, CreateWithAiDialogResult } from "./create-with-ai.component";
 import { register } from "swiper/element/bundle";
 
 register();
@@ -379,6 +381,9 @@ interface RealProjectRow {
                             <p class="opacity-75 mb-md-4 pb-lg-2">You can start with your very new project or you can create a task within your current project</p>
 
                             <button matButton="elevated" (click)="openCreateProjectDialog()"><mat-icon class="material-icons-outlined">add_circle</mat-icon> New Project</button>
+                            @if (canShowCreateWithAi()) {
+                            <button matButton="filled" class="ms-1" (click)="openCreateWithAiDialog()"><mat-icon class="material-icons-outlined">auto_awesome</mat-icon> AI 4-Stage Bootstrap</button>
+                            }
                             <button matButton class="ms-1 text-theme" (click)="openTemplatePickerDialog()"><mat-icon class="material-icons-outlined">layers</mat-icon> From Template</button>
                             <button matButton="filled" class="ms-1" disabled><mat-icon class="material-icons-outlined">add</mat-icon> New Task</button>
                         </mat-card-content>
@@ -500,6 +505,7 @@ export class RealProjectsComponent implements OnInit {
     private readonly router = inject(Router);
     private readonly dialog = inject(MatDialog);
     private readonly snackBar = inject(MatSnackBar);
+    private readonly projectPermissionService = inject(ProjectPermissionService);
 
     readonly isLoading = signal(false);
     readonly lastError = signal<string | null>(null);
@@ -512,6 +518,10 @@ export class RealProjectsComponent implements OnInit {
     readonly selectedProjectIds = signal<string[]>([]);
     bulkTargetStatus = "";
     readonly selectedWorkspaceMembers = signal<M2WorkspaceMember[]>([]);
+    readonly canShowCreateWithAi = computed(() => {
+        const workspaceId = this.selectedWorkspaceId();
+        return !!workspaceId;
+    });
 
     readonly statusOptions = [
         { value: "",          label: "All" },
@@ -676,6 +686,39 @@ export class RealProjectsComponent implements OnInit {
             if (result?.projectId) {
                 this.loadRealProjects();
             }
+        });
+    }
+
+    openCreateWithAiDialog(): void {
+        const workspaceId = this.selectedWorkspaceId();
+        if (!workspaceId) {
+            this.snackBar.open("Open this page from a workspace to use Create with AI.", "Close", { duration: 3500 });
+            return;
+        }
+
+        if (!this.canShowCreateWithAi()) {
+            this.snackBar.open("Select a workspace first to use AI bootstrap.", "Close", { duration: 3500 });
+            return;
+        }
+
+        const ref = this.dialog.open(CreateWithAiComponent, {
+            width: "1080px",
+            maxWidth: "98vw",
+            maxHeight: "92vh",
+            autoFocus: false,
+            data: {
+                workspaceId,
+                workspaceName: this.selectedWorkspaceName() || "Workspace",
+                orgType: this.selectedWorkspaceOrgType(),
+            },
+        });
+
+        ref.afterClosed().subscribe((result?: CreateWithAiDialogResult) => {
+            if (!result?.createdProjectId) {
+                return;
+            }
+            this.snackBar.open("Project created with AI successfully.", "Close", { duration: 3200 });
+            this.loadRealProjects();
         });
     }
 

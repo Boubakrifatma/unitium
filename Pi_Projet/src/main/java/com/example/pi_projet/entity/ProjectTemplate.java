@@ -194,6 +194,30 @@ public class ProjectTemplate {
     @OneToMany(mappedBy = "template", fetch = FetchType.LAZY)
     private java.util.List<Project> derivedProjects;
 
+    /**
+     * Stage 2 template embedding used for semantic matching.
+     */
+    @Column(name = "ml_template_embedding", columnDefinition = "TEXT DEFAULT NULL COMMENT 'Stage 2 template embedding serialized vector.'")
+    private String mlTemplateEmbedding;
+
+    /**
+     * Historical Stage 2 fitness score used to weight similarity ranking.
+     */
+    @Column(name = "ml_fitness_score", columnDefinition = "DOUBLE DEFAULT NULL COMMENT 'Stage 2 historical template fitness score.'")
+    private Double mlFitnessScore;
+
+    /**
+     * Historical completion rate used for Stage 2 explanations and weighting.
+     */
+    @Column(name = "ml_completion_rate", columnDefinition = "DOUBLE DEFAULT NULL COMMENT 'Historical template completion rate.'")
+    private Double mlCompletionRate;
+
+    /**
+     * Timestamp of the latest metrics recomputation for template ML signals.
+     */
+    @Column(name = "ml_last_metrics_at", columnDefinition = "TIMESTAMP NULL DEFAULT NULL COMMENT 'Last template ML metrics refresh timestamp.'")
+    private Instant mlLastMetricsAt;
+
     // ================= ENUMS =================
     public enum EstimatedEffort { LOW, MEDIUM, HIGH }
 

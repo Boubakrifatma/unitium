@@ -6,6 +6,7 @@ import com.example.pi_projet.entity.Project.Visibility;
 import com.example.pi_projet.entity.ProjectMember;
 import com.example.pi_projet.entity.User;
 import com.example.pi_projet.exception.Module2Exception;
+import com.example.pi_projet.service.ProjectIntelligenceService;
 import com.example.pi_projet.service.ProjectMemberService;
 import com.example.pi_projet.service.ProjectService;
 import com.example.pi_projet.annotation.Authorized;
@@ -30,6 +31,7 @@ public class ProjectController {
 
     private final ProjectService projectService;
     private final ProjectMemberService projectMemberService;
+    private final ProjectIntelligenceService projectIntelligenceService;
 
     @GetMapping
     public Page<Project> getAll(@PathVariable UUID workspaceId,
@@ -74,6 +76,42 @@ public class ProjectController {
         LocalDate endDate   = parseOptionalDate(body.get("endDate"),   "endDate");
         validateDateRange(startDate, endDate);
         return projectService.createProjectFromTemplate(workspaceId, templateId, nameOverride, startDate, endDate, currentUser.getId());
+    }
+
+    @PostMapping("/pib/bootstrap")
+    public Map<String, Object> pibBootstrap(@PathVariable UUID workspaceId,
+                                            @RequestBody Map<String, Object> body,
+                                            HttpServletRequest request) {
+        User currentUser = requireCurrentUser(request);
+        String inputType = body.get("input_type") != null ? body.get("input_type").toString() : "text";
+        String description = body.get("description") != null ? body.get("description").toString() : null;
+        String documentBase64 = body.get("document_base64") != null ? body.get("document_base64").toString() : null;
+        String documentFilename = body.get("document_filename") != null ? body.get("document_filename").toString() : null;
+
+        return projectIntelligenceService.bootstrapProject(
+            workspaceId,
+            inputType,
+            description,
+            documentBase64,
+            documentFilename,
+            currentUser.getId()
+        );
+    }
+
+    @GetMapping("/pib/status")
+    public Map<String, Object> pibStatus(@PathVariable UUID workspaceId,
+                                         HttpServletRequest request) {
+        User currentUser = requireCurrentUser(request);
+        return projectIntelligenceService.getMlServiceStatus(workspaceId, currentUser.getId());
+    }
+
+    @PostMapping("/pib/confirm")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Project pibConfirm(@PathVariable UUID workspaceId,
+                              @RequestBody Map<String, Object> body,
+                              HttpServletRequest request) {
+        User currentUser = requireCurrentUser(request);
+        return projectIntelligenceService.confirmProject(workspaceId, body, currentUser.getId());
     }
 
     @PutMapping("/{projectId}")

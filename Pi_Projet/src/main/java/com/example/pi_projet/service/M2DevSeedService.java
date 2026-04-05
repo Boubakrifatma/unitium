@@ -1,5 +1,7 @@
 package com.example.pi_projet.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.pi_projet.entity.*;
 import com.example.pi_projet.entity.ProjectTemplate.*;
 import com.example.pi_projet.repository.*;
@@ -30,6 +32,8 @@ import java.util.*;
 @RequiredArgsConstructor
 @Slf4j
 public class M2DevSeedService {
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     // ── Repositories ────────────────────────────────────────────────────────
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
@@ -143,12 +147,15 @@ public class M2DevSeedService {
         ensureWsMember(mktHub, manager.getId(), WorkspaceMember.WorkspaceRole.OWNER,    null);
         ensureWsMember(mktHub, dev1.getId(),    WorkspaceMember.WorkspaceRole.EMPLOYEE, manager);
         ensureWsMember(mktHub, analyst.getId(), WorkspaceMember.WorkspaceRole.EMPLOYEE, manager);
+        ensureWsMember(mktHub, dev2.getId(),    WorkspaceMember.WorkspaceRole.EMPLOYEE, manager);
+        ensureWsMember(mktHub, dev3.getId(),    WorkspaceMember.WorkspaceRole.EMPLOYEE, manager);
 
         // Product Lab  (4 members — NexusCorp users only)
         ensureWsMember(prodLab, manager.getId(),  WorkspaceMember.WorkspaceRole.OWNER,    null);
         ensureWsMember(prodLab, dev2.getId(),     WorkspaceMember.WorkspaceRole.EMPLOYEE, manager);
         ensureWsMember(prodLab, dev3.getId(),     WorkspaceMember.WorkspaceRole.EMPLOYEE, manager);
         ensureWsMember(prodLab, analyst.getId(),  WorkspaceMember.WorkspaceRole.EMPLOYEE, manager);
+        ensureWsMember(prodLab, dev1.getId(),     WorkspaceMember.WorkspaceRole.EMPLOYEE, manager);
 
         // StartupX Main  (3 members — MAXED, plan limit = 3)
         ensureWsMember(startMain, manager2.getId(), WorkspaceMember.WorkspaceRole.OWNER,    null);
@@ -166,16 +173,23 @@ public class M2DevSeedService {
         ensureWsMember(dsLab, tutor.getId(),    WorkspaceMember.WorkspaceRole.OWNER,   null);
         ensureWsMember(dsLab, student.getId(),  WorkspaceMember.WorkspaceRole.STUDENT, tutor);
         ensureWsMember(dsLab, student2.getId(), WorkspaceMember.WorkspaceRole.STUDENT, tutor);
+        ensureWsMember(dsLab, student1.getId(), WorkspaceMember.WorkspaceRole.STUDENT, tutor);
+        ensureWsMember(dsLab, ta.getId(),       WorkspaceMember.WorkspaceRole.TA,      tutor);
 
         // Research Center  (3 members — OpenEDU users only)
         ensureWsMember(resCtr, tutor.getId(),    WorkspaceMember.WorkspaceRole.OWNER,   null);
         ensureWsMember(resCtr, student1.getId(), WorkspaceMember.WorkspaceRole.STUDENT, tutor);
         ensureWsMember(resCtr, ta.getId(),       WorkspaceMember.WorkspaceRole.TA,      tutor);
+        ensureWsMember(resCtr, student.getId(),  WorkspaceMember.WorkspaceRole.STUDENT, tutor);
+        ensureWsMember(resCtr, student2.getId(), WorkspaceMember.WorkspaceRole.STUDENT, tutor);
 
         // MiniCampus Workspace  (3 members — MAXED, plan limit = 3)
         ensureWsMember(miniWs, tutor2.getId(),   WorkspaceMember.WorkspaceRole.OWNER,   null);
         ensureWsMember(miniWs, student3.getId(), WorkspaceMember.WorkspaceRole.STUDENT, tutor2);
         ensureWsMember(miniWs, po.getId(),       WorkspaceMember.WorkspaceRole.STUDENT, tutor2);
+
+        // Populate Stage 4 ML profile columns directly on real workspace members.
+        applyWorkspaceMemberMlProfiles(List.of(engHQ, mktHub, prodLab, startMain, csDept, dsLab, resCtr, miniWs));
 
         // ── 7. Project Templates ─────────────────────────────────────────────
         ProjectTemplate tplAgile = ensureTemplate(nexusCorp, manager.getId(),
@@ -269,6 +283,9 @@ public class M2DevSeedService {
             "{\"name\":\"Resolved\",\"durationDays\":0},{\"name\":\"Closed\",\"durationDays\":0}]",
             "bugs,qa,tracking,kanban,engineering", 3, 0, 0.0, 0,
             "Simple Kanban board for tracking bug lifecycle from report through triage to closure.");
+
+        // Keep Spring-seeded templates aligned with Python PIB training artifacts (ID + name + status/public).
+        ensurePibAlignedTemplates(manager, tutor);
 
         // ── 8. Projects ──────────────────────────────────────────────────────
         // Engineering HQ
@@ -662,6 +679,217 @@ public class M2DevSeedService {
                     .ratingCount(ratingCount)
                     .version(1)
                     .build()));
+    }
+
+    private void ensurePibAlignedTemplates(User enterpriseOwner, User academicOwner) {
+        ensurePibTemplate(
+            UUID.fromString("fba6784c-2f42-5ab2-93ff-b5b9a150298f"),
+            enterpriseOwner.getId(),
+            "Delivery Sprint Blueprint",
+            TemplateType.SCRUM,
+            "[\"PROJECT_MANAGER\",\"DEVELOPER\",\"REVIEWER\"]",
+            "Delivery Sprint Blueprint for enterprise teams with reusable phases, role defaults, and measurable outcomes.",
+            0.80,
+            0.71
+        );
+        ensurePibTemplate(
+            UUID.fromString("5bb54131-eed8-53eb-8cdd-02667e3b58f4"),
+            enterpriseOwner.getId(),
+            "Incremental Kanban Delivery",
+            TemplateType.KANBAN,
+            "[\"PROJECT_MANAGER\",\"DEVELOPER\",\"OBSERVER\"]",
+            "Incremental Kanban Delivery for enterprise teams with reusable phases, role defaults, and measurable outcomes.",
+            0.85,
+            0.76
+        );
+        ensurePibTemplate(
+            UUID.fromString("51d6b20e-558e-5b0b-892c-6f67f12240c2"),
+            enterpriseOwner.getId(),
+            "Structured Research Program",
+            TemplateType.WATERFALL,
+            "[\"PROJECT_MANAGER\",\"DEVELOPER\",\"REVIEWER\"]",
+            "Structured Research Program for enterprise teams with reusable phases, role defaults, and measurable outcomes.",
+            0.77,
+            0.68
+        );
+        ensurePibTemplate(
+            UUID.fromString("d593955b-46d7-5830-8542-52ec29e0619f"),
+            enterpriseOwner.getId(),
+            "Design Discovery Track",
+            TemplateType.CUSTOM,
+            "[\"PROJECT_MANAGER\",\"DEVELOPER\",\"REVIEWER\"]",
+            "Design Discovery Track for enterprise teams with reusable phases, role defaults, and measurable outcomes.",
+            0.71,
+            0.62
+        );
+        ensurePibTemplate(
+            UUID.fromString("95118a01-51ac-5ea2-91b9-f917c69d703d"),
+            enterpriseOwner.getId(),
+            "Migration Reliability Plan",
+            TemplateType.WATERFALL,
+            "[\"PROJECT_MANAGER\",\"DEVELOPER\",\"OBSERVER\"]",
+            "Migration Reliability Plan for enterprise teams with reusable phases, role defaults, and measurable outcomes.",
+            0.74,
+            0.65
+        );
+
+        ensurePibTemplate(
+            UUID.fromString("8fef3471-c4ed-5352-89cf-76d0839d9f24"),
+            academicOwner.getId(),
+            "Delivery Sprint Blueprint",
+            TemplateType.SCRUM,
+            "[\"PROJECT_MANAGER\",\"DEVELOPER\",\"REVIEWER\"]",
+            "Delivery Sprint Blueprint for academic teams with reusable phases, role defaults, and measurable outcomes.",
+            0.83,
+            0.74
+        );
+        ensurePibTemplate(
+            UUID.fromString("6b136b83-9ad0-50fe-bfe1-b437846bc23e"),
+            academicOwner.getId(),
+            "Incremental Kanban Delivery",
+            TemplateType.KANBAN,
+            "[\"PROJECT_MANAGER\",\"DEVELOPER\",\"OBSERVER\"]",
+            "Incremental Kanban Delivery for academic teams with reusable phases, role defaults, and measurable outcomes.",
+            0.88,
+            0.79
+        );
+        ensurePibTemplate(
+            UUID.fromString("557725c8-92fe-502b-9643-c07ad1fef97c"),
+            academicOwner.getId(),
+            "Structured Research Program",
+            TemplateType.WATERFALL,
+            "[\"PROJECT_MANAGER\",\"DEVELOPER\",\"REVIEWER\"]",
+            "Structured Research Program for academic teams with reusable phases, role defaults, and measurable outcomes.",
+            0.74,
+            0.65
+        );
+        ensurePibTemplate(
+            UUID.fromString("65f464a3-8da1-51e2-a9d2-2df1df3918b6"),
+            academicOwner.getId(),
+            "Design Discovery Track",
+            TemplateType.CUSTOM,
+            "[\"PROJECT_MANAGER\",\"DEVELOPER\",\"REVIEWER\"]",
+            "Design Discovery Track for academic teams with reusable phases, role defaults, and measurable outcomes.",
+            0.74,
+            0.65
+        );
+        ensurePibTemplate(
+            UUID.fromString("1553b2f4-3aea-533d-b198-fcff8e7ba5d6"),
+            academicOwner.getId(),
+            "Academic Team Assignment",
+            TemplateType.SCRUM,
+            "[\"PROFESSOR\",\"DEVELOPER\",\"REVIEWER\"]",
+            "Academic Team Assignment for academic teams with reusable phases, role defaults, and measurable outcomes.",
+            0.83,
+            0.74
+        );
+        ensurePibTemplate(
+            UUID.fromString("e120bd40-cd74-5375-a943-068a94c143d4"),
+            academicOwner.getId(),
+            "Capstone Research Studio",
+            TemplateType.CUSTOM,
+            "[\"PROFESSOR\",\"DEVELOPER\",\"OBSERVER\"]",
+            "Capstone Research Studio for academic teams with reusable phases, role defaults, and measurable outcomes.",
+            0.74,
+            0.65
+        );
+    }
+
+    private void ensurePibTemplate(UUID templateId,
+                                   Long createdBy,
+                                   String name,
+                                   TemplateType type,
+                                   String defaultRolesJson,
+                                   String description,
+                                   double fitness,
+                                   double completion) {
+        ProjectTemplate template = projectTemplateRepository.findById(templateId)
+            .orElseGet(() -> ProjectTemplate.builder().id(templateId).build());
+
+        template.setOrganization(null);
+        template.setCreatedBy(createdBy);
+        template.setName(name);
+        template.setTemplateType(type);
+        template.setStatus(TemplateStatus.APPROVED);
+        template.setIsPublic(true);
+        template.setIsFeatured(false);
+        template.setIsRecommended(true);
+        template.setIsTrending(false);
+        template.setDefaultVisibility(DefaultVisibility.PUBLIC);
+        template.setTeamStrategy(TeamStrategy.HYBRID);
+        template.setDefaultPhasesJson("[{\"name\":\"Discovery\",\"durationDays\":7},{\"name\":\"Planning\",\"durationDays\":14},{\"name\":\"Execution\",\"durationDays\":21},{\"name\":\"Validation\",\"durationDays\":7}]");
+        template.setDefaultRolesJson(defaultRolesJson);
+        template.setDefaultProjectConfigJson("{\"framework\":\"" + type.name().toLowerCase() + "\",\"source\":\"pib-aligned-seed\"}");
+        template.setUseCaseDescription(description);
+        template.setDifficultyLevel(DifficultyLevel.INTERMEDIATE);
+        template.setEstimatedEffort(EstimatedEffort.MEDIUM);
+        template.setEstimatedDurationDays(49);
+        template.setTags("pib,ml-seed," + type.name().toLowerCase());
+        template.setVersion(template.getVersion() != null ? template.getVersion() : 1);
+        template.setUsageCount(template.getUsageCount() != null ? template.getUsageCount() : 0);
+        template.setRating(template.getRating() != null ? template.getRating() : 0.0);
+        template.setRatingCount(template.getRatingCount() != null ? template.getRatingCount() : 0);
+        template.setMlFitnessScore(fitness);
+        template.setMlCompletionRate(completion);
+        template.setMlLastMetricsAt(Instant.now());
+        template.setDeletedAt(null);
+
+        projectTemplateRepository.save(template);
+    }
+
+    private void applyWorkspaceMemberMlProfiles(List<Workspace> workspaces) {
+        for (Workspace workspace : workspaces) {
+            String orgType = workspace.getOrgType() != null ? workspace.getOrgType().trim().toLowerCase() : "enterprise";
+            for (WorkspaceMember wm : workspaceMemberRepository.findAllByWorkspaceId(workspace.getId())) {
+                Random rng = new Random(Objects.hash(workspace.getId().toString(), wm.getUserId()));
+                double roleHistory = boundedScore(rng, 0.30, 0.95);
+                double skillMatch = boundedScore(rng, 0.35, 0.97);
+                double availability = boundedScore(rng, 0.25, 0.90);
+                double chemistry = boundedScore(rng, 0.20, 0.88);
+
+                List<String> topRoles;
+                if ("academic".equals(orgType) && EnumSet.of(
+                    WorkspaceMember.WorkspaceRole.TA,
+                    WorkspaceMember.WorkspaceRole.ADMIN,
+                    WorkspaceMember.WorkspaceRole.OWNER
+                ).contains(wm.getRole())) {
+                    topRoles = List.of("PROFESSOR", "REVIEWER");
+                } else if (!"academic".equals(orgType) && EnumSet.of(
+                    WorkspaceMember.WorkspaceRole.MANAGER,
+                    WorkspaceMember.WorkspaceRole.ADMIN,
+                    WorkspaceMember.WorkspaceRole.OWNER
+                ).contains(wm.getRole())) {
+                    topRoles = List.of("PROJECT_MANAGER", "REVIEWER");
+                } else {
+                    topRoles = List.of("DEVELOPER", "REVIEWER");
+                }
+
+                List<Double> profileVector = new ArrayList<>(List.of(roleHistory, skillMatch, availability, chemistry));
+                for (int i = 0; i < 20; i++) profileVector.add(0.0);
+
+                wm.setMlRoleHistoryScore(roleHistory);
+                wm.setMlSkillMatchScore(skillMatch);
+                wm.setMlAvailabilityScore(availability);
+                wm.setMlChemistryScore(chemistry);
+                wm.setMlTopRolesJson(toJson(topRoles));
+                wm.setMlProfileVector(toJson(profileVector));
+                wm.setMlProfileUpdatedAt(Instant.now());
+                workspaceMemberRepository.save(wm);
+            }
+        }
+    }
+
+    private double boundedScore(Random rng, double min, double max) {
+        double raw = min + (rng.nextDouble() * (max - min));
+        return Math.round(raw * 10000.0) / 10000.0;
+    }
+
+    private String toJson(Object payload) {
+        try {
+            return objectMapper.writeValueAsString(payload);
+        } catch (JsonProcessingException ex) {
+            return "[]";
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

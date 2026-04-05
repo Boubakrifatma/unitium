@@ -227,6 +227,62 @@ public class WorkspaceService {
         return workspace;
     }
 
+    public Map<String, Object> getWorkspaceCapacity(UUID workspaceId, Long requesterId) {
+        Workspace workspace = getById(workspaceId);
+        User requester = userRepo.findById(requesterId)
+            .orElseThrow(() -> new Module2Exception(FORBIDDEN, "Missing authenticated user context"));
+
+        if (!authorizationService.canViewWorkspace(requester, workspace)) {
+            throw new Module2Exception(FORBIDDEN, "Only workspace members or org admins can view workspace capacity");
+        }
+
+        UUID orgId = workspace.getOrganization().getId();
+        long currentWorkspaces = quotaHelper.countActiveWorkspaces(orgId);
+        int maxWorkspaces = quotaHelper.getMaxWorkspacesStub(orgId);
+        long remainingWorkspaces = Math.max(0L, (long) maxWorkspaces - currentWorkspaces);
+        String planName = quotaHelper.getPlanNameStub(orgId);
+        String orgType = resolveWorkspaceOrgType(workspace);
+
+        Map<String, Object> payload = new java.util.LinkedHashMap<>();
+        payload.put("currentWorkspaces", currentWorkspaces);
+        payload.put("maxWorkspaces", maxWorkspaces);
+        payload.put("remainingWorkspaces", remainingWorkspaces);
+        payload.put("planName", planName);
+        payload.put("orgType", orgType);
+        return payload;
+    }
+
+    public Map<String, Object> getWorkspaceProjectCapacity(UUID workspaceId, Long requesterId) {
+        Workspace workspace = getById(workspaceId);
+        User requester = userRepo.findById(requesterId)
+            .orElseThrow(() -> new Module2Exception(FORBIDDEN, "Missing authenticated user context"));
+
+        if (!authorizationService.canViewWorkspace(requester, workspace)) {
+            throw new Module2Exception(FORBIDDEN, "Only workspace members or org admins can view project capacity");
+        }
+
+        Long currentActiveProjects = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM projects WHERE workspace_id = ? AND deleted_at IS NULL AND UPPER(status) = 'ACTIVE'",
+            Long.class,
+            workspaceId.toString()
+        );
+
+        long activeProjects = currentActiveProjects == null ? 0L : currentActiveProjects;
+        UUID orgId = workspace.getOrganization().getId();
+        int maxActiveProjects = quotaHelper.getMaxProjectsStub(orgId);
+        long remainingActiveProjects = Math.max(0L, (long) maxActiveProjects - activeProjects);
+        String planName = quotaHelper.getPlanNameStub(orgId);
+        String orgType = resolveWorkspaceOrgType(workspace);
+
+        Map<String, Object> payload = new java.util.LinkedHashMap<>();
+        payload.put("currentActiveProjects", activeProjects);
+        payload.put("maxActiveProjects", maxActiveProjects);
+        payload.put("remainingActiveProjects", remainingActiveProjects);
+        payload.put("planName", planName);
+        payload.put("orgType", orgType);
+        return payload;
+    }
+
     @Transactional
     public WorkspaceMember addMember(UUID workspaceId, Long targetUserId, WorkspaceRole requestedRole, Long requesterId, String ipAddress) {
         Workspace ws = getById(workspaceId);

@@ -55,6 +55,48 @@ public class WorkspaceMember {
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
+    /**
+     * Stage 4 role history score component for people matching.
+     */
+    @Column(name = "ml_role_history_score", columnDefinition = "DOUBLE DEFAULT NULL COMMENT 'Stage 4 role history score component.'")
+    private Double mlRoleHistoryScore;
+
+    /**
+     * Stage 4 skill match score component for people matching.
+     */
+    @Column(name = "ml_skill_match_score", columnDefinition = "DOUBLE DEFAULT NULL COMMENT 'Stage 4 skill match score component.'")
+    private Double mlSkillMatchScore;
+
+    /**
+     * Stage 4 availability score component and cold-start fallback signal.
+     */
+    @Column(name = "ml_availability_score", columnDefinition = "DOUBLE DEFAULT NULL COMMENT 'Stage 4 availability score component.'")
+    private Double mlAvailabilityScore;
+
+    /**
+     * Stage 4 chemistry score component for collaboration fit.
+     */
+    @Column(name = "ml_chemistry_score", columnDefinition = "DOUBLE DEFAULT NULL COMMENT 'Stage 4 chemistry score component.'")
+    private Double mlChemistryScore;
+
+    /**
+     * Top role affinities for this member as JSON array.
+     */
+    @Column(name = "ml_top_roles_json", columnDefinition = "TEXT DEFAULT NULL COMMENT 'Stage 4 top role affinities JSON array.'")
+    private String mlTopRolesJson;
+
+    /**
+     * Serialized profile vector used during Stage 4 similarity scoring.
+     */
+    @Column(name = "ml_profile_vector", columnDefinition = "TEXT DEFAULT NULL COMMENT 'Stage 4 serialized member profile vector.'")
+    private String mlProfileVector;
+
+    /**
+     * Last refresh timestamp for Stage 4 precomputed member profile data.
+     */
+    @Column(name = "ml_profile_updated_at", columnDefinition = "TIMESTAMP NULL DEFAULT NULL COMMENT 'Last refresh timestamp for member ML profile.'")
+    private Instant mlProfileUpdatedAt;
+
     public enum WorkspaceRole {
         OWNER, ADMIN, MANAGER, EMPLOYEE, TA, STUDENT, MEMBER, VIEWER
     }

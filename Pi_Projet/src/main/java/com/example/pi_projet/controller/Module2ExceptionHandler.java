@@ -23,6 +23,7 @@ public class Module2ExceptionHandler {
             case NOT_FOUND       -> HttpStatus.NOT_FOUND;
             case CONFLICT        -> HttpStatus.CONFLICT;
             case FORBIDDEN       -> HttpStatus.FORBIDDEN;
+            case SERVICE_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
             case PAYMENT_REQUIRED -> HttpStatus.valueOf(402);
             case BAD_REQUEST, VALIDATION -> HttpStatus.BAD_REQUEST;
             default              -> HttpStatus.INTERNAL_SERVER_ERROR;

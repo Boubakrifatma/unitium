@@ -99,6 +99,20 @@ public class WorkspaceController {
         return memberService.getMemberCapacity(id, currentUser.getId());
     }
 
+    @GetMapping("/{id}/capacity")
+    public Map<String, Object> getWorkspaceCapacity(@PathVariable UUID id,
+                                                    HttpServletRequest request) {
+        User currentUser = requireCurrentUser(request);
+        return workspaceService.getWorkspaceCapacity(id, currentUser.getId());
+    }
+
+    @GetMapping("/{id}/projects/capacity")
+    public Map<String, Object> getWorkspaceProjectCapacity(@PathVariable UUID id,
+                                                           HttpServletRequest request) {
+        User currentUser = requireCurrentUser(request);
+        return workspaceService.getWorkspaceProjectCapacity(id, currentUser.getId());
+    }
+
     @PostMapping("/{id}/members")
     @ResponseStatus(HttpStatus.CREATED)
     public WorkspaceMember addMember(@PathVariable UUID id,

@@ -43,6 +43,125 @@ export interface M2AvailableWorkspaceMember {
     workspaceRole?: string;
 }
 
+export interface M2PibBootstrapRequest {
+    workspace_id: string;
+    input_type: "text" | "document";
+    description?: string | null;
+    document_base64?: string | null;
+    document_filename?: string | null;
+}
+
+export interface M2PibStage1Signals {
+    embedding: number[];
+    project_type: string;
+    complexity: string;
+    domain_tags: string[];
+    detected_mode: string;
+    constraints: string[];
+    cold_start_mode: boolean;
+}
+
+export interface M2PibTemplateRecommendation {
+    id: string;
+    name: string;
+    matchScore: number;
+    completionRate: number;
+    explanation: string;
+}
+
+export interface M2PibRoleRequirement {
+    role: string;
+    critical: boolean;
+    confidence: number;
+    countSuggested: number;
+    cold_start_mode: boolean;
+}
+
+export interface M2PibCandidate {
+    userId: number;
+    name: string;
+    fitScore: number;
+    reasons: string[];
+}
+
+export interface M2PibRoleSuggestions {
+    role: string;
+    candidates: M2PibCandidate[];
+}
+
+export interface M2PibBootstrapResponse {
+    workspace_id: string;
+    input_type: string;
+    stage1: M2PibStage1Signals;
+    stage2: {
+        cold_start_mode: boolean;
+        templates: M2PibTemplateRecommendation[];
+    };
+    stage3: {
+        cold_start_mode: boolean;
+        required_roles: M2PibRoleRequirement[];
+    };
+    stage4: {
+        cold_start_mode: boolean;
+        suggestions: M2PibRoleSuggestions[];
+    };
+    capabilities: {
+        stage2_ready: boolean;
+        stage3_ready: boolean;
+        stage4_ready: boolean;
+    };
+    cold_start_any: boolean;
+    latency_ms: number;
+    cache_hit: boolean;
+    metadata: Record<string, string>;
+}
+
+export interface M2PibServerStatus {
+    online: boolean;
+    stage2_ready: boolean;
+    stage3_ready: boolean;
+    stage4_ready: boolean;
+    model_version?: string;
+    reason?: string;
+}
+
+export interface M2PibConfirmRoleSelection {
+    role: string;
+    critical: boolean;
+    confidence: number;
+    countSuggested: number;
+}
+
+export interface M2PibConfirmMemberSelection {
+    role: string;
+    userId: number;
+    accepted: boolean;
+    fitScore: number;
+    reasons: string[];
+}
+
+export interface M2PibConfirmRequest {
+    inputType: "text" | "document";
+    projectName: string;
+    projectDescription: string;
+    visibility?: "PUBLIC" | "PRIVATE";
+    selectedTemplateId?: string | null;
+    selectedTemplateName?: string | null;
+    stage1: {
+        embedding?: number[];
+        project_type: string;
+        complexity: string;
+        domain_tags: string[];
+        detected_mode: string;
+        constraints: string[];
+        cold_start_mode?: boolean;
+    };
+    roles: M2PibConfirmRoleSelection[];
+    members: M2PibConfirmMemberSelection[];
+    coldStartAny?: boolean;
+    modelVersion?: string;
+}
+
 @Injectable({ providedIn: "root" })
 export class M2ProjectService {
     private readonly http = inject(HttpClient);
@@ -98,5 +217,17 @@ export class M2ProjectService {
 
     bulkChangeStatus(workspaceId: string, projectIds: string[], status: string): Observable<M2ProjectSummary[]> {
         return this.http.patch<M2ProjectSummary[]>(`${this.workspaceBase}/${workspaceId}/projects/bulk-status`, { projectIds, status });
+    }
+
+    bootstrapProjectIntelligence(workspaceId: string, body: M2PibBootstrapRequest): Observable<M2PibBootstrapResponse> {
+        return this.http.post<M2PibBootstrapResponse>(`${this.workspaceBase}/${workspaceId}/projects/pib/bootstrap`, body);
+    }
+
+    getProjectIntelligenceStatus(workspaceId: string): Observable<M2PibServerStatus> {
+        return this.http.get<M2PibServerStatus>(`${this.workspaceBase}/${workspaceId}/projects/pib/status`);
+    }
+
+    confirmProjectIntelligence(workspaceId: string, body: M2PibConfirmRequest): Observable<M2ProjectSummary> {
+        return this.http.post<M2ProjectSummary>(`${this.workspaceBase}/${workspaceId}/projects/pib/confirm`, body);
     }
 }

@@ -56,6 +56,30 @@ public class ProjectMember {
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
+    /**
+     * True when this project assignment originated from PIB recommendations.
+     */
+    @Column(name = "ml_assigned_by_ai", columnDefinition = "TINYINT(1) DEFAULT NULL COMMENT 'True when assignment originates from PIB.'")
+    private Boolean mlAssignedByAi;
+
+    /**
+     * Stage 4 confidence score captured at assignment confirmation time.
+     */
+    @Column(name = "ml_assignment_confidence", columnDefinition = "DOUBLE DEFAULT NULL COMMENT 'PIB assignment confidence at confirm time.'")
+    private Double mlAssignmentConfidence;
+
+    /**
+     * Assignment rationale snapshot as JSON captured during PIB confirmation.
+     */
+    @Column(name = "ml_assignment_reason_json", columnDefinition = "TEXT DEFAULT NULL COMMENT 'PIB assignment rationale snapshot JSON.'")
+    private String mlAssignmentReasonJson;
+
+    /**
+     * Recommendation id that produced this assignment for traceability.
+     */
+    @Column(name = "ml_source_recommendation_id", columnDefinition = "CHAR(36) DEFAULT NULL COMMENT 'ML recommendation id linked to assignment.'")
+    private UUID mlSourceRecommendationId;
+
     public enum ProjectRole {
         PROJECT_MANAGER, DEVELOPER, REVIEWER, OBSERVER, PROFESSOR
     }

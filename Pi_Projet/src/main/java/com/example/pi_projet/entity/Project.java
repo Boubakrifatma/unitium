@@ -108,4 +108,46 @@ public class Project {
     @JsonIgnore
     @OneToMany(mappedBy = "project")
     private List<MLTeamRecommendation> mlTeamRecommendations;
+
+    /**
+     * Stage 1 sentence embedding for project semantic extraction.
+     */
+    @Column(name = "ml_description_embedding", columnDefinition = "TEXT DEFAULT NULL COMMENT 'Stage 1 sentence embedding (serialized vector).' ")
+    private String mlDescriptionEmbedding;
+
+    /**
+     * Stage 1 inferred project type label.
+     */
+    @Column(name = "ml_project_type", length = 50, columnDefinition = "VARCHAR(50) DEFAULT NULL COMMENT 'Stage 1 inferred project type label.'")
+    private String mlProjectType;
+
+    /**
+     * Stage 1 inferred complexity level used by Stage 2 and Stage 3.
+     */
+    @Column(name = "ml_complexity", length = 20, columnDefinition = "VARCHAR(20) DEFAULT NULL COMMENT 'Stage 1 complexity LOW MEDIUM HIGH.'")
+    private String mlComplexity;
+
+    /**
+     * Stage 1 detected mode for enterprise versus academic routing.
+     */
+    @Column(name = "ml_detected_mode", length = 20, columnDefinition = "VARCHAR(20) DEFAULT NULL COMMENT 'Stage 1 detected mode enterprise academic.'")
+    private String mlDetectedMode;
+
+    /**
+     * Stage 1 domain tags as JSON array.
+     */
+    @Column(name = "ml_domain_tags_json", columnDefinition = "TEXT DEFAULT NULL COMMENT 'Stage 1 domain tags as JSON array.'")
+    private String mlDomainTagsJson;
+
+    /**
+     * Stage 1 extracted constraints as JSON array.
+     */
+    @Column(name = "ml_constraints_json", columnDefinition = "TEXT DEFAULT NULL COMMENT 'Stage 1 extracted constraints JSON array.'")
+    private String mlConstraintsJson;
+
+    /**
+     * Timestamp of the last PIB inference execution for this project.
+     */
+    @Column(name = "ml_last_inference_at", columnDefinition = "TIMESTAMP NULL DEFAULT NULL COMMENT 'Last PIB inference timestamp for project.'")
+    private Instant mlLastInferenceAt;
 }
