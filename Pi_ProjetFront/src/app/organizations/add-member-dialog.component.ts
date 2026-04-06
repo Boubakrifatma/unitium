@@ -23,13 +23,11 @@ const ADMIN_ROLES: Record<string, { value: string; label: string }[]> = {
     { value: 'MANAGER',       label: 'Manager' },
     { value: 'EMPLOYEE',      label: 'Employee' },
     { value: 'PRODUCT_OWNER', label: 'Product Owner' },
-    { value: 'ADMIN',         label: 'Admin' },
   ],
   ACADEMIC: [
     { value: 'MANAGER', label: 'Manager' },
     { value: 'TUTOR',   label: 'Tutor' },
     { value: 'STUDENT', label: 'Student' },
-    { value: 'ADMIN',   label: 'Admin' },
   ]
 };
 

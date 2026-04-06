@@ -81,6 +81,6 @@ public class MagicLinkService {
         }
 
         String jwt = authService.loginWithOAuth2(user, request);
-        return new AuthService.LoginResult(jwt, null);
+        return new AuthService.LoginResult(jwt);
     }
 }

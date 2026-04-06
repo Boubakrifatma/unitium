@@ -59,22 +59,6 @@ public class User {
     @Column(name = "face_registered_at")
     private LocalDateTime faceRegisteredAt;
 
-    // ML
-    @Builder.Default
-    @Column(name = "trust_score")
-    private Float trustScore = 100.0f;
-
-    @Builder.Default
-    @Enumerated(EnumType.STRING)
-    @Column(name = "risk_level")
-    private RiskLevel riskLevel = RiskLevel.LOW;
-
-    @Column(name = "usual_login_hour")
-    private Integer usualLoginHour;
-
-    @Column(name = "behavior_json", columnDefinition = "TEXT")
-    private String behaviorJson;
-
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -101,12 +85,6 @@ public class User {
     public enum RoleName {
         SUPER_ADMIN, ADMIN, MANAGER, EMPLOYEE, TUTOR, PRODUCT_OWNER, STUDENT, VIEWER
     }
-
-    public enum RiskLevel {
-        LOW, MEDIUM, HIGH, CRITICAL
-    }
-
-
 
     // ================= RELATIONS CHAT=================
 

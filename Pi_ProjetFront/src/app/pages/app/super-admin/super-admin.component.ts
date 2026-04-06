@@ -6,7 +6,6 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { MatChipsModule } from '@angular/material/chips';
 import { RouterModule } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
 import { UserService, UserDTO } from '../../../users/user.service';
 import { AuthService } from '../../../auth/auth.service';
 import { FaceService, FaceDuplicatePair } from '../../../auth/face.service';
@@ -235,60 +234,6 @@ import { FaceService, FaceDuplicatePair } from '../../../auth/face.service';
         </div>
       </div>
 
-      <!-- ML Anomaly Alerts -->
-      <div class="row gx-3 gx-lg-4 mb-3" *ngIf="anomalies.length > 0">
-        <div class="col-12">
-          <mat-card class="border-danger">
-            <mat-card-header>
-              <div class="col mb-2">
-                <h3 class="mb-1 text-danger">
-                  <mat-icon class="material-icons-outlined" style="vertical-align:middle;color:#ef4444">warning</mat-icon>
-                  ML Anomaly Login Alerts
-                </h3>
-                <p class="text-secondary small">Sessions with anomaly score ≥ 0.60 in the last sessions</p>
-              </div>
-            </mat-card-header>
-            <mat-card-content>
-              <table mat-table [dataSource]="anomalies" class="bg-none w-100">
-                <ng-container matColumnDef="userId">
-                  <th mat-header-cell *matHeaderCellDef>User</th>
-                  <td mat-cell *matCellDef="let s">
-                    <span class="fw-semibold">{{ getUserName(s.userId) }}</span>
-                    <span class="text-secondary small d-block">{{ getUserEmail(s.userId) }}</span>
-                  </td>
-                </ng-container>
-                <ng-container matColumnDef="ip">
-                  <th mat-header-cell *matHeaderCellDef>IP</th>
-                  <td mat-cell *matCellDef="let s">{{ s.ipAddress }}</td>
-                </ng-container>
-                <ng-container matColumnDef="score">
-                  <th mat-header-cell *matHeaderCellDef>Score</th>
-                  <td mat-cell *matCellDef="let s">
-                    <span [class]="s.anomalyScore >= 0.9 ? 'score-critical' : 'score-warn'">
-                      {{ s.anomalyScore | number:'1.2-2' }}
-                    </span>
-                  </td>
-                </ng-container>
-                <ng-container matColumnDef="action">
-                  <th mat-header-cell *matHeaderCellDef>Action</th>
-                  <td mat-cell *matCellDef="let s">
-                    <span class="badge" [ngClass]="s.actionTaken === 'ACCOUNT_LOCKED' ? 'theme-red' : 'theme-yellow'">
-                      {{ s.actionTaken }}
-                    </span>
-                  </td>
-                </ng-container>
-                <ng-container matColumnDef="date">
-                  <th mat-header-cell *matHeaderCellDef>Date</th>
-                  <td mat-cell *matCellDef="let s" class="small text-secondary">{{ s.createdAt | date:'MMM d, HH:mm' }}</td>
-                </ng-container>
-                <tr mat-header-row *matHeaderRowDef="anomalyCols"></tr>
-                <tr mat-row *matRowDef="let row; columns: anomalyCols"></tr>
-              </table>
-            </mat-card-content>
-          </mat-card>
-        </div>
-      </div>
-
     </div>
   `,
   styles: [`
@@ -313,15 +258,11 @@ export class SuperAdminComponent implements OnInit {
   private userService  = inject(UserService);
   private authService  = inject(AuthService);
   private faceService  = inject(FaceService);
-  private http         = inject(HttpClient);
 
   users: UserDTO[] = [];
   dataSource = new MatTableDataSource<UserDTO>([]);
   cols = ['user', 'role', 'status', 'created'];
   faceDuplicates: FaceDuplicatePair[] = [];
-  anomalies: any[] = [];
-  anomalyCols = ['userId', 'ip', 'score', 'action', 'date'];
-
   get currentUser() { return this.authService.currentUser(); }
   get activeUsers() { return this.users.filter(u => u.isActive).length; }
   get adminUsers()  { return this.users.filter(u => u.role === 'ADMIN' || u.role === 'SUPER_ADMIN').length; }
@@ -347,10 +288,6 @@ export class SuperAdminComponent implements OnInit {
       error: () => {}
     });
 
-    this.http.get<any[]>('http://localhost:8084/api/auth/anomalies?threshold=0.60').subscribe({
-      next: (data) => this.anomalies = data,
-      error: () => {}
-    });
   }
 
   getUserName(userId: number): string {

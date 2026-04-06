@@ -7,7 +7,6 @@ import com.example.pi_projet.entity.Session;
 import com.example.pi_projet.entity.User;
 import com.example.pi_projet.repository.SessionRepository;
 import com.example.pi_projet.repository.UserRepository;
-import com.example.pi_projet.service.AnomalyDetectionService;
 import com.example.pi_projet.service.AuthService;
 import com.example.pi_projet.service.MagicLinkService;
 import com.example.pi_projet.service.TwoFactorService;
@@ -29,13 +28,12 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-@Tag(name = "Authentication", description = "Login, logout, session, Face ID and anomaly endpoints")
+@Tag(name = "Authentication", description = "Login, logout, session and Face ID endpoints")
 public class AuthController {
 
     private final AuthService               authService;
     private final TwoFactorService          twoFactorService;
     private final MagicLinkService          magicLinkService;
-    private final AnomalyDetectionService   anomalyService;
     private final UserRepository            userRepository;
     private final SessionRepository         sessionRepository;
     private final BCryptPasswordEncoder     passwordEncoder;
@@ -62,20 +60,13 @@ public class AuthController {
 
         User user = authService.getUserFromToken(lr.token()).orElseThrow();
 
-        if (lr.anomaly().action() == Session.ActionTaken.ACCOUNT_LOCKED) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("message", "Account locked due to suspicious activity."));
-        }
-
         return ResponseEntity.ok(new AuthResponse(
                 lr.token(),
                 user.getId(),
                 user.getEmail(),
                 user.getFullName(),
                 user.getRole().name(),
-                Boolean.TRUE.equals(user.getMustChangePassword()),
-                lr.anomaly().score(),
-                lr.anomaly().action().name()
+                Boolean.TRUE.equals(user.getMustChangePassword())
         ));
     }
 
@@ -105,9 +96,7 @@ public class AuthController {
                 user.getEmail(),
                 user.getFullName(),
                 user.getRole().name(),
-                Boolean.TRUE.equals(user.getMustChangePassword()),
-                lr.anomaly().score(),
-                lr.anomaly().action().name()
+                Boolean.TRUE.equals(user.getMustChangePassword())
         ));
     }
 
@@ -289,9 +278,7 @@ public class AuthController {
                 user.getEmail(),
                 user.getFullName(),
                 user.getRole().name(),
-                Boolean.TRUE.equals(user.getMustChangePassword()),
-                lr.anomaly().score(),
-                lr.anomaly().action().name()
+                Boolean.TRUE.equals(user.getMustChangePassword())
         ));
     }
 
@@ -353,17 +340,4 @@ public class AuthController {
         ));
     }
 
-    // ── GET /api/auth/anomalies ───────────────────────────────────────────
-    @Authorized
-    @Operation(summary = "Get recent high-anomaly login sessions (SUPER_ADMIN)")
-    @GetMapping("/anomalies")
-    public ResponseEntity<List<Session>> getAnomalies(
-            @RequestParam(defaultValue = "0.60") float threshold,
-            HttpServletRequest request) {
-        User user = (User) request.getAttribute("currentUser");
-        if (user.getRole() != User.RoleName.SUPER_ADMIN) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
-        return ResponseEntity.ok(anomalyService.getRecentAnomalies(threshold));
-    }
 }

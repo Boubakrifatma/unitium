@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -39,6 +40,10 @@ public class InvitationController {
             @RequestBody InviteMemberRequest body,
             HttpServletRequest request) {
         User currentUser = (User) request.getAttribute("currentUser");
+        boolean isSuperAdmin = currentUser.getRole() == User.RoleName.SUPER_ADMIN;
+        if (!isSuperAdmin && "ADMIN".equalsIgnoreCase(body.platformRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only SUPER_ADMIN can assign the ADMIN role.");
+        }
         InvitationDTO dto = invitationService.createInvitation(
                 orgId, body.email(), body.fullName(),
                 body.platformRole(), body.orgRole() != null ? body.orgRole() : "MEMBER",

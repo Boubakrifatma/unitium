@@ -25,7 +25,6 @@ public class AuthService {
     private final UserRepository            userRepository;
     private final SessionRepository         sessionRepository;
     private final BCryptPasswordEncoder     passwordEncoder;
-    private final AnomalyDetectionService   anomalyService;
     private final JwtService                jwtService;
 
     private static final int   SESSION_HOURS       = 8;
@@ -39,13 +38,12 @@ public class AuthService {
      */
     public record LoginResult(
             String token,
-            AnomalyDetectionService.AnomalyResult anomaly,
             boolean mfaRequired,
             Long userId
     ) {
         // Constructeur pour connexion normale (sans 2FA)
-        public LoginResult(String token, AnomalyDetectionService.AnomalyResult anomaly) {
-            this(token, anomaly, false, null);
+        public LoginResult(String token) {
+            this(token, false, null);
         }
     }
 
@@ -61,27 +59,15 @@ public class AuthService {
         if (!passwordEncoder.matches(password, user.getPasswordHash())) return Optional.empty();
 
         user.setLastLoginAt(LocalDateTime.now());
-        // Update usual login hour (rolling average)
-        int hour = LocalDateTime.now().getHour();
-        user.setUsualLoginHour(user.getUsualLoginHour() == null ? hour
-                : (user.getUsualLoginHour() + hour) / 2);
         userRepository.save(user);
 
         // ── Si 2FA activé → ne pas créer la session, demander le code ────────
         if (Boolean.TRUE.equals(user.getMfaEnabled())) {
-            return Optional.of(new LoginResult(null, null, true, user.getId()));
+            return Optional.of(new LoginResult(null, true, user.getId()));
         }
 
-        AnomalyDetectionService.AnomalyResult anomaly = anomalyService.evaluate(user, request);
-
-        // Lock account if ACCOUNT_LOCKED action
-        if (anomaly.action() == Session.ActionTaken.ACCOUNT_LOCKED) {
-            user.setIsActive(false);
-            userRepository.save(user);
-        }
-
-        String token = createSessionForUser(user, request, anomaly);
-        return Optional.of(new LoginResult(token, anomaly));
+        String token = createSessionForUser(user, request);
+        return Optional.of(new LoginResult(token));
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -91,14 +77,8 @@ public class AuthService {
         User user = userRepository.findById(userId).orElse(null);
         if (user == null || !Boolean.TRUE.equals(user.getIsActive())) return Optional.empty();
 
-        AnomalyDetectionService.AnomalyResult anomaly = anomalyService.evaluate(user, request);
-        if (anomaly.action() == Session.ActionTaken.ACCOUNT_LOCKED) {
-            user.setIsActive(false);
-            userRepository.save(user);
-        }
-
-        String token = createSessionForUser(user, request, anomaly);
-        return Optional.of(new LoginResult(token, anomaly));
+        String token = createSessionForUser(user, request);
+        return Optional.of(new LoginResult(token));
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -123,9 +103,8 @@ public class AuthService {
         matched.setLastLoginAt(LocalDateTime.now());
         userRepository.save(matched);
 
-        AnomalyDetectionService.AnomalyResult anomaly = anomalyService.evaluate(matched, request);
-        String token = createSessionForUser(matched, request, anomaly);
-        return Optional.of(new LoginResult(token, anomaly));
+        String token = createSessionForUser(matched, request);
+        return Optional.of(new LoginResult(token));
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -231,19 +210,16 @@ public class AuthService {
     public String loginWithOAuth2(User user, HttpServletRequest request) {
         user.setLastLoginAt(LocalDateTime.now());
         userRepository.save(user);
-        AnomalyDetectionService.AnomalyResult anomaly = anomalyService.evaluate(user, request);
-        return createSessionForUser(user, request, anomaly);
+        return createSessionForUser(user, request);
     }
 
     // ──────────────────────────────────────────────────────────────
     // Internal helpers
     // ──────────────────────────────────────────────────────────────
-    private String createSessionForUser(User user, HttpServletRequest request,
-                                        AnomalyDetectionService.AnomalyResult anomaly) {
+    private String createSessionForUser(User user, HttpServletRequest request) {
         String jti = UUID.randomUUID().toString();
         String jwt = jwtService.generate(user, jti);
 
-        // Store jti (not the full JWT) for revocation support
         Session session = Session.builder()
                 .userId(user.getId())
                 .tokenHash(jti)
@@ -252,7 +228,6 @@ public class AuthService {
                 .isActive(true)
                 .expiresAt(LocalDateTime.now().plusHours(SESSION_HOURS))
                 .build();
-        anomalyService.enrichSession(session, anomaly);
         sessionRepository.save(session);
         return jwt;
     }

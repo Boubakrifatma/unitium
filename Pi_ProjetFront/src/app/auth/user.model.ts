@@ -14,8 +14,6 @@ export interface AuthResponse {
   fullName: string;
   role: string;
   mustChangePassword: boolean;
-  anomalyScore?: number | null;
-  actionTaken?: 'NONE' | 'MFA_FORCED' | 'ACCOUNT_LOCKED' | null;
 }
 
 export interface LoginRequest {
