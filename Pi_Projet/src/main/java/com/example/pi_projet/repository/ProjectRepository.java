@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.UUID;
 
 @Repository
@@ -31,5 +32,8 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
     @org.springframework.data.jpa.repository.Modifying
     @Query(value = "DELETE FROM projects WHERE id = :id", nativeQuery = true)
     void hardDeleteById(@Param("id") UUID id);
+
+    /** Returns all non-deleted projects for a workspace (no pagination). Used by War Room and PDF export. */
+    List<Project> findAllByWorkspaceIdAndDeletedAtIsNull(UUID workspaceId);
 
 }

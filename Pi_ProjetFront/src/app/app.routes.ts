@@ -70,6 +70,10 @@ export const routes: Routes = [
                 loadComponent: () => import("./pages/app/m2-workspaces/m2-workspace-details.component").then((c) => c.M2WorkspaceDetailsComponent),
             },
             {
+                path: "workspaces/:workspaceId/war-room",
+                loadComponent: () => import("./pages/app/m2-workspaces/war-room/war-room.component").then((c) => c.WarRoomComponent),
+            },
+            {
                 path: "workspace-details/:workspaceId",
                 redirectTo: "workspaces/:workspaceId",
             },
