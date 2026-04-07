@@ -22,13 +22,17 @@
     "@fullcalendar/interaction": "^6.1.18",
     "@fullcalendar/list": "^6.1.18",
     "@fullcalendar/timegrid": "^6.1.18",
+    "@types/cytoscape": "^3.21.9",
     "chart.js": "^4.5.1",
+    "cytoscape": "^3.33.1",
+    "cytoscape-dagre": "^2.5.0",
     "dayjs": "^1.11.20",
     "jsvectormap": "^1.7.0",
     "ng-circle-progress": "^1.7.1",
     "rxjs": "^7.8.2",
     "swiper": "^12.1.2",
     "tslib": "^2.8.1",
+    "xlsx": "^0.18.5",
     "zone.js": "~0.16.1"
   },
   "devDependencies": {

@@ -92,10 +92,7 @@ export const routes: Routes = [
                 path: "kanban",
                 loadComponent: () => import("./pages/app/task-manage/kanban.component").then((c) => c.KanbanComponent),
             },
-            {
-                path: "gantt-chart",
-                loadComponent: () => import("./pages/app/task-manage/gantt-chart.component").then((c) => c.GanttChartComponent),
-            },
+     
             {
                 path: "all-tasks",
                 loadComponent: () => import("./pages/app/task-manage/all-task.component").then((c) => c.AllTaskComponent),

@@ -70,6 +70,11 @@ public class TaskController {
             milestone.setId(dto.getMilestoneId());
         }
 
+        Task parentTask = null;
+        if (dto.getParentTaskId() != null) {
+            parentTask = taskService.getById(dto.getParentTaskId());
+        }
+
         Task task = Task.builder()
                 .title(dto.getTitle())
                 .description(dto.getDescription())
@@ -85,6 +90,7 @@ public class TaskController {
                 .project(project)
                 .assignedTo(assignedTo)
                 .milestone(milestone)
+                .parentTask(parentTask)
                 .createdBy(currentUser)
                 .build();
 
@@ -162,6 +168,13 @@ public class TaskController {
             existing.setMilestone(milestone);
         }
 
+        // parent task
+        if (dto.getParentTaskId() != null) {
+            existing.setParentTask(taskService.getById(dto.getParentTaskId()));
+        } else {
+            existing.setParentTask(null);
+        }
+
         // project
         if (dto.getProjectId() != null && !dto.getProjectId().isBlank()) {
             existing.setProject(projectService.getById(UUID.fromString(dto.getProjectId())));
@@ -224,6 +237,8 @@ public class TaskController {
                 .assignedToEmail(t.getAssignedTo() != null ? t.getAssignedTo().getEmail() : null)
                 .createdById(t.getCreatedBy() != null ? t.getCreatedBy().getId() : null)
                 .createdByName(t.getCreatedBy() != null ? t.getCreatedBy().getFullName() : null)
+                .parentTaskId(t.getParentTask() != null ? t.getParentTask().getId() : null)
+                .parentTaskTitle(t.getParentTask() != null ? t.getParentTask().getTitle() : null)
                 .milestoneId(t.getMilestone() != null ? t.getMilestone().getId() : null)
                 .milestoneName(t.getMilestone() != null ? t.getMilestone().getName() : null)
                 .build();

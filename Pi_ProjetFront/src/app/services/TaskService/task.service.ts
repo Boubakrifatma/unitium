@@ -36,6 +36,8 @@ export interface TaskResponseDto {
   assignedToEmail: string | null;
   createdById: number | null;
   createdByName: string | null;
+  parentTaskId?: number | null;
+  parentTaskTitle?: string | null;
   milestoneId: number | null;
   milestoneName: string | null;
   // used by AllTaskComponent which maps task.assignedTo?.fullName
@@ -54,6 +56,7 @@ export interface TaskWritePayload {
   projectId: string;
   milestoneId?: number;
   assignedToId?: number;
+  parentTaskId?: number;
   startDate?: string;
   dueDate?: string;
 }

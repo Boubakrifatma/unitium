@@ -66,6 +66,13 @@ public class TaskService {
                 ? task.getProject().getId()
                 : null;
 
+        // Détacher les sous-tâches avant de supprimer le parent
+        List<Task> children = repository.findByParentTask_Id(id);
+        for (Task child : children) {
+            child.setParentTask(null);
+            repository.save(child);
+        }
+
         repository.deleteById(id);
 
         // ✅ recalcul après suppression
@@ -81,4 +88,5 @@ public class TaskService {
     public List<Task> getTasksByUser(Long userId) {
         return repository.findByAssignedTo_Id(userId);
     }
+
 }

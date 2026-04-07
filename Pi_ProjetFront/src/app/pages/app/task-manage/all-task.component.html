@@ -12,10 +12,10 @@
           <span>Milestone #{{ milestoneId() ?? "?" }}</span>
         </p>
       </div>
-      <div class="col-auto order-2 mb-3 mb-xl-0">
-        <button mat-raised-button color="primary" class="create-btn" (click)="openCreate()" [disabled]="!milestoneId()">
-          <mat-icon class="material-icons-outlined">add</mat-icon>
-          New Task
+      <div class="col-auto">
+        <button mat-raised-button color="primary" (click)="openCreate()" [disabled]="!milestoneId()">
+          <mat-icon>add</mat-icon>
+          Ajouter Task
         </button>
       </div>
     </div>
@@ -23,191 +23,133 @@
 </div>
 
 <div class="container fade-in">
-  <!-- Search Section -->
+  <!-- Search -->
   <div class="search-section mb-4">
-    <mat-form-field appearance="outline" class="search-field">
-      <mat-icon matPrefix class="search-icon">search</mat-icon>
-      <input matInput 
-        (keyup)="applyFilter($event)" 
-        placeholder="Search tasks by title, status..." 
-        #input />
+    <mat-form-field appearance="outline" class="search-field w-100">
+      <mat-icon matPrefix>search</mat-icon>
+      <input matInput
+             (keyup)="applyFilter($event)"
+             placeholder="Rechercher par titre ou statut..." />
     </mat-form-field>
   </div>
 
   <!-- Loading -->
-  @if (loading()) {
-    <div class="text-center py-5">
-      <mat-spinner diameter="48"></mat-spinner>
-      <p class="text-secondary mt-3 mb-0">Loading tasks…</p>
+  <div *ngIf="loading()" class="text-center py-5">
+    <mat-spinner diameter="48"></mat-spinner>
+    <p class="text-secondary mt-3">Chargement des tâches...</p>
+  </div>
+
+  <div *ngIf="!loading()">
+    <!-- Tabs -->
+    <div class="tabs mb-4">
+      <button class="tab" [class.active]="selectedPanel() === 'tasks'" (click)="switchPanel('tasks')">Tâches groupées</button>
+      <button class="tab" [class.active]="selectedPanel() === 'gantt'" (click)="switchPanel('gantt')">Diagramme de Gantt</button>
+      <button class="tab" [class.active]="selectedPanel() === 'wbs'" (click)="switchPanel('wbs')">WBS</button>
+      <button class="tab" [class.active]="selectedPanel() === 'critical'" (click)="switchPanel('critical')">Chemin critique</button>
     </div>
-  } @else {
-    <!-- Tasks Grid -->
-    <div class="tasks-grid" *ngIf="filteredTasks().length > 0; else noTasks">
-      <div class="task-card-wrapper" *ngFor="let task of filteredTasks(); let i = index" 
-        [attr.data-status]="task.status">
-        <mat-card class="task-card" [class.expanded]="expandedTaskIds().has(task.taskId)">
-          <!-- Card Header -->
-          <div class="card-header">
-            <div class="header-content">
-              <div class="task-id-badge">{{ task.taskId }}</div>
-              <div class="task-info">
-                <h3 class="task-name">{{ task.title }}</h3>
-                <p class="task-type">{{ task.type | titlecase }}</p>
-              </div>
-            </div>
-            <div class="header-actions">
-              <span class="status-badge" [ngClass]="'status-' + task.status">
-                {{ task.status | titlecase }}
+
+    <div class="content">
+
+      <!-- ====================== PANEL TÂCHES GROUPÉES ====================== -->
+      <div class="panel" [class.active]="selectedPanel() === 'tasks'">
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-val">{{ taskStats().total }}</div><div class="stat-label">Total tâches</div></div>
+          <div class="stat-card"><div class="stat-val" style="color:#10b981">{{ taskStats().done }}</div><div class="stat-label">Terminées</div></div>
+          <div class="stat-card"><div class="stat-val" style="color:#f59e0b">{{ taskStats().inProgress }}</div><div class="stat-label">En cours</div></div>
+          <div class="stat-card"><div class="stat-val" style="color:#6366f1">{{ taskStats().todo }}</div><div class="stat-label">À faire</div></div>
+          <div class="stat-card"><div class="stat-val" style="color:#ef4444">{{ taskStats().blocked }}</div><div class="stat-label">Bloquées</div></div>
+        </div>
+
+        <div class="task-groups-container">
+          <div class="task-group" *ngFor="let group of taskGroups()">
+
+            <!-- Parent Header -->
+            <div class="group-header" *ngIf="group.parent" (click)="toggleGroup(group.parent.taskId)">
+              <span class="parent-badge">#{{ group.parent.taskId }}</span>
+              <span class="parent-title">{{ group.parent.title }}</span>
+              <span class="child-count">{{ group.children.length }} sous-tâche{{ group.children.length !== 1 ? 's' : '' }}</span>
+              <span class="status-pill" [ngClass]="'s-' + group.parent.status">
+                {{ getStatusLabel(group.parent.status) }}
               </span>
-              <button mat-icon-button 
-                (click)="toggleDetails(task.taskId)"
-                class="expand-btn"
-                [class.rotated]="expandedTaskIds().has(task.taskId)">
-                <mat-icon>expand_more</mat-icon>
-              </button>
-            </div>
-          </div>
-
-          <!-- Card Body -->
-          <div class="card-body">
-            <!-- Progress Section -->
-            <div class="progress-section">
-              <div class="progress-header">
-                <span class="progress-label">Progress</span>
-                <span class="progress-value">{{ getProgress(task) }}%</span>
-              </div>
-              <mat-progress-bar 
-                mode="determinate" 
-                [value]="getProgress(task)"
-                class="custom-progress-bar">
-              </mat-progress-bar>
-            </div>
-
-            <!-- Key Info -->
-            <div class="info-grid">
-              <div class="info-item">
-                <span class="info-label">
-                  <mat-icon>person</mat-icon>
-                  Assigned
-                </span>
-                <span class="info-value">{{ task.assignedTo || 'Unassigned' }}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">
-                  <mat-icon>schedule</mat-icon>
-                  Hours
-                </span>
-                <span class="info-value">{{ task.loggedHours }}h / {{ task.assignHours }}h</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">
-                  <mat-icon>flag</mat-icon>
-                  Priority
-                </span>
-                <span class="priority-badge" [ngClass]="'priority-' + task.priority">
-                  {{ task.priority | titlecase }}
-                </span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">
-                  <mat-icon>event</mat-icon>
-                  Due
-                </span>
-                <span class="info-value" [class.overdue]="isOverdue(task.dueDate)">
-                  {{ formatDate(task.dueDate) }}
-                </span>
+              <mat-icon class="chevron" [class.open]="expandedGroupIds().has(group.parent.taskId)">expand_more</mat-icon>
+              <div class="task-actions" (click)="$event.stopImmediatePropagation()">
+                <button mat-icon-button color="primary"
+                        matTooltip="Modifier"
+                        (click)="openEdit(group.parent)">
+                  <mat-icon>edit</mat-icon>
+                </button>
+                <button mat-icon-button color="warn"
+                        matTooltip="Supprimer (les sous-tâches seront détachées)"
+                        (click)="confirmDeleteParent(group.parent, group.children.length)">
+                  <mat-icon>delete</mat-icon>
+                </button>
               </div>
             </div>
 
-            <!-- Expandable Details -->
-            <div class="expandable-content" *ngIf="expandedTaskIds().has(task.taskId)">
-              <div class="details-section">
-                <h4 class="details-title">Description</h4>
-                <p class="details-text">{{ task.description || 'No description provided' }}</p>
-              </div>
+            <!-- Orphan Label -->
+            <div class="orphan-label" *ngIf="!group.parent">Tâches sans parent connu</div>
 
-              <div class="details-section">
-                <h4 class="details-title">Additional Details</h4>
-                <div class="details-grid">
-                  <div class="detail-item">
-                    <span class="detail-label">Status</span>
-                    <span class="detail-value">{{ task.status | titlecase }}</span>
-                  </div>
-                  <div class="detail-item">
-                    <span class="detail-label">Type</span>
-                    <span class="detail-value">{{ task.type | titlecase }}</span>
-                  </div>
-                  <div class="detail-item">
-                    <span class="detail-label">Priority</span>
-                    <span class="detail-value">{{ task.priority | titlecase }}</span>
-                  </div>
-                  <div class="detail-item">
-                    <span class="detail-label">Assigned To</span>
-                    <span class="detail-value">{{ task.assignedTo || 'Unassigned' }}</span>
-                  </div>
+            <!-- Children List avec boutons d'action -->
+            <div class="children-list"
+                 [class.closed]="group.parent && !expandedGroupIds().has(group.parent.taskId)">
+
+              <div class="child-row" *ngFor="let task of group.children">
+                <span class="child-badge">#{{ task.taskId }}</span>
+                <span class="child-title">{{ task.title }}</span>
+                <span class="child-type">{{ task.type | titlecase }}</span>
+                <span class="status-pill" [ngClass]="'s-' + task.status">
+                  {{ getStatusLabel(task.status) }}
+                </span>
+
+                <!-- Boutons d'action -->
+                <div class="task-actions">
+                  <button mat-icon-button color="primary"
+                          matTooltip="Modifier"
+                          (click)="openEdit(task); $event.stopImmediatePropagation()">
+                    <mat-icon>edit</mat-icon>
+                  </button>
+                  <button mat-icon-button color="warn"
+                          matTooltip="Supprimer"
+                          (click)="confirmDelete(task); $event.stopImmediatePropagation()">
+                    <mat-icon>delete</mat-icon>
+                  </button>
                 </div>
               </div>
-
-              <!-- Action Buttons -->
-              <div class="action-buttons">
-                <button mat-stroked-button 
-                  class="action-btn view-btn"
-                  (click)="openView(task)">
-                  <mat-icon>visibility</mat-icon>
-                  View
-                </button>
-                <button mat-stroked-button 
-                  class="action-btn edit-btn"
-                  (click)="openEdit(task)">
-                  <mat-icon>edit</mat-icon>
-                  Edit
-                </button>
-                <button mat-stroked-button 
-                  class="action-btn delete-btn"
-                  (click)="confirmDelete(task)">
-                  <mat-icon>delete</mat-icon>
-                  Delete
-                </button>
-              </div>
             </div>
           </div>
+        </div>
 
-          <!-- Hover Actions -->
-          <div class="card-actions" *ngIf="!expandedTaskIds().has(task.taskId)">
-            <button mat-icon-button 
-              (click)="openView(task)" 
-              matTooltip="View"
-              class="hover-action-btn">
-              <mat-icon>visibility</mat-icon>
-            </button>
-            <button mat-icon-button 
-              (click)="openEdit(task)" 
-              matTooltip="Edit"
-              class="hover-action-btn">
-              <mat-icon>edit</mat-icon>
-            </button>
-            <button mat-icon-button 
-              (click)="confirmDelete(task)" 
-              matTooltip="Delete"
-              class="hover-action-btn">
-              <mat-icon>delete</mat-icon>
-            </button>
-          </div>
-        </mat-card>
+        <div *ngIf="taskGroups().length === 0" class="empty-state py-5 text-center">
+          <mat-icon style="font-size: 56px; color: #94a3b8;">assignment</mat-icon>
+          <h3>Aucune tâche trouvée</h3>
+          <p>Cliquez sur "Ajouter Task" pour commencer.</p>
+        </div>
       </div>
+
+
+      <!-- ====================== PANEL CHEMIN CRITIQUE ====================== -->
+      <div class="panel" [class.active]="selectedPanel() === 'critical'">
+        <app-critical-path
+          [tasks]="filteredTasks()"
+          [dependencies]="dependencies()">
+        </app-critical-path>
+      </div>
+
+      <!-- ====================== PANEL GANTT ====================== -->
+<div class="panel" [class.active]="selectedPanel() === 'gantt'">
+  <app-gantt-view
+    [tasks]="filteredTasks()"
+    [milestoneName]="'Milestone #' + (milestoneId() ?? 'Inconnu')">
+  </app-gantt-view>
+</div>
+
+      <!-- ====================== PANEL WBS ====================== -->
+<div class="panel" [class.active]="selectedPanel() === 'wbs'">
+  <app-wbs-view
+    [tasks]="filteredTasks()"
+    [milestoneName]="'Milestone #' + (milestoneId() ?? 'Inconnu')">
+  </app-wbs-view>
+</div>
     </div>
-
-    <!-- Empty State -->
-    <ng-template #noTasks>
-      <div class="empty-state">
-        <mat-icon class="empty-icon">assignment</mat-icon>
-        <h3>No Tasks Found</h3>
-        <p>Start by creating a new task to track your work</p>
-        <button mat-raised-button color="primary" (click)="openCreate()" [disabled]="!milestoneId()">
-          <mat-icon>add</mat-icon>
-          Create Task
-        </button>
-      </div>
-    </ng-template>
-  }
+  </div>
 </div>

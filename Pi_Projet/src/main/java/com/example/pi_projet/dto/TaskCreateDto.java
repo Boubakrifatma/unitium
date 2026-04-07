@@ -15,11 +15,11 @@ public class TaskCreateDto {
 
     private Float estimatedHours;
     private Float actualHours;
-
     private String projectId;
 
     private Long milestoneId;
     private Long assignedToId;
+    private Long parentTaskId;
 
     private LocalDate startDate;
     private LocalDate dueDate;

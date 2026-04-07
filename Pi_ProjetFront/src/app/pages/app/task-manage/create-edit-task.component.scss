@@ -1,0 +1,244 @@
+@use '@angular/material' as mat;
+
+:host {
+  --dialog-bg: var(--mat-card-elevated-container-color, #ffffff);
+  --dialog-header-bg: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  --border-color: var(--mat-sys-surface-variant, #e5e7eb);
+  --text-primary: var(--mat-sys-on-surface, #1f2937);
+  --text-secondary: var(--mat-sys-outline, #6b7280);
+  --accent: #0ea5e9;
+}
+
+.dialog-content {
+  padding: 24px 28px !important;
+  max-width: 680px;
+  background: var(--dialog-bg);
+  min-height: 420px;
+}
+
+.task-form {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+}
+
+// Form Fields Styling (cohérent avec ton thème global)
+mat-form-field {
+  width: 100%;
+
+  ::ng-deep {
+    .mdc-notched-outline__leading,
+    .mdc-notched-outline__notch,
+    .mdc-notched-outline__trailing {
+      border-color: var(--border-color);
+    }
+
+    .mdc-text-field--focused .mdc-notched-outline__leading,
+    .mdc-text-field--focused .mdc-notched-outline__notch,
+    .mdc-text-field--focused .mdc-notched-outline__trailing {
+      border-color: var(--accent);
+      border-width: 2px;
+    }
+
+    .mat-mdc-input-element,
+    .mat-mdc-select-trigger {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .mat-mdc-form-field-label {
+      color: var(--text-secondary);
+    }
+
+    .mat-mdc-option {
+      color: var(--text-primary);
+    }
+
+    .mat-mdc-option:hover {
+      background: rgba(14, 165, 233, 0.08);
+    }
+  }
+}
+
+// Member Option
+.member-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.avatar-small {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.initials {
+  background: linear-gradient(135deg, #0ea5e9, #0284c7);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+// Dialog Header (si tu utilises un header personnalisé)
+.dialog-header {
+  background: var(--dialog-header-bg);
+  color: white;
+  padding: 24px 28px;
+  margin: -24px -24px 24px -24px;
+  border-radius: 12px 12px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+
+  mat-icon {
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .dialog-title {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+  }
+}
+
+// Dialog Actions
+.mat-mdc-dialog-actions {
+  padding: 20px 28px !important;
+  border-top: 1px solid var(--border-color);
+  background: var(--dialog-bg);
+  gap: 12px;
+}
+
+button {
+  &.mat-mdc-raised-button {
+    border-radius: 10px;
+    font-weight: 600;
+    padding: 10px 24px;
+  }
+
+  &.mat-mdc-button {
+    color: var(--text-secondary);
+  }
+}
+
+// Responsive
+@media (max-width: 600px) {
+  .dialog-content {
+    padding: 20px 16px !important;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .mat-mdc-dialog-actions {
+    padding: 16px !important;
+    flex-direction: column-reverse;
+    gap: 10px;
+
+    button {
+      width: 100%;
+    }
+  }
+}
+
+// Amélioration visuelle des labels
+.form-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+// Preview (si tu veux le garder plus tard)
+.preview-card {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  background: var(--dialog-bg);
+}
+
+// Dépendances Section
+.dependencies-section {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 16px;
+  background: rgba(14, 165, 233, 0.02);
+  margin-top: 12px;
+
+  .section-title {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+}
+
+.dependency-form {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+
+  .flex-1 {
+    flex: 1;
+  }
+
+  button {
+    margin-top: 8px;
+    color: var(--accent);
+
+    &:hover {
+      color: #0d9ad6;
+    }
+  }
+}
+
+.dependencies-list {
+  margin-top: 12px;
+
+  mat-chip {
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    color: white;
+    font-size: 13px;
+    font-weight: 500;
+
+    .mat-icon {
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    &:hover {
+      background: linear-gradient(135deg, #0d9ad6 0%, #0273b1 100%);
+    }
+  }
+}

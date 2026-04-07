@@ -25,6 +25,7 @@ import { EffortLogDialogComponent } from "../task-manage/time-log.component";
 import { RouterLink } from "@angular/router";
 import { MatTabsModule } from "@angular/material/tabs";
 import { CreateEditTaskComponent } from "../task-manage/create-edit-task.component";
+import { ProjectService } from "../../../services/project-service";
 
 export interface EffortLog {
     date: string;
@@ -683,6 +684,7 @@ interface Activity {
 export class ProjectDetailsComponent implements OnInit {
     // dialog
     readonly dialog = inject(MatDialog);
+    private projectService = inject(ProjectService);
 
     // table
     @ViewChild(MatPaginator) paginator!: MatPaginator;
@@ -845,18 +847,7 @@ export class ProjectDetailsComponent implements OnInit {
             effortLogs: [],
         },
     ];
-    public projectMembers = [
-        { id: 1, name: "Ava Johnson", avatarUrl: "assets/img/user-1.jpg", title: "Software Engineer" },
-        { id: 2, name: "Ben Smith", avatarUrl: "assets/img/user-3.jpg", title: "Product Manager" },
-        { id: 3, name: "Chloe Lee", avatarUrl: "assets/img/user-2.jpg", title: "UX Designer" },
-        { id: 4, name: "David Chen", avatarUrl: "assets/img/user-5.jpg", title: "Data Analyst" },
-        { id: 5, name: "Ella Garcia", avatarUrl: "assets/img/user-4.jpg", title: "Marketing Specialist" },
-        { id: 6, name: "Finn O'Connell", avatarUrl: "assets/img/user-7.jpg", title: "Sales Director" },
-        { id: 7, name: "Grace Kim", avatarUrl: "assets/img/user-6.jpg", title: "HR Coordinator" },
-        { id: 8, name: "Henry Davis", avatarUrl: "assets/img/user-9.jpg", title: "DevOps Engineer" },
-        { id: 9, name: "Ivy Ross", avatarUrl: "assets/img/user-8.jpg", title: "Financial Controller" },
-        { id: 10, name: "Jack Miller", avatarUrl: "assets/img/user-9.jpg", title: "CTO" },
-    ];
+    public projectMembers = signal<{ id: number | null; name: string; title: string; avatarUrl: string }[]>([]);
 
     dataSource = new MatTableDataSource<TaskItem>(this.tasks);
     displayedColumns: string[] = ["taskId", "title", "assignedTo", "status", "priority", "actions"];
@@ -926,10 +917,27 @@ export class ProjectDetailsComponent implements OnInit {
         return [...this.activityLog()].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
     });
 
-    ngOnInit() {}
+    ngOnInit() {
+        this.loadProjectMembers();
+    }
     ngAfterViewInit() {
         this.dataSource.paginator = this.paginator;
         this.dataSource.sort = this.sort;
+    }
+
+    loadProjectMembers() {
+        this.projectService.getMembers(this.project().id.toString()).subscribe({
+            next: (members: any[]) => {
+                const formattedMembers = members.map(m => ({
+                    id: m.id,
+                    name: m.fullName || m.name,
+                    title: m.role || 'Member',
+                    avatarUrl: m.avatarUrl || ''
+                }));
+                this.projectMembers.set(formattedMembers);
+            },
+            error: () => this.projectMembers.set([])
+        });
     }
 
     applyFilter(event: Event) {
@@ -1011,7 +1019,7 @@ export class ProjectDetailsComponent implements OnInit {
             data: {
                 projectId: this.project().id,
                 projectName: this.project().name,
-                members: this.projectMembers,
+                members: this.projectMembers(),
             },
         });
     }

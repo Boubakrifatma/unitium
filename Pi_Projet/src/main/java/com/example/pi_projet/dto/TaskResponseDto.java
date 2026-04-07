@@ -33,6 +33,9 @@ public class TaskResponseDto {
     private Long createdById;
     private String createdByName;
 
+    private Long parentTaskId;
+    private String parentTaskTitle;
+
     private LocalDateTime updatedAt;
     private LocalDateTime completedAt;
 }

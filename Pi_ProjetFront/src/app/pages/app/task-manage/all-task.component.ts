@@ -2,6 +2,7 @@ import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, signal, 
 import { CommonModule } from "@angular/common";
 import { ActivatedRoute } from "@angular/router";
 import { FormsModule } from "@angular/forms";
+
 import { MatCardModule } from "@angular/material/card";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInputModule } from "@angular/material/input";
@@ -9,19 +10,20 @@ import { MatIconModule } from "@angular/material/icon";
 import { MatButtonModule } from "@angular/material/button";
 import { MatDialog } from "@angular/material/dialog";
 import { MatSnackBar } from "@angular/material/snack-bar";
-import { MatSelectModule } from "@angular/material/select";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
-import { MatButtonToggleModule } from "@angular/material/button-toggle";
-import { MatAutocompleteModule } from "@angular/material/autocomplete";
-import { MatProgressBarModule } from "@angular/material/progress-bar";
+
 import { TaskService, TaskResponseDto } from "../../../services/TaskService/task.service";
+import { TaskDependencyService, TaskDependencyResponseDto } from "../../../services/TaskService/taskDepdendencyService";
 import { MilestoneService, Milestone } from "../../../services/mileStoneService/milestone.service";
 import { ProjectService } from "../../../services/project-service";
 import { UserDTO } from "../../../users/user.service";
 import { CreateEditTaskComponent } from "./create-edit-task.component";
-import { ViewTaskDialogComponent } from "./view-task-dialog.component";
 import { ConfirmDeleteTaskDialogComponent } from "./confirm-delete-task-dialog.component";
+import { GanttViewComponent } from "./gantt-view.component";
+import { CriticalPathComponent } from "./critical-path.component";
+import { WbsViewComponent } from "./wbs-view.component";
+import { AuthService } from "../../../auth/auth.service";
 
 export interface TaskItem {
   taskId: number;
@@ -37,9 +39,16 @@ export interface TaskItem {
   description: string;
   startDate: string;
   completedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: string | null;
+  updatedAt: string | null;
   createdByName: string;
+  parentTaskId?: number | null;
+  parentTaskTitle?: string | null;
+}
+
+export interface TaskGroup {
+  parent: TaskItem | null;
+  children: TaskItem[];
 }
 
 @Component({
@@ -54,56 +63,34 @@ export interface TaskItem {
     MatInputModule,
     MatIconModule,
     MatButtonModule,
-    MatSelectModule,
     MatTooltipModule,
     MatProgressSpinnerModule,
-    MatButtonToggleModule,
-    MatAutocompleteModule,
-    MatProgressBarModule,
+    GanttViewComponent,
+    CriticalPathComponent,
+    WbsViewComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ["./all-task.component.scss"],
 })
 export class AllTaskComponent implements OnInit {
+
   milestoneId = signal<number | null>(null);
   projectId = signal<string | null>(null);
   tasks = signal<TaskItem[]>([]);
+  expandedGroupIds = signal<Set<number>>(new Set());
   expandedTaskIds = signal<Set<number>>(new Set());
-  searchFilter = signal("");
-  viewMode = "grid";
-  pageSize = 12;
-  currentPage = 0;
 
-  filteredTasks = computed(() => {
-    const search = this.searchFilter().toLowerCase();
-    return this.tasks().filter(t =>
-      t.title.toLowerCase().includes(search) ||
-      t.status.toLowerCase().includes(search) ||
-      t.assignedTo.toLowerCase().includes(search)
-    );
-  });
+  selectedPanel = signal<'tasks' | 'gantt' | 'wbs' | 'critical'>('tasks');
+  dependencies = signal<TaskDependencyResponseDto[]>([]);
+  searchFilter = signal<string>("");
+  loading = signal<boolean>(true);
 
-  paginatedTasks = computed(() => {
-    const filtered = this.filteredTasks();
-    const start = this.currentPage * this.pageSize;
-    const end = start + this.pageSize;
-    return filtered.slice(start, end);
-  });
-
-  paginationStart = computed(() => {
-    return this.filteredTasks().length === 0 ? 0 : this.currentPage * this.pageSize + 1;
-  });
-
-  paginationEnd = computed(() => {
-    return Math.min((this.currentPage + 1) * this.pageSize, this.filteredTasks().length);
-  });
-
-  loading = signal(true);
   projectMembers = signal<UserDTO[]>([]);
 
   constructor(
     private route: ActivatedRoute,
     private taskService: TaskService,
+    private taskDependencyService: TaskDependencyService,
     private milestoneService: MilestoneService,
     private projectService: ProjectService,
     private cdr: ChangeDetectorRef,
@@ -127,24 +114,19 @@ export class AllTaskComponent implements OnInit {
     this.milestoneService.getById(mid).subscribe({
       next: (m: Milestone) => {
         this.projectId.set(m.projectId ?? m.project?.id ?? null);
-        if (this.projectId()) {
-          this.loadProjectMembers();
-        }
+        if (this.projectId()) this.loadProjectMembers();
         this.loadTasks();
       },
-      error: () => {
-        this.projectId.set(null);
-        this.loadTasks();
-      }
+      error: () => this.loadTasks()
     });
   }
 
   loadProjectMembers() {
+    
     const pid = this.projectId();
     if (!pid) return;
-
     this.projectService.getMembers(pid).subscribe({
-      next: (members: UserDTO[]) => this.projectMembers.set(members),
+      next: members => this.projectMembers.set(members),
       error: () => this.projectMembers.set([])
     });
   }
@@ -159,208 +141,285 @@ export class AllTaskComponent implements OnInit {
 
     this.taskService.getTasksByMilestone(mid).subscribe({
       next: (data: TaskResponseDto[]) => {
-        const mapped = data.map(t => ({
+        const mapped: TaskItem[] = data.map(t => ({
           taskId: t.id,
           title: t.title,
           status: t.status,
           type: t.taskType,
-          assignedTo: t.assignedToName || "Unassigned",
+          assignedTo: t.assignedToName || "Non assigné",
           assignedToId: t.assignedToId,
           assignHours: t.estimatedHours || 0,
           loggedHours: t.actualHours || 0,
-          priority: t.priority,
+          priority: t.priority || "Medium",
           dueDate: t.dueDate || "-",
           description: t.description || "",
           startDate: t.startDate || "",
-          completedAt: t.completedAt ? new Date(t.completedAt).toISOString() : null,
-          createdAt: t.createdAt ? new Date(t.createdAt).toISOString() : "",
-          updatedAt: t.updatedAt ? new Date(t.updatedAt).toISOString() : "",
-          createdByName: t.createdByName || "Unknown",
+          completedAt: t.completedAt || null,
+          createdAt: t.createdAt || null,
+          updatedAt: t.updatedAt || null,
+          createdByName: t.createdByName || "Inconnu",
+          parentTaskId: t.parentTaskId,
+          parentTaskTitle: t.parentTaskTitle || null,
         }));
+
         this.tasks.set(mapped);
         this.loading.set(false);
         this.cdr.markForCheck();
       },
-      error: (err: unknown) => {
-        console.error("Error loading tasks", err);
+      error: (err) => {
+        console.error("Erreur chargement tâches", err);
         this.loading.set(false);
         this.cdr.markForCheck();
       }
     });
   }
 
-  applyFilter(event: Event) {
-    const value = (event.target as HTMLInputElement).value;
-    this.searchFilter.set(value);
-    this.currentPage = 0;
-  }
+  // ... (filteredTasks, taskGroups, taskStats, getStatusLabel, getTypeIcon restent identiques)
 
-  clearSearch(input: HTMLInputElement) {
-    input.value = "";
-    this.searchFilter.set("");
-    this.currentPage = 0;
-  }
+  filteredTasks = computed(() => {
+    const search = this.searchFilter().toLowerCase().trim();
+    if (!search) return this.tasks();
+    return this.tasks().filter(task =>
+      task.title.toLowerCase().includes(search) ||
+      task.status.toLowerCase().includes(search) ||
+      task.assignedTo.toLowerCase().includes(search)
+    );
+  });
 
-  isFiltering(): boolean {
-    return this.searchFilter() !== "";
-  }
+  taskGroups = computed((): TaskGroup[] => {
+    const tasksList = this.filteredTasks();
+    const parents = tasksList.filter(t => !t.parentTaskId);
+    const childrenMap = new Map<number, TaskItem[]>();
 
-  getCompletedCount(): number {
-    return this.filteredTasks().filter(t => t.status === "done").length;
-  }
+    tasksList.filter(t => t.parentTaskId).forEach(child => {
+      if (child.parentTaskId) {
+        const list = childrenMap.get(child.parentTaskId) || [];
+        list.push(child);
+        childrenMap.set(child.parentTaskId, list);
+      }
+    });
 
-  getInProgressCount(): number {
-    return this.filteredTasks().filter(t => t.status === "in_progress").length;
+    const groups: TaskGroup[] = parents.map(parent => ({
+      parent,
+      children: childrenMap.get(parent.taskId) || []
+    }));
+
+    const orphanChildren = tasksList.filter(t =>
+      t.parentTaskId && !parents.some(p => p.taskId === t.parentTaskId)
+    );
+
+    if (orphanChildren.length > 0) {
+      groups.push({ parent: null, children: orphanChildren });
+    }
+
+    return groups;
+  });
+
+  taskStats = computed(() => {
+    const all = this.filteredTasks();
+    return {
+      total: all.length,
+      done: all.filter(t => t.status === 'done').length,
+      inProgress: all.filter(t => t.status === 'in_progress').length,
+      todo: all.filter(t => t.status === 'todo').length,
+      blocked: all.filter(t => t.status === 'blocked').length,
+    };
+  });
+
+  getStatusLabel(status: string): string {
+    const labels: Record<string, string> = {
+      todo: "À faire", in_progress: "En cours", review: "Révision",
+      done: "Terminé", blocked: "Bloqué"
+    };
+    return labels[status] || status;
   }
 
   getTypeIcon(type: string): string {
-    const map: Record<string, string> = {
-      task: "assignment",
-      bug: "bug_report",
-      epic: "flag",
-      story: "description",
-      subtask: "subdirectory_arrow_right",
+    const icons: Record<string, string> = {
+      task: "assignment", bug: "bug_report", epic: "flag",
+      story: "description", subtask: "subdirectory_arrow_right"
     };
-    return map[type] || "assignment";
+    return icons[type] || "assignment";
   }
 
-  getDueIcon(dueDate: string): string {
-    return this.isOverdue(dueDate) ? "error" : "event";
-  }
-
-  isOverdue(dueDate: string): boolean {
-    if (!dueDate || dueDate === "-") return false;
-    return new Date(dueDate) < new Date();
-  }
-
-  formatDate(date: string): string {
-    if (!date || date === "-") return "-";
-    return new Date(date).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric"
-    });
-  }
-
-  getProgress(task: TaskItem): number {
-    if (task.assignHours === 0) return 0;
-    return Math.round((task.loggedHours / task.assignHours) * 100);
-  }
-
-  truncate(text: string, length: number): string {
-    return text.length > length ? text.substring(0, length) + "…" : text;
-  }
-
-  onPageChange(event: any) {
-    this.currentPage = event.pageIndex;
-  }
-
-  openView(task: TaskItem) {
-    this.dialog.open(ViewTaskDialogComponent, {
-      width: "90vw",
-      maxWidth: "900px",
-      maxHeight: "90vh",
-      data: { task }
-    });
-  }
-
+  // ===================== Dialogs - Création & Modification =====================
   openCreate() {
     const dialogRef = this.dialog.open(CreateEditTaskComponent, {
-      width: "600px",
-      maxWidth: "90vw",
-      data: { 
-        projectName: "Task Management",
-        projectId: this.projectId()!,
+      width: '650px',
+      maxWidth: '95vw',
+      data: {
+        projectId: this.projectId(),
+        milestoneId: this.milestoneId(),
         members: [
-          { name: "Unassigned", id: null, title: "No assignment", avatarUrl: "" },
-          ...this.projectMembers().map(u => ({ name: u.fullName, id: u.id, title: u.role || 'Member', avatarUrl: u.avatarUrl || '' }))
-        ]
+          { name: "Non assigné", id: null },
+          ...this.projectMembers().map(u => ({ name: u.fullName, id: u.id }))
+        ],
+        parentTasks: this.tasks().map(t => ({ taskId: t.taskId, title: t.title })),
+        availableTasks: this.tasks().map(t => ({ taskId: t.taskId, title: t.title }))
       }
     });
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        if (!this.projectId() || !this.milestoneId()) {
-          this.snackBar.open("Project or milestone not found", "Close", { duration: 3000 });
-          return;
-        }
-
-        console.log("Task created:", result);
-        // Create task via service
-        const createTaskPayload = {
-          title: result.title,
-          description: result.description,
-          taskType: result.type,
-          status: "todo",
-          priority: result.priority,
-          estimatedHours: result.assignHours,
-          actualHours: result.actualHours || 0,
-          assignedToId: result.assignedTo,
-          projectId: this.projectId()!,
-          milestoneId: this.milestoneId()!,
-          startDate: result.startDate,
-          dueDate: result.dueDate,
-        };
-        
-        this.taskService.create(createTaskPayload).subscribe({
-          next: (newTask) => {
-            this.snackBar.open("Task created successfully", "Close", { duration: 3000 });
-            this.loadTasks();
-          },
-          error: (err) => {
-            console.error("Error creating task", err);
-            this.snackBar.open("Error creating task", "Close", { duration: 3000 });
-          }
-        });
+        this.createTask(result);
       }
     });
   }
 
   openEdit(task: TaskItem) {
     const dialogRef = this.dialog.open(CreateEditTaskComponent, {
-      width: "600px",
-      maxWidth: "90vw",
-      data: { 
-        projectName: "Task Management",
-        projectId: this.projectId()!,
+      width: '650px',
+      maxWidth: '95vw',
+      data: {
+        projectId: this.projectId(),
+        milestoneId: this.milestoneId(),
+        task: task,   // Mode édition
         members: [
-          { name: "Unassigned", id: null, title: "No assignment", avatarUrl: "" },
-          ...this.projectMembers().map(u => ({ name: u.fullName, id: u.id, title: u.role || 'Member', avatarUrl: u.avatarUrl || '' }))
+          { name: "Non assigné", id: null },
+          ...this.projectMembers().map(u => ({ name: u.fullName, id: u.id }))
         ],
-        task: task
+        parentTasks: this.tasks()
+          .filter(t => t.taskId !== task.taskId)
+          .map(t => ({ taskId: t.taskId, title: t.title })),
+        availableTasks: this.tasks()
+          .filter(t => t.taskId !== task.taskId)
+          .map(t => ({ taskId: t.taskId, title: t.title }))
       }
     });
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        if (!this.projectId()) {
-          this.snackBar.open("Project not found", "Close", { duration: 3000 });
-          return;
-        }
+        this.updateTask(task.taskId, result);
+      }
+    });
+  }
 
-        console.log("Task updated:", result);
-        // Update task via service
-        const updateTaskPayload = {
-          title: result.title,
-          description: result.description,
-          taskType: result.type,
-          status: task.status, // Keep current status
-          priority: result.priority,
-          estimatedHours: result.assignHours,
-          actualHours: result.actualHours || 0,
-          assignedToId: result.assignedTo,
-          startDate: result.startDate,
-          dueDate: result.dueDate,
-        };
-        
-        this.taskService.update(task.taskId, updateTaskPayload).subscribe({
-          next: (updatedTask) => {
-            this.snackBar.open("Task updated successfully", "Close", { duration: 3000 });
+  private createTask(formData: any) {
+    if (!this.projectId() || !this.milestoneId()) {
+      this.snackBar.open("Projet ou Milestone manquant", "OK", { duration: 3000 });
+      return;
+    }
+
+    const payload = {
+      title: formData.title,
+      description: formData.description || "",
+      taskType: formData.type || "task",
+      status: "todo",
+      priority: formData.priority || "Medium",
+      estimatedHours: formData.assignHours || 0,
+      actualHours: 0,
+      assignedToId: formData.assignedTo || null,
+      parentTaskId: formData.parentTaskId || null,
+      projectId: this.projectId()!,
+      milestoneId: this.milestoneId()!,
+      startDate: formData.startDate || null,
+      dueDate: formData.dueDate || null,
+    };
+
+    this.taskService.create(payload).subscribe({
+      next: (createdTask) => {
+        // Créer les dépendances si disponibles
+        if (formData.dependencies && formData.dependencies.length > 0) {
+          this.createTaskDependencies(createdTask.id, formData.dependencies);
+        } else {
+          this.snackBar.open("Tâche créée avec succès", "OK", { duration: 3000 });
+          this.loadTasks();
+          this.loadDependencies();
+        }
+      },
+      error: (err) => {
+        console.error(err);
+        this.snackBar.open("Erreur lors de la création de la tâche", "OK", { duration: 4000 });
+      }
+    });
+  }
+
+  private createTaskDependencies(taskId: number, dependencies: any[]) {
+    let completed = 0;
+    let errors = 0;
+
+    const onComplete = () => {
+      completed++;
+      if (completed + errors === dependencies.length) {
+        if (errors === 0) {
+          this.snackBar.open("Tâche et dépendances créées avec succès", "OK", { duration: 3000 });
+        } else {
+          this.snackBar.open(`Tâche créée, ${errors} dépendance(s) non créée(s)`, "OK", { duration: 4000 });
+        }
+        this.loadTasks();
+        this.loadDependencies(); // Recharger les dépendances pour le chemin critique
+      }
+    };
+
+    dependencies.forEach(dep => {
+      const dependencyPayload = {
+        taskId: taskId,
+        dependsOnTaskId: dep.taskId,
+        dependencyType: dep.type
+      };
+
+      this.taskDependencyService.create(dependencyPayload).subscribe({
+        next: () => onComplete(),
+        error: () => {
+          errors++;
+          onComplete();
+        }
+      });
+    });
+  }
+
+  private updateTask(taskId: number, formData: any) {
+    const payload = {
+      title: formData.title,
+      description: formData.description || "",
+      taskType: formData.type || "task",
+      status: formData.status || "todo",
+      priority: formData.priority || "Medium",
+      estimatedHours: formData.assignHours || 0,
+      actualHours: formData.actualHours || 0,
+      assignedToId: formData.assignedTo || null,
+      parentTaskId: formData.parentTaskId || null,
+      startDate: formData.startDate || null,
+      dueDate: formData.dueDate || null,
+    };
+
+    this.taskService.update(taskId, payload).subscribe({
+      next: () => {
+        // Créer les nouvelles dépendances si ajoutées
+        if (formData.dependencies && formData.dependencies.length > 0) {
+          this.createTaskDependencies(taskId, formData.dependencies);
+        } else {
+          this.snackBar.open("Tâche mise à jour avec succès", "OK", { duration: 3000 });
+          this.loadTasks();
+          this.loadDependencies();
+        }
+      },
+      error: (err) => {
+        console.error(err);
+        this.snackBar.open("Erreur lors de la mise à jour", "OK", { duration: 4000 });
+      }
+    });
+  }
+
+  confirmDeleteParent(parent: TaskItem, childCount: number) {
+    const title = childCount > 0
+      ? `${parent.title} (+ ${childCount} sous-tâche${childCount > 1 ? 's' : ''} détachée${childCount > 1 ? 's' : ''})`
+      : parent.title;
+    const dialogRef = this.dialog.open(ConfirmDeleteTaskDialogComponent, {
+      width: '420px',
+      data: { taskTitle: title }
+    });
+
+    dialogRef.afterClosed().subscribe(confirmed => {
+      if (confirmed) {
+        this.taskService.delete(parent.taskId).subscribe({
+          next: () => {
+            this.snackBar.open("Tâche parente supprimée avec succès", "OK", { duration: 3000 });
             this.loadTasks();
           },
           error: (err) => {
-            console.error("Error updating task", err);
-            this.snackBar.open("Error updating task", "Close", { duration: 3000 });
+            console.error(err);
+            this.snackBar.open("Erreur lors de la suppression", "OK", { duration: 4000 });
           }
         });
       }
@@ -369,73 +428,76 @@ export class AllTaskComponent implements OnInit {
 
   confirmDelete(task: TaskItem) {
     const dialogRef = this.dialog.open(ConfirmDeleteTaskDialogComponent, {
-      width: "450px",
+      width: '420px',
       data: { taskTitle: task.title }
     });
 
-    dialogRef.afterClosed().subscribe(result => {
-      if (result) {
+    dialogRef.afterClosed().subscribe(confirmed => {
+      if (confirmed) {
         this.taskService.delete(task.taskId).subscribe({
           next: () => {
-            this.snackBar.open("Task deleted successfully", "Close", { duration: 3000 });
+            this.snackBar.open("Tâche supprimée avec succès", "OK", { duration: 3000 });
             this.loadTasks();
           },
           error: (err) => {
-            console.error("Error deleting task", err);
-            this.snackBar.open("Error deleting task", "Close", { duration: 3000 });
+            console.error(err);
+            this.snackBar.open("Erreur lors de la suppression", "OK", { duration: 4000 });
           }
         });
       }
     });
   }
 
+  // Méthodes restantes (applyFilter, switchPanel, toggleGroup, etc.)
+  applyFilter(event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    this.searchFilter.set(value);
+  }
+
+  switchPanel(panel: 'tasks' | 'gantt' | 'wbs' | 'critical') {
+    this.selectedPanel.set(panel);
+    if (panel === 'gantt' || panel === 'wbs') {
+      setTimeout(() => this.refreshAdvancedView(panel as 'gantt' | 'wbs'), 80);
+    }
+    if (panel === 'critical') {
+      // Small delay to let the panel become visible before Cytoscape renders
+      setTimeout(() => this.loadDependencies(), 80);
+    }
+  }
+
+  loadDependencies() {
+    const taskIds = this.tasks().map(t => t.taskId);
+    if (taskIds.length === 0) return;
+
+    this.taskDependencyService.getAll().subscribe({
+      next: (deps) => {
+        const filtered = deps.filter(
+          d => taskIds.includes(d.taskId) && taskIds.includes(d.dependsOnTaskId)
+        );
+        this.dependencies.set(filtered);
+        this.cdr.markForCheck();
+      },
+      error: () => this.dependencies.set([])
+    });
+  }
+
+  private refreshAdvancedView(panel: 'gantt' | 'wbs') {
+    if (panel === 'gantt') this.renderGantt();
+    if (panel === 'wbs') this.renderWBS();
+  }
+
+  toggleGroup(parentId: number) {
+    const current = new Set(this.expandedGroupIds());
+    current.has(parentId) ? current.delete(parentId) : current.add(parentId);
+    this.expandedGroupIds.set(current);
+  }
+
   toggleDetails(taskId: number) {
-    const expanded = new Set(this.expandedTaskIds());
-    if (expanded.has(taskId)) {
-      expanded.delete(taskId);
-    } else {
-      expanded.add(taskId);
-    }
-    this.expandedTaskIds.set(expanded);
+    const current = new Set(this.expandedTaskIds());
+    current.has(taskId) ? current.delete(taskId) : current.add(taskId);
+    this.expandedTaskIds.set(current);
   }
 
-  getStatusIcon(status: string): string {
-    const map: Record<string, string> = {
-      todo: "radio_button_unchecked",
-      in_progress: "pending",
-      review: "assignment_turned_in",
-      done: "check_circle",
-      blocked: "block",
-    };
-    return map[status] || "assignment";
-  }
-
-  getPriorityIcon(priority: string): string {
-    const map: Record<string, string> = {
-      low: "arrow_downward",
-      medium: "remove",
-      high: "arrow_upward",
-      critical: "priority_high",
-    };
-    return map[priority] || "info";
-  }
-
-  getUserColor(name: string): string {
-    const colors = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#06b6d4"];
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-      hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return colors[Math.abs(hash) % colors.length];
-  }
-
-  getInitials(name: string): string {
-    if (!name) return "?";
-    return name
-      .split(" ")
-      .map(n => n[0])
-      .join("")
-      .toUpperCase()
-      .substring(0, 2);
-  }
+  renderGantt() { console.log("%c📊 Gantt activated", "color:#0ea5e9"); }
+  renderWBS() { console.log("%c📋 WBS activated", "color:#0ea5e9"); }
 }

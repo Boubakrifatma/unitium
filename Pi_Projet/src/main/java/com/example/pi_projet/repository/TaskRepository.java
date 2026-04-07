@@ -12,16 +12,19 @@ import java.util.UUID;
 
 public interface TaskRepository extends JpaRepository<Task, Long> {
 
-    @EntityGraph(attributePaths = {"project", "assignedTo", "milestone"})
+    @EntityGraph(attributePaths = {"project", "assignedTo", "milestone", "parentTask"})
     List<Task> findByMilestoneId(Long milestoneId);
 
-    @EntityGraph(attributePaths = {"project", "assignedTo", "milestone"})
+    @EntityGraph(attributePaths = {"project", "assignedTo", "milestone", "parentTask"})
     @Query("SELECT t FROM Task t WHERE t.id = :id")
     Optional<Task> findByIdWithDetails(@Param("id") Long id);
 
-    @EntityGraph(attributePaths = {"project", "assignedTo", "milestone"})
+    @EntityGraph(attributePaths = {"project", "assignedTo", "milestone", "parentTask"})
     List<Task> findByAssignedTo_Id(Long userId);
 
     // ✅ NOUVEAU
     List<Task> findByProject_Id(UUID projectId);
+    Task findTaskByid(Long id);
+
+    List<Task> findByParentTask_Id(Long parentTaskId);
 }
