@@ -10,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -51,12 +50,12 @@ public class M2DevSeedService {
 
     // ── Services ─────────────────────────────────────────────────────────────
     private final M2OrganizationProvisioningService organizationProvisioningService;
+    private final ProjectTemplateService projectTemplateService;
 
     // ─────────────────────────────────────────────────────────────────────────
     //  ENTRY POINT
     // ─────────────────────────────────────────────────────────────────────────
 
-    @Transactional
     public Map<String, Object> seed() {
         log.info("[M2DevSeedService] Starting rich seed...");
 
@@ -284,7 +283,26 @@ public class M2DevSeedService {
             "bugs,qa,tracking,kanban,engineering", 3, 0, 0.0, 0,
             "Simple Kanban board for tracking bug lifecycle from report through triage to closure.");
 
+        // ── 7.5. Template Forks (genealogy examples for DNA viewer) ───────────
+        // Create fork variants AFTER base templates exist and BEFORE projects use them
+        ProjectTemplate forkAgile1 = ensureTemplateFork(
+            tplAgile, manager.getId(), "Agile Sprint Board (Manager Fork - Q1 Planning)");
+        ProjectTemplate forkAgile2 = ensureTemplateFork(
+            tplAgile, manager.getId(), "Agile Sprint Board (Custom Sprint 2-Week)");
+        
+        ProjectTemplate forkKanban1 = ensureTemplateFork(
+            tplKanban, manager.getId(), "Enterprise Kanban Flow (Manager WIP Variant)");
+        
+        ProjectTemplate forkWaterfall1 = ensureTemplateFork(
+            tplWaterfall, manager.getId(), "Product Launch Blueprint (Simplified Path)");
+        
+        // Create a second-generation fork (fork of a fork) to showcase multi-level genealogy
+        ProjectTemplate forkAgile3 = ensureTemplateFork(
+            forkAgile1, manager.getId(), "Agile Sprint Board (Q1 Planning - Team Specific)");
+
+        // ── 7.6. PIB-aligned Templates (global, not org-specific) ────────────
         // Keep Spring-seeded templates aligned with Python PIB training artifacts (ID + name + status/public).
+        // These are attempted after base templates and forks to avoid conflicts.
         ensurePibAlignedTemplates(manager, tutor);
 
         // ── 8. Projects ──────────────────────────────────────────────────────
@@ -803,38 +821,55 @@ public class M2DevSeedService {
                                    String description,
                                    double fitness,
                                    double completion) {
-        ProjectTemplate template = projectTemplateRepository.findById(templateId)
-            .orElseGet(() -> ProjectTemplate.builder().id(templateId).build());
+        // Check if exists — if so, simply return (fully idempotent)
+        try {
+            if (projectTemplateRepository.existsById(templateId)) {
+                return;
+            }
+        } catch (Exception ex) {
+            // Ignore database errors during existence check
+            log.debug("Error checking template existence: {}", templateId, ex);
+            return;
+        }
 
-        template.setOrganization(null);
-        template.setCreatedBy(createdBy);
-        template.setName(name);
-        template.setTemplateType(type);
-        template.setStatus(TemplateStatus.APPROVED);
-        template.setIsPublic(true);
-        template.setIsFeatured(false);
-        template.setIsRecommended(true);
-        template.setIsTrending(false);
-        template.setDefaultVisibility(DefaultVisibility.PUBLIC);
-        template.setTeamStrategy(TeamStrategy.HYBRID);
-        template.setDefaultPhasesJson("[{\"name\":\"Discovery\",\"durationDays\":7},{\"name\":\"Planning\",\"durationDays\":14},{\"name\":\"Execution\",\"durationDays\":21},{\"name\":\"Validation\",\"durationDays\":7}]");
-        template.setDefaultRolesJson(defaultRolesJson);
-        template.setDefaultProjectConfigJson("{\"framework\":\"" + type.name().toLowerCase() + "\",\"source\":\"pib-aligned-seed\"}");
-        template.setUseCaseDescription(description);
-        template.setDifficultyLevel(DifficultyLevel.INTERMEDIATE);
-        template.setEstimatedEffort(EstimatedEffort.MEDIUM);
-        template.setEstimatedDurationDays(49);
-        template.setTags("pib,ml-seed," + type.name().toLowerCase());
-        template.setVersion(template.getVersion() != null ? template.getVersion() : 1);
-        template.setUsageCount(template.getUsageCount() != null ? template.getUsageCount() : 0);
-        template.setRating(template.getRating() != null ? template.getRating() : 0.0);
-        template.setRatingCount(template.getRatingCount() != null ? template.getRatingCount() : 0);
-        template.setMlFitnessScore(fitness);
-        template.setMlCompletionRate(completion);
-        template.setMlLastMetricsAt(Instant.now());
-        template.setDeletedAt(null);
+        try {
+            // Create new template with explicit ID
+            ProjectTemplate template = ProjectTemplate.builder()
+                .id(templateId)
+                .organization(null)
+                .createdBy(createdBy)
+                .name(name)
+                .templateType(type)
+                .status(TemplateStatus.APPROVED)
+                .isPublic(true)
+                .isFeatured(false)
+                .isRecommended(true)
+                .isTrending(false)
+                .defaultVisibility(DefaultVisibility.PUBLIC)
+                .teamStrategy(TeamStrategy.HYBRID)
+                .defaultPhasesJson("[{\"name\":\"Discovery\",\"durationDays\":7},{\"name\":\"Planning\",\"durationDays\":14},{\"name\":\"Execution\",\"durationDays\":21},{\"name\":\"Validation\",\"durationDays\":7}]")
+                .defaultRolesJson(defaultRolesJson)
+                .defaultProjectConfigJson("{\"framework\":\"" + type.name().toLowerCase() + "\",\"source\":\"pib-aligned-seed\"}")
+                .useCaseDescription(description)
+                .difficultyLevel(DifficultyLevel.INTERMEDIATE)
+                .estimatedEffort(EstimatedEffort.MEDIUM)
+                .estimatedDurationDays(49)
+                .tags("pib,ml-seed," + type.name().toLowerCase())
+                .version(1)
+                .usageCount(0)
+                .rating(0.0)
+                .ratingCount(0)
+                .mlFitnessScore(fitness)
+                .mlCompletionRate(completion)
+                .mlLastMetricsAt(Instant.now())
+                .deletedAt(null)
+                .build();
 
-        projectTemplateRepository.save(template);
+            projectTemplateRepository.save(template);
+        } catch (Exception ex) {
+            // Gracefully handle version conflicts or duplicate key errors
+            log.debug("Could not upsert PIB template {}: {}", templateId, ex.getMessage());
+        }
     }
 
     private void applyWorkspaceMemberMlProfiles(List<Workspace> workspaces) {
@@ -961,6 +996,38 @@ public class M2DevSeedService {
     // ─────────────────────────────────────────────────────────────────────────
     //  HELPERS
     // ─────────────────────────────────────────────────────────────────────────
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  TEMPLATE FORK
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Creates a forked template with a custom name.
+     * Uses ProjectTemplateService.forkTemplate() internally to ensure proper
+     * genealogy (parentTemplateId) and consistency.
+     *
+     * @param sourceTemplate the template to fork
+     * @param requesterId    the ID of the user creating the fork
+     * @param customName     the custom name for the fork (overrides default " (Fork)" suffix)
+     * @return the saved fork template
+     */
+    private ProjectTemplate ensureTemplateFork(ProjectTemplate sourceTemplate,
+                                                Long requesterId,
+                                                String customName) {
+        // Use service to fork (sets parentTemplateId, status=DRAFT, etc.)
+        ProjectTemplate fork = projectTemplateService.forkTemplate(sourceTemplate.getId(), requesterId);
+        
+        // Override the default " (Fork)" naming with custom name
+        fork.setName(customName);
+        fork.setVersion(1);
+        // Make forks public and approved for easy discovery
+        fork.setIsPublic(true);
+        fork.setStatus(ProjectTemplate.TemplateStatus.APPROVED);
+        fork.setDefaultVisibility(ProjectTemplate.DefaultVisibility.PUBLIC);
+        
+        // Save with custom name and public visibility
+        return projectTemplateRepository.save(fork);
+    }
 
     private User requireUser(String email) {
         return userRepository.findByEmail(email)

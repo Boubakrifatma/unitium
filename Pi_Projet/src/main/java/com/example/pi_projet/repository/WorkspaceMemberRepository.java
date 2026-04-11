@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -22,6 +23,7 @@ public interface WorkspaceMemberRepository extends JpaRepository<WorkspaceMember
     long countByWorkspaceIdAndRole(UUID workspaceId, WorkspaceRole role);
 
     @Modifying
+    @Transactional
     @Query(value = "UPDATE workspace_members " +
         "SET deleted_at = NULL, role = :role, invited_by = :invitedBy, joined_at = COALESCE(joined_at, NOW()) " +
         "WHERE workspace_id = :workspaceId AND user_id = :userId AND deleted_at IS NOT NULL", nativeQuery = true)

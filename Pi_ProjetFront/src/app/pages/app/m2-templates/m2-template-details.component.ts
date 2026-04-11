@@ -12,11 +12,13 @@ import { MatSelectModule } from "@angular/material/select";
 import { MatDividerModule } from "@angular/material/divider";
 import { MatSnackBar, MatSnackBarModule } from "@angular/material/snack-bar";
 import { MatDialog, MatDialogModule } from "@angular/material/dialog";
-import { M2TemplateService, M2TemplateSummary } from "./m2-template.service";
+import { MatTooltipModule } from "@angular/material/tooltip";
+import { M2TemplateLineageNode, M2TemplateService, M2TemplateSummary } from "./m2-template.service";
 import { TemplateDeleteConfirmDialogComponent } from "./template-delete-confirm-dialog.component";
 import { AuthService } from "../../../auth/auth.service";
 import { M2WorkspaceService } from "../m2-workspaces/m2-workspace.service";
 import { UseTemplateWizardDialogComponent, UseTemplateWizardResult } from "./use-template-wizard-dialog.component";
+import { TemplateDnaViewerComponent } from "../../../components/template-dna-viewer/template-dna-viewer.component";
 
 // Simple inline workspace-selector dialog
 import { Component as DlgComp, inject as dlgInject, signal as dlgSignal, OnInit as DlgOnInit } from "@angular/core";
@@ -135,7 +137,8 @@ export class RejectTemplateDialogComponent {
         CommonModule, RouterLink, FormsModule,
         MatCardModule, MatIconModule, MatButtonModule, MatDividerModule,
         MatFormFieldModule, MatInputModule, MatSelectModule,
-        MatSnackBarModule, MatDialogModule,
+        MatSnackBarModule, MatDialogModule, MatTooltipModule,
+        TemplateDnaViewerComponent,
     ],
     template: `
         <div class="container-fluid fade-in mb-3 mb-lg-4">
@@ -574,6 +577,28 @@ export class RejectTemplateDialogComponent {
                                 }
                             </mat-card-content>
                         </mat-card>
+
+                        <mat-card class="mt-3">
+                            <mat-card-content class="py-3">
+                                <div class="d-flex flex-wrap align-items-start gap-2 mb-2">
+                                    <div class="flex-grow-1">
+                                        <h5 class="mb-1">
+                                            <mat-icon class="material-icons-outlined align-middle" style="font-size:18px;width:18px;height:18px;">account_tree</mat-icon>
+                                            Template DNA Viewer
+                                        </h5>
+                                        <p class="small text-secondary mb-0">Fork lineage across ancestors and descendants. Node color encodes rating; link width encodes usage.</p>
+                                    </div>
+                                </div>
+
+                                <app-template-dna-viewer
+                                    [lineage]="lineage()"
+                                    [loading]="lineageLoading()"
+                                    [error]="lineageError()"
+                                    [activeTemplateId]="templateId()"
+                                    (openTemplate)="openLineageTemplate($event)">
+                                </app-template-dna-viewer>
+                            </mat-card-content>
+                        </mat-card>
                     </div>
                 </div>
             }
@@ -590,8 +615,11 @@ export class M2TemplateDetailsComponent implements OnInit {
 
     readonly templateId = signal("");
     readonly template = signal<M2TemplateSummary | null>(null);
+    readonly lineage = signal<M2TemplateLineageNode | null>(null);
     readonly loading = signal(true);
     readonly error = signal("");
+    readonly lineageLoading = signal(false);
+    readonly lineageError = signal("");
     readonly editMode = signal(false);
     readonly saving = signal(false);
     readonly userRating = signal(0);
@@ -668,9 +696,16 @@ export class M2TemplateDetailsComponent implements OnInit {
     });
 
     ngOnInit(): void {
-        const id = this.route.snapshot.paramMap.get("templateId") || "";
-        this.templateId.set(id);
-        this.loadTemplate(id);
+        this.route.paramMap.subscribe((params) => {
+            const id = params.get("templateId") || "";
+            if (!id) {
+                this.error.set("Template not found.");
+                this.loading.set(false);
+                return;
+            }
+            this.templateId.set(id);
+            this.loadTemplate(id);
+        });
     }
 
     loadTemplate(id: string): void {
@@ -681,10 +716,28 @@ export class M2TemplateDetailsComponent implements OnInit {
                 this.template.set(t);
                 this.loading.set(false);
                 this.loadUserRating(id);
+                this.loadLineage(id);
             },
             error: (err: HttpErrorResponse) => {
                 this.error.set(err.message || "Template not found.");
                 this.loading.set(false);
+                this.lineage.set(null);
+            },
+        });
+    }
+
+    private loadLineage(id: string): void {
+        this.lineageLoading.set(true);
+        this.lineageError.set("");
+        this.templateService.getLineage(id, 5).subscribe({
+            next: (tree) => {
+                this.lineage.set(tree);
+                this.lineageLoading.set(false);
+            },
+            error: () => {
+                this.lineage.set(null);
+                this.lineageError.set("Unable to load template lineage.");
+                this.lineageLoading.set(false);
             },
         });
     }
@@ -918,5 +971,10 @@ export class M2TemplateDetailsComponent implements OnInit {
 
     backToTemplates(): void {
         this.router.navigate(["/app/templates"]);
+    }
+
+    openLineageTemplate(templateId: string): void {
+        if (!templateId) return;
+        this.router.navigate(["/app/templates", templateId]);
     }
 }

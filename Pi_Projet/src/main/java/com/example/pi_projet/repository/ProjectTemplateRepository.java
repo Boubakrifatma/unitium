@@ -45,4 +45,6 @@ public interface ProjectTemplateRepository extends JpaRepository<ProjectTemplate
     @Transactional
     @Query("UPDATE ProjectTemplate t SET t.usageCount = t.usageCount + 1 WHERE t.id = :id")
     void incrementUsageCount(@Param("id") UUID id);
+
+    List<ProjectTemplate> findByParentTemplateId(UUID parentTemplateId);
 }

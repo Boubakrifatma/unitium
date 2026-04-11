@@ -46,6 +46,18 @@ export interface M2TemplatePage {
     totalElements?: number;
 }
 
+export interface M2TemplateLineageNode {
+    id: string;
+    name: string;
+    createdBy: number;
+    rating: number;
+    ratingCount: number;
+    usageCount: number;
+    status: "DRAFT" | "PENDING_APPROVAL" | "APPROVED" | "REJECTED";
+    createdAt?: string;
+    children: M2TemplateLineageNode[];
+}
+
 @Injectable({ providedIn: "root" })
 export class M2TemplateService {
     private readonly http = inject(HttpClient);
@@ -62,6 +74,10 @@ export class M2TemplateService {
 
     getById(id: string): Observable<M2TemplateSummary> {
         return this.http.get<M2TemplateSummary>(`${this.base}/${id}`);
+    }
+
+    getLineage(id: string, maxDepth = 4): Observable<M2TemplateLineageNode> {
+        return this.http.get<M2TemplateLineageNode>(`${this.base}/${id}/lineage?maxDepth=${maxDepth}`);
     }
 
     getPublic(page = 0, size = 50): Observable<M2TemplatePage> {

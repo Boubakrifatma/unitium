@@ -64,6 +64,14 @@ public class ProjectTemplateController {
         return projectTemplateService.getById(id);
     }
 
+    @GetMapping("/{id}/lineage")
+    public ProjectTemplateService.LineageNode getLineage(@PathVariable UUID id,
+                                                         @RequestParam(defaultValue = "3") int maxDepth,
+                                                         HttpServletRequest request) {
+        requireCurrentUser(request);
+        return projectTemplateService.getLineage(id, maxDepth);
+    }
+
     @GetMapping("/public")
     public Page<ProjectTemplate> getPublic(
             @RequestParam(required = false) String search,

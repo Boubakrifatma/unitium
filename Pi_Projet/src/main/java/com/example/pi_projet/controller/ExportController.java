@@ -50,14 +50,24 @@ public class ExportController {
     }
 
     private void requireExportPermission(User user, UUID workspaceId) {
-        if (user.getRole() == User.RoleName.SUPER_ADMIN || user.getRole() == User.RoleName.ADMIN) return;
+        // Allow top-level platform roles: SUPER_ADMIN, ADMIN, MANAGER, TUTOR
+        User.RoleName role = user.getRole();
+        if (role == User.RoleName.SUPER_ADMIN || role == User.RoleName.ADMIN
+                || role == User.RoleName.MANAGER || role == User.RoleName.TUTOR) {
+            return;
+        }
+
+        // Also allow workspace-level roles: OWNER, ADMIN, MANAGER, TA
         boolean ok = workspaceMemberRepository
             .findByWorkspaceIdAndUserId(workspaceId, user.getId())
             .map(m -> m.getRole() == WorkspaceMember.WorkspaceRole.OWNER
-                   || m.getRole() == WorkspaceMember.WorkspaceRole.ADMIN)
+                   || m.getRole() == WorkspaceMember.WorkspaceRole.ADMIN
+                   || m.getRole() == WorkspaceMember.WorkspaceRole.MANAGER
+                   || m.getRole() == WorkspaceMember.WorkspaceRole.TA)
             .orElse(false);
+
         if (!ok) throw new Module2Exception(Module2Exception.ErrorCode.FORBIDDEN,
-            "Only workspace OWNER or ADMIN may export this report");
+            "Only workspace OWNER, ADMIN, MANAGER or TA may export this report");
     }
 
     private User requireCurrentUser(HttpServletRequest request) {

@@ -16,12 +16,16 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -31,6 +35,18 @@ public class ProjectTemplateService {
     private final TemplateRatingRepository templateRatingRepository;
     private final TemplateFavoriteRepository templateFavoriteRepository;
     private final M2AuditLogService auditLogService;
+
+    public static class LineageNode {
+        public UUID id;
+        public String name;
+        public Long createdBy;
+        public Double rating;
+        public Integer ratingCount;
+        public Integer usageCount;
+        public ProjectTemplate.TemplateStatus status;
+        public Instant createdAt;
+        public List<LineageNode> children;
+    }
 
     public Page<ProjectTemplate> getAll(Pageable pageable) {
         return projectTemplateRepository.findAll(pageable);
@@ -287,6 +303,65 @@ public class ProjectTemplateService {
             .createdBy(requesterId)
             .build();
         return projectTemplateRepository.save(fork);
+    }
+
+    public LineageNode getLineage(UUID rootId, int maxDepth) {
+        ProjectTemplate requested = projectTemplateRepository.findById(rootId)
+            .orElseThrow(() -> new Module2Exception(NOT_FOUND, "Template not found"));
+
+        int safeDepth = Math.max(0, maxDepth);
+
+        // Walk up to the highest ancestor while avoiding broken cycles.
+        Set<UUID> ancestorVisited = new HashSet<>();
+        ProjectTemplate current = requested;
+        ancestorVisited.add(current.getId());
+
+        while (current.getParentTemplateId() != null) {
+            UUID parentId = current.getParentTemplateId();
+            if (!ancestorVisited.add(parentId)) {
+                break;
+            }
+
+            Optional<ProjectTemplate> parentOpt = projectTemplateRepository.findById(parentId);
+            if (parentOpt.isEmpty()) {
+                break;
+            }
+            current = parentOpt.get();
+        }
+
+        return buildTree(current, safeDepth, 0, new HashSet<>());
+    }
+
+    private LineageNode buildTree(ProjectTemplate node, int maxDepth, int currentDepth, Set<UUID> pathVisited) {
+        if (!pathVisited.add(node.getId())) {
+            return null;
+        }
+
+        LineageNode ln = new LineageNode();
+        ln.id = node.getId();
+        ln.name = node.getName();
+        ln.createdBy = node.getCreatedBy();
+        ln.rating = node.getRating();
+        ln.ratingCount = node.getRatingCount();
+        ln.usageCount = node.getUsageCount();
+        ln.status = node.getStatus();
+        ln.createdAt = node.getCreatedAt();
+        ln.children = new ArrayList<>();
+
+        if (currentDepth < maxDepth) {
+            List<ProjectTemplate> children = projectTemplateRepository.findByParentTemplateId(node.getId());
+            for (ProjectTemplate child : children) {
+                if (child.getDeletedAt() == null) { // Exclude soft-deleted
+                    LineageNode childNode = buildTree(child, maxDepth, currentDepth + 1, pathVisited);
+                    if (childNode != null) {
+                        ln.children.add(childNode);
+                    }
+                }
+            }
+        }
+
+        pathVisited.remove(node.getId());
+        return ln;
     }
 
     private void auditTemplate(Long userId, String actionType, ProjectTemplate t) {

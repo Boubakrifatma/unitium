@@ -166,6 +166,9 @@ public class PdfExportService {
         Document    doc    = new Document(pdfDoc, PageSize.A4);
         doc.setMargins(60, 50, 60, 50);
 
+        // Ensure at least one page exists before calling pdfDoc.getFirstPage()
+        pdfDoc.addNewPage(PageSize.A4);
+
         PdfFont regular = PdfFontFactory.createFont(StandardFonts.HELVETICA);
         PdfFont bold    = PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD);
 
@@ -198,11 +201,13 @@ public class PdfExportService {
             .setFontColor(ColorConstants.WHITE).setTextAlignment(TextAlignment.CENTER).setMarginBottom(80));
 
         doc.add(kv("Period", ctx.from().format(DATE_FMT) + " – " + ctx.to().format(DATE_FMT), bold, regular));
-        doc.add(kv("Total Projects",  String.valueOf(ctx.projects().size()), bold, regular));
-        doc.add(kv("Team Members",    String.valueOf(ctx.members().size()), bold, regular));
-        doc.add(kv("On-Track Rate",   String.format("%.1f%%", ctx.onTrackRate()), bold, regular));
-        doc.add(kv("Tasks Completed", String.valueOf(ctx.completedCount()), bold, regular));
-        doc.add(kv("Overdue Tasks",   String.valueOf(ctx.overdueCount()), bold, regular));
+        doc.add(kv("Total Projects",  String.valueOf(ctx.projects().size()), bold, regular, BRAND_BLUE));
+        doc.add(kv("Team Members",    String.valueOf(ctx.members().size()), bold, regular, BRAND_BLUE));
+        doc.add(kv("On-Track Rate",   String.format("%.1f%%", ctx.onTrackRate()), bold, regular, ACCENT_GREEN));
+        doc.add(kv("Tasks Completed", String.valueOf(ctx.completedCount()), bold, regular, BRAND_BLUE));
+        // Highlight overdue tasks in red when present, otherwise use dark color for readability
+        com.itextpdf.kernel.colors.Color overdueColor = ctx.overdueCount() > 0 ? ACCENT_RED : ColorConstants.BLACK;
+        doc.add(kv("Overdue Tasks",   String.valueOf(ctx.overdueCount()), bold, regular, overdueColor));
         doc.add(new Paragraph("Generated on " + LocalDate.now().format(DATE_FMT))
             .setFont(regular).setFontSize(9).setFontColor(ColorConstants.GRAY)
             .setTextAlignment(TextAlignment.CENTER).setMarginTop(40));
@@ -269,7 +274,11 @@ public class PdfExportService {
         for (int i = 0; i < ctx.members().size(); i++) {
             WorkspaceMember m = ctx.members().get(i);
             boolean s = i % 2 == 0;
-            t.addCell(cell("User #" + m.getUserId(), regular, 10, s));
+            String displayName = "User #" + m.getUserId();
+            if (m.getUser() != null && m.getUser().getFullName() != null && !m.getUser().getFullName().isBlank()) {
+                displayName = m.getUser().getFullName();
+            }
+            t.addCell(cell(displayName, bold, 10, s));
             t.addCell(cell(m.getRole() != null ? m.getRole().name() : "—", regular, 10, s));
             String joined = m.getJoinedAt() != null ? m.getJoinedAt().atZone(ZoneId.systemDefault()).format(DATE_FMT) : "—";
             t.addCell(cell(joined, regular, 10, s));
@@ -323,8 +332,13 @@ public class PdfExportService {
     // ── Tiny helpers ──────────────────────────────────────────────────────────────
 
     private Paragraph kv(String label, String value, PdfFont bold, PdfFont regular) {
-        return new Paragraph().add(new Text(label + ": ").setFont(bold).setFontSize(11))
-            .add(new Text(value).setFont(regular).setFontSize(11))
+        return kv(label, value, bold, regular, ColorConstants.BLACK);
+    }
+
+    private Paragraph kv(String label, String value, PdfFont bold, PdfFont regular, com.itextpdf.kernel.colors.Color valueColor) {
+        Text labelText = new Text(label + ": ").setFont(bold).setFontSize(10).setFontColor(ColorConstants.GRAY);
+        Text valueText = new Text(value).setFont(bold).setFontSize(14).setFontColor(valueColor);
+        return new Paragraph().add(labelText).add(valueText)
             .setTextAlignment(TextAlignment.CENTER).setMarginBottom(6);
     }
 
