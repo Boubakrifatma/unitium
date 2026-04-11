@@ -47,6 +47,9 @@ public class BillingService {
     private final UsageQuotaRepository      usageQuotaRepository;
     private final BCryptPasswordEncoder     passwordEncoder;
     private final EmailService              emailService;
+    private final InvoiceTamperingService   invoiceTamperingService;
+    private final InvoicePdfService         invoicePdfService;
+    private final CouponService             couponService;
 
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -101,6 +104,22 @@ public class BillingService {
         int amountCents = "annual".equalsIgnoreCase(req.getBillingCycle())
             ? plan.getPriceYearlyCents()
             : plan.getPriceMonthlyCents();
+
+        // Apply coupon discount if provided
+        String appliedCouponCode = null;
+        int couponDiscountCents = 0;
+        if (req.getCouponCode() != null && !req.getCouponCode().isBlank()) {
+            var couponResult = couponService.validate(req.getCouponCode(), amountCents);
+            if (couponResult.isValid()) {
+                couponDiscountCents = couponResult.getDiscountCents();
+                amountCents = couponResult.getFinalAmountCents();
+                appliedCouponCode = req.getCouponCode().trim().toUpperCase();
+                log.info("Coupon '{}' applied: discount={}c, final={}c", appliedCouponCode, couponDiscountCents, amountCents);
+            } else {
+                log.warn("Invalid coupon '{}' submitted: {}", req.getCouponCode(), couponResult.getMessage());
+            }
+        }
+
         double amount = amountCents / 100.0;
 
         String cardLast4 = req.getCardNumber() != null && req.getCardNumber().length() >= 4
@@ -275,6 +294,12 @@ public class BillingService {
         invoice.setStripeInvoiceId(resolvedStripeId);
         invoiceRepository.save(invoice);
 
+        // ── Integrity Hash — sign the invoice after all fields are finalized ──
+        String integrityHash = invoiceTamperingService.generateHash(invoice);
+        invoice.setIntegrityHash(integrityHash);
+        invoiceRepository.save(invoice);
+        log.info("Integrity hash generated for invoice {}: {}", invoice.getInvoiceNumber(), integrityHash);
+
         paymentAttemptRepository.save(PaymentAttempt.builder()
             .organization(organization)
             .subscription(subscription)
@@ -340,41 +365,54 @@ public class BillingService {
             .build();
         pendingPaymentRepository.save(payment);
 
-        // ── 10. Email de bienvenue avec invoice intégrée ─────────────────────
-        // Calculs pour l'email (montants affichés en USD)
+        // ── Apply coupon usage (after confirmed payment) ──────────────────────
+        if (appliedCouponCode != null) {
+            couponService.applyCoupon(appliedCouponCode);
+        }
+
+        // ── 10. PDF Generation + Email ────────────────────────────────────────
         double subtotalUsd = amountCents / 100.0;
         double taxUsd      = taxCents / 100.0;
         double totalUsd    = totalCents / 100.0;
 
+        // Generate PDF and save to disk
+        byte[] pdfBytes = new byte[0];
+        try {
+            // Load line items explicitly (avoids Hibernate first-level cache issue)
+            var lineItems = invoiceLineItemRepository.findByInvoiceOrderByPeriodStart(invoice);
+            invoice.setLineItems(lineItems);
+            pdfBytes = invoicePdfService.generateInvoicePdf(invoice, req.getAdminEmail(), req.getAdminName());
+
+            if (pdfBytes.length > 0) {
+                String filename = invoice.getInvoiceNumber() + ".pdf";
+                Path dir = Paths.get(uploadDir);
+                Files.createDirectories(dir);
+                Files.write(dir.resolve(filename), pdfBytes);
+                String pdfUrl = "http://localhost:8084/uploads/invoices/" + filename;
+                invoice.setPdfUrl(pdfUrl);
+                invoice.setPdfSentAt(LocalDateTime.now());
+                invoiceRepository.save(invoice);
+                log.info("PDF auto-generated and saved for invoice {}", invoice.getInvoiceNumber());
+            }
+        } catch (Exception pdfEx) {
+            log.warn("PDF generation failed for {} — payment still confirmed: {}", invoice.getInvoiceNumber(), pdfEx.getMessage());
+        }
+
+        // Send email with PDF attachment
         try {
             if (isNewUser) {
                 emailService.sendWelcomeWithInvoiceEmail(
-                    req.getAdminEmail(),
-                    req.getAdminName(),
-                    req.getOrgName(),
-                    planName,
+                    req.getAdminEmail(), req.getAdminName(), req.getOrgName(), planName,
                     "annual".equalsIgnoreCase(req.getBillingCycle()) ? "Annual" : "Monthly",
-                    subtotalUsd,
-                    taxUsd,
-                    totalUsd,
-                    "USD",
-                    "INV-" + paymentId,
-                    paymentId,
-                    tempPassword
+                    subtotalUsd, taxUsd, totalUsd, "USD",
+                    "INV-" + paymentId, paymentId, tempPassword, pdfBytes
                 );
             } else {
                 emailService.sendUpgradeInvoiceEmail(
-                    req.getAdminEmail(),
-                    req.getAdminName(),
-                    req.getOrgName(),
-                    planName,
+                    req.getAdminEmail(), req.getAdminName(), req.getOrgName(), planName,
                     "annual".equalsIgnoreCase(req.getBillingCycle()) ? "Annual" : "Monthly",
-                    subtotalUsd,
-                    taxUsd,
-                    totalUsd,
-                    "USD",
-                    "INV-" + paymentId,
-                    paymentId
+                    subtotalUsd, taxUsd, totalUsd, "USD",
+                    "INV-" + paymentId, paymentId, pdfBytes
                 );
             }
         } catch (Exception emailEx) {
@@ -517,7 +555,7 @@ public class BillingService {
     public List<InvoiceDTO> getMyInvoices(Long userId) {
         return organizationRepository.findByOwnerIdOrderByCreatedAtDesc(userId)
             .stream().findFirst()
-            .map(org -> invoiceRepository.findByOrganizationOrderByCreatedAtDesc(org)
+            .map(org -> invoiceRepository.findByOrganizationWithAssociations(org)
                 .stream().map(InvoiceDTO::from).collect(Collectors.toList()))
             .orElse(List.of());
     }
@@ -549,7 +587,7 @@ public class BillingService {
 
     @Transactional(readOnly = true)
     public List<InvoiceDTO> getAllInvoices() {
-        return invoiceRepository.findAll().stream()
+        return invoiceRepository.findAllWithAssociations().stream()
             .map(InvoiceDTO::from).collect(Collectors.toList());
     }
 
@@ -652,6 +690,47 @@ public class BillingService {
 
         log.info("PDF uploaded for invoice {}: {}", invoiceId, pdfUrl);
         return pdfUrl;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // RECORD FAILED PAYMENT
+    // ─────────────────────────────────────────────────────────────────────────
+    @Transactional
+    public void recordFailedPayment(Map<String, String> data) {
+        String paymentId     = generatePaymentId();
+        String planId        = data.getOrDefault("planId", "unknown");
+        String orgName       = data.getOrDefault("orgName", "unknown");
+        String adminEmail    = data.getOrDefault("adminEmail", "unknown");
+        String billingCycle  = data.getOrDefault("billingCycle", "monthly");
+        String orgType       = data.getOrDefault("orgType", "enterprise");
+        String failureCode   = data.getOrDefault("failureCode", "card_error");
+        String failureMsg    = data.getOrDefault("failureMessage", "Payment failed");
+
+        Plan plan = planRepository.findByName(planId).orElse(null);
+        String planName = plan != null ? plan.getDisplayName() : planId;
+        int amountCents = plan != null
+            ? ("annual".equalsIgnoreCase(billingCycle) ? plan.getPriceYearlyCents() : plan.getPriceMonthlyCents())
+            : 0;
+
+        // Save as REJECTED PendingPayment so it appears in admin dashboard
+        PendingPayment failed = PendingPayment.builder()
+            .paymentId(paymentId)
+            .planId(planId)
+            .planName(planName)
+            .orgType(orgType)
+            .billingCycle(billingCycle)
+            .orgName(orgName)
+            .adminEmail(adminEmail)
+            .adminName("—")
+            .amountCents(amountCents)
+            .currency("USD")
+            .status(PendingPayment.PaymentStatus.REJECTED)
+            .rejectionReason(failureCode + ": " + failureMsg)
+            .rejectedAt(LocalDateTime.now())
+            .build();
+        pendingPaymentRepository.save(failed);
+
+        log.warn("Failed payment recorded — org: {}, code: {}, msg: {}", orgName, failureCode, failureMsg);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

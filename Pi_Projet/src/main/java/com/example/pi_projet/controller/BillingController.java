@@ -4,6 +4,8 @@ import com.example.pi_projet.annotation.Authorized;
 import com.example.pi_projet.dto.billing.*;
 import com.example.pi_projet.entity.User;
 import com.example.pi_projet.service.BillingService;
+import com.example.pi_projet.service.InvoiceTamperingService;
+import com.example.pi_projet.service.SecurityAlertStore;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,7 +30,10 @@ import java.util.Objects;
 @Tag(name = "Billing", description = "Payment, plans, subscriptions, invoices, usage & payment attempts")
 public class BillingController {
 
-    private final BillingService billingService;
+    private final BillingService            billingService;
+    private final InvoiceTamperingService   invoiceTamperingService;
+    private final SecurityAlertStore        securityAlertStore;
+    private final com.example.pi_projet.service.CouponService couponService;
 
     // ── Public ────────────────────────────────────────────────────────────────
 
@@ -83,6 +88,19 @@ public class BillingController {
             log.error("Plan creation error: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("error", "Plan creation failed. Please try again."));
+        }
+    }
+
+    @Operation(summary = "Record a failed payment attempt from Stripe frontend error")
+    @PostMapping("/payment/failed")
+    public ResponseEntity<?> recordFailedPayment(@RequestBody Map<String, String> body) {
+        try {
+            billingService.recordFailedPayment(body);
+            return ResponseEntity.ok(Map.of("message", "Failed payment recorded"));
+        } catch (Exception e) {
+            log.error("Error recording failed payment: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", e.getMessage()));
         }
     }
 
@@ -266,6 +284,130 @@ public class BillingController {
             return ResponseEntity.ok(Map.of("message", "Plan permanently deleted", "planId", planId));
         } else {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    // ── Invoice Tampering Detection ───────────────────────────────────────────
+
+    @Operation(summary = "Verify integrity of a single invoice (super admin)")
+    @GetMapping("/invoices/{invoiceId}/verify")
+    public ResponseEntity<?> verifyInvoice(@PathVariable String invoiceId) {
+        try {
+            TamperingCheckDTO result = invoiceTamperingService.verifyInvoice(invoiceId);
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            log.error("Invoice verification error for {}: {}", invoiceId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "Run full integrity check on all invoices (super admin)")
+    @GetMapping("/invoices/integrity-check")
+    public ResponseEntity<?> verifyAllInvoices() {
+        try {
+            var results = invoiceTamperingService.verifyAllInvoices();
+            long ok        = results.stream().filter(r -> "OK".equals(r.getIntegrityStatus())).count();
+            long tampered  = results.stream().filter(r -> "TAMPERED".equals(r.getIntegrityStatus())).count();
+            long notSigned = results.stream().filter(r -> "NOT_SIGNED".equals(r.getIntegrityStatus())).count();
+            return ResponseEntity.ok(Map.of(
+                "summary", Map.of("ok", ok, "tampered", tampered, "notSigned", notSigned, "total", results.size()),
+                "details", results
+            ));
+        } catch (Exception e) {
+            log.error("Full integrity check error: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "Get active security alerts for the dashboard (super admin)")
+    @GetMapping("/security/alerts")
+    public ResponseEntity<?> getSecurityAlerts() {
+        var alerts = securityAlertStore.getAlerts();
+        return ResponseEntity.ok(Map.of(
+            "count", alerts.size(),
+            "hasAlerts", !alerts.isEmpty(),
+            "alerts", alerts
+        ));
+    }
+
+    @Operation(summary = "Clear security alerts after admin review (super admin)")
+    @DeleteMapping("/security/alerts")
+    public ResponseEntity<?> clearSecurityAlerts() {
+        securityAlertStore.clearAlerts();
+        return ResponseEntity.ok(Map.of("message", "Security alerts cleared"));
+    }
+
+    // ── Coupon Endpoints ─────────────────────────────────────────────────────
+
+    @Operation(summary = "Validate a coupon code (public — called from payment page)")
+    @GetMapping("/coupons/validate/{code}")
+    public ResponseEntity<?> validateCoupon(
+            @PathVariable String code,
+            @RequestParam(defaultValue = "0") int amountCents) {
+        try {
+            return ResponseEntity.ok(couponService.validate(code, amountCents));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "Get active coupons for home page (public — no auth required)")
+    @GetMapping("/coupons/active")
+    public ResponseEntity<List<CouponDTO>> getActiveCoupons() {
+        List<CouponDTO> active = couponService.getAllCoupons().stream()
+            .filter(c -> Boolean.TRUE.equals(c.getIsActive()))
+            .collect(java.util.stream.Collectors.toList());
+        return ResponseEntity.ok(active);
+    }
+
+    @Operation(summary = "List all coupons (super admin)")
+    @GetMapping("/coupons")
+    public ResponseEntity<List<CouponDTO>> getAllCoupons() {
+        return ResponseEntity.ok(couponService.getAllCoupons());
+    }
+
+    @Operation(summary = "Create a new coupon (super admin)")
+    @PostMapping("/coupons")
+    public ResponseEntity<?> createCoupon(@RequestBody Map<String, Object> body) {
+        try {
+            return ResponseEntity.ok(couponService.createCoupon(body));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "Toggle coupon active/inactive (super admin)")
+    @PatchMapping("/coupons/{id}/toggle")
+    public ResponseEntity<?> toggleCoupon(@PathVariable String id) {
+        try {
+            return ResponseEntity.ok(couponService.toggleActive(id));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "Update a coupon (super admin)")
+    @PutMapping("/coupons/{id}")
+    public ResponseEntity<?> updateCoupon(@PathVariable String id, @RequestBody Map<String, Object> body) {
+        try {
+            return ResponseEntity.ok(couponService.updateCoupon(id, body));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "Delete a coupon (super admin)")
+    @DeleteMapping("/coupons/{id}")
+    public ResponseEntity<?> deleteCoupon(@PathVariable String id) {
+        try {
+            couponService.deleteCoupon(id);
+            return ResponseEntity.ok(Map.of("message", "Coupon deleted"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 }

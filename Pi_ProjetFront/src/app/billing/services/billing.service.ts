@@ -330,4 +330,46 @@ export class BillingService {
   rejectPayment(paymentId: string, reason: string): Observable<PaymentResponse> {
     return this.http.post<PaymentResponse>(`${this.API}/payment/${paymentId}/reject`, { reason });
   }
+
+  recordFailedPayment(data: {
+    planId: string; orgName: string; adminEmail: string;
+    billingCycle: string; orgType: string;
+    failureCode: string; failureMessage: string;
+  }): Observable<any> {
+    return this.http.post(`${this.API}/payment/failed`, data);
+  }
+
+  getSecurityAlerts(): Observable<{ count: number; hasAlerts: boolean; alerts: any[] }> {
+    return this.http.get<{ count: number; hasAlerts: boolean; alerts: any[] }>(`${this.API}/security/alerts`);
+  }
+
+  clearSecurityAlerts(): Observable<any> {
+    return this.http.delete(`${this.API}/security/alerts`);
+  }
+
+  // ── Coupons ──────────────────────────────────────────────────────────────
+
+  validateCoupon(code: string, amountCents: number): Observable<any> {
+    return this.http.get(`${this.API}/coupons/validate/${encodeURIComponent(code)}`, { params: { amountCents: amountCents.toString() } });
+  }
+
+  getAllCoupons(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.API}/coupons`);
+  }
+
+  createCoupon(body: any): Observable<any> {
+    return this.http.post(`${this.API}/coupons`, body);
+  }
+
+  updateCoupon(id: string, body: any): Observable<any> {
+    return this.http.put(`${this.API}/coupons/${id}`, body);
+  }
+
+  toggleCoupon(id: string): Observable<any> {
+    return this.http.patch(`${this.API}/coupons/${id}/toggle`, {});
+  }
+
+  deleteCoupon(id: string): Observable<any> {
+    return this.http.delete(`${this.API}/coupons/${id}`);
+  }
 }

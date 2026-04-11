@@ -39,6 +39,8 @@ public class WebConfig implements WebMvcConfigurer {
                     "/api/billing/payment",               // soumission paiement public
                     "/api/billing/payment/*",             // statut paiement public
                     "/api/billing/plans",                 // liste plans publique
+                    "/api/billing/coupons/validate/*",   // validation coupon publique
+                    "/api/billing/coupons/active",       // coupons actifs pour home page (public)
                     "/swagger-ui/**",
                     "/v3/api-docs/**"
                 );
