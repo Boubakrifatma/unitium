@@ -1,4 +1,4 @@
-import { Component, Input, Renderer2, Output, EventEmitter, signal, Inject, inject } from "@angular/core";
+import { Component, Input, Renderer2, Output, EventEmitter, signal, Inject, inject, effect } from "@angular/core";
 import { DOCUMENT } from "@angular/common";
 import { AuthService } from "../../auth/auth.service";
 import { CommonModule } from "@angular/common";
@@ -76,10 +76,18 @@ import { ScheduledNotificationService, ScheduledNotification } from "../../pages
                 <mat-menu #notifMenu="matMenu" xPosition="before" class="notif-dropdown">
                     <div class="notif-panel-header" (click)="$event.stopPropagation()">
                         <span>Notifications</span>
-                        @if (notifService.notifications().length > 0) {
-                            <button mat-button style="font-size:11px;min-width:0;padding:0 6px;height:24px"
-                                    (click)="notifService.markAllRead()">Mark all read</button>
-                        }
+                        <div style="display:flex;align-items:center;gap:2px">
+                            <button mat-icon-button style="width:28px;height:28px;line-height:28px"
+                                    (click)="toggleMute()" [title]="notifMuted() ? 'Unmute notifications' : 'Mute notifications'">
+                                <mat-icon style="font-size:18px;width:18px;height:18px">{{ notifMuted() ? 'volume_off' : 'volume_up' }}</mat-icon>
+                            </button>
+                            @if (notifService.notifications().length > 0) {
+                                <button mat-button style="font-size:11px;min-width:0;padding:0 6px;height:24px;color:#94a3b8"
+                                        (click)="onClearAll()">Clear all</button>
+                                <button mat-button style="font-size:11px;min-width:0;padding:0 6px;height:24px"
+                                        (click)="notifService.markAllRead()">Mark all read</button>
+                            }
+                        </div>
                     </div>
                     <mat-divider></mat-divider>
                     @if (notifService.notifications().length === 0) {
@@ -103,6 +111,32 @@ import { ScheduledNotificationService, ScheduledNotification } from "../../pages
                                     <button mat-stroked-button class="notif-action-btn"
                                             (click)="onRetry(n)">Retry</button>
                                 }
+                                @if (n.type === 'MEETING_REMINDER') {
+                                    <button mat-stroked-button class="notif-action-btn"
+                                            style="color:#4caf50;border-color:#4caf50"
+                                            (click)="onJoinMeeting(n)">
+                                        <mat-icon style="font-size:14px;width:14px;height:14px;margin-right:3px;vertical-align:middle">video_call</mat-icon>
+                                        Join Now
+                                    </button>
+                                }
+                                @if ($any(n).type === 'MENTION' || $any(n).type === 'ADDED_TO_ROOM') {
+                                    <button mat-stroked-button class="notif-action-btn"
+                                            (click)="onViewRoom(n.roomId)">
+                                        {{ $any(n).type === 'ADDED_TO_ROOM' ? 'Open Room' : 'Go to Room' }}
+                                    </button>
+                                }
+                                @if ($any(n).type === 'MENTION' && n.originalContent) {
+                                    <div class="notif-msg-preview">"{{ (n.originalContent ?? '').slice(0, 60) }}..."</div>
+                                }
+                                <button mat-icon-button class="notif-tts-btn"
+                                        [style.opacity]="speakingNotifId() === n.id ? '1' : '.4'"
+                                        [style.color]="speakingNotifId() === n.id ? '#6366f1' : ''"
+                                        (click)="speakingNotifId() === n.id ? stopSpeaking() : readNotifAloud(n)"
+                                        [title]="speakingNotifId() === n.id ? 'Stop reading' : 'Read aloud'">
+                                    <mat-icon style="font-size:16px;width:16px;height:16px">
+                                        {{ speakingNotifId() === n.id ? 'stop_circle' : 'volume_up' }}
+                                    </mat-icon>
+                                </button>
                             </div>
                         </div>
                     }
@@ -227,6 +261,21 @@ import { ScheduledNotificationService, ScheduledNotification } from "../../pages
             margin-top: 6px !important;
             padding: 0 10px !important;
         }
+        .notif-tts-btn {
+            width: 24px !important;
+            height: 24px !important;
+            line-height: 24px !important;
+            margin-top: 4px !important;
+            transition: opacity 150ms, color 150ms;
+        }
+        .notif-tts-btn:hover { opacity: 1 !important; }
+        .notif-msg-preview {
+            font-size: 11px;
+            color: var(--mat-sys-on-surface-variant);
+            font-style: italic;
+            margin-top: 3px;
+            line-height: 1.3;
+        }
     `],
 })
 export class AppHeaderComponent {
@@ -238,6 +287,10 @@ export class AppHeaderComponent {
     @Output() openSettingsMenu = new EventEmitter<void>();
 
     readonly notifService = inject(ScheduledNotificationService);
+    notifMuted = signal<boolean>(false);
+    speakingNotifId = signal<string | null>(null);
+    private notifLoaded = false;
+    private availableVoices: SpeechSynthesisVoice[] = [];
 
     // language
     languages = signal([
@@ -249,7 +302,15 @@ export class AppHeaderComponent {
 
     authService = inject(AuthService);
 
-    constructor(private router: Router, private renderer: Renderer2, @Inject(DOCUMENT) private document: Document) {}
+    constructor(private router: Router, private renderer: Renderer2, @Inject(DOCUMENT) private document: Document) {
+        // Auto-save notifications to localStorage whenever they change (handles push, markAllRead, clearAll)
+        effect(() => {
+            const notifs = this.notifService.notifications();
+            const userId = this.authService.currentUser()?.id;
+            if (!this.notifLoaded || !userId) return;
+            localStorage.setItem(`chat_notifications_${userId}`, JSON.stringify(notifs.slice(0, 100)));
+        });
+    }
 
     ngOnInit() {
         if (this.currentMode() === "true") {
@@ -260,6 +321,34 @@ export class AppHeaderComponent {
             this.isDarkMode = true;
         }
         //this.applyMode();
+
+        // Load persisted notifications and mute preference from localStorage
+        const userId = this.authService.currentUser()?.id;
+        if (userId) {
+            const stored = localStorage.getItem(`chat_notifications_${userId}`);
+            if (stored) {
+                try {
+                    const parsed: ScheduledNotification[] = JSON.parse(stored);
+                    const hydrated = parsed.map(n => ({ ...n, timestamp: new Date(n.timestamp as unknown as string) }));
+                    this.notifService.notifications.set(hydrated);
+                    this.notifService.unreadCount.set(hydrated.filter(n => !n.read).length);
+                } catch { /* ignore corrupt data */ }
+            }
+            this.notifMuted.set(localStorage.getItem(`chat_notifications_muted_${userId}`) === 'true');
+        }
+        this.notifLoaded = true;
+
+        // Load TTS voices (async in some browsers)
+        if ('speechSynthesis' in window) {
+            this.availableVoices = window.speechSynthesis.getVoices();
+            window.speechSynthesis.onvoiceschanged = () => {
+                this.availableVoices = window.speechSynthesis.getVoices();
+            };
+        }
+    }
+
+    ngOnDestroy(): void {
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     }
 
     logout() {
@@ -291,8 +380,75 @@ export class AppHeaderComponent {
         this.selectedLanguage.set(lang);
     }
 
+    onClearAll(): void {
+        this.notifService.notifications.set([]);
+        this.notifService.unreadCount.set(0);
+    }
+
+    readNotifAloud(n: ScheduledNotification): void {
+        if (!('speechSynthesis' in window)) return;
+        const userId = this.authService.currentUser()?.id;
+        if (userId && localStorage.getItem(`chat_notifications_muted_${userId}`) === 'true') return;
+        window.speechSynthesis.cancel();
+        const text = this.getNotifFullText(n);
+        const u = new SpeechSynthesisUtterance(text);
+        u.rate = 1.1;
+        u.pitch = 1.0;
+        u.volume = 0.8;
+        u.lang = 'en-US';
+        const preferred = this.availableVoices.find(v =>
+            v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Karen'));
+        if (preferred) u.voice = preferred;
+        this.speakingNotifId.set(n.id);
+        u.onend = () => this.speakingNotifId.set(null);
+        u.onerror = () => this.speakingNotifId.set(null);
+        window.speechSynthesis.speak(u);
+    }
+
+    stopSpeaking(): void {
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        this.speakingNotifId.set(null);
+    }
+
+    private getNotifFullText(n: ScheduledNotification): string {
+        const nAny = n as any;
+        const time = new Date(n.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        if (nAny.type === 'MENTION') {
+            const who = nAny.isEveryone ? 'everyone' : 'you';
+            return `${nAny.senderName} mentioned ${who} in the chatroom ${n.roomName}. They said: ${(n.originalContent ?? '').slice(0, 80)}`;
+        } else if (nAny.type === 'ADDED_TO_ROOM') {
+            return `${nAny.addedByName} added you to the chatroom ${n.roomName}. Open the chatroom to start messaging.`;
+        } else if (nAny.type === 'REMOVED_FROM_ROOM') {
+            return `${nAny.removedByName} removed you from the chatroom ${n.roomName}. You no longer have access to this chatroom.`;
+        } else if (n.type === 'MEETING_REMINDER') {
+            return `${n.message}. Click Join Now to open the meeting link.`;
+        } else if (n.type === 'SCHEDULED_SENT') {
+            return `Your message was successfully sent to the chatroom ${n.roomName} at ${time}`;
+        } else if (n.type === 'SCHEDULED_REMINDER') {
+            const preview = n.message.split(' — ')[1]?.slice(0, 40) ?? '';
+            return `Reminder: your message ${preview} is scheduled to be sent to ${n.roomName} in 15 minutes`;
+        } else {
+            const preview = (n.originalContent ?? '').slice(0, 40);
+            return `Your scheduled message ${preview} in ${n.roomName} has failed to send. Please retry from the notification panel`;
+        }
+    }
+
+    toggleMute(): void {
+        const muted = !this.notifMuted();
+        this.notifMuted.set(muted);
+        const userId = this.authService.currentUser()?.id;
+        if (userId) {
+            localStorage.setItem(`chat_notifications_muted_${userId}`, String(muted));
+        }
+    }
+
     onViewRoom(roomId: number): void {
         this.router.navigate(['/app/chat']);
+    }
+
+    onJoinMeeting(n: ScheduledNotification): void {
+        const link = n.originalContent;
+        if (link) window.open(link, '_blank', 'noopener');
     }
 
     onRetry(n: ScheduledNotification): void {

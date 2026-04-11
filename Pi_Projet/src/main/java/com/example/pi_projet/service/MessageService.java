@@ -2,6 +2,7 @@ package com.example.pi_projet.service;
 
 import com.example.pi_projet.dto.MessageDTO;
 import com.example.pi_projet.dto.MessageReactionDTO;
+import com.example.pi_projet.dto.MessageRequest;
 import com.example.pi_projet.entity.ChatRoom;
 import com.example.pi_projet.entity.Message;
 import com.example.pi_projet.entity.User;
@@ -18,8 +19,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -56,6 +60,52 @@ public class MessageService {
         return MessageDTO.from(saved, reactions);
     }
 
+    // ── Mention notifications ──────────────────────────────────────────────────
+    private void processMentions(Message message, ChatRoom room, User sender) {
+        String content = message.getContentText();
+        if (content == null) return;
+
+        List<User> toNotify = new ArrayList<>();
+
+        if (content.contains("@everyone")) {
+            roomMemberRepository.findByRoom(room).stream()
+                    .map(com.example.pi_projet.entity.RoomMember::getUser)
+                    .forEach(toNotify::add);
+            toNotify.add(room.getCreatedBy());
+        } else {
+            Pattern pattern = Pattern.compile("@([\\w]+(?:\\s+[\\w]+)?)");
+            Matcher matcher = pattern.matcher(content);
+            while (matcher.find()) {
+                String mentionedName = matcher.group(1).toLowerCase();
+                roomMemberRepository.findByRoom(room).stream()
+                        .map(com.example.pi_projet.entity.RoomMember::getUser)
+                        .filter(u -> u.getFullName().toLowerCase().contains(mentionedName))
+                        .forEach(toNotify::add);
+                if (room.getCreatedBy().getFullName().toLowerCase().contains(mentionedName)) {
+                    toNotify.add(room.getCreatedBy());
+                }
+            }
+        }
+
+        boolean isEveryone = content.contains("@everyone");
+        String preview = content.length() > 60 ? content.substring(0, 60) : content;
+
+        toNotify.stream()
+                .filter(u -> !u.getId().equals(sender.getId()))
+                .distinct()
+                .forEach(user -> {
+                    Map<String, Object> notification = new HashMap<>();
+                    notification.put("type", "MENTION");
+                    notification.put("roomId", room.getId());
+                    notification.put("roomName", room.getName());
+                    notification.put("senderName", sender.getFullName());
+                    notification.put("messagePreview", preview);
+                    notification.put("isEveryone", isEveryone);
+                    notification.put("sentAt", LocalDateTime.now().toString());
+                    messagingTemplate.convertAndSend("/topic/notifications/" + user.getId(), (Object) notification);
+                });
+    }
+
     // ── WebSocket text-only send (existing — unchanged) ────────────────────────
     public MessageDTO sendMessage(Long roomId, String content, User sender) {
         ChatRoom room = getAccessibleRoom(roomId, sender);
@@ -67,8 +117,32 @@ public class MessageService {
                 .contentType(ContentType.text)
                 .build();
 
-        MessageDTO dto = MessageDTO.from(messageRepository.save(message));
+        Message saved = messageRepository.save(message);
+        MessageDTO dto = MessageDTO.from(saved);
         messagingTemplate.convertAndSend("/topic/rooms/" + roomId, dto);
+        processMentions(saved, room, sender);
+        return dto;
+    }
+
+    // ── WebSocket send with agenda support ─────────────────────────────────────
+    public MessageDTO sendMessage(Long roomId, MessageRequest request, User sender) {
+        ChatRoom room = getAccessibleRoom(roomId, sender);
+
+        Message message = Message.builder()
+                .room(room)
+                .sender(sender)
+                .contentText(request.content())
+                .contentType(ContentType.text)
+                .isSystemMessage(false) // agenda items are never system messages
+                .isAgendaItem(request.isAgendaItem())
+                .agendaOrder(request.agendaOrder())
+                .agendaDuration(request.agendaDuration())
+                .build();
+
+        Message saved = messageRepository.save(message);
+        MessageDTO dto = buildDTO(saved);
+        messagingTemplate.convertAndSend("/topic/rooms/" + roomId, (Object) dto);
+        processMentions(saved, room, sender);
         return dto;
     }
 
@@ -94,8 +168,10 @@ public class MessageService {
             builder.contentType(ContentType.text);
         }
 
-        MessageDTO dto = buildDTO(messageRepository.save(builder.build()));
+        Message saved = messageRepository.save(builder.build());
+        MessageDTO dto = buildDTO(saved);
         messagingTemplate.convertAndSend("/topic/rooms/" + roomId, dto);
+        processMentions(saved, room, sender);
         return dto;
     }
 
@@ -193,6 +269,29 @@ public class MessageService {
         MessageDTO dto = buildDTO(messageRepository.save(message));
         messagingTemplate.convertAndSend("/topic/rooms/" + roomId, dto);
         return dto;
+    }
+
+    // ── Agenda: toggle done ────────────────────────────────────────────────────
+    public MessageDTO toggleAgendaDone(Long roomId, Long messageId, User currentUser) {
+        ChatRoom room = getAccessibleRoom(roomId, currentUser);
+        Message message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found."));
+        if (!message.getRoom().getId().equals(room.getId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Message does not belong to this room.");
+        }
+        message.setAgendaDone(!message.isAgendaDone());
+        MessageDTO dto = buildDTO(messageRepository.save(message));
+        messagingTemplate.convertAndSend("/topic/rooms/" + roomId, (Object) dto);
+        return dto;
+    }
+
+    // ── Agenda: list all agenda items for a room ───────────────────────────────
+    public List<MessageDTO> getAgenda(Long roomId, User currentUser) {
+        ChatRoom room = getAccessibleRoom(roomId, currentUser);
+        return messageRepository.findAgendaItemsByRoom(room)
+                .stream()
+                .map(this::buildDTO)
+                .toList();
     }
 
     // ── Shared Media & Files ────────────────────────────────────────────────────

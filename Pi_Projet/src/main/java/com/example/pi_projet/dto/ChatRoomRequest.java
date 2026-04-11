@@ -10,5 +10,9 @@ public record ChatRoomRequest(
         String name,
         String description,
         RoomType roomType,
-        UUID projectId
+        UUID projectId,
+        // ── Meeting fields (optional) ──────────────────────────────────────────
+        String startTime,   // ISO format, e.g. "2026-04-10T14:00:00"
+        String endTime,
+        String meetingLink
 ) {}

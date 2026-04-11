@@ -2,7 +2,7 @@ import { Injectable, signal } from '@angular/core';
 
 export interface ScheduledNotification {
   id: string;
-  type: 'SCHEDULED_SENT' | 'SCHEDULED_REMINDER' | 'SCHEDULED_FAILED';
+  type: 'SCHEDULED_SENT' | 'SCHEDULED_REMINDER' | 'SCHEDULED_FAILED' | 'MEETING_REMINDER';
   icon: string;
   iconColor: string;
   message: string;

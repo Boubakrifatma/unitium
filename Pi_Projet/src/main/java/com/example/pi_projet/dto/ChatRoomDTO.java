@@ -14,7 +14,11 @@ public record ChatRoomDTO(
         Long createdById,
         String createdByName,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        // ── Meeting fields ─────────────────────────────────────────────────────
+        LocalDateTime startTime,
+        LocalDateTime endTime,
+        String meetingLink
 ) {
     public static ChatRoomDTO from(ChatRoom room) {
         return new ChatRoomDTO(
@@ -26,7 +30,10 @@ public record ChatRoomDTO(
                 room.getCreatedBy().getId(),
                 room.getCreatedBy().getFullName(),
                 room.getCreatedAt(),
-                room.getUpdatedAt()
+                room.getUpdatedAt(),
+                room.getStartTime(),
+                room.getEndTime(),
+                room.getMeetingLink()
         );
     }
 }

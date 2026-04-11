@@ -2,6 +2,7 @@ package com.example.pi_projet.controller;
 
 import com.example.pi_projet.annotation.Authorized;
 import com.example.pi_projet.dto.ChatRoomDTO;
+import com.example.pi_projet.dto.MemberSuggestionDTO;
 import com.example.pi_projet.dto.RoomMemberDTO;
 import com.example.pi_projet.entity.User;
 import com.example.pi_projet.service.RoomMemberService;
@@ -55,5 +56,14 @@ public class RoomMemberController {
             HttpServletRequest request) {
         User currentUser = (User) request.getAttribute("currentUser");
         return ResponseEntity.ok(roomMemberService.getMembers(roomId, currentUser));
+    }
+
+    @Operation(summary = "Get @mention autocomplete suggestions for a room")
+    @GetMapping("/suggestions")
+    public ResponseEntity<List<MemberSuggestionDTO>> getMemberSuggestions(
+            @PathVariable Long roomId,
+            HttpServletRequest request) {
+        User currentUser = (User) request.getAttribute("currentUser");
+        return ResponseEntity.ok(roomMemberService.getMemberSuggestions(roomId, currentUser));
     }
 }

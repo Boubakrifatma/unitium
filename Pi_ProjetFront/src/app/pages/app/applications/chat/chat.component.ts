@@ -23,6 +23,7 @@ import { MatSnackBar, MatSnackBarModule } from "@angular/material/snack-bar";
 import { MatDividerModule } from "@angular/material/divider";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { MatDialog, MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from "@angular/material/dialog";
+import { MatCheckboxModule } from "@angular/material/checkbox";
 import { ChatRoomService, ChatRoom, ChatRoomPayload, RoomType, ProjectDTO } from "./chat-room.service";
 import { ChatRoomMemberService, RoomMemberDTO } from "./chat-room-member.service";
 import { AuthService } from "../../../../auth/auth.service";
@@ -42,7 +43,9 @@ import { SnackbarSuccessComponent } from '../calendar/snackbar-event.component';
     standalone: true,
     imports: [CommonModule, FormsModule, MatButtonModule, MatIconModule,
               MatFormFieldModule, MatInputModule, MatSelectModule,
-              MatProgressSpinnerModule, MatDialogModule],
+              MatProgressSpinnerModule, MatDialogModule,
+              MatDatepickerModule, MatChipsModule],
+    providers: [provideNativeDateAdapter()],
     template: `
         <div class="wiz-wrap">
             <!-- X close button -->
@@ -165,7 +168,7 @@ import { SnackbarSuccessComponent } from '../calendar/snackbar-event.component';
                         @for (t of roomTypes; track t.value) {
                             <button class="wiz-type-pill" type="button"
                                     [class.wiz-type-pill-active]="formRoomType === t.value"
-                                    (click)="formRoomType = t.value">
+                                    (click)="onRoomTypeSelect(t.value)">
                                 {{ t.label }}
                             </button>
                         }
@@ -174,6 +177,144 @@ import { SnackbarSuccessComponent } from '../calendar/snackbar-event.component';
                         <div class="wiz-inline-error">Please select a channel type.</div>
                     }
                 </div>
+
+                <!-- ── MEETING FIELDS (premium redesign) ── -->
+                @if (formRoomType === 'meeting') {
+                    <div class="wiz-meeting-card">
+                        <div class="wiz-meeting-card-header">
+                            <mat-icon class="material-icons-outlined" style="font-size:15px;width:15px;height:15px;color:var(--mat-sys-primary)">event_available</mat-icon>
+                            <span>Meeting Details</span>
+                        </div>
+
+                        <div class="wiz-meeting-two-col">
+                            <!-- Left: mini calendar -->
+                            <div class="wiz-meeting-col">
+                                <div class="wiz-section-label">DATE</div>
+                                <div class="wiz-mini-cal">
+                                    <div class="wiz-mini-cal-nav">
+                                        <button type="button" class="wiz-cal-nav-btn" (click)="prevCalMonth()">&#8249;</button>
+                                        <span class="wiz-cal-month-label">{{ CAL_MONTHS[calDisplayMonth] }} {{ calDisplayYear }}</span>
+                                        <button type="button" class="wiz-cal-nav-btn" (click)="nextCalMonth()">&#8250;</button>
+                                    </div>
+                                    <div class="wiz-mini-cal-grid">
+                                        @for (d of CAL_DAYS_OF_WEEK; track d) {
+                                            <div class="wiz-cal-dow">{{ d }}</div>
+                                        }
+                                        @for (cell of getCalendarGrid(); track $index) {
+                                            <button type="button"
+                                                    class="wiz-cal-day"
+                                                    [class.wiz-cal-day-today]="cell.isToday"
+                                                    [class.wiz-cal-day-selected]="cell.isSelected"
+                                                    [class.wiz-cal-day-past]="cell.isPast"
+                                                    [class.wiz-cal-day-empty]="!cell.date"
+                                                    [disabled]="!cell.date || cell.isPast"
+                                                    (click)="selectCalDate(cell.date)">
+                                                {{ cell.date ? cell.date.getDate() : '' }}
+                                            </button>
+                                        }
+                                    </div>
+                                    @if (formMeetingDate) {
+                                        <div class="wiz-cal-selected-label">
+                                            <mat-icon class="material-icons-outlined" style="font-size:12px;width:12px;height:12px;color:#4caf50">check_circle</mat-icon>
+                                            {{ formMeetingDate | date:'EEE, MMM d, y' }}
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+
+                            <!-- Right: time selection -->
+                            <div class="wiz-meeting-col">
+                                <div class="wiz-section-label">START TIME</div>
+                                <div class="wiz-time-scroll-wrap">
+                                    @for (t of meetingTimePills; track t) {
+                                        <button type="button" class="wiz-time-pill-h"
+                                                [class.wiz-time-pill-h-active]="formStartTime === t"
+                                                (click)="formStartTime = t">
+                                            @if (formStartTime === t) {
+                                                <mat-icon style="font-size:11px;width:11px;height:11px;margin-right:2px">check</mat-icon>
+                                            }
+                                            {{ t }}
+                                        </button>
+                                    }
+                                </div>
+
+                                <div class="wiz-section-label" style="margin-top:10px">END TIME</div>
+                                <div class="wiz-time-scroll-wrap">
+                                    @for (t of meetingTimePills; track t) {
+                                        <button type="button" class="wiz-time-pill-h"
+                                                [class.wiz-time-pill-h-active]="formEndTime === t"
+                                                (click)="formEndTime = t">
+                                            @if (formEndTime === t) {
+                                                <mat-icon style="font-size:11px;width:11px;height:11px;margin-right:2px">check</mat-icon>
+                                            }
+                                            {{ t }}
+                                        </button>
+                                    }
+                                </div>
+
+                                <!-- Auto-link note -->
+                                <div class="wiz-auto-link-note">
+                                    <mat-icon class="material-icons-outlined" style="font-size:12px;width:12px;height:12px;color:#4caf50">video_call</mat-icon>
+                                    <span>Google Meet link auto-generated</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Participants note -->
+                        <div class="wiz-meeting-participants-note">
+                            <mat-icon class="material-icons-outlined" style="font-size:13px;width:13px;height:13px;color:#4caf50">group</mat-icon>
+                            <span>All room members will be notified automatically</span>
+                        </div>
+                    </div>
+
+                    <!-- ── Add Participants ── -->
+                    <div class="wiz-participants-section">
+                        <div class="wiz-participants-header">
+                            <mat-icon class="material-icons-outlined" style="font-size:16px;width:16px;height:16px;color:var(--mat-sys-primary)">group_add</mat-icon>
+                            <span>Add Participants</span>
+                            @if (selectedParticipantIds.length > 0) {
+                                <span class="wiz-participants-count">{{ selectedParticipantIds.length }} selected</span>
+                            }
+                        </div>
+
+                        @if (participantsLoading()) {
+                            <div style="text-align:center;padding:14px 0">
+                                <mat-spinner diameter="22"></mat-spinner>
+                            </div>
+                        } @else if (participantUsers().length === 0) {
+                            <p style="font-size:12px;color:var(--mat-sys-on-surface-variant);text-align:center;margin:8px 0 4px">No users available</p>
+                        } @else {
+                            @if (selectedParticipantIds.length > 0) {
+                                <div class="wiz-selected-chips">
+                                    @for (pid of selectedParticipantIds; track pid) {
+                                        <span class="wiz-selected-chip">
+                                            {{ getParticipantName(pid) }}
+                                            <button type="button" class="wiz-chip-remove-btn" (click)="toggleParticipant(pid)">&#215;</button>
+                                        </span>
+                                    }
+                                </div>
+                            }
+                            <div class="wiz-participant-grid">
+                                @for (u of participantUsers(); track u.id) {
+                                    <button type="button" class="wiz-participant-card"
+                                            [class.wiz-participant-selected]="selectedParticipantIds.includes(u.id)"
+                                            (click)="toggleParticipant(u.id)">
+                                        <div class="wiz-participant-avatar" [ngStyle]="getParticipantAvatarStyle(u.fullName)">
+                                            {{ getParticipantInitials(u.fullName) }}
+                                        </div>
+                                        @if (selectedParticipantIds.includes(u.id)) {
+                                            <div class="wiz-participant-check">
+                                                <mat-icon style="font-size:14px;width:14px;height:14px;color:#fff">check</mat-icon>
+                                            </div>
+                                        }
+                                        <span class="wiz-participant-name">{{ u.fullName }}</span>
+                                        <span class="wiz-participant-role">{{ u.role }}</span>
+                                    </button>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
 
                 <div class="wiz-actions">
                     <button mat-stroked-button class="wiz-back-btn" (click)="prevStep()">
@@ -205,10 +346,47 @@ import { SnackbarSuccessComponent } from '../calendar/snackbar-event.component';
                         <span class="wiz-review-key">Description</span>
                         <span class="wiz-review-val">{{ formDescription.trim() }}</span>
                     </div>
-                    <div class="wiz-review-row" style="border-bottom:none">
+                    <div class="wiz-review-row" [style.border-bottom]="formRoomType === 'meeting' ? undefined : 'none'">
                         <span class="wiz-review-key">Type</span>
                         <span class="wiz-review-val">{{ getRoomTypeLabel(formRoomType) }}</span>
                     </div>
+                    @if (formRoomType === 'meeting' && formMeetingDate) {
+                        <div class="wiz-review-row">
+                            <span class="wiz-review-key">Date</span>
+                            <span class="wiz-review-val">{{ formMeetingDate | date:'mediumDate' }}</span>
+                        </div>
+                    }
+                    @if (formRoomType === 'meeting' && formStartTime) {
+                        <div class="wiz-review-row">
+                            <span class="wiz-review-key">Start</span>
+                            <span class="wiz-review-val">{{ formStartTime }}</span>
+                        </div>
+                    }
+                    @if (formRoomType === 'meeting' && formEndTime) {
+                        <div class="wiz-review-row">
+                            <span class="wiz-review-key">End</span>
+                            <span class="wiz-review-val">{{ formEndTime }}</span>
+                        </div>
+                    }
+                    @if (formRoomType === 'meeting') {
+                        <div class="wiz-review-row">
+                            <span class="wiz-review-key">Link</span>
+                            <span class="wiz-review-val" style="font-size:11.5px;color:#4caf50">
+                                <mat-icon class="material-icons-outlined" style="font-size:12px;width:12px;height:12px;vertical-align:middle">auto_awesome</mat-icon>
+                                Auto-generated Google Meet
+                            </span>
+                        </div>
+                        <div class="wiz-review-row" style="border-bottom:none">
+                            <span class="wiz-review-key">Participants</span>
+                            <span class="wiz-review-val">{{ selectedParticipantIds.length > 0 ? selectedParticipantIds.length + ' will be added' : 'None — add later' }}</span>
+                        </div>
+                        @if (participantsAdding()) {
+                            <div style="padding:8px 14px;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mat-sys-on-surface-variant)">
+                                <mat-spinner diameter="14"></mat-spinner>
+                                Adding participants…
+                            </div>
+                        }
+                    }
                 </div>
                 <div class="wiz-actions">
                     <button mat-stroked-button class="wiz-back-btn" (click)="prevStep()" [disabled]="saving()">
@@ -484,6 +662,335 @@ import { SnackbarSuccessComponent } from '../calendar/snackbar-event.component';
             min-width: 0;
             padding: 0 8px;
         }
+
+        /* ── Meeting card (premium redesign) ── */
+        @keyframes wiz-meeting-slide {
+            from { opacity: 0; transform: translateY(-12px) scaleY(0.9); }
+            to   { opacity: 1; transform: translateY(0) scaleY(1); }
+        }
+        .wiz-meeting-card {
+            animation: wiz-meeting-slide 340ms cubic-bezier(0.34,1.56,0.64,1) forwards;
+            transform-origin: top;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            border-radius: 14px;
+            padding: 14px 14px 10px;
+            margin-bottom: 12px;
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 6%, var(--mat-sys-surface));
+            box-shadow: 0 2px 12px color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
+        }
+        .wiz-meeting-card-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: var(--mat-sys-primary);
+            margin-bottom: 12px;
+        }
+        .wiz-meeting-two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        @media (max-width: 400px) {
+            .wiz-meeting-two-col { grid-template-columns: 1fr; }
+        }
+        .wiz-meeting-col { display: flex; flex-direction: column; }
+        .wiz-section-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: var(--mat-sys-on-surface-variant);
+            margin-bottom: 6px;
+        }
+
+        /* Mini inline calendar */
+        .wiz-mini-cal {
+            border: 1px solid var(--mat-sys-outline-variant);
+            border-radius: 10px;
+            overflow: hidden;
+            background: var(--mat-sys-surface);
+        }
+        .wiz-mini-cal-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 8px;
+            background: var(--mat-sys-surface-container);
+            border-bottom: 1px solid var(--mat-sys-outline-variant);
+        }
+        .wiz-cal-month-label {
+            font-size: 11.5px;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+        }
+        .wiz-cal-nav-btn {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+            color: var(--mat-sys-on-surface-variant);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+        }
+        .wiz-cal-nav-btn:hover { background: var(--mat-sys-surface-container-high); }
+        .wiz-mini-cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            padding: 6px 4px 4px;
+            gap: 1px;
+        }
+        .wiz-cal-dow {
+            font-size: 9.5px;
+            font-weight: 700;
+            text-align: center;
+            color: var(--mat-sys-on-surface-variant);
+            padding: 2px 0;
+            opacity: 0.7;
+        }
+        .wiz-cal-day {
+            aspect-ratio: 1;
+            border: none;
+            background: transparent;
+            border-radius: 50%;
+            font-size: 11px;
+            cursor: pointer;
+            color: var(--mat-sys-on-surface);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s, color 0.15s;
+            min-width: 0;
+            padding: 0;
+        }
+        .wiz-cal-day:hover:not(:disabled):not(.wiz-cal-day-empty) {
+            background: color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+            color: var(--mat-sys-primary);
+        }
+        .wiz-cal-day-today {
+            outline: 2px solid var(--mat-sys-primary);
+            outline-offset: -2px;
+            font-weight: 700;
+        }
+        .wiz-cal-day-selected {
+            background: var(--mat-sys-primary) !important;
+            color: #fff !important;
+            font-weight: 700;
+        }
+        .wiz-cal-day-past { opacity: 0.3; cursor: not-allowed; }
+        .wiz-cal-day-empty { visibility: hidden; }
+        .wiz-cal-selected-label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10.5px;
+            color: #4caf50;
+            padding: 4px 8px 6px;
+            font-weight: 600;
+        }
+
+        /* Time pills — horizontal scroll, 4 visible */
+        .wiz-time-scroll-wrap {
+            display: flex;
+            gap: 4px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            padding-bottom: 4px;
+            scroll-snap-type: x mandatory;
+        }
+        .wiz-time-scroll-wrap::-webkit-scrollbar { display: none; }
+        .wiz-time-pill-h {
+            flex-shrink: 0;
+            scroll-snap-align: start;
+            min-width: 66px;
+            height: 28px;
+            border-radius: 14px;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            background: transparent;
+            font-size: 10.5px;
+            font-weight: 500;
+            color: var(--mat-sys-on-surface-variant);
+            cursor: pointer;
+            transition: all 0.18s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            white-space: nowrap;
+            padding: 0 8px;
+        }
+        .wiz-time-pill-h:hover {
+            border-color: var(--mat-sys-primary);
+            color: var(--mat-sys-primary);
+            background: color-mix(in srgb, var(--mat-sys-primary) 6%, transparent);
+        }
+        .wiz-time-pill-h-active {
+            background: var(--mat-sys-primary) !important;
+            border-color: var(--mat-sys-primary) !important;
+            color: #fff !important;
+            font-weight: 600 !important;
+        }
+        .wiz-auto-link-note {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10.5px;
+            color: #4caf50;
+            margin-top: 10px;
+            font-weight: 500;
+        }
+        .wiz-meeting-participants-note {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+            color: var(--mat-sys-on-surface-variant);
+            background: color-mix(in srgb, #4caf50 7%, var(--mat-sys-surface-container));
+            border-radius: 8px;
+            padding: 6px 10px;
+            margin-top: 10px;
+        }
+
+        /* Participants section */
+        @keyframes wiz-participants-slide {
+            from { opacity: 0; transform: translateY(-8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .wiz-participants-section {
+            animation: wiz-participants-slide 280ms cubic-bezier(0.34,1.56,0.64,1) 60ms both;
+            border: 1px solid var(--mat-sys-outline-variant);
+            border-radius: 12px;
+            padding: 12px 12px 10px;
+            margin-bottom: 14px;
+            background: var(--mat-sys-surface-container);
+        }
+        .wiz-participants-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--mat-sys-on-surface-variant);
+            margin-bottom: 10px;
+        }
+        .wiz-participants-count {
+            margin-left: auto;
+            background: var(--mat-sys-primary);
+            color: #fff;
+            font-size: 10px;
+            border-radius: 10px;
+            padding: 1px 7px;
+            font-weight: 700;
+            letter-spacing: 0;
+            text-transform: none;
+        }
+        .wiz-selected-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+        .wiz-selected-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: var(--mat-sys-primary-container);
+            color: var(--mat-sys-on-primary-container);
+            border-radius: 12px;
+            padding: 2px 8px 2px 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .wiz-chip-remove-btn {
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 1;
+            color: var(--mat-sys-on-primary-container);
+            padding: 0;
+            opacity: 0.7;
+        }
+        .wiz-chip-remove-btn:hover { opacity: 1; }
+        .wiz-participant-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+            gap: 6px;
+            max-height: 180px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+        .wiz-participant-card {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 10px 6px 8px;
+            border-radius: 10px;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            background: var(--mat-sys-surface);
+            cursor: pointer;
+            transition: all 0.18s;
+            font-family: inherit;
+            text-align: center;
+        }
+        .wiz-participant-card:hover {
+            border-color: var(--mat-sys-primary);
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 15%, transparent);
+        }
+        .wiz-participant-selected {
+            border-color: var(--mat-sys-primary) !important;
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 40%, var(--mat-sys-surface)) !important;
+        }
+        .wiz-participant-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: #fff;
+            flex-shrink: 0;
+        }
+        .wiz-participant-check {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--mat-sys-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .wiz-participant-name {
+            font-size: 10.5px;
+            font-weight: 600;
+            color: var(--mat-sys-on-surface);
+            line-height: 1.2;
+            word-break: break-word;
+        }
+        .wiz-participant-role {
+            font-size: 9.5px;
+            color: var(--mat-sys-on-surface-variant);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
     `],
 })
 export class RoomWizardDialogComponent {
@@ -498,8 +1005,148 @@ export class RoomWizardDialogComponent {
     formDescription = '';
     formRoomType: RoomType | '' = '';
     formError = '';
+    formMeetingDate: Date | null = null;
+    formStartTime   = '';
+    formEndTime     = '';
+    formMeetingLink = '';
+    readonly today  = new Date();
     projects: ProjectDTO[] = [];
     projectsLoading = signal(false);
+
+    readonly meetingTimePills: string[] = (() => {
+        const times: string[] = [];
+        for (let h = 8; h <= 20; h++) {
+            for (const m of [0, 30]) {
+                if (h === 20 && m === 30) continue;
+                const hour12 = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+                const ampm = h < 12 ? 'AM' : 'PM';
+                times.push(`${hour12}:${String(m).padStart(2, '0')} ${ampm}`);
+            }
+        }
+        return times;
+    })();
+
+    getMeetingLinkIcon(url: string): { icon: string; color: string } {
+        if (!url) return { icon: 'link', color: 'var(--mat-sys-primary)' };
+        if (url.includes('meet.google.com'))      return { icon: 'video_call',        color: '#34a853' };
+        if (url.includes('zoom.us'))              return { icon: 'video_camera_front', color: '#2d8cff' };
+        if (url.includes('teams.microsoft.com')) return { icon: 'groups',             color: '#464eb8' };
+        return { icon: 'link', color: 'var(--mat-sys-primary)' };
+    }
+
+    get meetingLinkError(): string | null {
+        if (!this.formMeetingLink) return null;
+        try { new URL(this.formMeetingLink); return null; } catch { return 'Please enter a valid URL (e.g. https://meet.google.com/...)'; }
+    }
+
+    // ── Mini-calendar state ────────────────────────────────────────
+    calDisplayYear: number = new Date().getFullYear();
+    calDisplayMonth: number = new Date().getMonth(); // 0-indexed
+    readonly CAL_DAYS_OF_WEEK = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+    readonly CAL_MONTHS = ['January','February','March','April','May','June',
+                           'July','August','September','October','November','December'];
+
+    getCalendarGrid(): {date: Date | null; isToday: boolean; isPast: boolean; isSelected: boolean}[] {
+        const todayMidnight = new Date(); todayMidnight.setHours(0,0,0,0);
+        const firstDay = new Date(this.calDisplayYear, this.calDisplayMonth, 1);
+        const startOffset = firstDay.getDay(); // 0=Sun
+        const daysInMonth = new Date(this.calDisplayYear, this.calDisplayMonth + 1, 0).getDate();
+        const grid: {date: Date | null; isToday: boolean; isPast: boolean; isSelected: boolean}[] = [];
+        for (let i = 0; i < startOffset; i++) {
+            grid.push({ date: null, isToday: false, isPast: false, isSelected: false });
+        }
+        for (let d = 1; d <= daysInMonth; d++) {
+            const date = new Date(this.calDisplayYear, this.calDisplayMonth, d);
+            const t = date.getTime();
+            grid.push({
+                date,
+                isToday: t === todayMidnight.getTime(),
+                isPast: date < todayMidnight,
+                isSelected: !!this.formMeetingDate &&
+                    t === new Date(this.formMeetingDate.getFullYear(), this.formMeetingDate.getMonth(), this.formMeetingDate.getDate()).getTime(),
+            });
+        }
+        while (grid.length % 7 !== 0) grid.push({ date: null, isToday: false, isPast: false, isSelected: false });
+        return grid;
+    }
+
+    prevCalMonth(): void {
+        if (this.calDisplayMonth === 0) { this.calDisplayMonth = 11; this.calDisplayYear--; }
+        else this.calDisplayMonth--;
+    }
+
+    nextCalMonth(): void {
+        if (this.calDisplayMonth === 11) { this.calDisplayMonth = 0; this.calDisplayYear++; }
+        else this.calDisplayMonth++;
+    }
+
+    selectCalDate(date: Date | null): void {
+        if (!date) return;
+        const today = new Date(); today.setHours(0,0,0,0);
+        if (date < today) return;
+        this.formMeetingDate = date;
+    }
+
+    generateMeetingLink(roomName: string, roomId: number): string {
+        const slug = roomName.toLowerCase()
+            .replace(/[^a-z0-9]/g, '-')
+            .replace(/-+/g, '-')
+            .substring(0, 30);
+        return `https://meet.jit.si/${slug}-${roomId}`;
+    }
+
+    // ── Participant selection ──────────────────────────────────────
+    participantUsers = signal<{id: number; fullName: string; role: string}[]>([]);
+    participantsLoading = signal(false);
+    selectedParticipantIds: number[] = [];
+    participantsAdding = signal(false);
+
+    onRoomTypeSelect(type: RoomType): void {
+        this.formRoomType = type;
+        if (type === 'meeting' && this.participantUsers().length === 0) {
+            this.loadParticipantUsers();
+        }
+    }
+
+    private loadParticipantUsers(): void {
+        this.participantsLoading.set(true);
+        const role = this.authService.currentUser()?.role ?? '';
+        const targetRole = role === 'TUTOR' ? 'STUDENT' : 'EMPLOYEE';
+        this.memberService.getUsersByRole(targetRole).subscribe({
+            next: (users) => { this.participantUsers.set(users); this.participantsLoading.set(false); },
+            error: () => { this.participantsLoading.set(false); },
+        });
+    }
+
+    toggleParticipant(id: number): void {
+        const idx = this.selectedParticipantIds.indexOf(id);
+        if (idx === -1) this.selectedParticipantIds = [...this.selectedParticipantIds, id];
+        else this.selectedParticipantIds = this.selectedParticipantIds.filter(i => i !== id);
+    }
+
+    getParticipantName(id: number): string {
+        return this.participantUsers().find(u => u.id === id)?.fullName ?? String(id);
+    }
+
+    getParticipantInitials(name: string): string {
+        if (!name) return '?';
+        return name.trim().split(/\s+/).map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    }
+
+    getParticipantAvatarStyle(name: string): {[k: string]: string} {
+        const hash = name.split('').reduce((h, c) => ((h << 5) - h + c.charCodeAt(0)) | 0, 0);
+        const hue = Math.abs(hash) % 360;
+        return { background: `linear-gradient(135deg, hsl(${hue},62%,52%), hsl(${(hue+48)%360},58%,42%))` };
+    }
+
+    private _addMembersToRoom(roomId: number, ids: number[], onDone: () => void): void {
+        if (ids.length === 0) { onDone(); return; }
+        const [first, ...rest] = ids;
+        this.memberService.addMember(roomId, first).subscribe({
+            next: () => this._addMembersToRoom(roomId, rest, onDone),
+            error: () => this._addMembersToRoom(roomId, rest, onDone),
+        });
+    }
 
     readonly stepSubtitles = [
         'Choose the project this channel belongs to',
@@ -538,6 +1185,8 @@ export class RoomWizardDialogComponent {
         public dialogRef: MatDialogRef<RoomWizardDialogComponent>,
         @Inject(MAT_DIALOG_DATA) data: { editingRoom: ChatRoom | null; rooms: ChatRoom[] },
         private chatRoomService: ChatRoomService,
+        private memberService: ChatRoomMemberService,
+        private authService: AuthService,
     ) {
         this.editingRoom = data.editingRoom;
         this.rooms = data.rooms;
@@ -546,6 +1195,20 @@ export class RoomWizardDialogComponent {
             this.formName       = data.editingRoom.name;
             this.formDescription = data.editingRoom.description ?? '';
             this.formRoomType   = (data.editingRoom.roomType?.toLowerCase() as RoomType) ?? 'general';
+            if (data.editingRoom.startTime) this.formMeetingDate = new Date(data.editingRoom.startTime);
+            if (data.editingRoom.startTime) {
+                const d = new Date(data.editingRoom.startTime);
+                const h = d.getHours(); const m = d.getMinutes();
+                const h12 = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+                this.formStartTime = `${h12}:${String(m).padStart(2,'0')} ${h < 12 ? 'AM' : 'PM'}`;
+            }
+            if (data.editingRoom.endTime) {
+                const d = new Date(data.editingRoom.endTime);
+                const h = d.getHours(); const m = d.getMinutes();
+                const h12 = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+                this.formEndTime = `${h12}:${String(m).padStart(2,'0')} ${h < 12 ? 'AM' : 'PM'}`;
+            }
+            this.formMeetingLink = data.editingRoom.meetingLink ?? '';
         }
         this.loadProjectsInternal();
     }
@@ -618,6 +1281,22 @@ export class RoomWizardDialogComponent {
             description: this.formDescription.trim(),
             roomType:    this.formRoomType as RoomType,
         };
+        if (this.formRoomType === 'meeting') {
+            if (this.formMeetingDate && this.formStartTime) {
+                payload.startTime = this._buildIsoFromDateAndTimePill(this.formMeetingDate, this.formStartTime);
+            }
+            if (this.formMeetingDate && this.formEndTime) {
+                payload.endTime = this._buildIsoFromDateAndTimePill(this.formMeetingDate, this.formEndTime);
+            }
+            // Auto-generate link for new rooms; preserve existing link for edits
+            const editing = this.editingRoom;
+            if (!editing) {
+                const tempId = Date.now() % 100000;
+                payload.meetingLink = this.generateMeetingLink(payload.name, tempId);
+            } else if (this.formMeetingLink.trim()) {
+                payload.meetingLink = this.formMeetingLink.trim();
+            }
+        }
         this.saving.set(true);
         this.formError = '';
         const editing = this.editingRoom;
@@ -627,7 +1306,16 @@ export class RoomWizardDialogComponent {
         op.subscribe({
             next: (saved) => {
                 this.saving.set(false);
-                this.dialogRef.close({ saved, isEdit: !!editing });
+                // Add selected participants after creation (only for new meeting rooms)
+                if (!editing && this.formRoomType === 'meeting' && this.selectedParticipantIds.length > 0) {
+                    this.participantsAdding.set(true);
+                    this._addMembersToRoom(saved.id, [...this.selectedParticipantIds], () => {
+                        this.participantsAdding.set(false);
+                        this.dialogRef.close({ saved, isEdit: false });
+                    });
+                } else {
+                    this.dialogRef.close({ saved, isEdit: !!editing });
+                }
             },
             error: (err) => {
                 if (err?.status === 409) {
@@ -639,6 +1327,20 @@ export class RoomWizardDialogComponent {
                 this.saving.set(false);
             },
         });
+    }
+
+    private _buildIsoFromDateAndTimePill(date: Date, pill: string): string {
+        // pill format: "9:00 AM" or "10:30 PM"
+        const [timePart, ampm] = pill.split(' ');
+        const [hStr, mStr] = timePart.split(':');
+        let h = parseInt(hStr, 10);
+        const m = parseInt(mStr, 10);
+        if (ampm === 'PM' && h !== 12) h += 12;
+        if (ampm === 'AM' && h === 12) h = 0;
+        const d = new Date(date);
+        d.setHours(h, m, 0, 0);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(h)}:${pad(m)}:00`;
     }
 }
 
@@ -786,6 +1488,245 @@ export class DeleteRoomDialogComponent {
 
     cancel(): void {
         if (!this.deleting()) this.dialogRef.close();
+    }
+}
+
+/* ══ Voice Send Choice Dialog ════════════════════════════════════════════ */
+@Component({
+    selector: 'app-voice-send-choice-dialog',
+    standalone: true,
+    imports: [CommonModule, MatButtonModule, MatIconModule, MatDialogModule],
+    template: `
+        <div class="vscd-wrap" [class.vscd-closing]="closing()">
+            <!-- Header icon -->
+            <div class="vscd-icon-ring">
+                <mat-icon class="vscd-mic-icon">mic</mat-icon>
+            </div>
+            <h2 class="vscd-title">How would you like to send?</h2>
+            <p class="vscd-subtitle">Your message has been recorded and transcribed</p>
+
+            <!-- Choice cards -->
+            <div class="vscd-cards">
+                <!-- Voice card -->
+                <button class="vscd-card vscd-card-voice"
+                        (click)="choose('voice')"
+                        [class.vscd-card-pressed]="pressing() === 'voice'">
+                    <mat-icon class="vscd-card-icon">graphic_eq</mat-icon>
+                    <div class="vscd-card-label">Send as Voice</div>
+                    <div class="vscd-card-sub">Send the original audio recording</div>
+                    <div class="vscd-mini-wave">
+                        <span class="vscd-wave-bar"></span>
+                        <span class="vscd-wave-bar"></span>
+                        <span class="vscd-wave-bar"></span>
+                        <span class="vscd-wave-bar"></span>
+                        <span class="vscd-wave-bar"></span>
+                    </div>
+                </button>
+                <!-- Text card -->
+                <button class="vscd-card vscd-card-text"
+                        (click)="choose('text')"
+                        [class.vscd-card-pressed]="pressing() === 'text'">
+                    <mat-icon class="vscd-card-icon vscd-text-icon">chat_bubble</mat-icon>
+                    <div class="vscd-card-label">Send as Text</div>
+                    <div class="vscd-card-sub">Send the transcribed message as text</div>
+                    @if (data.transcript) {
+                        <div class="vscd-transcript-preview">"{{ data.transcript.slice(0, 80) }}{{ data.transcript.length > 80 ? '...' : '' }}"</div>
+                    }
+                </button>
+            </div>
+
+            <!-- Transcript footer -->
+            @if (data.transcript) {
+                <div class="vscd-transcript-footer">
+                    Transcript: "{{ data.transcript.slice(0, 50) }}{{ data.transcript.length > 50 ? '…' : '' }}"
+                </div>
+            } @else {
+                <div class="vscd-transcript-footer vscd-no-transcript">No speech detected</div>
+            }
+
+            <!-- Cancel -->
+            <button class="vscd-cancel-link" mat-button (click)="choose('cancel')">Cancel</button>
+        </div>
+    `,
+    styles: [`
+        @keyframes vscd-enter {
+            from { transform: scale(0.8); opacity: 0; }
+            to   { transform: scale(1);   opacity: 1; }
+        }
+        @keyframes vscd-exit {
+            from { transform: scale(1);   opacity: 1; }
+            to   { transform: scale(0.8); opacity: 0; }
+        }
+        @keyframes vscd-mic-pulse {
+            0%, 100% { box-shadow: 0 0 0 0   color-mix(in srgb, var(--mat-sys-primary) 35%, transparent); }
+            50%       { box-shadow: 0 0 0 12px color-mix(in srgb, var(--mat-sys-primary) 0%,  transparent); }
+        }
+        @keyframes vscd-wave-anim {
+            0%, 100% { transform: scaleY(0.3); }
+            50%       { transform: scaleY(1);   }
+        }
+        .vscd-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 32px 28px 24px;
+            text-align: center;
+            min-width: 320px;
+            max-width: 480px;
+            animation: vscd-enter 350ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        .vscd-wrap.vscd-closing {
+            animation: vscd-exit 200ms ease forwards;
+        }
+        .vscd-icon-ring {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: linear-gradient(135deg,
+                color-mix(in srgb, var(--mat-sys-primary) 15%, transparent),
+                color-mix(in srgb, var(--mat-sys-primary) 8%, transparent));
+            border: 2px solid color-mix(in srgb, var(--mat-sys-primary) 30%, transparent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            animation: vscd-mic-pulse 2s ease-in-out infinite;
+        }
+        .vscd-mic-icon {
+            font-size: 30px !important;
+            width: 30px !important;
+            height: 30px !important;
+            color: var(--mat-sys-primary);
+        }
+        .vscd-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 0 0 6px;
+            letter-spacing: -0.02em;
+        }
+        .vscd-subtitle {
+            font-size: 13px;
+            color: var(--mat-sys-on-surface-variant);
+            margin: 0 0 24px;
+            line-height: 1.6;
+        }
+        .vscd-cards {
+            display: flex;
+            gap: 14px;
+            width: 100%;
+            margin-bottom: 18px;
+        }
+        .vscd-card {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 18px 14px 16px;
+            border-radius: 14px;
+            border: 2px solid transparent;
+            background: var(--mat-sys-surface-container);
+            cursor: pointer;
+            transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+            text-align: center;
+            font-family: inherit;
+            outline: none;
+        }
+        .vscd-card:hover {
+            transform: translateY(-3px) scale(1.03);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            border-color: var(--mat-sys-primary);
+        }
+        .vscd-card.vscd-card-pressed {
+            transform: scale(0.97);
+        }
+        .vscd-card-icon {
+            font-size: 32px !important;
+            width: 32px !important;
+            height: 32px !important;
+            color: var(--mat-sys-primary);
+        }
+        .vscd-text-icon {
+            color: var(--mat-sys-secondary);
+        }
+        .vscd-card-label {
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+        }
+        .vscd-card-sub {
+            font-size: 11.5px;
+            color: var(--mat-sys-on-surface-variant);
+            line-height: 1.4;
+        }
+        .vscd-mini-wave {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            height: 20px;
+            margin-top: 4px;
+        }
+        .vscd-wave-bar {
+            width: 3px;
+            border-radius: 2px;
+            background: var(--mat-sys-primary);
+            opacity: 0.7;
+            animation: vscd-wave-anim 0.8s ease-in-out infinite;
+        }
+        .vscd-wave-bar:nth-child(1) { animation-delay: 0s;    height: 8px;  }
+        .vscd-wave-bar:nth-child(2) { animation-delay: 0.15s; height: 14px; }
+        .vscd-wave-bar:nth-child(3) { animation-delay: 0.3s;  height: 18px; }
+        .vscd-wave-bar:nth-child(4) { animation-delay: 0.15s; height: 12px; }
+        .vscd-wave-bar:nth-child(5) { animation-delay: 0s;    height: 8px;  }
+        .vscd-transcript-preview {
+            font-size: 11px;
+            color: var(--mat-sys-on-surface-variant);
+            font-style: italic;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-top: 4px;
+            max-width: 100%;
+        }
+        .vscd-transcript-footer {
+            font-size: 12px;
+            color: var(--mat-sys-on-surface-variant);
+            font-style: italic;
+            margin-bottom: 16px;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .vscd-no-transcript {
+            color: var(--mat-sys-error);
+            font-style: normal;
+        }
+        .vscd-cancel-link {
+            font-size: 13px;
+            color: var(--mat-sys-on-surface-variant);
+        }
+        @media (max-width: 480px) {
+            .vscd-cards { flex-direction: column; }
+            .vscd-wrap  { padding: 24px 18px 20px; min-width: 0; }
+        }
+    `],
+})
+export class VoiceSendChoiceDialogComponent {
+    closing  = signal(false);
+    pressing = signal<'voice' | 'text' | 'cancel' | null>(null);
+
+    constructor(
+        public dialogRef: MatDialogRef<VoiceSendChoiceDialogComponent>,
+        @Inject(MAT_DIALOG_DATA) public data: { transcript: string },
+    ) {}
+
+    choose(choice: 'voice' | 'text' | 'cancel'): void {
+        this.pressing.set(choice);
+        this.closing.set(true);
+        setTimeout(() => this.dialogRef.close({ choice }), 200);
     }
 }
 
@@ -1002,11 +1943,13 @@ export class RemoveMemberDialogComponent {
         MatDividerModule, MatTooltipModule,
         MatDialogModule,
         MatDatepickerModule, MatChipsModule,
+        MatCheckboxModule,
         QuillModule,
         RoomWizardDialogComponent,
         DeleteRoomDialogComponent,
         CancelScheduledDialogComponent,
         RemoveMemberDialogComponent,
+        VoiceSendChoiceDialogComponent,
         SnackbarSuccessComponent,
     ],
     template: `
@@ -1043,6 +1986,10 @@ export class RemoveMemberDialogComponent {
                         </div>
                         <div class="wa-sidebar-actions">
                             @if (canManageMembers) {
+                                <button matIconButton class="wa-icon-btn"
+                                        (click)="openMeetingCalendar()" matTooltip="Meeting calendar">
+                                    <mat-icon>calendar_month</mat-icon>
+                                </button>
                                 <button matIconButton class="wa-icon-btn"
                                         (click)="openCreate()" matTooltip="New channel">
                                     <mat-icon>add_circle_outline</mat-icon>
@@ -1137,7 +2084,9 @@ export class RemoveMemberDialogComponent {
                                              [style.--wa-item-delay]="i * 40 + 'ms'">
 
                                             <!-- Avatar -->
-                                            <div class="wa-avatar" [ngStyle]="getAvatarGradient(room.name)">
+                                            <div class="wa-avatar"
+                                                 [ngStyle]="getAvatarGradient(room.name)"
+                                                 [class.wa-avatar-meeting-live]="room.roomType === 'meeting' && getMeetingStatus(room) === 'IN_PROGRESS'">
                                                 {{ getInitials(room.name) }}
                                             </div>
 
@@ -1145,6 +2094,14 @@ export class RemoveMemberDialogComponent {
                                             <div class="wa-room-content">
                                                 <div class="wa-room-top-row">
                                                     <span class="wa-room-name">{{ room.name }}</span>
+                                                    @if (room.roomType === 'meeting' && room.startTime) {
+                                                        <span class="wa-meeting-dot"
+                                                              [class.wa-meeting-dot-live]="getMeetingStatus(room) === 'IN_PROGRESS'"
+                                                              [class.wa-meeting-dot-soon]="getMeetingStatus(room) === 'STARTING_SOON'"
+                                                              [class.wa-meeting-dot-ended]="getMeetingStatus(room) === 'ENDED'"
+                                                              [matTooltip]="getMeetingStatus(room)">
+                                                        </span>
+                                                    }
                                                     <span class="wa-room-type-tag"
                                                           [class.wa-room-type-tag-unread]="(unreadCounts().get(room.id) ?? 0) > 0">
                                                         <mat-icon class="material-icons-outlined wa-type-icon">{{ getRoomTypeIcon(room.roomType ?? 'general') }}</mat-icon>
@@ -1301,6 +2258,13 @@ export class RemoveMemberDialogComponent {
                                                 <mat-icon class="material-icons-outlined" style="font-size:19px;width:19px;height:19px">schedule_send</mat-icon>
                                             </button>
                                         }
+                                        @if (activeRoom()?.roomType === 'meeting') {
+                                            <button matIconButton matTooltip="Meeting Agenda"
+                                                    (click)="toggleAgendaPanel()"
+                                                    [class.header-btn-active]="agendaPanelOpen()">
+                                                <mat-icon class="material-icons-outlined" style="font-size:19px;width:19px;height:19px">event_note</mat-icon>
+                                            </button>
+                                        }
                                         <button matIconButton matTooltip="{{ isSearchVisible() ? 'Close search' : 'Search messages' }}"
                                                 (click)="toggleSearch()"
                                                 [class.header-btn-active]="isSearchVisible()">
@@ -1334,6 +2298,75 @@ export class RemoveMemberDialogComponent {
                                     <p class="chat-room-desc text-secondary small mb-0 mt-1 ps-1">
                                         {{ activeRoom()?.description }}
                                     </p>
+                                }
+
+                                <!-- ── Meeting status banner ── -->
+                                @if (activeRoom()?.roomType === 'meeting' && activeRoom()?.startTime) {
+                                    <div class="meeting-status-banner" [@fadeSlide]
+                                         [class.meeting-status-live]="getMeetingStatus(activeRoom()!) === 'IN_PROGRESS'"
+                                         [class.meeting-status-soon]="getMeetingStatus(activeRoom()!) === 'STARTING_SOON'"
+                                         [class.meeting-status-ended]="getMeetingStatus(activeRoom()!) === 'ENDED'">
+                                        @if (getMeetingStatus(activeRoom()!) === 'UPCOMING') {
+                                            <mat-icon class="meeting-banner-icon material-icons-outlined">event</mat-icon>
+                                            <span>{{ activeRoom()!.startTime | date:'MMM d' }} at {{ activeRoom()!.startTime | date:'h:mm a' }}</span>
+                                        }
+                                        @if (getMeetingStatus(activeRoom()!) === 'STARTING_SOON') {
+                                            <mat-icon class="meeting-banner-icon material-icons-outlined">alarm</mat-icon>
+                                            <span>Starts in {{ getMeetingMinutesLeft(activeRoom()!) }} min</span>
+                                        }
+                                        @if (getMeetingStatus(activeRoom()!) === 'IN_PROGRESS') {
+                                            <span class="meeting-live-dot"></span>
+                                            <span class="meeting-live-badge">LIVE</span>
+                                            <span>Meeting in progress</span>
+                                            @if (activeRoom()?.meetingLink) {
+                                                <button class="meeting-join-btn" (click)="joinMeeting(activeRoom()!)">
+                                                    <mat-icon style="font-size:16px;width:16px;height:16px">video_call</mat-icon>
+                                                    Join Meeting
+                                                </button>
+                                            }
+                                        }
+                                        @if (getMeetingStatus(activeRoom()!) === 'ENDED') {
+                                            <mat-icon class="meeting-banner-icon material-icons-outlined">event_busy</mat-icon>
+                                            <span>Meeting ended</span>
+                                        }
+                                    </div>
+                                }
+
+                                <!-- ── Meeting link card ── -->
+                                @if (activeRoom()?.roomType === 'meeting' && activeRoom()?.meetingLink) {
+                                    <div class="meeting-link-card" [@fadeSlide]
+                                         [class.meeting-link-card-live]="getMeetingStatus(activeRoom()!) === 'IN_PROGRESS'"
+                                         [class.meeting-link-card-ended]="getMeetingStatus(activeRoom()!) === 'ENDED'">
+                                        <div class="meeting-link-card-left">
+                                            <mat-icon class="material-icons-outlined meeting-link-icon">video_call</mat-icon>
+                                            <div class="meeting-link-info">
+                                                @if (getMeetingStatus(activeRoom()!) === 'IN_PROGRESS') {
+                                                    <span class="meeting-link-status meeting-link-status-live">🔴 LIVE — In Progress</span>
+                                                } @else if (getMeetingStatus(activeRoom()!) === 'STARTING_SOON') {
+                                                    <span class="meeting-link-status meeting-link-status-soon">⏰ Starts in {{ getMeetingMinutesLeft(activeRoom()!) }} min</span>
+                                                } @else if (getMeetingStatus(activeRoom()!) === 'UPCOMING' && activeRoom()?.startTime) {
+                                                    <span class="meeting-link-status">📅 {{ activeRoom()!.startTime | date:'EEE, MMM d' }} at {{ activeRoom()!.startTime | date:'h:mm a' }}</span>
+                                                } @else if (getMeetingStatus(activeRoom()!) === 'ENDED') {
+                                                    <span class="meeting-link-status" style="color:var(--mat-sys-on-surface-variant)">Meeting ended</span>
+                                                }
+                                                <span class="meeting-link-url-text">{{ activeRoom()!.meetingLink }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="meeting-link-card-right">
+                                            @if (getMeetingStatus(activeRoom()!) !== 'ENDED') {
+                                                <button mat-flat-button class="meeting-link-join-btn"
+                                                        (click)="joinMeeting(activeRoom()!)">
+                                                    <mat-icon style="font-size:15px;width:15px;height:15px">video_call</mat-icon>
+                                                    {{ getMeetingStatus(activeRoom()!) === 'IN_PROGRESS' ? 'Join Now' : 'Join Meeting' }}
+                                                </button>
+                                            }
+                                            <button matIconButton class="meeting-link-copy-btn"
+                                                    (click)="copyMeetingLink(activeRoom()!)"
+                                                    matTooltip="Copy link">
+                                                <mat-icon style="font-size:16px;width:16px;height:16px">content_copy</mat-icon>
+                                            </button>
+                                        </div>
+                                    </div>
                                 }
 
                                 @if (isSearchVisible()) {
@@ -1780,6 +2813,104 @@ export class RemoveMemberDialogComponent {
                                     </div>
                                 }
 
+                                <!-- ── Agenda panel (MEETING rooms) ── -->
+                                @if (agendaPanelOpen() && activeRoom()?.roomType === 'meeting') {
+                                    <div class="members-panel agenda-panel" [@agendaPanelSlide] (click)="$event.stopPropagation()">
+                                        <!-- Header -->
+                                        <div class="members-panel-header">
+                                            <div class="members-panel-title">
+                                                <mat-icon class="material-icons-outlined" style="font-size:18px;width:18px;height:18px;color:var(--mat-sys-primary)">event_note</mat-icon>
+                                                <span>Meeting Agenda</span>
+                                                @if (agendaItems().length > 0) {
+                                                    <span class="mp-count">{{ agendaItems().length }}</span>
+                                                }
+                                            </div>
+                                            <button class="pp-close-btn" (click)="agendaPanelOpen.set(false)">
+                                                <mat-icon style="font-size:18px;width:18px;height:18px">close</mat-icon>
+                                            </button>
+                                        </div>
+
+                                        <!-- Meeting date/time sub-header -->
+                                        @if (activeRoom()?.startTime) {
+                                            <div class="agenda-date-row">
+                                                <mat-icon class="material-icons-outlined" style="font-size:13px;width:13px;height:13px">schedule</mat-icon>
+                                                <span>{{ activeRoom()!.startTime | date:'EEE, MMM d' }} · {{ activeRoom()!.startTime | date:'h:mm a' }} – {{ activeRoom()!.endTime | date:'h:mm a' }}</span>
+                                                @if (getMeetingStatus(activeRoom()!) === 'IN_PROGRESS' && activeRoom()?.meetingLink) {
+                                                    <button class="agenda-join-btn" (click)="joinMeeting(activeRoom()!)">
+                                                        <mat-icon style="font-size:14px;width:14px;height:14px">video_call</mat-icon>
+                                                        Join
+                                                    </button>
+                                                }
+                                            </div>
+                                        }
+
+                                        <!-- Progress bar -->
+                                        @if (agendaItems().length > 0) {
+                                            <div class="agenda-progress-wrap">
+                                                <div class="agenda-progress-bar">
+                                                    <div class="agenda-progress-fill"
+                                                         [style.width.%]="(agendaDoneCount() / agendaItems().length) * 100">
+                                                    </div>
+                                                </div>
+                                                <span class="agenda-progress-label">{{ agendaDoneCount() }} / {{ agendaItems().length }} done</span>
+                                            </div>
+                                        }
+
+                                        <!-- Items list -->
+                                        <div class="pinned-panel-body" style="overflow-y:auto;flex:1">
+                                            @if (agendaLoading()) {
+                                                <div class="d-flex justify-content-center py-4">
+                                                    <mat-spinner diameter="28"></mat-spinner>
+                                                </div>
+                                            } @else if (agendaItems().length === 0) {
+                                                <div class="agenda-empty" [@fadeScale]>
+                                                    <mat-icon class="material-icons-outlined agenda-empty-icon">assignment</mat-icon>
+                                                    <p class="agenda-empty-title">No agenda items yet</p>
+                                                    <p class="agenda-empty-sub">Add your first item below</p>
+                                                </div>
+                                            } @else {
+                                                @for (item of agendaItems(); track item.id; let i = $index) {
+                                                    <div class="agenda-item" [class.agenda-item-done]="item.agendaDone"
+                                                         [style.animation-delay]="i * 55 + 'ms'" [@agendaItemEnter]>
+                                                        <mat-checkbox [checked]="item.agendaDone ?? false"
+                                                                      (change)="toggleAgendaDone(item)"
+                                                                      color="primary"
+                                                                      class="agenda-checkbox">
+                                                        </mat-checkbox>
+                                                        <div class="agenda-item-content">
+                                                            <span class="agenda-item-title">{{ item.contentText }}</span>
+                                                            @if (item.agendaDuration) {
+                                                                <span class="agenda-item-duration">{{ item.agendaDuration }} min</span>
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                }
+                                            }
+                                        </div>
+
+                                        <!-- Add item form (MANAGER/TUTOR only) -->
+                                        @if (canManageMembers) {
+                                            <div class="agenda-add-form">
+                                                <mat-form-field appearance="outline" class="agenda-add-input inline-small">
+                                                    <mat-label>Agenda item</mat-label>
+                                                    <input matInput [(ngModel)]="agendaTitle" placeholder="e.g. Review sprint goals" />
+                                                </mat-form-field>
+                                                <input class="agenda-duration-input" type="number" [(ngModel)]="agendaDurationMin"
+                                                       min="1" max="240" placeholder="min" matTooltip="Duration in minutes" />
+                                                <button class="agenda-add-btn" matTooltip="Add item"
+                                                        [disabled]="!agendaTitle.trim() || agendaSaving()"
+                                                        (click)="submitAgendaItem()">
+                                                    @if (agendaSaving()) {
+                                                        <mat-spinner diameter="16"></mat-spinner>
+                                                    } @else {
+                                                        <mat-icon style="font-size:18px;width:18px;height:18px">add</mat-icon>
+                                                    }
+                                                </button>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+
                                 <!-- Messages scroll area -->
                                 <div class="messages-scroll overflow-y-auto h-100" #messagePane>
 
@@ -2167,29 +3298,6 @@ export class RemoveMemberDialogComponent {
                                     </div>
                                 }
 
-                                <!-- Video preview card (floating, shown while recording video) -->
-                                @if (isRecordingVideo()) {
-                                    <div class="video-preview-card" [@videoPreviewEnter]>
-                                        <div class="vpc-video-wrap">
-                                            <video #videoPreview class="vpc-video" autoplay muted playsinline></video>
-                                            <div class="vpc-hud-topleft">
-                                                <span class="vpc-rec-dot"></span>
-                                                <span class="vpc-duration">{{ formatRecordingDuration(videoRecordingDuration()) }}</span>
-                                            </div>
-                                        </div>
-                                        <div class="vpc-actions">
-                                            <button class="vpc-cancel-btn" (click)="cancelVideoRecording()" matTooltip="Cancel">
-                                                <mat-icon style="font-size:18px;width:18px;height:18px">close</mat-icon>
-                                                <span>Cancel</span>
-                                            </button>
-                                            <button class="vpc-send-btn" (click)="sendVideoRecording()" matTooltip="Send video clip">
-                                                <mat-icon style="font-size:18px;width:18px;height:18px">send</mat-icon>
-                                                <span>Send</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                }
-
                                 <!-- "Send Later" / "Schedule Recurring" slide-up panel -->
                                 @if (scheduleFormType() !== 'none' && activeRoom()) {
                                     <div class="schedule-panel" [@schedFormSlide]>
@@ -2279,31 +3387,69 @@ export class RemoveMemberDialogComponent {
                                 <div class="input-card"
                                      [class.input-card-disabled]="!activeRoom()"
                                      [class.input-card-has-file]="!!selectedFile"
-                                     [class.input-card-video-recording]="isRecordingVideo()"
+                                     [class.input-card-video-recording]="videoPhase() !== 'idle'"
                                      (keydown.control.enter)="sendRichMessage()">
 
                                     @if (isRecording()) {
                                         <!-- Recording overlay -->
                                         <div class="recording-ui">
-                                            <div class="recording-left">
-                                                <span class="rec-dot"></span>
-                                                <span class="rec-duration">{{ formatRecordingDuration(recordingDuration()) }}</span>
+                                            <div class="recording-row">
+                                                <div class="recording-left">
+                                                    <span class="rec-dot"></span>
+                                                    <span class="rec-duration">{{ formatRecordingDuration(recordingDuration()) }}</span>
+                                                </div>
+                                                <div class="recording-waveform">
+                                                    @for (b of [1,2,3,4,5,6,7,8]; track b) {
+                                                        <span class="wave-bar" [style.animation-delay]="(b * 0.1) + 's'"></span>
+                                                    }
+                                                </div>
+                                                <div class="recording-right">
+                                                    <button class="rec-cancel-btn" (click)="cancelRecording()" matTooltip="Cancel">
+                                                        <mat-icon style="font-size:18px;width:18px;height:18px">close</mat-icon>
+                                                    </button>
+                                                    <button class="rec-send-btn" (click)="sendRecording()" matTooltip="Send voice message">
+                                                        <mat-icon style="font-size:18px;width:18px;height:18px">send</mat-icon>
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <div class="recording-waveform">
-                                                @for (b of [1,2,3,4,5,6,7,8]; track b) {
-                                                    <span class="wave-bar" [style.animation-delay]="(b * 0.1) + 's'"></span>
-                                                }
-                                            </div>
-                                            <div class="recording-right">
-                                                <button class="rec-cancel-btn" (click)="cancelRecording()" matTooltip="Cancel">
-                                                    <mat-icon style="font-size:18px;width:18px;height:18px">close</mat-icon>
-                                                </button>
-                                                <button class="rec-send-btn" (click)="sendRecording()" matTooltip="Send voice message">
-                                                    <mat-icon style="font-size:18px;width:18px;height:18px">send</mat-icon>
-                                                </button>
-                                            </div>
+                                            @if (sttAvailable) {
+                                                <div class="rec-transcript-area">
+                                                    @if (finalTranscript() || liveTranscript()) {
+                                                        <span class="rec-transcript-final">{{ finalTranscript() }}</span><span class="rec-transcript-interim">{{ liveTranscript() }}</span><span class="rec-cursor">|</span>
+                                                    } @else {
+                                                        <span class="rec-transcript-placeholder">Start speaking...</span>
+                                                    }
+                                                </div>
+                                            }
                                         </div>
                                     } @else {
+                                        <!-- @mention suggestions dropdown -->
+                                        @if (showMentionSuggestions() && mentionSuggestions().length > 0) {
+                                            <div class="mention-overlay" (click)="$event.stopPropagation()">
+                                                <div class="mention-panel">
+                                                    @for (m of mentionSuggestions(); track m.id; let i = $index) {
+                                                        <div class="mention-item"
+                                                             [class.mention-item-active]="i === activeMentionIndex()"
+                                                             (mousedown)="$event.preventDefault(); selectMention(m)">
+                                                            @if (m.id === 0) {
+                                                                <div class="mention-avatar-everyone">
+                                                                    <mat-icon style="font-size:15px;width:15px;height:15px;color:var(--mat-sys-on-primary)">groups</mat-icon>
+                                                                </div>
+                                                            } @else {
+                                                                <div class="mention-avatar" [ngStyle]="getAvatarGradient(m.fullName)">{{ getInitials(m.fullName) }}</div>
+                                                            }
+                                                            <div class="mention-info">
+                                                                <span class="mention-name">{{ m.fullName }}</span>
+                                                                <span class="mention-sub">{{ m.id === 0 ? 'Notify all members' : m.role }}</span>
+                                                            </div>
+                                                            <span class="mention-role-badge mention-role-{{ m.role.toLowerCase() }}">
+                                                                {{ m.id === 0 ? 'All' : m.role }}
+                                                            </span>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            </div>
+                                        }
                                         <!-- Format toolbar always visible -->
                                         <div class="quill-format-wrap">
                                             <quill-editor
@@ -2359,7 +3505,7 @@ export class RemoveMemberDialogComponent {
                                                 <button class="input-action-btn"
                                                         matTooltip="Record video clip"
                                                         [disabled]="!activeRoom()"
-                                                        [class.input-action-btn-active]="isRecordingVideo()"
+                                                        [class.input-action-btn-active]="videoPhase() !== 'idle'"
                                                         (click)="startVideoRecording()">
                                                     <mat-icon class="material-icons-outlined" style="font-size:19px;width:19px;height:19px">videocam</mat-icon>
                                                 </button>
@@ -2418,6 +3564,283 @@ export class RemoveMemberDialogComponent {
 
             </div>
         </div>
+
+    <!-- ══ Meeting Calendar Overlay ══════════════════════════════════════ -->
+    @if (meetingCalOverlayOpen()) {
+        <div class="meeting-cal-overlay" [@calOverlayEnter]>
+            <div class="meeting-cal-overlay-backdrop" (click)="closeMeetingCalendar()"></div>
+            <div class="meeting-cal-overlay-panel">
+                <!-- Header -->
+                <div class="meeting-cal-overlay-header">
+                    <div>
+                        <h3 class="meeting-cal-overlay-title">
+                            <mat-icon class="material-icons-outlined" style="font-size:22px;width:22px;height:22px;vertical-align:middle;margin-right:6px;color:var(--mat-sys-primary)">calendar_month</mat-icon>
+                            Meeting Calendar
+                        </h3>
+                        <p class="meeting-cal-overlay-sub">{{ meetingRooms().length }} scheduled meeting{{ meetingRooms().length !== 1 ? 's' : '' }}</p>
+                    </div>
+                    <button mat-icon-button (click)="closeMeetingCalendar()" style="flex-shrink:0">
+                        <mat-icon>close</mat-icon>
+                    </button>
+                </div>
+
+                <div class="meeting-cal-overlay-body">
+                    <!-- Left: Month calendar grid -->
+                    <div class="meeting-cal-grid-col">
+                        <div class="meeting-cal-nav">
+                            <button mat-icon-button class="meeting-cal-nav-btn" (click)="calOverlayPrevMonth()">
+                                <mat-icon>chevron_left</mat-icon>
+                            </button>
+                            <span class="meeting-cal-nav-label">{{ CAL_MONTHS[calOverlayMonth] }} {{ calOverlayYear }}</span>
+                            <button mat-icon-button class="meeting-cal-nav-btn" (click)="calOverlayNextMonth()">
+                                <mat-icon>chevron_right</mat-icon>
+                            </button>
+                        </div>
+                        <div class="meeting-cal-dow-row">
+                            @for (d of CAL_OVL_DOW; track d) {
+                                <span class="meeting-cal-dow">{{ d }}</span>
+                            }
+                        </div>
+                        <div class="meeting-cal-day-grid">
+                            @for (cell of calOverlayGrid(); track $index) {
+                                <div class="meeting-cal-cell"
+                                     [class.meeting-cal-cell-today]="cell.isToday"
+                                     [class.meeting-cal-cell-other-month]="!cell.inMonth">
+                                    <span class="meeting-cal-cell-num" [class.meeting-cal-cell-num-today]="cell.isToday">
+                                        {{ cell.date.getDate() }}
+                                    </span>
+                                    @for (room of getMeetingRoomsForDate(cell.date); track room.id) {
+                                        <button type="button"
+                                                class="meeting-cal-event-dot"
+                                                [class.meeting-cal-event-live]="getMeetingStatus(room) === 'IN_PROGRESS'"
+                                                [class.meeting-cal-event-soon]="getMeetingStatus(room) === 'STARTING_SOON'"
+                                                [class.meeting-cal-event-ended]="getMeetingStatus(room) === 'ENDED'"
+                                                (click)="$event.stopPropagation(); openCalEventDetail(room)"
+                                                [matTooltip]="room.name">
+                                            {{ (room.name | slice:0:12) }}{{ room.name.length > 12 ? '…' : '' }}
+                                        </button>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Right: Event detail -->
+                    <div class="meeting-cal-detail-col">
+                        @if (!selectedCalEvent()) {
+                            <div class="meeting-cal-detail-empty">
+                                <mat-icon class="material-icons-outlined" style="font-size:40px;width:40px;height:40px;opacity:.25;margin-bottom:10px">event_note</mat-icon>
+                                <p>Click a meeting to see details</p>
+                            </div>
+                        } @else {
+                            <div class="meeting-cal-detail" [@fadeScale]>
+                                <!-- Status badge -->
+                                <div class="meeting-cal-detail-status"
+                                     [class.meeting-cal-detail-status-live]="getMeetingStatus(selectedCalEvent()!) === 'IN_PROGRESS'"
+                                     [class.meeting-cal-detail-status-soon]="getMeetingStatus(selectedCalEvent()!) === 'STARTING_SOON'"
+                                     [class.meeting-cal-detail-status-ended]="getMeetingStatus(selectedCalEvent()!) === 'ENDED'">
+                                    @if (getMeetingStatus(selectedCalEvent()!) === 'IN_PROGRESS') {
+                                        <span class="meeting-live-dot" style="width:7px;height:7px"></span> LIVE
+                                    } @else {
+                                        {{ getMeetingStatus(selectedCalEvent()!) | titlecase }}
+                                    }
+                                </div>
+
+                                <h4 class="meeting-cal-detail-title">{{ selectedCalEvent()!.name }}</h4>
+                                @if (selectedCalEvent()!.description) {
+                                    <p class="meeting-cal-detail-desc">{{ selectedCalEvent()!.description }}</p>
+                                }
+
+                                @if (selectedCalEvent()!.startTime) {
+                                    <div class="meeting-cal-detail-row">
+                                        <mat-icon class="material-icons-outlined" style="font-size:15px;width:15px;height:15px;flex-shrink:0;color:var(--mat-sys-primary)">schedule</mat-icon>
+                                        <span>
+                                            {{ selectedCalEvent()!.startTime | date:'EEE, MMM d, y' }}
+                                            · {{ selectedCalEvent()!.startTime | date:'h:mm a' }}
+                                            @if (selectedCalEvent()!.endTime) { – {{ selectedCalEvent()!.endTime | date:'h:mm a' }} }
+                                        </span>
+                                    </div>
+                                }
+
+                                @if (selectedCalEvent()!.meetingLink) {
+                                    <button mat-flat-button class="meeting-cal-join-btn"
+                                            (click)="openExternalLink(selectedCalEvent()!.meetingLink!)">
+                                        <mat-icon style="font-size:16px;width:16px;height:16px">video_call</mat-icon>
+                                        Join Meeting
+                                    </button>
+                                }
+
+                                <!-- Members avatars -->
+                                @if (calEventMembers().length > 0) {
+                                    <div class="meeting-cal-members-row">
+                                        @for (m of calEventMembers().slice(0, 6); track m.userId) {
+                                            <div class="meeting-cal-member-av"
+                                                 [ngStyle]="getAvatarGradient(m.userFullName)"
+                                                 [matTooltip]="m.userFullName">
+                                                {{ getInitials(m.userFullName) }}
+                                            </div>
+                                        }
+                                        @if (calEventMembers().length > 6) {
+                                            <div class="meeting-cal-member-more">+{{ calEventMembers().length - 6 }}</div>
+                                        }
+                                    </div>
+                                }
+                                @if (calEventMembersLoading()) {
+                                    <div style="display:flex;align-items:center;gap:6px;margin:8px 0;font-size:12px;color:var(--mat-sys-on-surface-variant)">
+                                        <mat-spinner diameter="14"></mat-spinner> Loading members…
+                                    </div>
+                                }
+
+                                <button mat-stroked-button class="meeting-cal-open-room-btn"
+                                        (click)="openRoomFromCalendar(selectedCalEvent()!)">
+                                    <mat-icon style="font-size:15px;width:15px;height:15px">forum</mat-icon>
+                                    Open Chatroom
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- ══ Video recording overlay ═══════════════════════════════════════ -->
+    <!-- Two separate position:fixed elements so no parent layout can       -->
+    <!-- affect centering. Backdrop first (z 99998), card on top (z 99999). -->
+    @if (videoPhase() !== 'idle') {
+        <div class="vrc-backdrop-dark"></div>
+        <div class="vrc-card-outer" [class.vrc-card-outer-review]="videoPhase() === 'review'">
+            <div class="vrc-card">
+
+                <!-- Camera feed — shown during preview / countdown / recording -->
+                @if (videoPhase() !== 'review') {
+                    <video #videoPreview class="vrc-camera"
+                           [class.vrc-camera-dim]="videoPhase() === 'countdown'"
+                           autoplay muted playsinline></video>
+                }
+
+                <!-- ── PREVIEW phase ─────────────────────────────────────── -->
+                @if (videoPhase() === 'preview') {
+                    <div class="vrc-overlay" [@fadePhase]>
+                        <div class="vrc-quality-row">
+                            @for (q of ['480p', '720p', '1080p']; track q) {
+                                <button class="vrc-quality-pill"
+                                        [class.vrc-quality-active]="videoQuality() === q"
+                                        (click)="videoQuality.set($any(q))">{{ q }}</button>
+                            }
+                        </div>
+                        <div class="vrc-preview-actions">
+                            <button class="vrc-side-btn" (click)="cancelVideoRecording()" matTooltip="Cancel">
+                                <mat-icon>close</mat-icon>
+                                <span>Cancel</span>
+                            </button>
+                            <button class="vrc-start-btn" (click)="startVideoCountdown()" matTooltip="Start recording">
+                                <mat-icon>fiber_manual_record</mat-icon>
+                            </button>
+                            <button class="vrc-side-btn" (click)="switchVideoCamera()" matTooltip="Flip camera">
+                                <mat-icon>flip_camera_ios</mat-icon>
+                                <span>Flip</span>
+                            </button>
+                        </div>
+                    </div>
+                }
+
+                <!-- ── COUNTDOWN phase ───────────────────────────────────── -->
+                @if (videoPhase() === 'countdown') {
+                    <div class="vrc-countdown-overlay" [@fadePhase]>
+                        <span class="vrc-cd-num"
+                              [class.vrc-cd-2]="videoCountdown() === 2"
+                              [class.vrc-cd-1]="videoCountdown() === 1"
+                              [class.vrc-cd-go]="videoCountdown() === '🎬'">{{ videoCountdown() }}</span>
+                    </div>
+                }
+
+                <!-- ── RECORDING phase ───────────────────────────────────── -->
+                @if (videoPhase() === 'recording') {
+                    <div class="vrc-overlay" [@fadePhase]>
+                        <div class="vrc-rec-row">
+                            <div class="vrc-rec-badge-wrap">
+                                <svg class="vrc-progress-ring" viewBox="0 0 40 40">
+                                    <circle cx="20" cy="20" r="18" fill="none"
+                                            stroke="rgba(255,255,255,0.15)" stroke-width="3"/>
+                                    <circle cx="20" cy="20" r="18" fill="none"
+                                            stroke="#e53935" stroke-width="3"
+                                            stroke-dasharray="113"
+                                            [attr.stroke-dashoffset]="113 - (videoRecordingDuration() / 120) * 113"
+                                            stroke-linecap="round"
+                                            transform="rotate(-90 20 20)"/>
+                                </svg>
+                                <div class="vrc-rec-badge">
+                                    @if (!videoIsPaused()) {
+                                        <span class="vrc-rec-dot-anim"></span>
+                                        <span class="vrc-badge-text">REC</span>
+                                    } @else {
+                                        <mat-icon class="vrc-pause-icon" style="font-size:16px;width:16px;height:16px">pause</mat-icon>
+                                    }
+                                </div>
+                            </div>
+                            <span class="vrc-rec-dur">{{ formatRecordingDuration(videoRecordingDuration()) }}</span>
+                            <button class="vrc-x-btn" (click)="cancelVideoRecording()" matTooltip="Discard">
+                                <mat-icon>close</mat-icon>
+                            </button>
+                        </div>
+                        <div class="vrc-waveform">
+                            @for (bar of audioBars(); track $index) {
+                                <div class="vrc-audio-bar" [style.height.px]="4 + (bar / 255) * 44"></div>
+                            }
+                        </div>
+                        <div class="vrc-rec-actions">
+                            <button class="vrc-side-btn"
+                                    (click)="toggleVideoPause()"
+                                    [matTooltip]="videoIsPaused() ? 'Resume' : 'Pause'">
+                                <mat-icon>{{ videoIsPaused() ? 'play_arrow' : 'pause' }}</mat-icon>
+                                <span>{{ videoIsPaused() ? 'Resume' : 'Pause' }}</span>
+                            </button>
+                            <button class="vrc-stop-btn" (click)="stopVideoRecording()" matTooltip="Stop & review">
+                                <mat-icon>stop</mat-icon>
+                            </button>
+                            <button class="vrc-side-btn vrc-side-btn-lg" (click)="stopVideoRecording()" matTooltip="Done">
+                                <mat-icon>check</mat-icon>
+                                <span>Done</span>
+                            </button>
+                        </div>
+                    </div>
+                }
+
+                <!-- ── REVIEW phase ──────────────────────────────────────── -->
+                @if (videoPhase() === 'review') {
+                    <div class="vrc-review" [@fadePhase]>
+                        <!-- Video preview with fade gradient at bottom -->
+                        <div class="vrc-review-video-wrap">
+                            <video class="vrc-review-video" controls [src]="recordedBlobUrl()" playsinline></video>
+                            <div class="vrc-review-video-fade"></div>
+                        </div>
+                        <!-- Caption input -->
+                        <input class="vrc-caption-input"
+                               [(ngModel)]="videoCaption"
+                               placeholder="Add a caption..."
+                               maxlength="200">
+                        <!-- Buttons row -->
+                        <div class="vrc-review-actions">
+                            <button class="vrc-rv-icon-btn" (click)="reRecordVideo()" matTooltip="Re-record">
+                                <div class="vrc-rv-icon-circle"><mat-icon>replay</mat-icon></div>
+                                <span>Re-record</span>
+                            </button>
+                            <button class="vrc-rv-icon-btn vrc-rv-discard-btn" (click)="cancelVideoRecording()" matTooltip="Discard">
+                                <div class="vrc-rv-icon-circle"><mat-icon>delete_outline</mat-icon></div>
+                                <span>Discard</span>
+                            </button>
+                            <button class="vrc-send-video-btn" (click)="sendReviewedVideo()">
+                                <mat-icon>send</mat-icon>
+                                Send Video
+                            </button>
+                        </div>
+                    </div>
+                }
+
+            </div>
+        </div>
+    }
     `,
     styles: [`
         /* ── Layout ─────────────────────────────────────────────────── */
@@ -4502,10 +5925,16 @@ export class RemoveMemberDialogComponent {
         /* ── Voice recording UI ──────────────────────────────────────── */
         .recording-ui {
             display: flex;
+            flex-direction: column;
+            gap: 0;
+            padding: 10px 14px 8px;
+            min-height: 60px;
+        }
+        .recording-row {
+            display: flex;
             align-items: center;
             gap: 12px;
-            padding: 12px 14px;
-            min-height: 60px;
+            width: 100%;
         }
         .recording-left {
             display: flex;
@@ -4600,6 +6029,153 @@ export class RemoveMemberDialogComponent {
         }
         .rec-send-btn:hover { transform: scale(1.12) translateY(-1px); box-shadow: 0 6px 20px color-mix(in srgb, var(--mat-sys-primary) 50%, transparent); }
         .rec-send-btn:active { transform: scale(0.9); }
+
+        /* ── @mention autocomplete ───────────────────────────────────── */
+        @keyframes mention-enter {
+            from { transform: translateY(8px); opacity: 0; }
+            to   { transform: translateY(0);   opacity: 1; }
+        }
+        .mention-overlay {
+            position: absolute;
+            bottom: calc(100% + 4px);
+            left: 16px;
+            right: 16px;
+            z-index: 300;
+            animation: mention-enter 180ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        .mention-panel {
+            background: var(--mat-card-elevated-container-color, var(--mat-sys-surface));
+            border: 1px solid var(--mat-sys-outline-variant);
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08);
+            max-height: 220px;
+            overflow-y: auto;
+            padding: 4px;
+        }
+        .mention-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 150ms ease;
+            border-left: 3px solid transparent;
+        }
+        .mention-item:hover,
+        .mention-item-active {
+            background: color-mix(in srgb, var(--mat-sys-primary) 10%, transparent);
+            border-left-color: var(--mat-sys-primary);
+        }
+        .mention-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            color: #fff;
+            flex-shrink: 0;
+        }
+        .mention-avatar-everyone {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--mat-sys-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .mention-info {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+        .mention-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--mat-sys-on-surface);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .mention-sub {
+            font-size: 11px;
+            color: var(--mat-sys-on-surface-variant);
+        }
+        .mention-role-badge {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            flex-shrink: 0;
+        }
+        .mention-role-manager   { background: color-mix(in srgb, var(--mat-sys-primary)   20%, transparent); color: var(--mat-sys-primary);   }
+        .mention-role-tutor     { background: color-mix(in srgb, var(--mat-sys-secondary)  20%, transparent); color: var(--mat-sys-secondary);  }
+        .mention-role-employee  { background: rgba(76,175,80,0.15);  color: #388e3c; }
+        .mention-role-student   { background: rgba(255,152,0,0.15);  color: #e65100; }
+        .mention-role-all       { background: color-mix(in srgb, var(--mat-sys-tertiary)   20%, transparent); color: var(--mat-sys-tertiary);   }
+
+        /* mention chip in message content */
+        ::ng-deep .mention-chip {
+            display: inline-block;
+            background: color-mix(in srgb, var(--mat-sys-primary) 15%, transparent);
+            color: var(--mat-sys-primary);
+            border-radius: 4px;
+            padding: 0 4px;
+            font-weight: 600;
+        }
+
+        /* ── Live transcript area ────────────────────────────────────── */
+        @keyframes rec-glow-pulse {
+            0%, 100% { box-shadow: 0 0 0 0   color-mix(in srgb, var(--mat-sys-primary) 20%, transparent); }
+            50%       { box-shadow: 0 0 0 4px color-mix(in srgb, var(--mat-sys-primary) 0%,  transparent); }
+        }
+        @keyframes rec-cursor-blink {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0; }
+        }
+        .rec-transcript-area {
+            margin-top: 7px;
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 30%, transparent);
+            background: color-mix(in srgb, var(--mat-sys-primary) 5%, transparent);
+            font-size: 12.5px;
+            line-height: 1.5;
+            min-height: 28px;
+            word-break: break-word;
+            animation: rec-glow-pulse 2s ease-in-out infinite;
+        }
+        .rec-transcript-final {
+            color: var(--mat-sys-on-surface);
+            opacity: 1;
+        }
+        .rec-transcript-interim {
+            color: var(--mat-sys-on-surface-variant);
+            font-style: italic;
+            opacity: 0.55;
+        }
+        .rec-cursor {
+            display: inline-block;
+            color: var(--mat-sys-primary);
+            font-weight: 700;
+            animation: rec-cursor-blink 900ms step-start infinite;
+            margin-left: 1px;
+        }
+        .rec-transcript-placeholder {
+            color: var(--mat-sys-on-surface-variant);
+            font-style: italic;
+            opacity: 0.6;
+            font-size: 12px;
+        }
 
         /* ── Inline audio player ─────────────────────────────────────── */
         .audio-player-wrap {
@@ -4785,90 +6361,449 @@ export class RemoveMemberDialogComponent {
         }
         .voice-bubble-own .vb-time { color: var(--mat-sys-on-surface); }
 
-        /* ── Video preview card (recording) ─────────────────────────── */
-        .video-preview-card {
-            position: relative;
-            width: 280px;
-            border-radius: 16px;
-            overflow: hidden;
-            background: #000;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.35);
-            margin: 0 auto 8px;
+        /* ── Video recording experience ──────────────────────────────── */
+        /* Two separate position:fixed elements.                         */
+        /* top:50%+left:50%+translate(-50%,-50%) centers the card in    */
+        /* the viewport regardless of any parent layout or sidebar.      */
+        .vrc-backdrop-dark {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 99998;
+            background: rgba(0, 0, 0, 0.75);
         }
-        .vpc-video-wrap {
+        .vrc-card-outer {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 99999;
+            width: 640px;
+            height: 420px;
+        }
+        .vrc-card-outer.vrc-card-outer-review {
+            height: auto;
+            max-height: 90vh;
+        }
+        /* In review mode the card must size to its content, not 100% of an auto parent */
+        .vrc-card-outer.vrc-card-outer-review .vrc-card {
+            height: auto;
+        }
+        @media (max-width: 680px) {
+            .vrc-card-outer {
+                top: 0;
+                left: 0;
+                transform: none;
+                width: 100vw;
+                height: 100dvh;
+            }
+        }
+        .vrc-card {
             position: relative;
             width: 100%;
-            height: 180px;
+            height: 100%;
+            border-radius: 20px;
+            overflow: hidden;
+            background: #0d0d0d;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+            border: 1.5px solid color-mix(in srgb, var(--mat-sys-primary) 35%, transparent);
+            animation: vrc-card-enter 350ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
         }
-        .vpc-video {
+        @keyframes vrc-card-enter {
+            from { transform: scale(0.85); opacity: 0; }
+            to   { transform: scale(1);    opacity: 1; }
+        }
+        @keyframes vrc-card-exit {
+            from { transform: scale(1);   opacity: 1; }
+            to   { transform: scale(0.9); opacity: 0; }
+        }
+
+        /* camera feed */
+        .vrc-camera {
+            position: absolute;
+            inset: 0;
             width: 100%;
             height: 100%;
             object-fit: cover;
             display: block;
+            transition: opacity 0.4s ease;
         }
-        .vpc-hud-topleft {
+        .vrc-camera-dim { opacity: 0.6; }
+
+        /* overlays */
+        .vrc-overlay {
             position: absolute;
-            top: 8px;
-            left: 10px;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+        .vrc-overlay > * { pointer-events: auto; }
+
+        /* quality selector */
+        .vrc-quality-row {
+            display: flex;
+            gap: 6px;
+            justify-content: flex-end;
+            padding: 14px 16px 0;
+        }
+        .vrc-quality-pill {
+            border: 1.5px solid rgba(255,255,255,0.35);
+            background: rgba(0,0,0,0.45);
+            color: #fff;
+            border-radius: 20px;
+            padding: 3px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s, transform 0.15s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        .vrc-quality-pill:hover { background: rgba(255,255,255,0.15); }
+        .vrc-quality-active {
+            background: var(--mat-sys-primary) !important;
+            border-color: var(--mat-sys-primary) !important;
+            color: var(--mat-sys-on-primary);
+            transform: scale(1.06);
+        }
+
+        /* bottom preview actions */
+        .vrc-preview-actions {
             display: flex;
             align-items: center;
-            gap: 6px;
-            background: rgba(0,0,0,0.55);
-            border-radius: 20px;
-            padding: 3px 10px 3px 8px;
+            justify-content: center;
+            gap: 24px;
+            padding: 0 0 24px;
         }
-        .vpc-rec-dot {
-            width: 8px;
-            height: 8px;
+        .vrc-side-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            border: none;
+            background: rgba(0,0,0,0.5);
+            color: #fff;
+            border-radius: 14px;
+            padding: 10px 16px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), background 0.15s;
+        }
+        .vrc-side-btn mat-icon { font-size: 22px; width: 22px; height: 22px; }
+        .vrc-side-btn:hover { background: rgba(255,255,255,0.18); transform: scale(1.06); }
+        .vrc-side-btn-lg { padding: 12px 22px; font-size: 13px; }
+
+        /* big red record button */
+        .vrc-start-btn {
+            width: 72px;
+            height: 72px;
             border-radius: 50%;
-            background: #ff4040;
-            animation: vpc-pulse 1.1s ease-in-out infinite;
+            border: 3px solid rgba(255,255,255,0.8);
+            background: #e53935;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            animation: vrc-start-pulse 1.8s ease-in-out infinite;
+            transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1);
+            box-shadow: 0 0 0 0 rgba(229,57,53,0.6);
         }
-        @keyframes vpc-pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50%       { opacity: 0.4; transform: scale(0.75); }
+        .vrc-start-btn mat-icon { font-size: 32px; width: 32px; height: 32px; }
+        .vrc-start-btn:hover { transform: scale(1.1); animation: none; box-shadow: 0 0 24px rgba(229,57,53,0.7); }
+        @keyframes vrc-start-pulse {
+            0%,100% { box-shadow: 0 0 0 0 rgba(229,57,53,0.6); }
+            50%      { box-shadow: 0 0 0 14px rgba(229,57,53,0); }
         }
-        .vpc-duration {
-            font-size: 12px;
+
+        /* countdown overlay */
+        .vrc-countdown-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .vrc-cd-num {
+            font-size: 120px;
+            font-weight: 900;
+            line-height: 1;
+            color: #fff;
+            text-shadow: 0 4px 32px rgba(0,0,0,0.7);
+            animation: vrc-cd-pop 0.9s cubic-bezier(0.34,1.56,0.64,1) both;
+        }
+        @keyframes vrc-cd-pop {
+            0%   { transform: scale(2);   opacity: 0; }
+            40%  { transform: scale(1);   opacity: 1; }
+            85%  { transform: scale(1);   opacity: 1; }
+            100% { transform: scale(0.5); opacity: 0; }
+        }
+        .vrc-cd-2 { color: #ffd54f; }
+        .vrc-cd-1 { color: #ef5350; }
+        .vrc-cd-go { font-size: 80px; color: var(--mat-sys-primary); }
+
+        /* recording top bar */
+        .vrc-rec-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 16px 0;
+        }
+        .vrc-rec-badge-wrap {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            flex-shrink: 0;
+        }
+        .vrc-progress-ring {
+            position: absolute;
+            inset: 0;
+            width: 40px;
+            height: 40px;
+            transition: stroke-dashoffset 1s linear;
+        }
+        .vrc-rec-badge {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+        }
+        .vrc-rec-dot-anim {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #ff4444;
+            animation: vrc-blink 1s step-start infinite;
+        }
+        @keyframes vrc-blink {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0; }
+        }
+        .vrc-badge-text {
+            font-size: 9px;
+            font-weight: 800;
+            color: #ff4444;
+            letter-spacing: 0.08em;
+        }
+        .vrc-badge-paused { color: #ffb300; }
+        .vrc-pause-icon { color: #ffb300; }
+        .vrc-rec-dur {
+            flex: 1;
+            font-size: 14px;
             font-weight: 700;
             color: #fff;
             font-variant-numeric: tabular-nums;
-            letter-spacing: 0.04em;
+            letter-spacing: 0.06em;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.8);
         }
-        .vpc-actions {
+        .vrc-x-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(0,0,0,0.5);
+            color: rgba(255,255,255,0.8);
             display: flex;
-            gap: 8px;
-            padding: 8px 10px;
-            background: color-mix(in srgb, var(--mat-sys-surface-container) 95%, #000);
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.15s, transform 0.15s;
         }
-        .vpc-cancel-btn,
-        .vpc-send-btn {
+        .vrc-x-btn mat-icon { font-size: 18px; width: 18px; height: 18px; }
+        .vrc-x-btn:hover { background: rgba(255,255,255,0.2); transform: scale(1.1); }
+
+        /* audio waveform */
+        .vrc-waveform {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 3px;
+            height: 48px;
+            padding: 0 20px;
+        }
+        .vrc-audio-bar {
+            width: 5px;
+            min-height: 4px;
+            border-radius: 3px;
+            background: linear-gradient(to top, var(--mat-sys-primary), rgba(255,255,255,0.9));
+            transition: height 0.05s ease;
+        }
+
+        /* recording bottom actions */
+        .vrc-rec-actions {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 28px;
+            padding: 0 0 24px;
+        }
+        .vrc-stop-btn {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.8);
+            background: #e53935;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.15s;
+        }
+        .vrc-stop-btn mat-icon { font-size: 28px; width: 28px; height: 28px; }
+        .vrc-stop-btn:hover { transform: scale(1.1); box-shadow: 0 0 24px rgba(229,57,53,0.7); }
+
+        /* ── Review phase ────────────────────────────────────────── */
+        /* position: relative (not absolute) so .vrc-card auto-height works */
+        .vrc-review {
+            position: relative;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            background: #0d0d0d;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        /* video container */
+        .vrc-review-video-wrap {
+            position: relative;
+            flex-shrink: 0;
+            width: 100%;
+            overflow: hidden;
+            border-radius: 20px 20px 0 0;
+            background: #000;
+            line-height: 0;
+        }
+        .vrc-review-video {
+            width: 100%;
+            max-height: 360px;
+            object-fit: cover;
+            display: block;
+        }
+        /* cinematic fade at bottom of the video */
+        .vrc-review-video-fade {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 72px;
+            background: linear-gradient(to bottom, transparent, rgba(13,13,13,0.9));
+            pointer-events: none;
+        }
+
+        /* caption input */
+        .vrc-caption-input {
+            flex-shrink: 0;
+            background: rgba(255,255,255,0.07);
+            border: none;
+            border-top: 1px solid rgba(255,255,255,0.07);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            color: #fff;
+            padding: 16px 20px;
+            font-size: 14px;
+            outline: none;
+            font-family: inherit;
+            letter-spacing: 0.01em;
+            transition: background 0.2s ease;
+        }
+        .vrc-caption-input:focus { background: rgba(255,255,255,0.10); }
+        .vrc-caption-input::placeholder { color: rgba(255,255,255,0.32); font-style: italic; }
+
+        /* actions bar */
+        .vrc-review-actions {
+            display: flex;
+            flex-shrink: 0;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px 20px;
+            background: #111;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+
+        /* circular icon buttons (Re-record / Discard) */
+        .vrc-rv-icon-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            border: none;
+            background: transparent;
+            color: rgba(255,255,255,0.75);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            cursor: pointer;
+            padding: 4px 6px;
+            transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1), color 0.18s ease;
+        }
+        .vrc-rv-icon-btn:hover { transform: scale(1.08); color: #fff; }
+        .vrc-rv-icon-circle {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.09);
+            border: 1.5px solid rgba(255,255,255,0.16);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.18s ease, border-color 0.18s ease,
+                        box-shadow 0.18s ease;
+        }
+        .vrc-rv-icon-circle mat-icon { font-size: 22px; width: 22px; height: 22px; }
+        .vrc-rv-icon-btn:hover .vrc-rv-icon-circle {
+            background: rgba(255,255,255,0.18);
+            border-color: rgba(255,255,255,0.32);
+            box-shadow: 0 0 12px rgba(255,255,255,0.08);
+        }
+
+        /* discard = red accent */
+        .vrc-rv-discard-btn { color: rgba(239,83,80,0.8); }
+        .vrc-rv-discard-btn:hover { color: #ef5350; }
+        .vrc-rv-discard-btn .vrc-rv-icon-circle {
+            background: rgba(239,83,80,0.1);
+            border-color: rgba(239,83,80,0.25);
+        }
+        .vrc-rv-discard-btn .vrc-rv-icon-circle mat-icon { color: #ef5350; }
+        .vrc-rv-discard-btn:hover .vrc-rv-icon-circle {
+            background: rgba(239,83,80,0.2);
+            border-color: rgba(239,83,80,0.45);
+            box-shadow: 0 0 14px rgba(239,83,80,0.2);
+        }
+
+        /* Send Video — pill button */
+        .vrc-send-video-btn {
             flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 5px;
+            gap: 8px;
             border: none;
-            border-radius: 10px;
-            padding: 7px 0;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), opacity 0.15s;
-        }
-        .vpc-cancel-btn {
-            background: var(--mat-sys-surface-container-high);
-            color: var(--mat-sys-on-surface-variant);
-        }
-        .vpc-send-btn {
+            border-radius: 50px;
+            padding: 14px 24px;
             background: var(--mat-sys-primary);
             color: var(--mat-sys-on-primary);
-            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 35%, transparent);
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            cursor: pointer;
+            transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1),
+                        filter 0.18s ease,
+                        box-shadow 0.18s ease;
+            box-shadow: 0 4px 18px color-mix(in srgb, var(--mat-sys-primary) 45%, transparent);
         }
-        .vpc-cancel-btn:hover { opacity: 0.8; }
-        .vpc-send-btn:hover   { transform: scale(1.04); }
+        .vrc-send-video-btn mat-icon { font-size: 20px; width: 20px; height: 20px; }
+        .vrc-send-video-btn:hover {
+            transform: scale(1.02);
+            filter: brightness(1.12);
+            box-shadow: 0 6px 24px color-mix(in srgb, var(--mat-sys-primary) 55%, transparent);
+        }
 
-        /* ── Input card dim when video is recording ──────────────────── */
+        /* ── Input card dim when video recording overlay is active ──── */
         .input-card-video-recording {
             opacity: 0.45;
             pointer-events: none;
@@ -5634,6 +7569,604 @@ export class RemoveMemberDialogComponent {
         }
         .sched-empty p { font-size: 13px; margin: 0; }
 
+        /* ══ MEETING STATUS ══════════════════════════════════════════ */
+        @keyframes meeting-live-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(22,163,74,0.45); }
+            50%       { box-shadow: 0 0 0 8px rgba(22,163,74,0); }
+        }
+        @keyframes meeting-glow-room {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(22,163,74,0.35), 0 2px 10px color-mix(in srgb,var(--mat-sys-primary) 25%,transparent); }
+            50%       { box-shadow: 0 0 0 8px rgba(22,163,74,0), 0 4px 18px rgba(22,163,74,0.35); }
+        }
+        .wa-meeting-dot {
+            display: inline-block;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--mat-sys-outline-variant);
+            flex-shrink: 0;
+            margin-right: 2px;
+        }
+        .wa-meeting-dot-live {
+            background: #16a34a;
+            animation: meeting-live-pulse 1.8s ease-in-out infinite;
+        }
+        .wa-meeting-dot-soon { background: #f59e0b; }
+        .wa-meeting-dot-ended { background: var(--mat-sys-outline-variant); opacity: 0.5; }
+        .wa-avatar-meeting-live {
+            animation: meeting-glow-room 2s ease-in-out infinite;
+        }
+
+        /* ── Meeting status banner ── */
+        .meeting-status-banner {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11.5px;
+            font-weight: 600;
+            padding: 5px 12px 5px 48px;
+            background: color-mix(in srgb, var(--mat-sys-surface-container-high) 80%, transparent);
+            border-top: 1px solid var(--mat-sys-outline-variant);
+            color: var(--mat-sys-on-surface-variant);
+            flex-wrap: wrap;
+        }
+        .meeting-status-live {
+            background: color-mix(in srgb, #16a34a 10%, var(--mat-sys-surface));
+            color: #16a34a;
+            border-top-color: rgba(22,163,74,0.2);
+            animation: meeting-live-pulse 2s ease-in-out infinite;
+        }
+        .meeting-status-soon {
+            background: color-mix(in srgb, #f59e0b 10%, var(--mat-sys-surface));
+            color: #b45309;
+            border-top-color: rgba(245,158,11,0.2);
+        }
+        .meeting-status-ended {
+            opacity: 0.6;
+        }
+        .meeting-banner-icon {
+            font-size: 14px !important;
+            width: 14px !important;
+            height: 14px !important;
+        }
+        .meeting-live-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: #16a34a;
+            animation: meeting-live-pulse 1.5s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+        .meeting-live-badge {
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            color: #fff;
+            background: #16a34a;
+            border-radius: 4px;
+            padding: 1px 5px;
+        }
+        .meeting-join-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            border: none;
+            background: var(--mat-sys-primary);
+            color: var(--mat-sys-on-primary);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-left: 4px;
+            transition: filter 0.15s, transform 0.15s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        .meeting-join-btn:hover { filter: brightness(1.1); transform: scale(1.04); }
+
+        /* ══ AGENDA PANEL ════════════════════════════════════════════ */
+        .agenda-panel {
+            border-top: 3px solid var(--mat-sys-primary) !important;
+        }
+        .agenda-date-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11.5px;
+            color: var(--mat-sys-on-surface-variant);
+            padding: 6px 14px;
+            border-bottom: 1px solid var(--mat-sys-outline-variant);
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 8%, var(--mat-sys-surface-container-lowest));
+        }
+        .agenda-join-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            margin-left: auto;
+            padding: 3px 8px;
+            border-radius: 12px;
+            border: none;
+            background: var(--mat-sys-primary);
+            color: var(--mat-sys-on-primary);
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: filter 0.15s;
+        }
+        .agenda-join-btn:hover { filter: brightness(1.1); }
+        .agenda-progress-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 14px;
+            border-bottom: 1px solid var(--mat-sys-outline-variant);
+        }
+        .agenda-progress-bar {
+            flex: 1;
+            height: 5px;
+            border-radius: 3px;
+            background: var(--mat-sys-outline-variant);
+            overflow: hidden;
+        }
+        .agenda-progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            background: linear-gradient(90deg, var(--mat-sys-primary), var(--mat-sys-tertiary));
+            transition: width 0.45s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        .agenda-progress-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--mat-sys-on-surface-variant);
+            white-space: nowrap;
+        }
+        .agenda-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--mat-sys-outline-variant);
+            transition: background 0.15s, opacity 0.25s;
+        }
+        .agenda-item:hover { background: color-mix(in srgb, var(--mat-sys-surface-container-high) 50%, transparent); }
+        .agenda-item-done { opacity: 0.55; }
+        .agenda-item-done .agenda-item-title { text-decoration: line-through; }
+        .agenda-checkbox { flex-shrink: 0; margin-top: 1px; }
+        .agenda-item-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+        .agenda-item-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--mat-sys-on-surface);
+            line-height: 1.4;
+        }
+        .agenda-item-duration {
+            display: inline-block;
+            font-size: 10.5px;
+            font-weight: 600;
+            color: var(--mat-sys-on-surface-variant);
+            background: var(--mat-sys-surface-container-high);
+            border-radius: 6px;
+            padding: 1px 6px;
+            width: fit-content;
+        }
+        .agenda-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+            text-align: center;
+        }
+        .agenda-empty-icon {
+            font-size: 44px !important;
+            width: 44px !important;
+            height: 44px !important;
+            color: var(--mat-sys-outline-variant);
+            margin-bottom: 12px;
+            animation: icon-float 3.5s ease-in-out infinite;
+        }
+        .agenda-empty-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--mat-sys-on-surface);
+            margin: 0 0 4px;
+        }
+        .agenda-empty-sub {
+            font-size: 12px;
+            color: var(--mat-sys-on-surface-variant);
+            margin: 0;
+        }
+        .agenda-add-form {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 12px;
+            border-top: 1px solid var(--mat-sys-outline-variant);
+            background: var(--mat-sys-surface-container-lowest);
+            flex-shrink: 0;
+        }
+        .agenda-add-input { flex: 1; }
+        .agenda-duration-input {
+            width: 52px;
+            padding: 6px 8px;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            border-radius: 8px;
+            background: var(--mat-sys-surface-container);
+            color: var(--mat-sys-on-surface);
+            font-size: 12px;
+            text-align: center;
+            outline: none;
+            transition: border-color 0.15s;
+            flex-shrink: 0;
+        }
+        .agenda-duration-input:focus { border-color: var(--mat-sys-primary); }
+        .agenda-add-btn {
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            border: none;
+            background: var(--mat-sys-primary);
+            color: var(--mat-sys-on-primary);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: filter 0.15s, transform 0.15s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        .agenda-add-btn:hover:not(:disabled) { filter: brightness(1.1); transform: scale(1.06); }
+        .agenda-add-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+        /* ── Meeting link card ─────────────────────────────────────── */
+        .meeting-link-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: color-mix(in srgb, #4caf50 6%, var(--mat-sys-surface-container));
+            border: 1px solid color-mix(in srgb, #4caf50 25%, var(--mat-sys-outline-variant));
+            border-radius: 10px;
+            padding: 8px 12px;
+            margin-top: 8px;
+            transition: box-shadow 0.3s, border-color 0.3s;
+        }
+        .meeting-link-card-live {
+            border-color: #4caf50 !important;
+            animation: meeting-card-pulse 2.5s ease-in-out infinite;
+        }
+        @keyframes meeting-card-pulse {
+            0%,100% { box-shadow: 0 0 0 0 rgba(76,175,80,0.25); }
+            50%      { box-shadow: 0 0 0 6px rgba(76,175,80,0); }
+        }
+        .meeting-link-card-ended {
+            opacity: 0.6;
+            border-color: var(--mat-sys-outline-variant) !important;
+        }
+        .meeting-link-card-left {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            flex: 1;
+            min-width: 0;
+        }
+        .meeting-link-icon {
+            color: #4caf50;
+            flex-shrink: 0;
+            font-size: 20px !important;
+            width: 20px !important;
+            height: 20px !important;
+            margin-top: 1px;
+        }
+        .meeting-link-info {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+        .meeting-link-status {
+            font-size: 11.5px;
+            font-weight: 600;
+            color: var(--mat-sys-on-surface);
+            white-space: nowrap;
+        }
+        .meeting-link-status-live { color: #4caf50; }
+        .meeting-link-status-soon { color: #f59e0b; }
+        .meeting-link-url-text {
+            font-size: 10.5px;
+            color: var(--mat-sys-on-surface-variant);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 260px;
+        }
+        .meeting-link-card-right {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        .meeting-link-join-btn {
+            height: 30px !important;
+            font-size: 12px !important;
+            background: #4caf50 !important;
+            color: #fff !important;
+            border-radius: 8px !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 3px !important;
+        }
+        .meeting-link-copy-btn {
+            width: 30px !important;
+            height: 30px !important;
+            line-height: 30px !important;
+            color: var(--mat-sys-on-surface-variant) !important;
+        }
+
+        /* ── Meeting Calendar Overlay ─────────────────────────────── */
+        .meeting-cal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .meeting-cal-overlay-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+        }
+        .meeting-cal-overlay-panel {
+            position: relative;
+            z-index: 1;
+            width: 90vw;
+            max-width: 900px;
+            max-height: 88vh;
+            background: var(--mat-sys-surface);
+            border-radius: 20px;
+            box-shadow: 0 24px 80px rgba(0,0,0,0.28);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            animation: cal-panel-enter 300ms cubic-bezier(0.34,1.56,0.64,1) forwards;
+        }
+        @keyframes cal-panel-enter {
+            from { transform: scale(0.95); opacity: 0; }
+            to   { transform: scale(1);    opacity: 1; }
+        }
+        .meeting-cal-overlay-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px 16px;
+            border-bottom: 1px solid var(--mat-sys-outline-variant);
+            flex-shrink: 0;
+        }
+        .meeting-cal-overlay-title {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin: 0 0 2px;
+            display: flex;
+            align-items: center;
+        }
+        .meeting-cal-overlay-sub {
+            font-size: 12.5px;
+            color: var(--mat-sys-on-surface-variant);
+            margin: 0;
+        }
+        .meeting-cal-overlay-body {
+            display: grid;
+            grid-template-columns: 1fr 280px;
+            gap: 0;
+            flex: 1;
+            overflow: hidden;
+        }
+        @media (max-width: 640px) {
+            .meeting-cal-overlay-body { grid-template-columns: 1fr; }
+        }
+        /* Calendar grid column */
+        .meeting-cal-grid-col {
+            padding: 16px 20px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        .meeting-cal-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .meeting-cal-nav-label {
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+        }
+        .meeting-cal-nav-btn {
+            width: 32px !important;
+            height: 32px !important;
+        }
+        .meeting-cal-dow-row {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            margin-bottom: 4px;
+        }
+        .meeting-cal-dow {
+            text-align: center;
+            font-size: 10.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--mat-sys-on-surface-variant);
+            padding: 4px 0;
+            opacity: 0.6;
+        }
+        .meeting-cal-day-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+            flex: 1;
+        }
+        .meeting-cal-cell {
+            min-height: 72px;
+            border-radius: 8px;
+            padding: 4px;
+            border: 1px solid transparent;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            cursor: default;
+            transition: background 0.15s;
+        }
+        .meeting-cal-cell:hover { background: var(--mat-sys-surface-container); }
+        .meeting-cal-cell-today {
+            border-color: var(--mat-sys-primary) !important;
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 20%, var(--mat-sys-surface));
+        }
+        .meeting-cal-cell-other-month { opacity: 0.35; }
+        .meeting-cal-cell-num {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--mat-sys-on-surface-variant);
+            padding: 0 2px;
+            line-height: 1.6;
+        }
+        .meeting-cal-cell-num-today {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--mat-sys-primary);
+            color: #fff !important;
+            font-weight: 700;
+            font-size: 11px;
+        }
+        .meeting-cal-event-dot {
+            border: none;
+            border-radius: 4px;
+            padding: 1px 5px;
+            font-size: 10px;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: left;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 100%;
+            background: color-mix(in srgb, var(--mat-sys-primary) 15%, var(--mat-sys-surface-container));
+            color: var(--mat-sys-primary);
+            transition: background 0.15s;
+        }
+        .meeting-cal-event-dot:hover { background: color-mix(in srgb, var(--mat-sys-primary) 25%, var(--mat-sys-surface-container)); }
+        .meeting-cal-event-live { background: rgba(76,175,80,0.18) !important; color: #388e3c !important; }
+        .meeting-cal-event-soon { background: rgba(245,158,11,0.18) !important; color: #b45309 !important; }
+        .meeting-cal-event-ended { opacity: 0.5; }
+        /* Detail column */
+        .meeting-cal-detail-col {
+            border-left: 1px solid var(--mat-sys-outline-variant);
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .meeting-cal-detail-empty {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--mat-sys-on-surface-variant);
+            text-align: center;
+        }
+        .meeting-cal-detail-empty p { font-size: 13px; margin: 0; }
+        .meeting-cal-detail { display: flex; flex-direction: column; gap: 10px; }
+        .meeting-cal-detail-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            background: var(--mat-sys-surface-container);
+            color: var(--mat-sys-on-surface-variant);
+            border-radius: 12px;
+            padding: 3px 10px;
+            align-self: flex-start;
+        }
+        .meeting-cal-detail-status-live { background: rgba(76,175,80,0.15); color: #388e3c; }
+        .meeting-cal-detail-status-soon { background: rgba(245,158,11,0.15); color: #b45309; }
+        .meeting-cal-detail-status-ended { opacity: 0.5; }
+        .meeting-cal-detail-title {
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin: 0;
+            line-height: 1.3;
+        }
+        .meeting-cal-detail-desc {
+            font-size: 12.5px;
+            color: var(--mat-sys-on-surface-variant);
+            margin: 0;
+            line-height: 1.5;
+        }
+        .meeting-cal-detail-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12.5px;
+            color: var(--mat-sys-on-surface);
+        }
+        .meeting-cal-join-btn {
+            background: var(--mat-sys-primary) !important;
+            color: var(--mat-sys-on-primary) !important;
+            border-radius: 10px !important;
+            height: 36px !important;
+            font-size: 13px !important;
+            font-weight: 600 !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 4px !important;
+        }
+        .meeting-cal-members-row {
+            display: flex;
+            align-items: center;
+            gap: -4px;
+        }
+        .meeting-cal-member-av {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            font-size: 10px;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--mat-sys-surface);
+            margin-right: -6px;
+            flex-shrink: 0;
+        }
+        .meeting-cal-member-more {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--mat-sys-surface-container-high);
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--mat-sys-on-surface-variant);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--mat-sys-surface);
+            margin-right: -6px;
+        }
+        .meeting-cal-open-room-btn {
+            border-radius: 10px !important;
+            height: 34px !important;
+            font-size: 12px !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 4px !important;
+            margin-top: auto;
+        }
+
     `],
     animations: [
         trigger('pillEnter', [
@@ -5782,15 +8315,22 @@ export class RemoveMemberDialogComponent {
                     style({ transform: 'scale(1)', opacity: 1 })),
             ]),
         ]),
-        trigger('videoPreviewEnter', [
+        trigger('videoCardEnter', [
             transition(':enter', [
-                style({ transform: 'translateY(16px) scale(0.92)', opacity: 0 }),
-                animate('280ms cubic-bezier(0.34,1.56,0.64,1)',
-                    style({ transform: 'translateY(0) scale(1)', opacity: 1 })),
+                style({ opacity: 0 }),
+                animate('350ms cubic-bezier(0.34, 1.56, 0.64, 1)', style({ opacity: 1 })),
             ]),
             transition(':leave', [
-                animate('160ms cubic-bezier(0.4,0,1,1)',
-                    style({ transform: 'translateY(12px) scale(0.92)', opacity: 0 })),
+                animate('200ms ease-in', style({ opacity: 0 })),
+            ]),
+        ]),
+        trigger('fadePhase', [
+            transition(':enter', [
+                style({ opacity: 0 }),
+                animate('250ms ease', style({ opacity: 1 })),
+            ]),
+            transition(':leave', [
+                animate('250ms ease', style({ opacity: 0 })),
             ]),
         ]),
         trigger('scheduledPanelSlide', [
@@ -5841,6 +8381,33 @@ export class RemoveMemberDialogComponent {
             transition(':leave', [
                 animate('180ms ease-in',
                     style({ opacity: 0, transform: 'translateY(4px)' })),
+            ]),
+        ]),
+        trigger('agendaPanelSlide', [
+            transition(':enter', [
+                style({ transform: 'translateX(100%)', opacity: 0 }),
+                animate('300ms cubic-bezier(0.34,1.56,0.64,1)',
+                    style({ transform: 'translateX(0)', opacity: 1 })),
+            ]),
+            transition(':leave', [
+                animate('200ms cubic-bezier(0.4,0,1,1)',
+                    style({ transform: 'translateX(100%)', opacity: 0 })),
+            ]),
+        ]),
+        trigger('agendaItemEnter', [
+            transition(':enter', [
+                style({ transform: 'translateX(16px)', opacity: 0 }),
+                animate('260ms cubic-bezier(0.34,1.56,0.64,1)',
+                    style({ transform: 'translateX(0)', opacity: 1 })),
+            ]),
+        ]),
+        trigger('calOverlayEnter', [
+            transition(':enter', [
+                style({ opacity: 0 }),
+                animate('300ms cubic-bezier(0.34,1.56,0.64,1)', style({ opacity: 1 })),
+            ]),
+            transition(':leave', [
+                animate('180ms ease-in', style({ opacity: 0 })),
             ]),
         ]),
     ],
@@ -5963,13 +8530,41 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
     private audioChunks: Blob[] = [];
     private recordingInterval: ReturnType<typeof setInterval> | null = null;
 
+    // ── Speech-to-Text ──────────────────────────────────────────────
+    liveTranscript    = signal<string>('');
+    finalTranscript   = signal<string>('');
+    sttAvailable      = false;
+    private speechRecognition: any = null;
+    private pendingAudioFile: File | null = null;
+
+    // ── @mention autocomplete ───────────────────────────────────────
+    roomMembers            = signal<{id: number, fullName: string, role: string}[]>([]);
+    mentionSuggestions     = signal<{id: number, fullName: string, role: string}[]>([]);
+    showMentionSuggestions = signal<boolean>(false);
+    mentionQuery           = signal<string>('');
+    activeMentionIndex     = signal<number>(0);
+    private mentionFetchSub: Subscription | null = null;
+
     // ── Video recording ────────────────────────────────────────────
-    isRecordingVideo       = signal<boolean>(false);
+    videoPhase             = signal<'idle' | 'preview' | 'countdown' | 'recording' | 'review'>('idle');
     videoRecordingDuration = signal<number>(0);
+    videoQuality           = signal<'480p' | '720p' | '1080p'>('720p');
+    videoIsPaused          = signal<boolean>(false);
+    videoCameraFacing      = signal<'user' | 'environment'>('user');
+    audioBars              = signal<number[]>(new Array(16).fill(0));
+    videoCaption           = '';
+    recordedBlobUrl        = signal<string>('');
+    videoCountdown         = signal<number | string>(3);
     private videoMediaRecorder: MediaRecorder | null = null;
     private videoChunks: Blob[] = [];
     private videoRecordingInterval: ReturnType<typeof setInterval> | null = null;
     private videoStream: MediaStream | null = null;
+    private audioCtx: AudioContext | null = null;
+    private audioAnalyser: AnalyserNode | null = null;
+    private audioAnimFrame: number | null = null;
+    private videoCountdownTimeouts: ReturnType<typeof setTimeout>[] = [];
+    // Legacy signal: true when recording or previewing (drives input-card dim class)
+    isRecordingVideo = signal<boolean>(false);
 
     // ── Reply ──────────────────────────────────────────────────────
     replyingTo = signal<MessageDTO | null>(null);
@@ -6001,6 +8596,10 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
     private scheduledNowInterval: ReturnType<typeof setInterval> | null = null;
     private scheduledRoomSub: Subscription | null = null;
     private userNotifSub: Subscription | null = null;
+    private pendingSound: (() => void) | null = null;
+    private availableVoices: SpeechSynthesisVoice[] = [];
+    private ttsKeyHandler: ((e: KeyboardEvent) => void) | null = null;
+    private ttsKeyTimeout: ReturnType<typeof setTimeout> | null = null;
 
     readonly DAYS_LIST = [
         { key: 'MONDAY', label: 'Mon' }, { key: 'TUESDAY',   label: 'Tue' },
@@ -6048,6 +8647,50 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
             ['code-block'],
             ['clean'],
         ],
+        keyboard: {
+            bindings: {
+                'mention-enter': {
+                    key: 13,
+                    handler: () => {
+                        if (this.showMentionSuggestions()) {
+                            this.selectMention(this.mentionSuggestions()[this.activeMentionIndex()]);
+                            return false;
+                        }
+                        return true;
+                    },
+                },
+                'mention-up': {
+                    key: 38,
+                    handler: () => {
+                        if (this.showMentionSuggestions()) {
+                            this.activeMentionIndex.update(i => (i - 1 + this.mentionSuggestions().length) % this.mentionSuggestions().length);
+                            return false;
+                        }
+                        return true;
+                    },
+                },
+                'mention-down': {
+                    key: 40,
+                    handler: () => {
+                        if (this.showMentionSuggestions()) {
+                            this.activeMentionIndex.update(i => (i + 1) % this.mentionSuggestions().length);
+                            return false;
+                        }
+                        return true;
+                    },
+                },
+                'mention-escape': {
+                    key: 27,
+                    handler: () => {
+                        if (this.showMentionSuggestions()) {
+                            this.showMentionSuggestions.set(false);
+                            return false;
+                        }
+                        return true;
+                    },
+                },
+            },
+        },
     };
 
     // ── Real-time messages ─────────────────────────────────────────
@@ -6095,6 +8738,31 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
     sharedImages     = computed(() => this.sharedContent().filter(m => m.category === 'IMAGE'));
     sharedFiles      = computed(() => this.sharedContent().filter(m => m.category === 'FILE'));
     sharedLinks      = computed(() => this.sharedContent().filter(m => m.category === 'LINK'));
+
+    // ── Meeting & Agenda ──────────────────────────────────────────
+    agendaPanelOpen  = signal(false);
+    agendaItems      = signal<MessageDTO[]>([]);
+    agendaLoading    = signal(false);
+    agendaSaving     = signal(false);
+    agendaTitle      = '';
+    agendaDurationMin: number = 15;
+    agendaDoneCount  = computed(() => this.agendaItems().filter(i => i.agendaDone).length);
+    /** Ticks every 30 s to keep meeting status badges live. */
+    private meetingStatusNow = signal(new Date());
+    private meetingStatusInterval: ReturnType<typeof setInterval> | null = null;
+    private agendaRoomSub: Subscription | null = null;
+
+    // ── Meeting Calendar Overlay ───────────────────────────────────
+    meetingCalOverlayOpen  = signal(false);
+    selectedCalEvent       = signal<ChatRoom | null>(null);
+    calEventMembers        = signal<RoomMemberDTO[]>([]);
+    calEventMembersLoading = signal(false);
+    calOverlayYear         = new Date().getFullYear();
+    calOverlayMonth        = new Date().getMonth(); // 0-indexed
+    readonly CAL_MONTHS    = ['January','February','March','April','May','June',
+                               'July','August','September','October','November','December'];
+    readonly CAL_OVL_DOW   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    meetingRooms = computed(() => this.rooms().filter(r => r.roomType === 'meeting' && r.startTime));
     roomsByType = computed(() => {
         const rooms = this.filteredRooms();
         const groups = new Map<string, ChatRoom[]>();
@@ -6176,6 +8844,189 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         });
     }
 
+    // ── Meeting status helpers ──────────────────────────────────────
+
+    getMeetingStatus(room: ChatRoom): 'UPCOMING' | 'STARTING_SOON' | 'IN_PROGRESS' | 'ENDED' {
+        if (!room.startTime) return 'UPCOMING';
+        // Read meetingStatusNow so Angular re-evaluates on each tick
+        const now = this.meetingStatusNow();
+        const start = new Date(room.startTime);
+        const end = room.endTime ? new Date(room.endTime) : new Date(start.getTime() + 60 * 60 * 1000);
+        if (now > end) return 'ENDED';
+        if (now >= start) return 'IN_PROGRESS';
+        const diffMin = (start.getTime() - now.getTime()) / 60000;
+        if (diffMin <= 60) return 'STARTING_SOON';
+        return 'UPCOMING';
+    }
+
+    getMeetingMinutesLeft(room: ChatRoom): number {
+        if (!room.startTime) return 0;
+        const now = new Date();
+        return Math.max(0, Math.round((new Date(room.startTime).getTime() - now.getTime()) / 60000));
+    }
+
+    joinMeeting(room: ChatRoom): void {
+        if (room.meetingLink) window.open(room.meetingLink, '_blank');
+    }
+
+    openExternalLink(url: string): void {
+        window.open(url, '_blank', 'noopener');
+    }
+
+    copyMeetingLink(room: ChatRoom): void {
+        if (!room.meetingLink) return;
+        navigator.clipboard?.writeText(room.meetingLink).then(() => {
+            this.snackBar.open('Meeting link copied!', '', { duration: 2000, horizontalPosition: 'end' });
+        }).catch(() => {/* ignore — clipboard not available */});
+    }
+
+    // ── Meeting Calendar Overlay ───────────────────────────────────
+
+    openMeetingCalendar(): void {
+        this.selectedCalEvent.set(null);
+        this.calEventMembers.set([]);
+        this.calOverlayYear  = new Date().getFullYear();
+        this.calOverlayMonth = new Date().getMonth();
+        this.meetingCalOverlayOpen.set(true);
+    }
+
+    closeMeetingCalendar(): void {
+        this.meetingCalOverlayOpen.set(false);
+    }
+
+    calOverlayPrevMonth(): void {
+        if (this.calOverlayMonth === 0) { this.calOverlayMonth = 11; this.calOverlayYear--; }
+        else this.calOverlayMonth--;
+    }
+
+    calOverlayNextMonth(): void {
+        if (this.calOverlayMonth === 11) { this.calOverlayMonth = 0; this.calOverlayYear++; }
+        else this.calOverlayMonth++;
+    }
+
+    calOverlayGrid(): {date: Date; inMonth: boolean; isToday: boolean}[] {
+        const year  = this.calOverlayYear;
+        const month = this.calOverlayMonth;
+        const today = new Date(); today.setHours(0,0,0,0);
+        const firstDay = new Date(year, month, 1);
+        const startOffset = firstDay.getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const cells: {date: Date; inMonth: boolean; isToday: boolean}[] = [];
+        // Previous month trailing days
+        const prevDays = new Date(year, month, 0).getDate();
+        for (let i = startOffset - 1; i >= 0; i--) {
+            cells.push({ date: new Date(year, month - 1, prevDays - i), inMonth: false, isToday: false });
+        }
+        for (let d = 1; d <= daysInMonth; d++) {
+            const date = new Date(year, month, d);
+            cells.push({ date, inMonth: true, isToday: date.getTime() === today.getTime() });
+        }
+        while (cells.length % 7 !== 0) {
+            cells.push({ date: new Date(year, month + 1, cells.length - daysInMonth - startOffset + 1), inMonth: false, isToday: false });
+        }
+        return cells;
+    }
+
+    getMeetingRoomsForDate(date: Date): ChatRoom[] {
+        return this.meetingRooms().filter(r => {
+            if (!r.startTime) return false;
+            const sd = new Date(r.startTime);
+            return sd.getFullYear() === date.getFullYear() &&
+                   sd.getMonth()    === date.getMonth() &&
+                   sd.getDate()     === date.getDate();
+        });
+    }
+
+    openCalEventDetail(room: ChatRoom): void {
+        this.selectedCalEvent.set(room);
+        this.calEventMembers.set([]);
+        this.calEventMembersLoading.set(true);
+        this.memberService.getMembers(room.id).subscribe({
+            next: (members) => { this.calEventMembers.set(members); this.calEventMembersLoading.set(false); },
+            error: () => { this.calEventMembersLoading.set(false); },
+        });
+    }
+
+    openRoomFromCalendar(room: ChatRoom): void {
+        this.closeMeetingCalendar();
+        this.selectRoom(room);
+    }
+
+    // ── Agenda panel ───────────────────────────────────────────────
+
+    toggleAgendaPanel(): void {
+        if (this.agendaPanelOpen()) {
+            this.agendaPanelOpen.set(false);
+            return;
+        }
+        this.agendaPanelOpen.set(true);
+        const room = this.activeRoom();
+        if (!room) return;
+        this.loadAgendaItems(room.id);
+    }
+
+    private loadAgendaItems(roomId: number): void {
+        this.agendaLoading.set(true);
+        this.chatMessageService.getAgendaItems(roomId).subscribe({
+            next: (items) => {
+                this.agendaItems.set(items.sort((a, b) => (a.agendaOrder ?? 0) - (b.agendaOrder ?? 0)));
+                this.agendaLoading.set(false);
+            },
+            error: () => { this.agendaLoading.set(false); },
+        });
+    }
+
+    toggleAgendaDone(item: MessageDTO): void {
+        const room = this.activeRoom();
+        if (!room) return;
+        // Optimistic update
+        this.agendaItems.update(list => list.map(i =>
+            i.id === item.id ? { ...i, agendaDone: !i.agendaDone } : i
+        ));
+        this.chatMessageService.toggleAgendaDone(room.id, item.id).subscribe({
+            error: () => {
+                // Revert on failure
+                this.agendaItems.update(list => list.map(i =>
+                    i.id === item.id ? { ...i, agendaDone: item.agendaDone } : i
+                ));
+            },
+        });
+    }
+
+    submitAgendaItem(): void {
+        const room = this.activeRoom();
+        if (!room || !this.agendaTitle.trim()) return;
+        this.agendaSaving.set(true);
+        const payload: any = {
+            content: this.agendaTitle.trim(),
+            isAgendaItem: true,
+            agendaDuration: this.agendaDurationMin ?? 15,
+            agendaOrder: this.agendaItems().length + 1,
+        };
+        this.chatMessageService.uploadMessage(room.id, (() => {
+            const fd = new FormData();
+            fd.append('content', payload.content);
+            fd.append('isAgendaItem', 'true');
+            fd.append('agendaDuration', String(payload.agendaDuration));
+            fd.append('agendaOrder', String(payload.agendaOrder));
+            return fd;
+        })()).subscribe({
+            next: (msg) => {
+                this.agendaItems.update(list => [...list, msg]);
+                this.agendaTitle = '';
+                this.agendaSaving.set(false);
+            },
+            error: () => {
+                // Fallback: send via STOMP if REST fails
+                this.chatMessageService.sendMessage(room.id,
+                    JSON.stringify({ content: payload.content, isAgendaItem: true,
+                                     agendaDuration: payload.agendaDuration, agendaOrder: payload.agendaOrder }));
+                this.agendaTitle = '';
+                this.agendaSaving.set(false);
+            },
+        });
+    }
+
     getFileIcon(fileType?: string): string {
         if (!fileType) return 'insert_drive_file';
         const t = fileType.toLowerCase();
@@ -6222,6 +9073,21 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         readonly notifService: ScheduledNotificationService,
         @Inject(DOCUMENT) private document: Document,
     ) {
+        // Load room members for @mention autocomplete whenever active room changes
+        effect(() => {
+            const room = this.activeRoom();
+            this.mentionFetchSub?.unsubscribe();
+            this.mentionFetchSub = null;
+            if (!room) { this.roomMembers.set([]); return; }
+            this.mentionFetchSub = this.memberService.getRoomMemberSuggestions(room.id).subscribe({
+                next: (members) => {
+                    const everyone = { id: 0, fullName: 'everyone', role: 'ALL' };
+                    this.roomMembers.set([everyone, ...members]);
+                },
+                error: () => { this.roomMembers.set([{ id: 0, fullName: 'everyone', role: 'ALL' }]); },
+            });
+        });
+
         // Watch retry requests from the notification panel and pre-fill the schedule form
         effect(() => {
             const req = this.notifService.retryRequest();
@@ -6261,23 +9127,36 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         }
 
         this.docClickUnlisten = this.renderer.listen('document', 'click', () => {
+            if (this.pendingSound) { this.pendingSound(); this.pendingSound = null; }
             this.closeEmojiPicker();
             this.emojiPickerOpen.set(false);
             this.contextMenu.set({ visible: false, x: 0, y: 0, message: null });
         });
 
-        // Subscribe to personal scheduled-message notifications (MANAGER / TUTOR only)
-        if (this.canManageMembers) {
+        // Load TTS voices (async in some browsers)
+        if ('speechSynthesis' in window) {
+            this.availableVoices = window.speechSynthesis.getVoices();
+            window.speechSynthesis.onvoiceschanged = () => {
+                this.availableVoices = window.speechSynthesis.getVoices();
+            };
+        }
+
+        // Subscribe to personal notifications for all users
+        // MANAGER/TUTOR receive SCHEDULED_* events; ALL users receive MENTION/ADDED_TO_ROOM/REMOVED_FROM_ROOM
+        {
             const userId = this.authService.currentUser()?.id;
             if (userId) {
                 this.userNotifSub = this.chatMessageService
                     .subscribeToUserNotifications(userId)
-                    .subscribe((event: ScheduledNotificationEvent) => this.handleScheduledNotificationEvent(event));
+                    .subscribe((event: any) => this.handleScheduledNotificationEvent(event));
             }
         }
 
         // Refresh the countdown every 60 s
         this.scheduledNowInterval = setInterval(() => this.scheduledNow.set(new Date()), 60_000);
+
+        // Refresh meeting status badges every 30 s
+        this.meetingStatusInterval = setInterval(() => this.meetingStatusNow.set(new Date()), 30_000);
     }
 
     ngAfterViewChecked(): void {
@@ -6294,11 +9173,21 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         this.pinSub?.unsubscribe();
         this.scheduledRoomSub?.unsubscribe();
         this.userNotifSub?.unsubscribe();
+        this.mentionFetchSub?.unsubscribe();
+        this.showMentionSuggestions.set(false);
         if (this.scheduledNowInterval) clearInterval(this.scheduledNowInterval);
+        if (this.meetingStatusInterval) clearInterval(this.meetingStatusInterval);
+        this.agendaRoomSub?.unsubscribe();
+        if (this.ttsKeyHandler) { document.removeEventListener('keydown', this.ttsKeyHandler); this.ttsKeyHandler = null; }
+        if (this.ttsKeyTimeout) { clearTimeout(this.ttsKeyTimeout); this.ttsKeyTimeout = null; }
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        if (this.speechRecognition) { try { this.speechRecognition.stop(); } catch { /* ignore */ } this.speechRecognition = null; }
         this.chatMessageService.disconnect();
         this.docClickUnlisten?.();
         this.cancelRecording();
         this.cancelVideoRecording();
+        this._cleanupVideoAudio();
+        this._revokeRecordedUrl();
         if (this.audioProgressInterval) { clearInterval(this.audioProgressInterval); }
         this.audioMap.get(this.playingAudioId() ?? -1)?.pause();
     }
@@ -6546,6 +9435,8 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         this.scheduledMessages.set([]);
         this.scheduledPanelOpen.set(false);
         this.scheduleFormType.set('none');
+        this.agendaPanelOpen.set(false);
+        this.agendaItems.set([]);
 
         // Subscribe to real-time scheduled-message cancellations for this room
         if (this.canManageMembers) {
@@ -6600,6 +9491,19 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
                 this.shouldScrollToBottom = true;
                 // Subscribe to live WebSocket updates for this room
                 this.roomSub = this.chatMessageService.subscribeToRoom(room.id).subscribe(msg => {
+                    // Agenda items: upsert in agenda list if panel is open
+                    if (msg.isAgendaItem) {
+                        this.agendaItems.update(list => {
+                            const idx = list.findIndex(m => m.id === msg.id);
+                            if (idx !== -1) {
+                                const updated = [...list];
+                                updated[idx] = msg;
+                                return updated;
+                            }
+                            return [...list, msg].sort((a, b) => (a.agendaOrder ?? 0) - (b.agendaOrder ?? 0));
+                        });
+                        return; // Don't add agenda items to main message stream
+                    }
                     if (msg.deleted) {
                         this.messages.update(list => list.filter(m => m.id !== msg.id));
                         return;
@@ -7046,7 +9950,13 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
     }
 
-    private handleScheduledNotificationEvent(event: ScheduledNotificationEvent): void {
+    private handleScheduledNotificationEvent(event: any): void {
+        // Dispatch new notification types
+        if (event.type === 'MENTION') { this._handleMentionNotif(event); return; }
+        if (event.type === 'MEETING_REMINDER') { this._handleMeetingReminderNotif(event); return; }
+        if (event.type === 'ADDED_TO_ROOM') { this._handleAddedToRoomNotif(event); return; }
+        if (event.type === 'REMOVED_FROM_ROOM') { this._handleRemovedFromRoomNotif(event); return; }
+
         let notif: ScheduledNotification;
         if (event.type === 'SCHEDULED_SENT') {
             notif = {
@@ -7082,6 +9992,218 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
             };
         }
         this.notifService.push(notif);
+        this.announceNotificationTTS(event);
+    }
+
+    private _voiceAnnounce(shortText: string, fullText: string): void {
+        const userId = this.authService.currentUser()?.id;
+        if (!userId) return;
+        if (localStorage.getItem(`chat_notifications_muted_${userId}`) === 'true') return;
+        if (!('speechSynthesis' in window)) return;
+        window.speechSynthesis.cancel();
+        if (this.ttsKeyHandler) { document.removeEventListener('keydown', this.ttsKeyHandler); this.ttsKeyHandler = null; }
+        if (this.ttsKeyTimeout) { clearTimeout(this.ttsKeyTimeout); this.ttsKeyTimeout = null; }
+        const makeU = (t: string): SpeechSynthesisUtterance => {
+            const u = new SpeechSynthesisUtterance(t);
+            u.rate = 1.1; u.pitch = 1.0; u.volume = 0.8; u.lang = 'en-US';
+            const pref = this.availableVoices.find(v => v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Karen'));
+            if (pref) u.voice = pref;
+            return u;
+        };
+        const ann = makeU(shortText);
+        ann.onend = () => {
+            const prompt = makeU('Press R to hear the full notification or dismiss');
+            prompt.onend = () => {
+                this.ttsKeyHandler = (e: KeyboardEvent) => {
+                    if (e.key !== 'r' && e.key !== 'R') return;
+                    if (this.ttsKeyHandler) { document.removeEventListener('keydown', this.ttsKeyHandler); this.ttsKeyHandler = null; }
+                    if (this.ttsKeyTimeout) { clearTimeout(this.ttsKeyTimeout); this.ttsKeyTimeout = null; }
+                    window.speechSynthesis.speak(makeU(fullText));
+                };
+                document.addEventListener('keydown', this.ttsKeyHandler);
+                this.ttsKeyTimeout = setTimeout(() => {
+                    if (this.ttsKeyHandler) { document.removeEventListener('keydown', this.ttsKeyHandler); this.ttsKeyHandler = null; }
+                    this.ttsKeyTimeout = null;
+                }, 5000);
+            };
+            window.speechSynthesis.speak(prompt);
+        };
+        window.speechSynthesis.speak(ann);
+    }
+
+    private _handleMentionNotif(event: any): void {
+        const msg = event.isEveryone
+            ? `${event.senderName} mentioned everyone in #${event.roomName}`
+            : `${event.senderName} mentioned you in #${event.roomName}`;
+        const notif = {
+            id: crypto.randomUUID(), type: 'MENTION' as any,
+            icon: 'alternate_email', iconColor: 'var(--mat-sys-primary)',
+            message: msg, roomId: event.roomId, roomName: event.roomName,
+            timestamp: new Date(), read: false,
+            originalContent: event.messagePreview ?? '',
+            senderName: event.senderName,
+            isEveryone: event.isEveryone ?? false,
+        } as unknown as ScheduledNotification;
+        this.notifService.push(notif);
+        const shortText = event.isEveryone
+            ? `${event.senderName} mentioned everyone in ${event.roomName}`
+            : `${event.senderName} mentioned you in ${event.roomName}`;
+        const fullText = `${event.senderName} said: ${(event.messagePreview ?? '').slice(0, 80)}`;
+        this._voiceAnnounce(shortText, fullText);
+    }
+
+    private _handleAddedToRoomNotif(event: any): void {
+        const notif = {
+            id: crypto.randomUUID(), type: 'ADDED_TO_ROOM' as any,
+            icon: 'person_add', iconColor: '#4caf50',
+            message: `You were added to #${event.roomName} by ${event.addedByName}`,
+            roomId: event.roomId, roomName: event.roomName,
+            timestamp: new Date(), read: false, originalContent: '',
+            addedByName: event.addedByName,
+        } as unknown as ScheduledNotification;
+        this.notifService.push(notif);
+        this.snackBar.open(`You have been added to #${event.roomName}`, 'Open', {
+            duration: 6000, panelClass: ['snack-success'], horizontalPosition: 'end',
+        });
+        if (this.canManageMembers) { this.loadRooms(); } else { this.loadMyRooms(); }
+        const shortText = `You have been added to the chatroom ${event.roomName} by ${event.addedByName}`;
+        const fullText = `${event.addedByName} added you to the chatroom ${event.roomName}. Open the chatroom to start messaging.`;
+        this._voiceAnnounce(shortText, fullText);
+    }
+
+    private _handleRemovedFromRoomNotif(event: any): void {
+        const notif = {
+            id: crypto.randomUUID(), type: 'REMOVED_FROM_ROOM' as any,
+            icon: 'person_remove', iconColor: '#f44336',
+            message: `You were removed from #${event.roomName} by ${event.removedByName}`,
+            roomId: event.roomId, roomName: event.roomName,
+            timestamp: new Date(), read: false, originalContent: '',
+            removedByName: event.removedByName,
+        } as unknown as ScheduledNotification;
+        this.notifService.push(notif);
+        if (this.activeRoom()?.id === event.roomId) {
+            this.activeRoom.set(null);
+            this.messages.set([]);
+            this.snackBar.open('You have been removed from this chatroom', 'Dismiss', {
+                duration: 8000, panelClass: ['snack-error'], horizontalPosition: 'center',
+            });
+        }
+        if (this.canManageMembers) { this.loadRooms(); } else { this.loadMyRooms(); }
+        const shortText = `You have been removed from the chatroom ${event.roomName} by ${event.removedByName}`;
+        const fullText = `${event.removedByName} removed you from the chatroom ${event.roomName}. You no longer have access to this chatroom.`;
+        this._voiceAnnounce(shortText, fullText);
+    }
+
+    private _handleMeetingReminderNotif(event: any): void {
+        const minsText = event.minutesBefore ? `in ${event.minutesBefore} minutes` : 'soon';
+        const notif = {
+            id: crypto.randomUUID(), type: 'MEETING_REMINDER' as any,
+            icon: 'video_call', iconColor: '#4caf50',
+            message: `Meeting #${event.roomName} starts ${minsText}`,
+            roomId: event.roomId, roomName: event.roomName,
+            timestamp: new Date(), read: false,
+            originalContent: event.meetingLink ?? '',
+            meetingLink: event.meetingLink,
+        } as unknown as ScheduledNotification;
+        this.notifService.push(notif);
+        this.snackBar.open(`Meeting ${event.roomName} starts ${minsText}`, 'Join', {
+            duration: 10000, panelClass: ['snack-success'], horizontalPosition: 'end',
+        }).onAction().subscribe(() => {
+            if (event.meetingLink) window.open(event.meetingLink, '_blank');
+        });
+        const shortText = `Reminder: meeting ${event.roomName} starts ${minsText}. Your meeting link is ready.`;
+        const fullText  = `Your meeting ${event.roomName} starts ${minsText}. Click join in the notification panel to open the meeting link.`;
+        this._voiceAnnounce(shortText, fullText);
+    }
+
+    private announceNotificationTTS(event: ScheduledNotificationEvent): void {
+        const userId = this.authService.currentUser()?.id;
+        if (!userId) return;
+        if (localStorage.getItem(`chat_notifications_muted_${userId}`) === 'true') return;
+
+        if (!('speechSynthesis' in window)) {
+            this.playFallbackBeep(event.type);
+            return;
+        }
+
+        // Cancel any in-progress speech and pending R-key listener
+        window.speechSynthesis.cancel();
+        if (this.ttsKeyHandler) { document.removeEventListener('keydown', this.ttsKeyHandler); this.ttsKeyHandler = null; }
+        if (this.ttsKeyTimeout) { clearTimeout(this.ttsKeyTimeout); this.ttsKeyTimeout = null; }
+
+        const makeUtterance = (text: string): SpeechSynthesisUtterance => {
+            const u = new SpeechSynthesisUtterance(text);
+            u.rate = 1.1;
+            u.pitch = 1.0;
+            u.volume = 0.8;
+            u.lang = 'en-US';
+            const preferred = this.availableVoices.find(v =>
+                v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Karen'));
+            if (preferred) u.voice = preferred;
+            return u;
+        };
+
+        const shortText = this.getTTSShortText(event.type, event.roomName);
+        const fullText  = this.getTTSFullText(event.type, event.roomName, event.messagePreview ?? '');
+
+        const announcement = makeUtterance(shortText);
+        announcement.onend = () => {
+            const prompt = makeUtterance('Press R to hear the full notification or dismiss');
+            prompt.onend = () => {
+                this.ttsKeyHandler = (e: KeyboardEvent) => {
+                    if (e.key !== 'r' && e.key !== 'R') return;
+                    if (this.ttsKeyHandler) { document.removeEventListener('keydown', this.ttsKeyHandler); this.ttsKeyHandler = null; }
+                    if (this.ttsKeyTimeout) { clearTimeout(this.ttsKeyTimeout); this.ttsKeyTimeout = null; }
+                    window.speechSynthesis.speak(makeUtterance(fullText));
+                };
+                document.addEventListener('keydown', this.ttsKeyHandler);
+                this.ttsKeyTimeout = setTimeout(() => {
+                    if (this.ttsKeyHandler) { document.removeEventListener('keydown', this.ttsKeyHandler); this.ttsKeyHandler = null; }
+                    this.ttsKeyTimeout = null;
+                }, 5000);
+            };
+            window.speechSynthesis.speak(prompt);
+        };
+        window.speechSynthesis.speak(announcement);
+    }
+
+    private getTTSShortText(type: string, roomName: string): string {
+        if (type === 'SCHEDULED_SENT')     return `New notification: your scheduled message was sent to ${roomName}`;
+        if (type === 'SCHEDULED_REMINDER') return `New notification: reminder, your message sends in 15 minutes in ${roomName}`;
+        return `New notification: your scheduled message failed in ${roomName}`;
+    }
+
+    private getTTSFullText(type: string, roomName: string, preview: string): string {
+        const p    = preview.slice(0, 40);
+        const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        if (type === 'SCHEDULED_SENT')     return `Your message ${p} was successfully sent to the chatroom ${roomName} at ${time}`;
+        if (type === 'SCHEDULED_REMINDER') return `Reminder: your message ${p} is scheduled to be sent to ${roomName} in 15 minutes`;
+        return `Your scheduled message ${p} in ${roomName} has failed to send. Please retry from the notification panel`;
+    }
+
+    private playFallbackBeep(type: 'SCHEDULED_SENT' | 'SCHEDULED_REMINDER' | 'SCHEDULED_FAILED'): void {
+        const playBeep = (freq: number): void => {
+            const ctx = new AudioContext();
+            const oscillator = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            oscillator.frequency.setValueAtTime(freq, ctx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(freq / 2, ctx.currentTime + 0.1);
+            gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+            oscillator.start(ctx.currentTime);
+            oscillator.stop(ctx.currentTime + 0.4);
+        };
+        const freq = type === 'SCHEDULED_REMINDER' ? 1100 : 880;
+        const doPlay = () => {
+            playBeep(freq);
+            if (type === 'SCHEDULED_FAILED') setTimeout(() => playBeep(freq), 300);
+        };
+        const testCtx = new AudioContext();
+        const suspended = testCtx.state === 'suspended';
+        testCtx.close();
+        if (!suspended) { doPlay(); } else { this.pendingSound = doPlay; }
     }
 
     translateMsg(message: MessageDTO): void {
@@ -7140,6 +10262,52 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
 
     onQuillChange(event: any): void {
         this.richContent = event.html ?? '';
+        if (event.source === 'user') {
+            this._detectMention(event.quill ?? this.quillRef?.quillEditor);
+        }
+    }
+
+    private _detectMention(quill: any): void {
+        if (!quill) return;
+        const sel = quill.getSelection();
+        if (!sel) return;
+        const text = quill.getText(0, sel.index);
+        const lastSpaceIdx = Math.max(text.lastIndexOf(' '), text.lastIndexOf('\n'));
+        const currentWord = lastSpaceIdx === -1 ? text : text.slice(lastSpaceIdx + 1);
+        if (currentWord.startsWith('@')) {
+            const query = currentWord.slice(1);
+            this.mentionQuery.set(query);
+            const filtered = this.roomMembers().filter(m =>
+                m.fullName.toLowerCase().includes(query.toLowerCase())
+            );
+            this.mentionSuggestions.set(filtered);
+            this.showMentionSuggestions.set(filtered.length > 0);
+            this.activeMentionIndex.set(0);
+        } else {
+            this.showMentionSuggestions.set(false);
+        }
+    }
+
+    selectMention(member: {id: number, fullName: string, role: string} | undefined): void {
+        if (!member) return;
+        const quill = this.quillRef?.quillEditor;
+        if (!quill) return;
+        const sel = quill.getSelection();
+        if (!sel) return;
+        const text = quill.getText(0, sel.index);
+        const lastSpaceIdx = Math.max(text.lastIndexOf(' '), text.lastIndexOf('\n'));
+        const wordStart = lastSpaceIdx === -1 ? 0 : lastSpaceIdx + 1;
+        const atWordLen = sel.index - wordStart;
+        // Delete the @query text
+        quill.deleteText(wordStart, atWordLen, 'user');
+        // Insert the mention as colored text with a mention-chip marker
+        const mentionText = `@${member.fullName}`;
+        quill.insertText(wordStart, mentionText, { 'color': 'var(--mat-sys-primary)' }, 'user');
+        quill.insertText(wordStart + mentionText.length, ' ', { 'color': false }, 'user');
+        quill.setSelection(wordStart + mentionText.length + 1, 0, 'user');
+        this.showMentionSuggestions.set(false);
+        this.mentionQuery.set('');
+        this.activeMentionIndex.set(0);
     }
 
     get hasText(): boolean {
@@ -7336,32 +10504,80 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
             this.recordingInterval = setInterval(() => {
                 this.recordingDuration.update(d => d + 1);
             }, 1000);
+
+            // Start SpeechRecognition in parallel if available
+            const SpeechRecognitionCtor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+            if (SpeechRecognitionCtor) {
+                this.sttAvailable = true;
+                this.liveTranscript.set('');
+                this.finalTranscript.set('');
+                this.speechRecognition = new SpeechRecognitionCtor();
+                this.speechRecognition.continuous = true;
+                this.speechRecognition.interimResults = true;
+                this.speechRecognition.lang = 'en-US';
+                this.speechRecognition.onresult = (event: any) => {
+                    let interim = '';
+                    let final = '';
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        if (event.results[i].isFinal) {
+                            final += event.results[i][0].transcript;
+                        } else {
+                            interim += event.results[i][0].transcript;
+                        }
+                    }
+                    this.liveTranscript.set(interim);
+                    if (final) this.finalTranscript.update(prev => prev + final);
+                };
+                this.speechRecognition.onerror = () => { /* ignore recognition errors silently */ };
+                try { this.speechRecognition.start(); } catch { /* ignore */ }
+            } else {
+                this.sttAvailable = false;
+            }
         } catch {
             this.snackBar.open('Microphone permission denied.', 'Dismiss', { duration: 3000 });
         }
     }
 
     cancelRecording(): void {
+        if (this.speechRecognition) {
+            try { this.speechRecognition.stop(); } catch { /* ignore */ }
+            this.speechRecognition = null;
+        }
         this._stopRecorderAndStream();
         this.audioChunks = [];
+        this.pendingAudioFile = null;
         this._resetRecordingState();
+        this.finalTranscript.set('');
     }
 
     sendRecording(): void {
         if (!this.mediaRecorder) return;
+        // Stop SpeechRecognition before stopping the recorder
+        if (this.speechRecognition) {
+            try { this.speechRecognition.stop(); } catch { /* ignore */ }
+            this.speechRecognition = null;
+        }
+        const hadStt = this.sttAvailable;
         this.mediaRecorder.onstop = () => {
             const mimeType = this.mediaRecorder?.mimeType ?? 'audio/webm';
             const ext = mimeType.includes('ogg') ? '.ogg' : mimeType.includes('mp4') ? '.mp4' : '.webm';
             const blob = new Blob(this.audioChunks, { type: mimeType });
             const file = new File([blob], `voice-message${ext}`, { type: mimeType });
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('content', '');
-            this.chatMessageService.uploadMessage(this.activeRoom()!.id, formData).subscribe({
-                error: () => this.snackBar.open('Failed to send voice message.', 'Dismiss', { duration: 3000 }),
-            });
             this.audioChunks = [];
             this._resetRecordingState();
+            if (hadStt) {
+                // STT available — let user choose how to send
+                this.pendingAudioFile = file;
+                this._openSttChoiceModal();
+            } else {
+                // No STT — upload audio directly as before
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('content', '');
+                this.chatMessageService.uploadMessage(this.activeRoom()!.id, formData).subscribe({
+                    error: () => this.snackBar.open('Failed to send voice message.', 'Dismiss', { duration: 3000 }),
+                });
+            }
         };
         this._stopRecorderAndStream();
     }
@@ -7378,58 +10594,260 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         this.isRecording.set(false);
         this.recordingDuration.set(0);
         this.mediaRecorder = null;
+        this.liveTranscript.set('');
+    }
+
+    private _openSttChoiceModal(): void {
+        const ref = this.dialog.open(VoiceSendChoiceDialogComponent, {
+            data: { transcript: this.finalTranscript() },
+            width: '520px',
+            maxWidth: '95vw',
+            panelClass: 'delete-room-dialog-panel',
+            disableClose: true,
+            enterAnimationDuration: '0ms',
+            exitAnimationDuration: '0ms',
+        });
+        ref.afterClosed().subscribe((result: { choice: 'voice' | 'text' | 'cancel' } | undefined) => {
+            if (!result || result.choice === 'cancel') {
+                this.pendingAudioFile = null;
+                this.finalTranscript.set('');
+                return;
+            }
+            if (result.choice === 'voice') {
+                this._sendPendingVoice();
+            } else if (result.choice === 'text') {
+                this._sendTranscriptAsText();
+            }
+        });
+    }
+
+    private _sendPendingVoice(): void {
+        if (!this.pendingAudioFile || !this.activeRoom()) return;
+        const formData = new FormData();
+        formData.append('file', this.pendingAudioFile);
+        formData.append('content', '');
+        this.chatMessageService.uploadMessage(this.activeRoom()!.id, formData).subscribe({
+            error: () => this.snackBar.open('Failed to send voice message.', 'Dismiss', { duration: 3000 }),
+        });
+        this.pendingAudioFile = null;
+        this.finalTranscript.set('');
+    }
+
+    private _sendTranscriptAsText(): void {
+        const text = this.finalTranscript().trim();
+        if (!text || !this.activeRoom()) return;
+        this.chatMessageService.sendMessage(this.activeRoom()!.id, text);
+        this.pendingAudioFile = null;
+        this.finalTranscript.set('');
     }
 
     // ── Video recording ─────────────────────────────────────────────
+    /** Open camera preview — entry point from the video button. */
     async startVideoRecording(): Promise<void> {
         if (!this.activeRoom()) return;
         try {
-            this.videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            this.videoChunks = [];
-            this.videoMediaRecorder = new MediaRecorder(this.videoStream);
-            this.videoMediaRecorder.ondataavailable = (e) => {
-                if (e.data.size > 0) this.videoChunks.push(e.data);
-            };
-            this.videoMediaRecorder.start();
+            const constraints = this._videoConstraints();
+            this.videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+            this.videoPhase.set('preview');
             this.isRecordingVideo.set(true);
-            this.videoRecordingDuration.set(0);
-            this.videoRecordingInterval = setInterval(() => {
-                this.videoRecordingDuration.update(d => d + 1);
-            }, 1000);
-            // Attach live stream to preview element after view updates
-            setTimeout(() => {
-                if (this.videoPreviewRef?.nativeElement && this.videoStream) {
-                    this.videoPreviewRef.nativeElement.srcObject = this.videoStream;
-                }
-            }, 50);
+            this._attachCameraPreview();
         } catch {
             this.snackBar.open('Camera/microphone permission denied.', 'Dismiss', { duration: 3000 });
         }
     }
 
+    /** Switch between front and rear camera while in preview. */
+    async switchVideoCamera(): Promise<void> {
+        const newFacing: 'user' | 'environment' =
+            this.videoCameraFacing() === 'user' ? 'environment' : 'user';
+        this.videoCameraFacing.set(newFacing);
+        if (this.videoStream) {
+            this.videoStream.getTracks().forEach(t => t.stop());
+        }
+        try {
+            const constraints = this._videoConstraints();
+            this.videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+            this._attachCameraPreview();
+        } catch { /* ignore if rear cam unavailable */ }
+    }
+
+    /** Start the 3-2-1-🎬 countdown before recording. */
+    startVideoCountdown(): void {
+        this.videoPhase.set('countdown');
+        this.videoCountdownTimeouts.forEach(t => clearTimeout(t));
+        this.videoCountdownTimeouts = [];
+        const steps: (number | string)[] = [3, 2, 1, '🎬'];
+        steps.forEach((val, i) => {
+            const t = setTimeout(() => {
+                this.videoCountdown.set(val);
+                if (i === steps.length - 1) {
+                    const t2 = setTimeout(() => this._startActualRecording(), 700);
+                    this.videoCountdownTimeouts.push(t2);
+                }
+            }, i * 900);
+            this.videoCountdownTimeouts.push(t);
+        });
+        this.videoCountdown.set(3);
+    }
+
+    /** Cancel at any phase — stops stream and closes the card. */
     cancelVideoRecording(): void {
+        this._cleanupVideoAudio();
         this._stopVideoRecorderAndStream();
         this.videoChunks = [];
+        this._revokeRecordedUrl();
         this._resetVideoRecordingState();
     }
 
-    sendVideoRecording(): void {
+    /** Toggle pause/resume during recording. */
+    toggleVideoPause(): void {
         if (!this.videoMediaRecorder) return;
-        this.videoMediaRecorder.onstop = () => {
+        if (this.videoMediaRecorder.state === 'recording') {
+            this.videoMediaRecorder.pause();
+            this.videoIsPaused.set(true);
+            if (this.videoRecordingInterval) { clearInterval(this.videoRecordingInterval); this.videoRecordingInterval = null; }
+            if (this.audioAnimFrame) { cancelAnimationFrame(this.audioAnimFrame); this.audioAnimFrame = null; }
+        } else if (this.videoMediaRecorder.state === 'paused') {
+            this.videoMediaRecorder.resume();
+            this.videoIsPaused.set(false);
+            this.videoRecordingInterval = setInterval(() => this.videoRecordingDuration.update(d => d + 1), 1000);
+            this._runAudioLoop();
+        }
+    }
+
+    /** Stop recording, build blob URL, transition to REVIEW. */
+    stopVideoRecording(): void {
+        if (!this.videoMediaRecorder) return;
+        if (this.videoRecordingInterval) { clearInterval(this.videoRecordingInterval); this.videoRecordingInterval = null; }
+        this._cleanupVideoAudio();
+        const finalize = () => {
             const mimeType = this.videoMediaRecorder?.mimeType ?? 'video/webm';
-            const ext = mimeType.includes('mp4') ? '.mp4' : '.webm';
             const blob = new Blob(this.videoChunks, { type: mimeType });
-            const file = new File([blob], `video-message${ext}`, { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            this.recordedBlobUrl.set(url);
+            this.videoPhase.set('review');
+            // Stop camera tracks now — preview is done
+            if (this.videoStream) { this.videoStream.getTracks().forEach(t => t.stop()); this.videoStream = null; }
+        };
+        if (this.videoMediaRecorder.state !== 'inactive') {
+            this.videoMediaRecorder.onstop = finalize;
+            this.videoMediaRecorder.stop();
+        } else {
+            // Recorder already stopped (e.g. auto-stopped at 2 min) — finalize directly
+            finalize();
+        }
+    }
+
+    /** Discard current recording, go back to preview with camera open. */
+    async reRecordVideo(): Promise<void> {
+        this._revokeRecordedUrl();
+        this.videoChunks = [];
+        this.videoCaption = '';
+        this.videoIsPaused.set(false);
+        this.videoRecordingDuration.set(0);
+        this.videoMediaRecorder = null;
+        try {
+            this.videoStream = await navigator.mediaDevices.getUserMedia(this._videoConstraints());
+            this.videoPhase.set('preview');
+            this._attachCameraPreview();
+        } catch {
+            this.snackBar.open('Camera/microphone permission denied.', 'Dismiss', { duration: 3000 });
+            this._resetVideoRecordingState();
+        }
+    }
+
+    /** Upload the reviewed video blob via the existing upload endpoint. */
+    sendReviewedVideo(): void {
+        const url = this.recordedBlobUrl();
+        if (!url || !this.activeRoom()) return;
+        fetch(url).then(r => r.blob()).then(blob => {
+            const ext = blob.type.includes('mp4') ? '.mp4' : '.webm';
+            const file = new File([blob], `video-message${ext}`, { type: blob.type });
             const formData = new FormData();
             formData.append('file', file);
-            formData.append('content', '');
+            formData.append('content', this.videoCaption.trim());
             this.chatMessageService.uploadMessage(this.activeRoom()!.id, formData).subscribe({
-                error: () => this.snackBar.open('Failed to send video clip.', 'Dismiss', { duration: 3000 }),
+                next: () => this.snackBar.open('Video sent!', undefined, { duration: 2000 }),
+                error: () => this.snackBar.open('Failed to send video.', 'Dismiss', { duration: 3000 }),
             });
+            this._revokeRecordedUrl();
             this.videoChunks = [];
+            this.videoCaption = '';
             this._resetVideoRecordingState();
+        });
+    }
+
+    /** Set up Web Audio AnalyserNode and start the animation loop. */
+    setupAudioAnalyser(stream: MediaStream): void {
+        try {
+            this.audioCtx = new AudioContext();
+            const source = this.audioCtx.createMediaStreamSource(stream);
+            this.audioAnalyser = this.audioCtx.createAnalyser();
+            this.audioAnalyser.fftSize = 64;
+            source.connect(this.audioAnalyser);
+            this._runAudioLoop();
+        } catch { /* not critical */ }
+    }
+
+    private _runAudioLoop(): void {
+        if (!this.audioAnalyser) return;
+        const dataArray = new Uint8Array(this.audioAnalyser.frequencyBinCount);
+        const update = () => {
+            this.audioAnalyser!.getByteFrequencyData(dataArray);
+            this.audioBars.set(Array.from(dataArray.slice(0, 16)));
+            if (this.videoPhase() === 'recording' && !this.videoIsPaused()) {
+                this.audioAnimFrame = requestAnimationFrame(update);
+            }
         };
-        this._stopVideoRecorderAndStream();
+        update();
+    }
+
+    private _startActualRecording(): void {
+        if (!this.videoStream) return;
+        this.videoChunks = [];
+        this.videoMediaRecorder = new MediaRecorder(this.videoStream);
+        this.videoMediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) this.videoChunks.push(e.data);
+        };
+        this.videoMediaRecorder.start();
+        this.videoPhase.set('recording');
+        this.videoIsPaused.set(false);
+        this.videoRecordingDuration.set(0);
+        this.videoRecordingInterval = setInterval(() => {
+            this.videoRecordingDuration.update(d => d + 1);
+            // Auto-stop at 2 minutes
+            if (this.videoRecordingDuration() >= 120) this.stopVideoRecording();
+        }, 1000);
+        this.setupAudioAnalyser(this.videoStream);
+    }
+
+    private _videoConstraints(): MediaStreamConstraints {
+        const q = this.videoQuality();
+        const w = q === '1080p' ? 1920 : q === '720p' ? 1280 : 854;
+        const h = q === '1080p' ? 1080 : q === '720p' ? 720  : 480;
+        return { video: { facingMode: this.videoCameraFacing(), width: { ideal: w }, height: { ideal: h } }, audio: true };
+    }
+
+    private _attachCameraPreview(): void {
+        setTimeout(() => {
+            if (this.videoPreviewRef?.nativeElement && this.videoStream) {
+                this.videoPreviewRef.nativeElement.srcObject = this.videoStream;
+            }
+        }, 50);
+    }
+
+    private _cleanupVideoAudio(): void {
+        if (this.audioAnimFrame) { cancelAnimationFrame(this.audioAnimFrame); this.audioAnimFrame = null; }
+        if (this.audioCtx) { this.audioCtx.close().catch(() => {}); this.audioCtx = null; }
+        this.audioAnalyser = null;
+        this.audioBars.set(new Array(16).fill(0));
+        this.videoCountdownTimeouts.forEach(t => clearTimeout(t));
+        this.videoCountdownTimeouts = [];
+    }
+
+    private _revokeRecordedUrl(): void {
+        const url = this.recordedBlobUrl();
+        if (url) { URL.revokeObjectURL(url); this.recordedBlobUrl.set(''); }
     }
 
     private _stopVideoRecorderAndStream(): void {
@@ -7441,8 +10859,10 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
     }
 
     private _resetVideoRecordingState(): void {
+        this.videoPhase.set('idle');
         this.isRecordingVideo.set(false);
         this.videoRecordingDuration.set(0);
+        this.videoIsPaused.set(false);
         this.videoMediaRecorder = null;
     }
 

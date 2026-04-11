@@ -33,7 +33,12 @@ public record MessageDTO(
         boolean isSystemMessage,
         // ── edit tracking ────────────────────────────────────────────────────────
         boolean isEdited,
-        LocalDateTime editedAt
+        LocalDateTime editedAt,
+        // ── agenda fields ────────────────────────────────────────────────────────
+        boolean isAgendaItem,
+        Integer agendaOrder,
+        Integer agendaDuration,
+        boolean agendaDone
 ) {
     /** Backward-compatible: no reactions, no attachment, no shared-content fields. */
     public static MessageDTO from(Message m) {
@@ -64,7 +69,11 @@ public record MessageDTO(
                 false, // deleted
                 Boolean.TRUE.equals(m.getIsSystemMessage()),
                 m.isEdited(),
-                m.getEditedAt()
+                m.getEditedAt(),
+                m.isAgendaItem(),
+                m.getAgendaOrder(),
+                m.getAgendaDuration(),
+                m.isAgendaDone()
         );
     }
 
@@ -93,7 +102,11 @@ public record MessageDTO(
                 false, // deleted
                 Boolean.TRUE.equals(m.getIsSystemMessage()),
                 m.isEdited(),
-                m.getEditedAt()
+                m.getEditedAt(),
+                m.isAgendaItem(),
+                m.getAgendaOrder(),
+                m.getAgendaDuration(),
+                m.isAgendaDone()
         );
     }
 
@@ -108,7 +121,11 @@ public record MessageDTO(
                 true,  // deleted
                 false, // isSystemMessage
                 false, // isEdited
-                null   // editedAt
+                null,  // editedAt
+                false, // isAgendaItem
+                null,  // agendaOrder
+                null,  // agendaDuration
+                false  // agendaDone
         );
     }
 }

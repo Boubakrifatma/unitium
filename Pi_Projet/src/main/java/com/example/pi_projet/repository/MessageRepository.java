@@ -20,6 +20,10 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     @Query("SELECT m FROM Message m WHERE m.room = :room AND (m.fileUrl IS NOT NULL OR m.contentText IS NOT NULL) ORDER BY m.createdAt DESC")
     List<Message> findCandidateSharedContent(@Param("room") ChatRoom room);
 
+    /** All agenda items for a room, ordered by agendaOrder asc. */
+    @Query("SELECT m FROM Message m WHERE m.room = :room AND m.isAgendaItem = true ORDER BY m.agendaOrder ASC NULLS LAST")
+    List<Message> findAgendaItemsByRoom(@Param("room") ChatRoom room);
+
     @Modifying
     @Transactional
     @Query("DELETE FROM Message m WHERE m.room.id = :roomId")

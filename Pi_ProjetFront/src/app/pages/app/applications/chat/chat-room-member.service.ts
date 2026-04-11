@@ -28,4 +28,15 @@ export class ChatRoomMemberService {
   removeMember(roomId: number, userId: number): Observable<void> {
     return this.http.delete<void>(`${this.BASE}/${roomId}/members/${userId}`);
   }
+
+  getRoomMemberSuggestions(roomId: number): Observable<{id: number, fullName: string, role: string}[]> {
+    return this.http.get<{id: number, fullName: string, role: string}[]>(`${this.BASE}/${roomId}/members/suggestions`);
+  }
+
+  /** GET /api/users/by-role/{role} — returns all users of the given role (EMPLOYEE, STUDENT, MANAGER, TUTOR). */
+  getUsersByRole(role: string): Observable<{id: number, fullName: string, role: string}[]> {
+    return this.http.get<{id: number, fullName: string, role: string}[]>(
+      `http://localhost:8084/api/users/by-role/${role}`
+    );
+  }
 }

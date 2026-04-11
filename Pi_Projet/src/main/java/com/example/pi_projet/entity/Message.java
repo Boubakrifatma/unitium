@@ -51,6 +51,21 @@ public class Message {
     @JoinColumn(name = "pinned_by")
     private User pinnedBy;
 
+    // ── Agenda fields ───────────────────────────────────────────────────────────
+    @Column(name = "is_agenda_item")
+    @Builder.Default
+    private boolean isAgendaItem = false;
+
+    @Column(name = "agenda_order")
+    private Integer agendaOrder;
+
+    @Column(name = "agenda_duration")
+    private Integer agendaDuration; // minutes
+
+    @Column(name = "agenda_done")
+    @Builder.Default
+    private boolean agendaDone = false;
+
     @Column(name = "is_edited")
     private boolean isEdited;
 

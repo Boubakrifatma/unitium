@@ -71,6 +71,10 @@ export interface MessageDTO {
   deleted?: boolean;
   isSystemMessage?: boolean;
   isEdited?: boolean;
+  isAgendaItem?: boolean;
+  agendaDuration?: number;
+  agendaOrder?: number;
+  agendaDone?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -310,6 +314,20 @@ export class ChatMessageService {
         if (!translated) throw new Error('Translation unavailable');
         return translated;
       })
+    );
+  }
+
+  /** REST: get all agenda items for a meeting room. */
+  getAgendaItems(roomId: number): Observable<MessageDTO[]> {
+    return this.http.get<MessageDTO[]>(
+      `${this.BASE_URL}/api/chat/rooms/${roomId}/agenda`,
+    );
+  }
+
+  /** REST: toggle agenda item done/undone. */
+  toggleAgendaDone(roomId: number, messageId: number): Observable<any> {
+    return this.http.patch<any>(
+      `${this.BASE_URL}/api/chat/rooms/${roomId}/agenda/${messageId}/done`, {},
     );
   }
 

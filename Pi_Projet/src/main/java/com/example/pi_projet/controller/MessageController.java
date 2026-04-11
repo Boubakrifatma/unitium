@@ -2,6 +2,7 @@ package com.example.pi_projet.controller;
 
 import com.example.pi_projet.annotation.Authorized;
 import com.example.pi_projet.dto.MessageDTO;
+import com.example.pi_projet.dto.MessageRequest;
 import com.example.pi_projet.entity.User;
 import com.example.pi_projet.service.FileStorageService;
 import com.example.pi_projet.service.MessageService;
@@ -198,7 +199,34 @@ public class MessageController {
         return ResponseEntity.noContent().build();
     }
 
-    // ── WebSocket: send text message (unchanged) ───────────────────────────────
+    // ── REST: toggle agenda item done ─────────────────────────────────────────
+
+    @Authorized
+    @Operation(summary = "Toggle the agendaDone flag on an agenda message")
+    @PatchMapping("/api/chat/rooms/{roomId}/messages/{messageId}/agenda-done")
+    @ResponseBody
+    public ResponseEntity<MessageDTO> toggleAgendaDone(
+            @PathVariable Long roomId,
+            @PathVariable Long messageId,
+            HttpServletRequest request) {
+        User currentUser = (User) request.getAttribute("currentUser");
+        return ResponseEntity.ok(messageService.toggleAgendaDone(roomId, messageId, currentUser));
+    }
+
+    // ── REST: get agenda items for a room ─────────────────────────────────────
+
+    @Authorized
+    @Operation(summary = "Get all agenda items for a room ordered by agendaOrder")
+    @GetMapping("/api/chat/rooms/{roomId}/agenda")
+    @ResponseBody
+    public ResponseEntity<List<MessageDTO>> getAgenda(
+            @PathVariable Long roomId,
+            HttpServletRequest request) {
+        User currentUser = (User) request.getAttribute("currentUser");
+        return ResponseEntity.ok(messageService.getAgenda(roomId, currentUser));
+    }
+
+    // ── WebSocket: send text message ──────────────────────────────────────────
 
     @MessageMapping("/rooms/{roomId}/send")
     public void sendMessage(
@@ -206,6 +234,14 @@ public class MessageController {
             @Payload Map<String, String> payload,
             SimpMessageHeaderAccessor headerAccessor) {
         User sender = (User) headerAccessor.getSessionAttributes().get("currentUser");
-        messageService.sendMessage(roomId, payload.get("content"), sender);
+        boolean isAgendaItem = Boolean.parseBoolean(payload.getOrDefault("isAgendaItem", "false"));
+        Integer agendaOrder   = payload.containsKey("agendaOrder")   ? Integer.parseInt(payload.get("agendaOrder"))   : null;
+        Integer agendaDuration= payload.containsKey("agendaDuration") ? Integer.parseInt(payload.get("agendaDuration")): null;
+        if (isAgendaItem || agendaOrder != null || agendaDuration != null) {
+            MessageRequest req = new MessageRequest(payload.get("content"), isAgendaItem, agendaOrder, agendaDuration);
+            messageService.sendMessage(roomId, req, sender);
+        } else {
+            messageService.sendMessage(roomId, payload.get("content"), sender);
+        }
     }
 }

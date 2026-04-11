@@ -12,7 +12,9 @@ export interface ChatRoomDTO {
   roomType: RoomType;
   createdById: number;
   createdByName: string;
-
+  startTime?: string;
+  endTime?: string;
+  meetingLink?: string;
 }
 
 export interface ChatRoomRequest {
@@ -20,6 +22,9 @@ export interface ChatRoomRequest {
   description?: string;
   roomType: RoomType;
   projectId: string;
+  startTime?: string;
+  endTime?: string;
+  meetingLink?: string;
 }
 
 export interface ProjectDTO {

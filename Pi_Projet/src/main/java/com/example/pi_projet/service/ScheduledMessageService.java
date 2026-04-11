@@ -172,14 +172,19 @@ public class ScheduledMessageService {
                 }
                 scheduledMessageRepository.save(msg);
 
-                broadcast("/topic/notifications/" + msg.getSender().getId(),
-                        Map.of(
-                                "type", "SCHEDULED_SENT",
-                                "roomId", msg.getRoom().getId(),
-                                "roomName", msg.getRoom().getName(),
-                                "messagePreview", preview,
-                                "sentAt", LocalDateTime.now().toString()
-                        ));
+                boolean isMeetingReminder = msg.getContent().contains("Reminder")
+                        || msg.getContent().contains("starts in");
+                java.util.Map<String, Object> sentPayload = new java.util.HashMap<>();
+                sentPayload.put("type", "SCHEDULED_SENT");
+                sentPayload.put("roomId", msg.getRoom().getId());
+                sentPayload.put("roomName", msg.getRoom().getName());
+                sentPayload.put("messagePreview", preview);
+                sentPayload.put("sentAt", LocalDateTime.now().toString());
+                if (isMeetingReminder) {
+                    sentPayload.put("meetingReminderType", "MEETING_REMINDER");
+                    sentPayload.put("meetingLink", msg.getRoom().getMeetingLink());
+                }
+                broadcast("/topic/notifications/" + msg.getSender().getId(), sentPayload);
             } catch (Exception e) {
                 msg.setStatus(ScheduledMessageStatus.FAILED);
                 scheduledMessageRepository.save(msg);

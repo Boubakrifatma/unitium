@@ -41,6 +41,10 @@ public class ChatRoom {
 
     private String description;
 
+    // ── Meeting fields ──────────────────────────────────────────────────────────
+    private LocalDateTime startTime;
+    private LocalDateTime endTime;
+    private String meetingLink;
 
     //automatique
     private LocalDateTime createdAt;

@@ -1,6 +1,7 @@
 package com.example.pi_projet.service;
 
 import com.example.pi_projet.dto.ChatRoomDTO;
+import com.example.pi_projet.dto.MemberSuggestionDTO;
 import com.example.pi_projet.dto.MessageDTO;
 import com.example.pi_projet.dto.RoomMemberDTO;
 import com.example.pi_projet.entity.ChatRoom;
@@ -18,7 +19,11 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -89,6 +94,15 @@ public class RoomMemberService {
                 .build();
         RoomMemberDTO result = RoomMemberDTO.from(roomMemberRepository.save(member));
         broadcastSystemMessage(room, currentUser, target.getFullName() + " has been added to the room");
+
+        Map<String, Object> notification = new HashMap<>();
+        notification.put("type", "ADDED_TO_ROOM");
+        notification.put("roomId", room.getId());
+        notification.put("roomName", room.getName());
+        notification.put("addedByName", currentUser.getFullName());
+        notification.put("sentAt", LocalDateTime.now().toString());
+        messagingTemplate.convertAndSend("/topic/notifications/" + target.getId(), (Object) notification);
+
         return result;
     }
 
@@ -98,6 +112,14 @@ public class RoomMemberService {
 
         User target = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
+
+        Map<String, Object> notification = new HashMap<>();
+        notification.put("type", "REMOVED_FROM_ROOM");
+        notification.put("roomId", room.getId());
+        notification.put("roomName", room.getName());
+        notification.put("removedByName", currentUser.getFullName());
+        notification.put("sentAt", LocalDateTime.now().toString());
+        messagingTemplate.convertAndSend("/topic/notifications/" + target.getId(), (Object) notification);
 
         roomMemberRepository.deleteByRoomAndUser(room, target);
         broadcastSystemMessage(room, currentUser, target.getFullName() + " has been removed from the room");
@@ -110,6 +132,35 @@ public class RoomMemberService {
                 .stream()
                 .map(RoomMemberDTO::from)
                 .toList();
+    }
+
+    public List<MemberSuggestionDTO> getMemberSuggestions(Long roomId, User currentUser) {
+        ChatRoom room = chatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Chat room not found."));
+
+        boolean isOwner = room.getCreatedBy().getId().equals(currentUser.getId());
+        boolean isMember = roomMemberRepository.existsByRoomAndUser(room, currentUser);
+        if (!isOwner && !isMember) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have access to this room.");
+        }
+
+        List<MemberSuggestionDTO> suggestions = new ArrayList<>();
+
+        roomMemberRepository.findByRoom(room).stream()
+                .map(m -> new MemberSuggestionDTO(
+                        m.getUser().getId(),
+                        m.getUser().getFullName(),
+                        m.getUser().getRole().name()))
+                .forEach(suggestions::add);
+
+        User owner = room.getCreatedBy();
+        MemberSuggestionDTO ownerDto = new MemberSuggestionDTO(
+                owner.getId(), owner.getFullName(), owner.getRole().name());
+        if (suggestions.stream().noneMatch(s -> s.id().equals(owner.getId()))) {
+            suggestions.add(ownerDto);
+        }
+
+        return suggestions;
     }
 
     public List<ChatRoomDTO> getMyRooms(User currentUser) {
