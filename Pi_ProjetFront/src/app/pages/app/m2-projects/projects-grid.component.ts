@@ -189,6 +189,7 @@ export class ProjectsGridComponent implements OnInit {
 
     @Input() projectsData: TableItem[] | null = null;
     @Input() useRealRouting = false;
+    @Input() historicalAt: string | null = null;
     @Output() projectEdited = new EventEmitter<{ projectUuid: string; name: string; status: string }>();
 
     // table grid
@@ -271,6 +272,10 @@ export class ProjectsGridComponent implements OnInit {
     }
 
     deleteOrder(order: TableItem) {
+        if (this.historicalAt) {
+            this.snackBar.open("Read-only historical view - edits are disabled.", "Close", { duration: 3200 });
+            return;
+        }
         if (!this.useRealRouting || !order.workspaceId || !order.projectUuid) return;
         const ref = this.dialog.open(ProjectDeleteConfirmDialogComponent, {
             width: "480px",
@@ -311,6 +316,10 @@ export class ProjectsGridComponent implements OnInit {
 
     openDialog(project: TableItem | null) {
         if (!project) return;
+        if (this.useRealRouting && this.historicalAt) {
+            this.snackBar.open("Read-only historical view - edits are disabled.", "Close", { duration: 3200 });
+            return;
+        }
         const ref = this.dialog.open(CreateEditProjectModal, {
             width: "990px",
             maxWidth: "990px",
@@ -326,10 +335,16 @@ export class ProjectsGridComponent implements OnInit {
 
     openProject(project: TableItem): void {
         if (this.useRealRouting && project.workspaceId && project.projectUuid) {
-            this.router.navigate(["/app/real-projects", project.workspaceId, project.projectUuid]);
+            this.router.navigate(["/app/real-projects", project.workspaceId, project.projectUuid], {
+                queryParams: this.realRoutingQueryParams(),
+            });
             return;
         }
         this.router.navigate(["/app/project-details"]);
+    }
+
+    private realRoutingQueryParams(): Record<string, string> {
+        return this.historicalAt ? { at: this.historicalAt } : {};
     }
 
     // drawer

@@ -13,10 +13,10 @@ import { MatTooltipModule } from "@angular/material/tooltip";
 import { MatDialog } from "@angular/material/dialog";
 import { MatSnackBarModule } from "@angular/material/snack-bar";
 import { MatSnackBar } from "@angular/material/snack-bar";
-import { forkJoin, of } from "rxjs";
+import { forkJoin, of, Observable } from "rxjs";
 import { catchError, map } from "rxjs/operators";
 import { M2ProjectMember, M2ProjectService, M2ProjectSummary } from "./m2-project.service";
-import { M2Workspace, M2WorkspaceMember, M2WorkspaceService } from "../m2-workspaces/m2-workspace.service";
+import { M2TimelineCheckpoint, M2Workspace, M2WorkspaceMember, M2WorkspaceService, M2WorkspaceSnapshot } from "../m2-workspaces/m2-workspace.service";
 import { ProjectsCardsComponent, TableItem as ProjectCardItem } from "./projects-cards.component";
 import { ProjectsGridComponent } from "./projects-grid.component";
 import { CreateProjectWorkflowDialogComponent, CreateProjectWorkflowDialogResult } from "./create-project-workflow-dialog.component";
@@ -334,6 +334,36 @@ interface RealProjectRow {
             </mat-card>
         </div>
 
+        @if (historicalMode()) {
+        <div class="container fade-in mb-3">
+            <mat-card class="mb-3" style="background:#fff7ed;border-left:4px solid #f59e0b;">
+                <mat-card-content>
+                    <div class="d-flex align-items-start align-items-lg-center gap-2 flex-column flex-lg-row">
+                        <div class="d-flex align-items-center">
+                            <mat-icon style="color:#b45309">history_toggle_off</mat-icon>
+                            <div style="margin-left:12px">
+                                <div style="font-weight:600">Viewing projects as of {{ historicalDisplay() }}</div>
+                                <div class="small text-secondary">Read-only historical mode</div>
+                            </div>
+                        </div>
+                        <div class="d-flex flex-wrap gap-1 ms-lg-auto">
+                            @for (checkpoint of timelineQuickDates(); track checkpoint.at + '-' + $index) {
+                                <button
+                                    matButton
+                                    class="badge-light"
+                                    [matTooltip]="checkpoint.label || checkpoint.kind || checkpoint.at"
+                                    (click)="jumpToHistoricalDate(checkpoint.at)">
+                                    {{ checkpoint.at | date:'yyyy-MM-dd' }}
+                                </button>
+                            }
+                            <button matButton (click)="clearHistorical()">Exit</button>
+                        </div>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+        </div>
+        }
+
         <div class="container fade-in">
             @if (lastError()) {
             <mat-card class="mb-3 mb-lg-4 border theme-red">
@@ -380,11 +410,11 @@ interface RealProjectRow {
                             </h1>
                             <p class="opacity-75 mb-md-4 pb-lg-2">You can start with your very new project or you can create a task within your current project</p>
 
-                            <button matButton="elevated" (click)="openCreateProjectDialog()"><mat-icon class="material-icons-outlined">add_circle</mat-icon> New Project</button>
+                            <button matButton="elevated" [disabled]="historicalMode()" (click)="openCreateProjectDialog()"><mat-icon class="material-icons-outlined">add_circle</mat-icon> New Project</button>
                             @if (canShowCreateWithAi()) {
-                            <button matButton="filled" class="ms-1" (click)="openCreateWithAiDialog()"><mat-icon class="material-icons-outlined">auto_awesome</mat-icon> AI 4-Stage Bootstrap</button>
+                            <button matButton="filled" class="ms-1" [disabled]="historicalMode()" (click)="openCreateWithAiDialog()"><mat-icon class="material-icons-outlined">auto_awesome</mat-icon> AI 4-Stage Bootstrap</button>
                             }
-                            <button matButton class="ms-1 text-theme" (click)="openTemplatePickerDialog()"><mat-icon class="material-icons-outlined">layers</mat-icon> From Template</button>
+                            <button matButton class="ms-1 text-theme" [disabled]="historicalMode()" (click)="openTemplatePickerDialog()"><mat-icon class="material-icons-outlined">layers</mat-icon> From Template</button>
                             <button matButton="filled" class="ms-1" disabled><mat-icon class="material-icons-outlined">add</mat-icon> New Task</button>
                         </mat-card-content>
                     </mat-card>
@@ -464,8 +494,8 @@ interface RealProjectRow {
             }
 
             @if (filteredProjectCardsData().length > 0) {
-            <app-projects-cards [projectsData]="filteredProjectCardsData()" [useRealRouting]="true"></app-projects-cards>
-            <app-projects-grid [projectsData]="filteredProjectCardsData()" [useRealRouting]="true" (projectEdited)="onProjectEdited($event)"></app-projects-grid>
+                <app-projects-cards [projectsData]="filteredProjectCardsData()" [useRealRouting]="true" [historicalAt]="historicalAt()"></app-projects-cards>
+                <app-projects-grid [projectsData]="filteredProjectCardsData()" [useRealRouting]="true" [historicalAt]="historicalAt()" (projectEdited)="onProjectEdited($event)"></app-projects-grid>
             }
 
             @if (!isLoading() && projectCardsData().length > 0 && filteredProjectCardsData().length === 0) {
@@ -539,6 +569,10 @@ export class RealProjectsComponent implements OnInit {
     ];
 
     readonly projects = signal<RealProjectRow[]>([]);
+    readonly historicalAt = signal<string | null>(null);
+    readonly timelineQuickDates = signal<M2TimelineCheckpoint[]>([]);
+    readonly historicalMode = computed(() => !!this.historicalAt());
+    readonly historicalDisplay = computed(() => this.historicalAt() ? new Date(this.historicalAt()!).toLocaleString() : "");
     readonly projectCardsData = computed<ProjectCardItem[]>(() =>
         this.projects().map((row, index) => ({
             id: index + 1,
@@ -582,7 +616,10 @@ export class RealProjectsComponent implements OnInit {
     ngOnInit(): void {
         this.route.queryParamMap.subscribe((params) => {
             const workspaceId = (params.get("workspaceId") || "").trim();
+            const at = params.get('at');
             this.selectedWorkspaceId.set(workspaceId);
+            this.historicalAt.set(at);
+            this.timelineQuickDates.set([]);
             this.loadRealProjects();
         });
     }
@@ -593,6 +630,11 @@ export class RealProjectsComponent implements OnInit {
     }
 
     openCreateProjectDialog(): void {
+        if (this.historicalMode()) {
+            this.snackBar.open("Read-only historical view - edits are disabled.", "Close", { duration: 3200 });
+            return;
+        }
+
         const workspaceId = this.selectedWorkspaceId();
         if (!workspaceId) {
             this.snackBar.open("Open this page from a workspace to create a real project.", "Close", { duration: 3500 });
@@ -670,6 +712,11 @@ export class RealProjectsComponent implements OnInit {
     }
 
     openTemplatePickerDialog(): void {
+        if (this.historicalMode()) {
+            this.snackBar.open("Read-only historical view - edits are disabled.", "Close", { duration: 3200 });
+            return;
+        }
+
         const workspaceId = this.selectedWorkspaceId();
         if (!workspaceId) {
             this.snackBar.open("Open this page from a workspace to use a template.", "Close", { duration: 3500 });
@@ -690,6 +737,11 @@ export class RealProjectsComponent implements OnInit {
     }
 
     openCreateWithAiDialog(): void {
+        if (this.historicalMode()) {
+            this.snackBar.open("Read-only historical view - edits are disabled.", "Close", { duration: 3200 });
+            return;
+        }
+
         const workspaceId = this.selectedWorkspaceId();
         if (!workspaceId) {
             this.snackBar.open("Open this page from a workspace to use Create with AI.", "Close", { duration: 3500 });
@@ -726,7 +778,9 @@ export class RealProjectsComponent implements OnInit {
         if (!project.workspaceId || !project.projectUuid) {
             return;
         }
-        this.router.navigate(["/app/real-projects", project.workspaceId, project.projectUuid]);
+        this.router.navigate(["/app/real-projects", project.workspaceId, project.projectUuid], {
+            queryParams: this.buildHistoricalQueryParams(),
+        });
     }
 
     progressNumerator(progress: number): number {
@@ -780,6 +834,11 @@ export class RealProjectsComponent implements OnInit {
     }
 
     applyBulkStatus(): void {
+        if (this.historicalMode()) {
+            this.snackBar.open("Read-only historical view - edits are disabled.", "Close", { duration: 3200 });
+            return;
+        }
+
         const workspaceId = this.selectedWorkspaceId();
         if (!workspaceId || !this.bulkTargetStatus || this.selectedProjectIds().length === 0) return;
         this.projectService.bulkChangeStatus(workspaceId, this.selectedProjectIds(), this.bulkTargetStatus).subscribe({
@@ -794,12 +853,14 @@ export class RealProjectsComponent implements OnInit {
 
     loadRealProjects(): void {
         const workspaceId = this.selectedWorkspaceId();
+        const at = this.historicalAt() || undefined;
         this.isLoading.set(true);
         this.lastError.set(null);
         this.projects.set([]);
+        this.timelineQuickDates.set([]);
 
         if (workspaceId) {
-            this.loadForSingleWorkspace(workspaceId);
+            this.loadForSingleWorkspace(workspaceId, at);
             return;
         }
 
@@ -813,28 +874,38 @@ export class RealProjectsComponent implements OnInit {
                     return;
                 }
 
+                const atParam = at;
                 const workspaceRequests = workspaces.map((workspace) =>
-                    forkJoin({
-                        projectsPage: this.projectService.getProjects(workspace.id, 0, 50).pipe(
-                            catchError(() => of({ content: [] as M2ProjectSummary[] }))
-                        ),
-                        workspaceMembers: this.workspaceService.getWorkspaceMembers(workspace.id).pipe(
-                            catchError(() => of([] as M2WorkspaceMember[]))
-                        ),
-                    }).pipe(
-                        map(({ projectsPage, workspaceMembers }) => ({
-                            workspace,
-                            projects: projectsPage.content || [],
-                            workspaceMembers,
-                        }))
-                    )
+                    atParam
+                        ? this.workspaceService.getWorkspaceSnapshot(workspace.id, atParam).pipe(
+                            catchError(() => of(null)),
+                            map((snap: M2WorkspaceSnapshot | null) => ({
+                                workspace,
+                                projects: (snap?.projects || []),
+                                workspaceMembers: this.mapSnapshotMembers(snap?.members),
+                            }))
+                        )
+                        : forkJoin({
+                            projectsPage: this.projectService.getProjects(workspace.id, 0, 50).pipe(
+                                catchError(() => of({ content: [] as M2ProjectSummary[] }))
+                            ),
+                            workspaceMembers: this.workspaceService.getWorkspaceMembers(workspace.id).pipe(
+                                catchError(() => of([] as M2WorkspaceMember[]))
+                            ),
+                        }).pipe(
+                            map(({ projectsPage, workspaceMembers }) => ({
+                                workspace,
+                                projects: projectsPage.content || [],
+                                workspaceMembers,
+                            }))
+                        )
                 );
 
                 forkJoin(workspaceRequests).subscribe({
                     next: (workspaceRows) => {
                         const projectContexts = workspaceRows.flatMap((row) => {
                             const profileByUserId = this.buildWorkspaceProfiles(row.workspaceMembers);
-                            return row.projects.map((project) => ({
+                            return row.projects.map((project: any) => ({
                                 workspace: row.workspace,
                                 project,
                                 profileByUserId,
@@ -847,15 +918,20 @@ export class RealProjectsComponent implements OnInit {
                             return;
                         }
 
-                        const memberRequests = projectContexts.map((ctx) =>
-                            this.projectService.getProjectMembers(ctx.workspace.id, ctx.project.id).pipe(
+                        const memberRequests = projectContexts.map((ctx) => {
+                            if (at) {
+                                // Historical mode: project-level member as-of is not available in snapshot MVP — fall back to empty list
+                                return of(this.toRow(ctx.workspace, ctx.project, [], ctx.profileByUserId));
+                            }
+                            return this.projectService.getProjectMembers(ctx.workspace.id, ctx.project.id).pipe(
                                 map((members) => this.toRow(ctx.workspace, ctx.project, members || [], ctx.profileByUserId)),
                                 catchError(() => of(this.toRow(ctx.workspace, ctx.project, [], ctx.profileByUserId)))
-                            )
-                        );
+                            );
+                        });
 
-                        forkJoin(memberRequests).subscribe({
-                            next: (rows) => {
+                        const memberObs = forkJoin(memberRequests) as unknown as Observable<RealProjectRow[]>;
+                        memberObs.subscribe({
+                            next: (rows: RealProjectRow[]) => {
                                 const sorted = [...rows].sort((a, b) => a.name.localeCompare(b.name));
                                 this.projects.set(sorted);
                                 this.isLoading.set(false);
@@ -883,7 +959,7 @@ export class RealProjectsComponent implements OnInit {
     }
 
     showAllWorkspaces(): void {
-        this.router.navigate(["/app/real-projects"]);
+        this.router.navigate(["/app/real-projects"], { queryParams: this.buildHistoricalQueryParams() });
     }
 
     goBackToWorkspace(): void {
@@ -891,7 +967,7 @@ export class RealProjectsComponent implements OnInit {
         if (!workspaceId) {
             return;
         }
-        this.router.navigate(["/app/workspaces", workspaceId]);
+        this.router.navigate(["/app/workspaces", workspaceId], { queryParams: this.buildHistoricalQueryParams() });
     }
 
     openWorkspaceSwitcher(): void {
@@ -901,10 +977,12 @@ export class RealProjectsComponent implements OnInit {
             disableClose: false,
         }).afterClosed().subscribe((workspace) => {
             if (workspace) {
-                this.selectedWorkspaceId.set(workspace.id);
-                this.selectedWorkspaceName.set(workspace.name);
-                this.selectedWorkspaceOrgType.set(workspace.orgType);
-                this.loadRealProjects();
+                this.router.navigate(["/app/real-projects"], {
+                    queryParams: {
+                        workspaceId: workspace.id,
+                        ...this.buildHistoricalQueryParams(),
+                    },
+                });
             }
         });
     }
@@ -913,7 +991,9 @@ export class RealProjectsComponent implements OnInit {
         if (!project?.workspaceId || !project?.id) {
             return;
         }
-        this.router.navigate(["/app/real-projects", project.workspaceId, project.id]);
+        this.router.navigate(["/app/real-projects", project.workspaceId, project.id], {
+            queryParams: this.buildHistoricalQueryParams(),
+        });
     }
 
     statusDisplay(status: string): string {
@@ -980,7 +1060,63 @@ export class RealProjectsComponent implements OnInit {
         };
     }
 
-    private loadForSingleWorkspace(workspaceId: string): void {
+    private loadForSingleWorkspace(workspaceId: string, at?: string): void {
+        if (at) {
+            // Historical snapshot path
+            this.workspaceService.getWorkspaceSnapshot(workspaceId, at).subscribe({
+                next: (snap: M2WorkspaceSnapshot) => {
+                    // Populate lightweight workspace info from snapshot
+                    this.selectedWorkspaceName.set(snap?.workspaceName || "");
+                    this.selectedWorkspaceOrgType.set((snap?.organization?.orgType || "enterprise").toLowerCase());
+                    const workspaceMembers = this.mapSnapshotMembers(snap?.members);
+                    this.selectedWorkspaceMembers.set(workspaceMembers);
+                    this.timelineQuickDates.set(this.pickTimelineQuickDates(snap));
+
+                    const profileByUserId = this.buildWorkspaceProfiles(workspaceMembers);
+                    const projects = snap?.projects || [];
+                    if (projects.length === 0) {
+                        this.projects.set([]);
+                        this.isLoading.set(false);
+                        return;
+                    }
+
+                    const memberRequests = projects.map((project: any) =>
+                        // Historical mode: project-level members are not available in MVP snapshot
+                        of(this.toRow({ id: workspaceId, name: this.selectedWorkspaceName(), slug: "", ownerId: 0 } as M2Workspace, project as M2ProjectSummary, [], profileByUserId))
+                    );
+
+                    const memberObs = forkJoin(memberRequests) as unknown as Observable<RealProjectRow[]>;
+                    memberObs.subscribe({
+                        next: (rows: RealProjectRow[]) => {
+                            const sorted = [...rows].sort((a, b) => a.name.localeCompare(b.name));
+                            this.projects.set(sorted);
+                            this.isLoading.set(false);
+                        },
+                        error: (error: HttpErrorResponse) => {
+                            this.projects.set([]);
+                            this.lastError.set(this.errorMessage(error));
+                            this.isLoading.set(false);
+                        },
+                    });
+                },
+                error: (error: HttpErrorResponse) => {
+                    if (error.status === 404) {
+                        // Workspace may exist but be inactive at the selected date.
+                        this.projects.set([]);
+                        this.timelineQuickDates.set([]);
+                        this.lastError.set(null);
+                        this.isLoading.set(false);
+                        return;
+                    }
+                    this.projects.set([]);
+                    this.timelineQuickDates.set([]);
+                    this.lastError.set(this.errorMessage(error));
+                    this.isLoading.set(false);
+                },
+            });
+            return;
+        }
+
         forkJoin({
             workspace: this.workspaceService.getWorkspaceById(workspaceId),
             projectsPage: this.projectService.getProjects(workspaceId, 0, 100),
@@ -992,6 +1128,7 @@ export class RealProjectsComponent implements OnInit {
                     (workspace.orgType || workspace.organization?.orgType || "enterprise").toLowerCase()
                 );
                 this.selectedWorkspaceMembers.set(workspaceMembers || []);
+                this.loadTimelineHints(workspaceId);
 
                 const profileByUserId = this.buildWorkspaceProfiles(workspaceMembers);
                 const projects = projectsPage?.content || [];
@@ -1027,6 +1164,78 @@ export class RealProjectsComponent implements OnInit {
                 this.isLoading.set(false);
             },
         });
+    }
+
+    jumpToHistoricalDate(at: string): void {
+        this.router.navigate([], {
+            relativeTo: this.route,
+            queryParams: { at },
+            queryParamsHandling: "merge",
+        });
+    }
+
+    clearHistorical(): void {
+        this.router.navigate([], {
+            relativeTo: this.route,
+            queryParams: { at: null },
+            queryParamsHandling: "merge",
+        });
+    }
+
+    private loadTimelineHints(workspaceId: string): void {
+        this.workspaceService.getWorkspaceSnapshot(workspaceId, new Date().toISOString()).pipe(
+            catchError(() => of(null))
+        ).subscribe((snapshot: M2WorkspaceSnapshot | null) => {
+            if (!snapshot) {
+                this.timelineQuickDates.set([]);
+                return;
+            }
+            this.timelineQuickDates.set(this.pickTimelineQuickDates(snapshot));
+        });
+    }
+
+    private pickTimelineQuickDates(snapshot: M2WorkspaceSnapshot): M2TimelineCheckpoint[] {
+        const merged = new Map<string, M2TimelineCheckpoint>();
+
+        for (const checkpoint of snapshot.timelineCheckpoints || []) {
+            if (checkpoint?.at) {
+                merged.set(checkpoint.at, checkpoint);
+            }
+        }
+
+        for (const at of snapshot.suggestedDates || []) {
+            if (!at || merged.has(at)) {
+                continue;
+            }
+            merged.set(at, {
+                at,
+                kind: "SUGGESTED",
+                label: "Recommended checkpoint",
+            });
+        }
+
+        return Array.from(merged.values())
+            .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+            .slice(0, 7);
+    }
+
+    private mapSnapshotMembers(members?: M2WorkspaceSnapshot["members"]): M2WorkspaceMember[] {
+        return (members || []).map((member) => ({
+            id: member.id,
+            userId: member.userId,
+            role: member.workspaceRole || "MEMBER",
+            joinedAt: member.joinedAt,
+            user: {
+                fullName: member.fullName || `User #${member.userId}`,
+                email: member.email || "",
+                avatarUrl: member.avatarUrl || "",
+            },
+        }));
+    }
+
+    private buildHistoricalQueryParams(): Record<string, string> {
+        const at = this.historicalAt();
+        return at ? { at } : {};
     }
 
     private buildWorkspaceProfiles(members: M2WorkspaceMember[]): Map<number, { fullName: string; avatarUrl: string }> {

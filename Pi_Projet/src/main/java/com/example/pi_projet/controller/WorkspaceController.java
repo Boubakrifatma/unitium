@@ -9,6 +9,9 @@ import com.example.pi_projet.exception.Module2Exception;
 import com.example.pi_projet.service.M2AuditLogService;
 import com.example.pi_projet.service.WorkspaceMemberService;
 import com.example.pi_projet.service.WorkspaceService;
+import com.example.pi_projet.service.SnapshotService;
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import com.example.pi_projet.annotation.Authorized;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +31,7 @@ public class WorkspaceController {
     private final WorkspaceService workspaceService;
     private final WorkspaceMemberService memberService;
     private final M2AuditLogService auditLogService;
+    private final SnapshotService snapshotService;
 
     @GetMapping
     public List<Workspace> getVisibleWorkspaces(HttpServletRequest request) {
@@ -192,6 +196,26 @@ public class WorkspaceController {
             throw new Module2Exception(Module2Exception.ErrorCode.FORBIDDEN, "Missing authenticated user context");
         }
         return currentUser;
+    }
+
+    @GetMapping("/{id}/snapshot")
+    public Map<String, Object> getSnapshot(@PathVariable UUID id,
+                                           @RequestParam(required = false) String at,
+                                           HttpServletRequest request) {
+        User currentUser = requireCurrentUser(request);
+        workspaceService.getByIdVisibleForUser(id, currentUser);
+
+        Instant ts;
+        if (at == null || at.isBlank()) {
+            ts = Instant.now();
+        } else {
+            try {
+                ts = Instant.parse(at);
+            } catch (DateTimeParseException ex) {
+                throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "Invalid 'at' timestamp format. Use ISO-8601.");
+            }
+        }
+        return snapshotService.buildSnapshot(id, ts);
     }
 
     private String parseRequiredWorkspaceName(String value) {

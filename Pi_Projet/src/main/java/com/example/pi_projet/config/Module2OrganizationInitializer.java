@@ -21,11 +21,6 @@ public class Module2OrganizationInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (!scenarioEnabled) {
-            log.info("[Module2OrganizationInitializer] Module 2 scenario bootstrap disabled by config.");
-            return;
-        }
-
         try {
             m2DevSeedService.seed();
             log.info("[Module2OrganizationInitializer] Module 2 startup scenario applied.");

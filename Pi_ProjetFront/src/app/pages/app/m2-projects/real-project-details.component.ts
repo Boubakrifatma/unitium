@@ -59,7 +59,7 @@ interface ProjectMemberView {
                         <p class="small mb-0">
                             <span routerLink="/app/dashboard" class="me-2 text-theme style-none"><mat-icon class="material-icons-outlined align-middle text-sm">house</mat-icon> Home</span>
                             <mat-icon class="material-icons-outlined align-middle text-sm me-2">chevron_right</mat-icon>
-                            <span routerLink="/app/real-projects" class="me-2 text-theme style-none">Real Projects</span>
+                            <span [routerLink]="['/app/real-projects']" [queryParams]="workspaceId() ? { workspaceId: workspaceId(), ...historicalQueryParams() } : historicalQueryParams()" class="me-2 text-theme style-none">Real Projects</span>
                             <mat-icon class="material-icons-outlined align-middle text-sm me-2">chevron_right</mat-icon>
                             Project Details
                         </p>
@@ -76,6 +76,22 @@ interface ProjectMemberView {
                 </div>
             </mat-card>
         </div>
+
+        @if (historicalAt()) {
+        <div class="container fade-in mb-3">
+            <mat-card class="mb-3" style="background:#fff7ed;border-left:4px solid #f59e0b;">
+                <mat-card-content>
+                    <div class="d-flex align-items-center">
+                        <mat-icon style="color:#b45309">history_toggle_off</mat-icon>
+                        <div style="margin-left:12px">
+                            <div style="font-weight:600">Viewing project as of {{ historicalDisplay() }}</div>
+                            <div class="small text-secondary">Opened from Time Machine context</div>
+                        </div>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+        </div>
+        }
 
         <div class="container fade-in">
             @if (isLoading()) {
@@ -461,6 +477,8 @@ export class ProjectDetailsComponent implements OnInit {
 
     readonly workspaceId = signal("");
     readonly projectId = signal("");
+    readonly historicalAt = signal<string | null>(null);
+    readonly historicalDisplay = computed(() => this.historicalAt() ? new Date(this.historicalAt()!).toLocaleString() : "");
 
     // edit form fields (two-way bound via ngModel)
     editName = "";
@@ -572,6 +590,7 @@ export class ProjectDetailsComponent implements OnInit {
         this.route.paramMap.subscribe((params) => {
             const workspaceId = params.get("workspaceId") || "";
             const projectId = params.get("projectId") || "";
+            const at = this.route.snapshot.queryParamMap.get("at");
 
             if (!workspaceId || !projectId) {
                 this.error.set("Missing workspaceId or projectId in route.");
@@ -581,6 +600,7 @@ export class ProjectDetailsComponent implements OnInit {
 
             this.workspaceId.set(workspaceId);
             this.projectId.set(projectId);
+            this.historicalAt.set(at);
             this.loadData();
         });
     }
@@ -592,8 +612,15 @@ export class ProjectDetailsComponent implements OnInit {
     backToRealProjects(): void {
         const wsId = this.workspaceId();
         this.router.navigate(["/app/real-projects"], {
-            queryParams: wsId ? { workspaceId: wsId } : {},
+            queryParams: wsId
+                ? { workspaceId: wsId, ...this.historicalQueryParams() }
+                : this.historicalQueryParams(),
         });
+    }
+
+    historicalQueryParams(): Record<string, string> {
+        const at = this.historicalAt();
+        return at ? { at } : {};
     }
 
     openAddMemberDialog(): void {

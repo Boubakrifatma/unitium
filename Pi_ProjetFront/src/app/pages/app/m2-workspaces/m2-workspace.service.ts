@@ -52,6 +52,40 @@ export interface M2ProjectPage {
     totalElements?: number;
 }
 
+export interface M2TimelineCheckpoint {
+    at: string;
+    eventAt?: string;
+    kind?: string;
+    label?: string;
+}
+
+export interface M2SnapshotMember {
+    id: string;
+    userId: number;
+    workspaceRole: string;
+    fullName?: string;
+    email?: string;
+    avatarUrl?: string;
+    joinedAt?: string;
+}
+
+export interface M2WorkspaceSnapshot {
+    workspaceId: string;
+    workspaceName: string;
+    workspaceCreatedAt?: string;
+    organization?: {
+        orgType?: string;
+    };
+    asOf: string;
+    totalProjects: number;
+    memberCount: number;
+    projects: M2ProjectSummary[];
+    members: M2SnapshotMember[];
+    timelineCheckpoints?: M2TimelineCheckpoint[];
+    suggestedDates?: string[];
+    dataWarnings?: string[];
+}
+
 export interface M2WorkspaceCapacity {
     currentWorkspaces: number;
     maxWorkspaces: number;
@@ -108,6 +142,13 @@ export class M2WorkspaceService {
 
     getWorkspaceById(workspaceId: string): Observable<M2Workspace> {
         return this.http.get<M2Workspace>(`${this.base}/${workspaceId}`);
+    }
+
+    getWorkspaceSnapshot(workspaceId: string, at?: string): Observable<M2WorkspaceSnapshot> {
+        if (at) {
+            return this.http.get<M2WorkspaceSnapshot>(`${this.base}/${workspaceId}/snapshot`, { params: { at } });
+        }
+        return this.http.get<M2WorkspaceSnapshot>(`${this.base}/${workspaceId}/snapshot`);
     }
 
     getWorkspaceMembers(workspaceId: string): Observable<M2WorkspaceMember[]> {

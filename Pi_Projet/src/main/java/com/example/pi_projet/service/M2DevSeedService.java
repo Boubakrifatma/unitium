@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
@@ -33,6 +34,9 @@ import java.util.*;
 public class M2DevSeedService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    // Seeded historic created_at used for workspaces and projects so snapshots exist
+    private static final Instant SEEDED_CREATED_AT = Instant.parse("2024-01-01T00:00:00Z");
 
     // ── Repositories ────────────────────────────────────────────────────────
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
@@ -122,6 +126,7 @@ public class M2DevSeedService {
         Workspace engHQ     = ensureWorkspace(nexusCorp,  "Engineering HQ",        "engineering-hq",  manager.getId());
         Workspace mktHub    = ensureWorkspace(nexusCorp,  "Marketing Hub",          "marketing-hub",   manager.getId());
         Workspace prodLab   = ensureWorkspace(nexusCorp,  "Product Lab",            "product-lab",     manager.getId());
+        Workspace chronosOps = ensureWorkspace(nexusCorp,  "Chronos Ops",            "chronos-ops",     manager.getId());
         Workspace startMain = ensureWorkspace(startupX,   "StartupX Main",          "startup-main",    manager2.getId());
         Workspace csDept    = ensureWorkspace(openEdu,    "Computer Science Dept",  "cs-dept",         tutor.getId());
         Workspace dsLab     = ensureWorkspace(openEdu,    "Data Science Lab",       "ds-lab",          tutor.getId());
@@ -156,6 +161,12 @@ public class M2DevSeedService {
         ensureWsMember(prodLab, analyst.getId(),  WorkspaceMember.WorkspaceRole.EMPLOYEE, manager);
         ensureWsMember(prodLab, dev1.getId(),     WorkspaceMember.WorkspaceRole.EMPLOYEE, manager);
 
+        // Chronos Ops (time machine demo workspace)
+        ensureWsMember(chronosOps, manager.getId(), WorkspaceMember.WorkspaceRole.OWNER,    null);
+        ensureWsMember(chronosOps, dev1.getId(),    WorkspaceMember.WorkspaceRole.EMPLOYEE, manager);
+        ensureWsMember(chronosOps, dev2.getId(),    WorkspaceMember.WorkspaceRole.EMPLOYEE, manager);
+        ensureWsMember(chronosOps, analyst.getId(), WorkspaceMember.WorkspaceRole.VIEWER,   manager);
+
         // StartupX Main  (3 members — MAXED, plan limit = 3)
         ensureWsMember(startMain, manager2.getId(), WorkspaceMember.WorkspaceRole.OWNER,    null);
         ensureWsMember(startMain, employee.getId(), WorkspaceMember.WorkspaceRole.EMPLOYEE, manager2);
@@ -188,7 +199,7 @@ public class M2DevSeedService {
         ensureWsMember(miniWs, po.getId(),       WorkspaceMember.WorkspaceRole.STUDENT, tutor2);
 
         // Populate Stage 4 ML profile columns directly on real workspace members.
-        applyWorkspaceMemberMlProfiles(List.of(engHQ, mktHub, prodLab, startMain, csDept, dsLab, resCtr, miniWs));
+        applyWorkspaceMemberMlProfiles(List.of(engHQ, mktHub, prodLab, chronosOps, startMain, csDept, dsLab, resCtr, miniWs));
 
         // ── 7. Project Templates ─────────────────────────────────────────────
         ProjectTemplate tplAgile = ensureTemplate(nexusCorp, manager.getId(),
@@ -338,6 +349,23 @@ public class M2DevSeedService {
         Project pAi = ensureProject(prodLab, manager.getId(),
             "AI Feature Integration", Project.ProjectStatus.PLANNING, Project.Visibility.PRIVATE,
             null, null, tplMl);
+        Project pPython = ensureProject(prodLab, manager.getId(),
+            "Python", Project.ProjectStatus.ACTIVE, Project.Visibility.PRIVATE,
+            null, null, null);
+
+        // Chronos Ops (time machine demo)
+        Project pChronosCore = ensureProject(chronosOps, manager.getId(),
+            "Chronos Core Rollout", Project.ProjectStatus.ACTIVE, Project.Visibility.PRIVATE,
+            LocalDate.of(2026, 1, 10), LocalDate.of(2026, 5, 30), tplAgile);
+        Project pLegacySunset = ensureProject(chronosOps, manager.getId(),
+            "Legacy Sunset Program", Project.ProjectStatus.COMPLETED, Project.Visibility.PRIVATE,
+            LocalDate.of(2026, 2, 1), LocalDate.of(2026, 3, 20), tplWaterfall);
+        Project pPortalReboot = ensureProject(chronosOps, manager.getId(),
+            "Client Portal Reboot", Project.ProjectStatus.ACTIVE, Project.Visibility.PUBLIC,
+            LocalDate.of(2026, 3, 25), LocalDate.of(2026, 7, 15), tplKanban);
+        Project pGrowthAnalytics = ensureProject(chronosOps, manager.getId(),
+            "Growth Analytics Revamp", Project.ProjectStatus.PLANNING, Project.Visibility.PRIVATE,
+            LocalDate.of(2026, 4, 8), LocalDate.of(2026, 8, 30), tplMl);
 
         // StartupX Main
         Project pMvp = ensureProject(startMain, manager2.getId(),
@@ -417,6 +445,21 @@ public class M2DevSeedService {
         ensureProjMember(pAi, manager.getId(),  ProjectMember.ProjectRole.PROJECT_MANAGER, null);
         ensureProjMember(pAi, dev3.getId(),     ProjectMember.ProjectRole.DEVELOPER, manager);
         ensureProjMember(pAi, analyst.getId(),  ProjectMember.ProjectRole.REVIEWER,  manager);
+        ensureProjMember(pPython, manager.getId(),  ProjectMember.ProjectRole.PROJECT_MANAGER, null);
+
+        // Chronos Ops projects
+        ensureProjMember(pChronosCore, manager.getId(), ProjectMember.ProjectRole.PROJECT_MANAGER, null);
+        ensureProjMember(pChronosCore, dev1.getId(),    ProjectMember.ProjectRole.DEVELOPER, manager);
+
+        ensureProjMember(pLegacySunset, manager.getId(), ProjectMember.ProjectRole.PROJECT_MANAGER, null);
+        ensureProjMember(pLegacySunset, dev2.getId(),    ProjectMember.ProjectRole.DEVELOPER, manager);
+
+        ensureProjMember(pPortalReboot, manager.getId(), ProjectMember.ProjectRole.PROJECT_MANAGER, null);
+        ensureProjMember(pPortalReboot, dev1.getId(),    ProjectMember.ProjectRole.DEVELOPER, manager);
+        ensureProjMember(pPortalReboot, analyst.getId(), ProjectMember.ProjectRole.REVIEWER,  manager);
+
+        ensureProjMember(pGrowthAnalytics, manager.getId(), ProjectMember.ProjectRole.PROJECT_MANAGER, null);
+        ensureProjMember(pGrowthAnalytics, analyst.getId(), ProjectMember.ProjectRole.REVIEWER,  manager);
 
         // StartupX  (StartupX users only)
         ensureProjMember(pMvp, manager2.getId(), ProjectMember.ProjectRole.PROJECT_MANAGER, null);
@@ -495,13 +538,19 @@ public class M2DevSeedService {
         ensureRating(ta,       tplCourse,    4);
         ensureRating(ta,       tplResearch,  5);
 
-        log.info("[M2DevSeedService] Seed complete: 4 orgs, 8 workspaces, 10 templates, 18 projects.");
+        applyTimeMachineTimeline(chronosOps, manager, dev1, dev2, analyst,
+            pChronosCore, pLegacySunset, pPortalReboot, pGrowthAnalytics);
+
+        log.info("[M2DevSeedService] Seed complete: 4 orgs, 9 workspaces, 10 templates, 22 projects.");
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("nexusCorpId",  nexusCorp.getId());
         out.put("startupXId",   startupX.getId());
         out.put("openEduId",    openEdu.getId());
         out.put("miniCampusId", miniCampus.getId());
-        out.put("message", "Module 2 rich seed completed — 4 orgs, 8 workspaces, 10 templates, 18 projects");
+        out.put("timeMachineWorkspaceId", chronosOps.getId());
+        out.put("timeMachineWorkspaceSlug", chronosOps.getSlug());
+        out.put("timeMachineSuggestedDates", timeMachineSuggestedDates());
+        out.put("message", "Module 2 rich seed completed: 4 orgs, 9 workspaces, 10 templates, 22 projects");
         return out;
     }
 
@@ -598,16 +647,51 @@ public class M2DevSeedService {
     // ─────────────────────────────────────────────────────────────────────────
 
     private Workspace ensureWorkspace(Organization org, String name, String slug, Long ownerId) {
-        UUID wsId = UUID.nameUUIDFromBytes((org.getSlug() + ":" + slug).getBytes());
-        return workspaceRepository.findById(wsId).orElseGet(() ->
-            workspaceRepository.save(Workspace.builder()
+        UUID wsId = UUID.nameUUIDFromBytes((org.getSlug() + ":" + slug).getBytes(StandardCharsets.UTF_8));
+
+        // Check for any workspace row (including soft-deleted) and restore/update if needed.
+        Optional<Workspace> any = workspaceRepository.findAnyByIdNative(wsId);
+        if (any.isPresent()) {
+            Workspace ws = any.get();
+            boolean changed = false;
+
+            // If soft-deleted, restore via native query
+            if (ws.getDeletedAt() != null) {
+                workspaceRepository.restoreSoftDeletedById(wsId);
+                ws.setDeletedAt(null);
+                changed = true;
+            }
+
+            String normalizedOrgType = org.getOrgType() != null ? org.getOrgType().name().toLowerCase() : null;
+            if (!Objects.equals(ws.getName(), name)) { ws.setName(name); changed = true; }
+            if (!Objects.equals(ws.getSlug(), slug)) { ws.setSlug(slug); changed = true; }
+            if (!Objects.equals(ws.getOwnerId(), ownerId)) { ws.setOwnerId(ownerId); changed = true; }
+            if (!Objects.equals(ws.getOrgType(), normalizedOrgType)) { ws.setOrgType(normalizedOrgType); changed = true; }
+
+            // Ensure createdAt is at or before SEEDED_CREATED_AT
+            if (ws.getCreatedAt() == null || ws.getCreatedAt().isAfter(SEEDED_CREATED_AT)) {
+                jdbcTemplate.update("UPDATE workspaces SET created_at = ? WHERE id = ?", java.sql.Timestamp.from(SEEDED_CREATED_AT), wsId.toString());
+                ws.setCreatedAt(SEEDED_CREATED_AT);
+                changed = true;
+            }
+
+            if (changed) {
+                workspaceRepository.save(ws);
+            }
+            return ws;
+        }
+
+        // Create new workspace with seeded createdAt
+        Workspace created = Workspace.builder()
                 .id(wsId)
                 .organization(org)
                 .name(name)
                 .slug(slug)
                 .orgType(org.getOrgType().name().toLowerCase())
                 .ownerId(ownerId)
-                .build()));
+                .createdAt(SEEDED_CREATED_AT)
+                .build();
+        return workspaceRepository.save(created);
     }
 
     /** Soft-delete the provisioning-service "default" workspace(s) if they still exist.
@@ -639,12 +723,13 @@ public class M2DevSeedService {
         if (workspaceMemberRepository.restoreSoftDeletedMember(ws.getId(), userId, role.name(), inviterId) > 0) return;
 
         try {
+            Instant joinedAt = ws != null && ws.getCreatedAt() != null ? ws.getCreatedAt() : Instant.now();
             workspaceMemberRepository.save(WorkspaceMember.builder()
                 .workspace(ws)
                 .userId(userId)
                 .role(role)
                 .invitedByUser(inviter)
-                .joinedAt(Instant.now())
+                .joinedAt(joinedAt)
                 .build());
         } catch (DataIntegrityViolationException ex) {
             // Concurrent insert — safe to ignore if row now exists
@@ -935,24 +1020,35 @@ public class M2DevSeedService {
                                   Project.ProjectStatus status, Project.Visibility visibility,
                                   LocalDate startDate, LocalDate endDate,
                                   ProjectTemplate template) {
-        return projectRepository.findAllByWorkspaceId(ws.getId(), Pageable.unpaged()).stream()
+        // Ensure project exists; if it does exist ensure its created_at is not newer than SEEDED_CREATED_AT
+        Optional<Project> existing = projectRepository.findAllByWorkspaceId(ws.getId(), Pageable.unpaged()).stream()
             .filter(p -> name.equalsIgnoreCase(p.getName()))
-            .findFirst()
-            .orElseGet(() -> {
-                Project.ProjectBuilder builder = Project.builder()
-                    .workspace(ws)
-                    .createdBy(creatorId)
-                    .name(name)
-                    .status(status)
-                    .visibility(visibility)
-                    .startDate(startDate)
-                    .endDate(endDate);
-                if (template != null) {
-                    builder.templateId(template.getId())
-                           .phasesJson(template.getDefaultPhasesJson());
-                }
-                return projectRepository.save(builder.build());
-            });
+            .findFirst();
+
+        if (existing.isPresent()) {
+            Project p = existing.get();
+            if (p.getCreatedAt() == null || p.getCreatedAt().isAfter(SEEDED_CREATED_AT)) {
+                // Use direct JDBC update because created_at is updatable=false in JPA mapping
+                jdbcTemplate.update("UPDATE projects SET created_at = ? WHERE id = ?", java.sql.Timestamp.from(SEEDED_CREATED_AT), p.getId().toString());
+                p.setCreatedAt(SEEDED_CREATED_AT);
+            }
+            return p;
+        }
+
+        Project.ProjectBuilder builder = Project.builder()
+            .workspace(ws)
+            .createdBy(creatorId)
+            .name(name)
+            .status(status)
+            .visibility(visibility)
+            .startDate(startDate)
+            .endDate(endDate)
+            .createdAt(SEEDED_CREATED_AT);
+        if (template != null) {
+            builder.templateId(template.getId())
+                   .phasesJson(template.getDefaultPhasesJson());
+        }
+        return projectRepository.save(builder.build());
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -968,6 +1064,112 @@ public class M2DevSeedService {
             .role(role)
             .assignedByUser(assigner)
             .build());
+    }
+
+    private void applyTimeMachineTimeline(
+        Workspace workspace,
+        User owner,
+        User coreDev,
+        User rotatingDev,
+        User analyst,
+        Project chronosCore,
+        Project legacySunset,
+        Project portalReboot,
+        Project growthAnalytics
+    ) {
+        ensureWorkspaceMemberTimeline(
+            workspace.getId(), owner.getId(), WorkspaceMember.WorkspaceRole.OWNER,
+            Instant.parse("2026-01-05T09:00:00Z"), null
+        );
+        ensureWorkspaceMemberTimeline(
+            workspace.getId(), coreDev.getId(), WorkspaceMember.WorkspaceRole.EMPLOYEE,
+            Instant.parse("2026-01-12T10:15:00Z"), null
+        );
+        ensureWorkspaceMemberTimeline(
+            workspace.getId(), rotatingDev.getId(), WorkspaceMember.WorkspaceRole.EMPLOYEE,
+            Instant.parse("2026-02-06T08:45:00Z"), Instant.parse("2026-03-02T18:00:00Z")
+        );
+        ensureWorkspaceMemberTimeline(
+            workspace.getId(), analyst.getId(), WorkspaceMember.WorkspaceRole.VIEWER,
+            Instant.parse("2026-04-01T09:30:00Z"), null
+        );
+
+        ensureProjectTimeline(
+            chronosCore.getId(), Project.ProjectStatus.ACTIVE, Project.Visibility.PRIVATE,
+            Instant.parse("2026-01-10T08:00:00Z"), null
+        );
+        ensureProjectTimeline(
+            legacySunset.getId(), Project.ProjectStatus.COMPLETED, Project.Visibility.PRIVATE,
+            Instant.parse("2026-02-01T12:00:00Z"), Instant.parse("2026-03-20T20:00:00Z")
+        );
+        ensureProjectTimeline(
+            portalReboot.getId(), Project.ProjectStatus.ACTIVE, Project.Visibility.PUBLIC,
+            Instant.parse("2026-03-25T14:00:00Z"), null
+        );
+        ensureProjectTimeline(
+            growthAnalytics.getId(), Project.ProjectStatus.PLANNING, Project.Visibility.PRIVATE,
+            Instant.parse("2026-04-08T16:00:00Z"), null
+        );
+    }
+
+    private void ensureWorkspaceMemberTimeline(
+        UUID workspaceId,
+        Long userId,
+        WorkspaceMember.WorkspaceRole role,
+        Instant joinedAt,
+        Instant deletedAt
+    ) {
+        String workspaceKey = workspaceId.toString();
+        String roleColumn = workspaceMemberRoleColumn();
+        jdbcTemplate.update(
+            "UPDATE workspace_members SET joined_at = ?, deleted_at = ?, " + roleColumn + " = ? " +
+                "WHERE user_id = ? AND (workspace_id = ? OR workspace_id = UNHEX(REPLACE(?, '-', '')))",
+            java.sql.Timestamp.from(joinedAt),
+            deletedAt == null ? null : java.sql.Timestamp.from(deletedAt),
+            role.name(),
+            userId,
+            workspaceKey,
+            workspaceKey
+        );
+    }
+
+    private void ensureProjectTimeline(
+        UUID projectId,
+        Project.ProjectStatus status,
+        Project.Visibility visibility,
+        Instant createdAt,
+        Instant deletedAt
+    ) {
+        String projectKey = projectId.toString();
+        jdbcTemplate.update(
+            "UPDATE projects SET status = ?, visibility = ?, created_at = ?, deleted_at = ? " +
+                "WHERE (id = ? OR id = UNHEX(REPLACE(?, '-', '')))",
+            status.name(),
+            visibility.name(),
+            java.sql.Timestamp.from(createdAt),
+            deletedAt == null ? null : java.sql.Timestamp.from(deletedAt),
+            projectKey,
+            projectKey
+        );
+    }
+
+    private String workspaceMemberRoleColumn() {
+        Integer count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM information_schema.columns " +
+                "WHERE table_schema = DATABASE() AND table_name = 'workspace_members' AND column_name = 'workspace_role'",
+            Integer.class
+        );
+        return (count != null && count > 0) ? "workspace_role" : "role";
+    }
+
+    private List<String> timeMachineSuggestedDates() {
+        return List.of(
+            "2026-01-11T23:59:59Z",
+            "2026-02-10T23:59:59Z",
+            "2026-03-05T23:59:59Z",
+            "2026-03-22T23:59:59Z",
+            "2026-04-09T23:59:59Z"
+        );
     }
 
     // ─────────────────────────────────────────────────────────────────────────

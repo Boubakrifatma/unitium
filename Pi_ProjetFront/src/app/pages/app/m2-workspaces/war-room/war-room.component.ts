@@ -840,15 +840,18 @@ export class WarRoomComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     const id = this.workspaceId();
     if (!id) return;
+    const at = this.route.snapshot.queryParamMap.get('at') || undefined;
     forkJoin({
-      snapshot: this.warRoomService.getSnapshot(id).pipe(catchError(() => of(null))),
-      heatmap:  this.warRoomService.getHeatmap(id).pipe(catchError(() => of([]))),
+      snapshot: this.warRoomService.getSnapshot(id, at).pipe(catchError(() => of(null))),
+      heatmap:  this.warRoomService.getHeatmap(id, 12, at).pipe(catchError(() => of([]))),
     }).subscribe(({ snapshot, heatmap }) => {
       this.snapshot.set(snapshot);
       this.heatmapDays.set(heatmap ?? []);
       this.loading.set(false);
     });
-    this.openSse(id);
+
+    // Only open live SSE when not viewing historical snapshot
+    if (!at) this.openSse(id);
   }
 
   ngOnDestroy(): void {

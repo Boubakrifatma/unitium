@@ -13,11 +13,13 @@ import { MatTabChangeEvent, MatTabsModule } from "@angular/material/tabs";
 import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { MatFormFieldModule } from "@angular/material/form-field";
+import { MatDatepickerModule, MatDatepickerInputEvent } from "@angular/material/datepicker";
+import { MatNativeDateModule } from "@angular/material/core";
+import { MatInputModule } from "@angular/material/input";
 import { MatSelectModule } from "@angular/material/select";
-import { forkJoin, of } from "rxjs";
-import { catchError, take } from "rxjs/operators";
+import { combineLatest, forkJoin, of } from "rxjs";
+import { catchError, distinctUntilChanged, map, take } from "rxjs/operators";
 import { AuthService } from "../../../auth/auth.service";
-import { CircleProgressBlueComponent } from "../../../components/charts/circle-progress-blue.component";
 import { CreateProjectWorkflowDialogComponent, CreateProjectWorkflowDialogResult } from "../m2-projects/create-project-workflow-dialog.component";
 import { CreateWithAiComponent, CreateWithAiDialogResult } from "../m2-projects/create-with-ai.component";
 import { ProjectPermissionService } from "../m2-projects/project-permission.service";
@@ -27,7 +29,7 @@ import { InviteMemberModalComponent } from "./invite-member-modal.component";
 import { MemberRoleEditDialogComponent, MemberRoleEditDialogResult } from "./member-role-edit-dialog.component";
 import { MemberUnassignDialogComponent, MemberUnassignDialogResult } from "./member-unassign-dialog.component";
 import { WorkspaceMember, WorkspaceMemberCapacity } from "./models/workspace-member.model";
-import { M2ProjectSummary, M2Workspace, M2WorkspaceCapacity, M2WorkspaceProjectCapacity, M2WorkspaceService } from "./m2-workspace.service";
+import { M2ProjectSummary, M2TimelineCheckpoint, M2Workspace, M2WorkspaceCapacity, M2WorkspaceProjectCapacity, M2WorkspaceService, M2WorkspaceSnapshot } from "./m2-workspace.service";
 import { WorkspaceMemberService } from "./services/workspace-member.service";
 import { WorkspaceDeleteConfirmDialogComponent, WorkspaceDeleteConfirmDialogResult } from "./workspace-delete-confirm-dialog.component";
 import { WorkspaceEditDialogComponent, WorkspaceEditDialogResult } from "./workspace-edit-dialog.component";
@@ -62,9 +64,11 @@ interface WorkspaceActivity {
         MatSnackBarModule,
         MatTooltipModule,
         MatFormFieldModule,
+        MatInputModule,
+        MatDatepickerModule,
+        MatNativeDateModule,
         MatSelectModule,
         MatProgressSpinnerModule,
-        CircleProgressBlueComponent,
         WorkspaceMemberCardComponent,
         SkeletonCardComponent,
     ],
@@ -83,7 +87,12 @@ interface WorkspaceActivity {
                         </p>
                     </div>
 
-                    <div class="col-auto order-2 order-lg-5 mb-3 mb-xl-0">
+                    <div class="col-auto order-2 order-lg-5 mb-3 mb-xl-0 d-flex align-items-center">
+                        <mat-form-field appearance="outline" style="width:220px;margin-right:8px;">
+                            <input matInput [matDatepicker]="asOfPicker" placeholder="View as of" [value]="historicalAsDate()" (dateChange)="onDateSelected($event)" [min]="pickerMinDate()" [max]="pickerMaxDate()" [matDatepickerFilter]="dateFilter">
+                            <mat-datepicker-toggle matSuffix [for]="asOfPicker"></mat-datepicker-toggle>
+                            <mat-datepicker #asOfPicker></mat-datepicker>
+                        </mat-form-field>
                         <button matButton (click)="backToWorkspaces()"><mat-icon class="material-icons-outlined">arrow_back</mat-icon> Back</button>
                         <button matButton class="ms-1" (click)="refresh()"><mat-icon class="material-icons-outlined">refresh</mat-icon> Refresh</button>
                         @if (canEditWorkspace()) {
@@ -97,6 +106,55 @@ interface WorkspaceActivity {
                 </div>
             </mat-card>
         </div>
+
+        @if (historicalMode()) {
+        <div class="container fade-in mb-3">
+            <mat-card class="mb-3" style="background:#fff7ed;border-left:4px solid #f59e0b;">
+                <mat-card-content>
+                    <div class="d-flex align-items-center">
+                        <mat-icon style="color:#b45309">history_toggle_off</mat-icon>
+                        <div style="margin-left:12px">
+                            <div style="font-weight:600">Viewing workspace as of {{ historicalDisplay() }}</div>
+                            <div class="small text-secondary">Read-only historical mode</div>
+                        </div>
+                        <div style="margin-left:auto">
+                            <button matButton class="me-1" (click)="goToRealProjects()">Open Projects</button>
+                            <button matButton (click)="clearHistorical()">Exit</button>
+                        </div>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+        </div>
+        }
+
+        @if (timelineQuickDates().length > 0) {
+        <div class="container fade-in mb-3">
+            <mat-card class="mb-3" style="background:#eff6ff;border-left:4px solid #2563eb;">
+                <mat-card-content>
+                    <div class="d-flex align-items-start align-items-lg-center gap-2 flex-column flex-lg-row">
+                        <div class="d-flex align-items-center">
+                            <mat-icon style="color:#1d4ed8">event_available</mat-icon>
+                            <div style="margin-left:12px">
+                                <div style="font-weight:600">Time Machine checkpoints</div>
+                                <div class="small text-secondary">Pick a date with meaningful member or project changes.</div>
+                            </div>
+                        </div>
+                        <div class="d-flex flex-wrap gap-1 ms-lg-auto">
+                            @for (checkpoint of timelineQuickDates(); track checkpoint.at + '-' + $index) {
+                                <button
+                                    matButton
+                                    class="badge-light"
+                                    [matTooltip]="checkpoint.label || checkpoint.kind || checkpoint.at"
+                                    (click)="jumpToTimelineDate(checkpoint.at)">
+                                    {{ checkpoint.at | date:'yyyy-MM-dd' }}
+                                </button>
+                            }
+                        </div>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+        </div>
+        }
 
         <div class="container fade-in">
             @if (isLoading()) {
@@ -2555,6 +2613,34 @@ export class M2WorkspaceDetailsComponent implements OnInit {
     readonly activityLoading = signal(false);
     readonly activityFilter = signal<string>('all');
 
+    // Historical (Time Machine) signals
+    readonly historicalAt = signal<string | null>(null);
+    readonly historicalMode = computed(() => !!this.historicalAt());
+    readonly historicalDisplay = computed(() => this.historicalAt() ? new Date(this.historicalAt()!).toLocaleString() : '');
+    // Date object for MatDatepicker value binding (avoid `new` in template expressions)
+    readonly historicalAsDate = computed(() => this.historicalAt() ? new Date(this.historicalAt()!) : null);
+    readonly timelineQuickDates = signal<M2TimelineCheckpoint[]>([]);
+    // Datepicker bounds and filter to prevent selecting unavailable snapshot dates
+    readonly pickerMinDate = signal<Date | null>(null);
+    readonly pickerMaxDate = signal<Date | null>(null);
+    readonly dateFilter = (d: Date | null): boolean => {
+        if (!d) return false;
+        const min = this.pickerMinDate();
+        const max = this.pickerMaxDate();
+        // normalize to start of day for comparisons
+        const day = new Date(d);
+        day.setHours(0, 0, 0, 0);
+        if (min) {
+            const m = new Date(min); m.setHours(0, 0, 0, 0);
+            if (day.getTime() < m.getTime()) return false;
+        }
+        if (max) {
+            const M = new Date(max); M.setHours(0, 0, 0, 0);
+            if (day.getTime() > M.getTime()) return false;
+        }
+        return true;
+    };
+
     // Bulk operation signals
     readonly selectedMemberIds = signal<number[]>([]);
     readonly isBulkMode = signal(false);
@@ -2973,13 +3059,26 @@ export class M2WorkspaceDetailsComponent implements OnInit {
     });
 
     ngOnInit(): void {
-        this.route.paramMap.subscribe((params) => {
-            const workspaceId = params.get("workspaceId");
+        combineLatest([this.route.paramMap, this.route.queryParamMap]).pipe(
+            map(([params, query]) => ({
+                workspaceId: params.get("workspaceId"),
+                asOf: query.get("at"),
+            })),
+            distinctUntilChanged((a, b) => a.workspaceId === b.workspaceId && a.asOf === b.asOf)
+        ).subscribe(({ workspaceId, asOf }) => {
             if (!workspaceId) {
                 this.error.set("Missing workspace id in route");
                 this.isLoading.set(false);
                 return;
             }
+
+            if (asOf) {
+                this.historicalAt.set(asOf);
+                this.ensurePickerBounds(workspaceId, () => this.loadSnapshot(workspaceId, asOf));
+                return;
+            }
+
+            this.historicalAt.set(null);
             this.loadWorkspaceDetails(workspaceId);
         });
     }
@@ -2989,6 +3088,13 @@ export class M2WorkspaceDetailsComponent implements OnInit {
         if (!workspaceId) {
             return;
         }
+
+        const asOf = this.historicalAt();
+        if (asOf) {
+            this.ensurePickerBounds(workspaceId, () => this.loadSnapshot(workspaceId, asOf));
+            return;
+        }
+
         this.loadWorkspaceDetails(workspaceId);
     }
 
@@ -3016,6 +3122,10 @@ export class M2WorkspaceDetailsComponent implements OnInit {
     }
 
     openTransferOwnerDialog(member: WorkspaceMember): void {
+        if (this.historicalMode()) {
+            this.snackBar.open("Read-only historical view — edits are disabled.", "Close", { duration: 4000 });
+            return;
+        }
         if (!this.canManageWorkspace()) return;
         const workspaceId = this.route.snapshot.paramMap.get("workspaceId");
         if (!workspaceId) return;
@@ -3047,6 +3157,10 @@ export class M2WorkspaceDetailsComponent implements OnInit {
     }
 
     openInviteModal(): void {
+        if (this.historicalMode()) {
+            this.snackBar.open("Read-only historical view — edits are disabled.", "Close", { duration: 4000 });
+            return;
+        }
         const workspaceId = this.route.snapshot.paramMap.get("workspaceId");
         if (!workspaceId) {
             return;
@@ -3072,6 +3186,10 @@ export class M2WorkspaceDetailsComponent implements OnInit {
     }
 
     openCreateProjectDialog(): void {
+        if (this.historicalMode()) {
+            this.snackBar.open("Read-only historical view — edits are disabled.", "Close", { duration: 4000 });
+            return;
+        }
         if (!this.canManageWorkspace()) {
             return;
         }
@@ -3116,7 +3234,7 @@ export class M2WorkspaceDetailsComponent implements OnInit {
                         this.snackBar.open("Project created successfully.", "Open", { duration: 3500 })
                             .onAction()
                             .pipe(take(1))
-                            .subscribe(() => this.router.navigate(["/app/real-projects"], { queryParams: { workspaceId } }));
+                            .subscribe(() => this.router.navigate(["/app/real-projects"], { queryParams: this.buildProjectsQueryParams(workspaceId) }));
                         return;
                     }
 
@@ -3131,7 +3249,7 @@ export class M2WorkspaceDetailsComponent implements OnInit {
                         this.snackBar.open("Project and members created successfully.", "Open", { duration: 3500 })
                             .onAction()
                             .pipe(take(1))
-                            .subscribe(() => this.router.navigate(["/app/real-projects"], { queryParams: { workspaceId } }));
+                            .subscribe(() => this.router.navigate(["/app/real-projects"], { queryParams: this.buildProjectsQueryParams(workspaceId) }));
                     });
                 },
                 error: (error: HttpErrorResponse) => {
@@ -3150,6 +3268,10 @@ export class M2WorkspaceDetailsComponent implements OnInit {
     }
 
     openCreateWithAiDialog(): void {
+        if (this.historicalMode()) {
+            this.snackBar.open("Read-only historical view — edits are disabled.", "Close", { duration: 4000 });
+            return;
+        }
         if (!this.canShowCreateWithAi()) {
             this.snackBar.open("You need workspace management access to use AI bootstrap.", "Close", { duration: 3500 });
             return;
@@ -3179,13 +3301,17 @@ export class M2WorkspaceDetailsComponent implements OnInit {
             this.snackBar.open("Project created with AI successfully.", "Open", { duration: 3500 })
                 .onAction()
                 .pipe(take(1))
-                .subscribe(() => this.router.navigate(["/app/real-projects", workspaceId, result.createdProjectId]));
+                .subscribe(() => this.router.navigate(["/app/real-projects", workspaceId, result.createdProjectId], { queryParams: this.buildHistoricalQueryParams() }));
 
             this.loadWorkspaceDetails(workspaceId);
         });
     }
 
     openTemplateWizard(workspaceId: string): void {
+        if (this.historicalMode()) {
+            this.snackBar.open("Read-only historical view — edits are disabled.", "Close", { duration: 4000 });
+            return;
+        }
         const ref = this.dialog.open(UseTemplateWizardDialogComponent, {
             width: "820px",
             maxWidth: "96vw",
@@ -3205,7 +3331,7 @@ export class M2WorkspaceDetailsComponent implements OnInit {
         if (!workspaceId) {
             return;
         }
-        this.router.navigate(["/app/real-projects"], { queryParams: { workspaceId } });
+        this.router.navigate(["/app/real-projects"], { queryParams: this.buildProjectsQueryParams(workspaceId) });
     }
 
     openProjectDetails(projectId: string): void {
@@ -3213,10 +3339,26 @@ export class M2WorkspaceDetailsComponent implements OnInit {
         if (!workspaceId || !projectId) {
             return;
         }
-        this.router.navigate(["/app/real-projects", workspaceId, projectId]);
+        this.router.navigate(["/app/real-projects", workspaceId, projectId], { queryParams: this.buildHistoricalQueryParams() });
+    }
+
+    private buildProjectsQueryParams(workspaceId: string): Record<string, string> {
+        return {
+            workspaceId,
+            ...this.buildHistoricalQueryParams(),
+        };
+    }
+
+    private buildHistoricalQueryParams(): Record<string, string> {
+        const at = this.historicalAt();
+        return at ? { at } : {};
     }
 
     openEditWorkspaceDialog(): void {
+        if (this.historicalMode()) {
+            this.snackBar.open("Read-only historical view — edits are disabled.", "Close", { duration: 4000 });
+            return;
+        }
         const workspace = this.workspace();
         if (!workspace || !this.canEditWorkspace()) {
             return;
@@ -3252,6 +3394,10 @@ export class M2WorkspaceDetailsComponent implements OnInit {
     }
 
     openDeleteWorkspaceDialog(): void {
+        if (this.historicalMode()) {
+            this.snackBar.open("Read-only historical view — edits are disabled.", "Close", { duration: 4000 });
+            return;
+        }
         const workspace = this.workspace();
         if (!workspace || !this.canEditWorkspace()) {
             return;
@@ -3307,6 +3453,10 @@ export class M2WorkspaceDetailsComponent implements OnInit {
     }
 
     openMemberRoleEditDialog(member: WorkspaceMember): void {
+        if (this.historicalMode()) {
+            this.snackBar.open("Read-only historical view — edits are disabled.", "Close", { duration: 4000 });
+            return;
+        }
         if (!this.canEditMemberRoles()) {
             return;
         }
@@ -3352,6 +3502,10 @@ export class M2WorkspaceDetailsComponent implements OnInit {
     }
 
     openMemberUnassignDialog(member: WorkspaceMember): void {
+        if (this.historicalMode()) {
+            this.snackBar.open("Read-only historical view — edits are disabled.", "Close", { duration: 4000 });
+            return;
+        }
         if (!this.canRemoveMember(member)) {
             return;
         }
@@ -3479,6 +3633,10 @@ export class M2WorkspaceDetailsComponent implements OnInit {
     }
 
     bulkChangeMemberRole(): void {
+        if (this.historicalMode()) {
+            this.snackBar.open("Read-only historical view — edits are disabled.", "Close", { duration: 4000 });
+            return;
+        }
         const workspaceId = this.route.snapshot.paramMap.get("workspaceId");
         if (!workspaceId || !this.bulkRoleSelection() || this.selectedMembers().length === 0) {
             return;
@@ -3519,6 +3677,10 @@ export class M2WorkspaceDetailsComponent implements OnInit {
     }
 
     bulkRemoveMembers(): void {
+        if (this.historicalMode()) {
+            this.snackBar.open("Read-only historical view — edits are disabled.", "Close", { duration: 4000 });
+            return;
+        }
         const workspaceId = this.route.snapshot.paramMap.get("workspaceId");
         const workspace = this.workspace();
         if (!workspaceId || !workspace || this.selectedMembers().length === 0) {
@@ -3678,6 +3840,7 @@ export class M2WorkspaceDetailsComponent implements OnInit {
         this.memberCapacity.set(null);
         this.workspaceCapacity.set(null);
         this.projectCapacity.set(null);
+        this.timelineQuickDates.set([]);
 
         forkJoin({
             workspace: this.workspaceService.getWorkspaceById(workspaceId),
@@ -3691,11 +3854,14 @@ export class M2WorkspaceDetailsComponent implements OnInit {
         }).subscribe({
             next: ({ workspace, projectsPage, workspaceCapacity, projectCapacity }) => {
                 this.workspace.set(workspace);
+                this.applyPickerBounds(workspace?.createdAt);
+
                 this.projects.set(projectsPage?.content || []);
                 this.workspaceCapacity.set(workspaceCapacity);
                 this.projectCapacity.set(projectCapacity);
                 this.isLoading.set(false);
                 this.loadMembers(workspaceId);
+                this.loadTimelineHints(workspaceId);
             },
             error: (error: HttpErrorResponse) => {
                 this.isLoading.set(false);
@@ -3709,6 +3875,68 @@ export class M2WorkspaceDetailsComponent implements OnInit {
                 this.error.set(this.errorMessage(error));
             },
         });
+    }
+
+    private applyPickerBounds(createdAt?: string): void {
+        if (createdAt) {
+            const created = new Date(createdAt);
+            created.setHours(0, 0, 0, 0);
+            created.setDate(created.getDate() - 1);
+            this.pickerMinDate.set(created);
+        } else {
+            this.pickerMinDate.set(null);
+        }
+
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        this.pickerMaxDate.set(now);
+    }
+
+    private ensurePickerBounds(workspaceId: string, onReady: () => void): void {
+        const current = this.workspace();
+        if (current?.id === workspaceId && current.createdAt) {
+            this.applyPickerBounds(current.createdAt);
+            onReady();
+            return;
+        }
+
+        this.workspaceService.getWorkspaceById(workspaceId).pipe(
+            catchError(() => of(null))
+        ).subscribe((workspace) => {
+            this.applyPickerBounds(workspace?.createdAt);
+            onReady();
+        });
+    }
+
+    private normalizeSnapshotAt(at: string | null): string | null {
+        if (!at) {
+            return null;
+        }
+
+        const parsed = new Date(at);
+        if (Number.isNaN(parsed.getTime())) {
+            return null;
+        }
+
+        const min = this.pickerMinDate();
+        if (min) {
+            const minEnd = new Date(min);
+            minEnd.setHours(23, 59, 59, 999);
+            if (parsed.getTime() < minEnd.getTime()) {
+                return minEnd.toISOString();
+            }
+        }
+
+        const max = this.pickerMaxDate();
+        if (max) {
+            const maxEnd = new Date(max);
+            maxEnd.setHours(23, 59, 59, 999);
+            if (parsed.getTime() > maxEnd.getTime()) {
+                return maxEnd.toISOString();
+            }
+        }
+
+        return parsed.toISOString();
     }
 
     private loadMembers(workspaceId: string): void {
@@ -3733,6 +3961,111 @@ export class M2WorkspaceDetailsComponent implements OnInit {
                 this.membersLoading.set(false);
             },
         });
+    }
+
+    private loadSnapshot(workspaceId: string, at: string | null): void {
+        const asOf = this.normalizeSnapshotAt(at);
+        if (!asOf) {
+            this.error.set("Invalid historical timestamp.");
+            this.isLoading.set(false);
+            return;
+        }
+
+        if (asOf !== at) {
+            this.historicalAt.set(asOf);
+        }
+
+        this.isLoading.set(true);
+        this.error.set(null);
+        this.members.set([]);
+        this.projects.set([]);
+        this.timelineQuickDates.set([]);
+
+        this.workspaceService.getWorkspaceSnapshot(workspaceId, asOf).pipe(
+            catchError((error: HttpErrorResponse) => {
+                this.snackBar.open(`Failed to load historical snapshot: ${this.errorMessage(error)}`, 'Close', { duration: 4500 });
+                return of(null);
+            })
+        ).subscribe((snapshot: M2WorkspaceSnapshot | null) => {
+            if (!snapshot) {
+                this.isLoading.set(false);
+                return;
+            }
+
+            // Map minimal workspace info
+            this.workspace.set({
+                id: workspaceId,
+                name: snapshot.workspaceName || this.workspace()?.name || 'Workspace',
+                slug: this.workspace()?.slug || '',
+                ownerId: this.workspace()?.ownerId || 0,
+                createdAt: snapshot.workspaceCreatedAt || this.workspace()?.createdAt,
+            });
+
+            // Projects and members are simple DTOs from backend
+            this.projects.set(snapshot.projects || []);
+            const mappedMembers: WorkspaceMember[] = (snapshot.members || []).map((m) => ({
+                userId: m.userId,
+                workspaceRole: m.workspaceRole || "MEMBER",
+                fullName: m.fullName || `User #${m.userId}`,
+                email: m.email || "",
+                avatarUrl: m.avatarUrl || "",
+                orgRole: "",
+                joinedAt: m.joinedAt || snapshot.asOf,
+                status: "ACTIVE",
+            }));
+            this.members.set(mappedMembers);
+            this.timelineQuickDates.set(this.pickTimelineQuickDates(snapshot));
+            this.isLoading.set(false);
+        });
+    }
+
+    private loadTimelineHints(workspaceId: string): void {
+        const now = this.normalizeSnapshotAt(new Date().toISOString());
+        if (!now) {
+            this.timelineQuickDates.set([]);
+            return;
+        }
+
+        this.workspaceService.getWorkspaceSnapshot(workspaceId, now).pipe(
+            catchError(() => of(null))
+        ).subscribe((snapshot: M2WorkspaceSnapshot | null) => {
+            if (!snapshot) {
+                this.timelineQuickDates.set([]);
+                return;
+            }
+            this.timelineQuickDates.set(this.pickTimelineQuickDates(snapshot));
+        });
+    }
+
+    private pickTimelineQuickDates(snapshot: M2WorkspaceSnapshot): M2TimelineCheckpoint[] {
+        const merged = new Map<string, M2TimelineCheckpoint>();
+
+        for (const checkpoint of snapshot.timelineCheckpoints || []) {
+            if (checkpoint?.at) {
+                merged.set(checkpoint.at, checkpoint);
+            }
+        }
+
+        for (const at of snapshot.suggestedDates || []) {
+            if (!at) {
+                continue;
+            }
+            if (!merged.has(at)) {
+                merged.set(at, {
+                    at,
+                    kind: "SUGGESTED",
+                    label: "Recommended checkpoint",
+                });
+            }
+        }
+
+        const sorted = Array.from(merged.values()).sort((a, b) => {
+            const left = new Date(a.at).getTime();
+            const right = new Date(b.at).getTime();
+            return left - right;
+        });
+
+        return sorted.slice(0, 7);
     }
 
     normalizeStatus(value?: string): string {
@@ -3795,6 +4128,26 @@ export class M2WorkspaceDetailsComponent implements OnInit {
                 this.exporting.set(false);
             }
         });
+    }
+
+    onDateSelected(event: MatDatepickerInputEvent<Date>): void {
+        const d = event.value;
+        if (!d) return;
+        // Use end-of-day UTC so selecting a day includes entities created during that day.
+        const iso = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999)).toISOString();
+        this.router.navigate([], { relativeTo: this.route, queryParams: { at: iso }, queryParamsHandling: 'merge' });
+    }
+
+    jumpToTimelineDate(at: string): void {
+        const normalized = this.normalizeSnapshotAt(at);
+        if (!normalized) {
+            return;
+        }
+        this.router.navigate([], { relativeTo: this.route, queryParams: { at: normalized }, queryParamsHandling: 'merge' });
+    }
+
+    clearHistorical(): void {
+        this.router.navigate([], { relativeTo: this.route, queryParams: { at: null }, queryParamsHandling: 'merge' });
     }
 
     navigateToWarRoom(): void {

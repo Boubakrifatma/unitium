@@ -332,6 +332,7 @@ export class ProjectsCardsComponent implements OnInit {
 
     @Input() projectsData: TableItem[] | null = null;
     @Input() useRealRouting = false;
+    @Input() historicalAt: string | null = null;
     private readonly externalData = signal<TableItem[] | null>(null);
 
     // --- State and Data Management ---
@@ -503,6 +504,10 @@ export class ProjectsCardsComponent implements OnInit {
     }
 
     archiveProject(project: TableItem) {
+        if (this.historicalAt) {
+            this.snackBar.open("Read-only historical view - edits are disabled.", "Close", { duration: 3200 });
+            return;
+        }
         if (!this.useRealRouting || !project.workspaceId || !project.projectUuid) return;
 
         const ref = this.dialog.open(ProjectDeleteConfirmDialogComponent, {
@@ -526,7 +531,9 @@ export class ProjectsCardsComponent implements OnInit {
 
     openDialog(project: TableItem) {
         if (this.useRealRouting && project.workspaceId && project.projectUuid) {
-            this.router.navigate(["/app/real-projects", project.workspaceId, project.projectUuid]);
+            this.router.navigate(["/app/real-projects", project.workspaceId, project.projectUuid], {
+                queryParams: this.realRoutingQueryParams(),
+            });
             return;
         }
         this.selectedItem = { ...project };
@@ -540,6 +547,10 @@ export class ProjectsCardsComponent implements OnInit {
     }
 
     openAddMemberModal(project: TableItem) {
+        if (this.historicalAt) {
+            this.snackBar.open("Read-only historical view - edits are disabled.", "Close", { duration: 3200 });
+            return;
+        }
         if (!this.useRealRouting || !project.workspaceId || !project.projectUuid) return;
 
         this.projectService.getAvailableWorkspaceMembers(project.workspaceId, project.projectUuid).subscribe({
@@ -572,9 +583,15 @@ export class ProjectsCardsComponent implements OnInit {
 
     openProject(project: TableItem): void {
         if (this.useRealRouting && project.workspaceId && project.projectUuid) {
-            this.router.navigate(["/app/real-projects", project.workspaceId, project.projectUuid]);
+            this.router.navigate(["/app/real-projects", project.workspaceId, project.projectUuid], {
+                queryParams: this.realRoutingQueryParams(),
+            });
             return;
         }
         this.router.navigate(["/app/project-details"]);
+    }
+
+    private realRoutingQueryParams(): Record<string, string> {
+        return this.historicalAt ? { at: this.historicalAt } : {};
     }
 }
