@@ -17,7 +17,7 @@ import {
   createFlexibleConnectedPositionStrategy,
   createOverlayRef,
   createRepositionScrollStrategy
-} from "./chunk-PF6YGQYD.js";
+} from "./chunk-PT3OL6AV.js";
 import {
   TemplatePortal
 } from "./chunk-MZ2QDMBJ.js";
@@ -72,7 +72,6 @@ import {
 import {
   coerceArray
 } from "./chunk-N4DOILP3.js";
-import "./chunk-MV2NGOTN.js";
 import {
   CdkScrollableModule,
   ViewportRuler
@@ -83,6 +82,7 @@ import {
   BidiModule,
   Directionality
 } from "./chunk-EKTVZ2II.js";
+import "./chunk-MV2NGOTN.js";
 import "./chunk-KFOSV5VH.js";
 import {
   Platform

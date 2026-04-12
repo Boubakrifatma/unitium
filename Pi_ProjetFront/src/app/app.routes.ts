@@ -177,6 +177,10 @@ export const routes: Routes = [
                 loadComponent: () => import("./pages/app/super-admin/super-admin-billing.component").then((c) => c.SuperAdminBillingComponent),
             },
             {
+                path: "churn-dashboard",
+                loadComponent: () => import("./ml/pages/churn-dashboard/churn-dashboard.component").then((c) => c.ChurnDashboardComponent),
+            },
+            {
                 path: "org-billing",
                 loadComponent: () => import("./pages/app/org-billing/org-billing.component").then((c) => c.OrgBillingComponent),
             },

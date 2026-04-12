@@ -6,7 +6,7 @@ import {
   createBlockScrollStrategy,
   createGlobalPositionStrategy,
   createOverlayRef
-} from "./chunk-PF6YGQYD.js";
+} from "./chunk-PT3OL6AV.js";
 import {
   BasePortalOutlet,
   CdkPortalOutlet,
@@ -43,7 +43,6 @@ import {
   _getFocusedElementPierceShadowDom
 } from "./chunk-EE4Q3I4S.js";
 import "./chunk-N4DOILP3.js";
-import "./chunk-MV2NGOTN.js";
 import {
   CdkScrollable
 } from "./chunk-FAERQWMR.js";
@@ -53,6 +52,7 @@ import {
   BidiModule,
   Directionality
 } from "./chunk-EKTVZ2II.js";
+import "./chunk-MV2NGOTN.js";
 import {
   coerceNumberProperty
 } from "./chunk-KFOSV5VH.js";

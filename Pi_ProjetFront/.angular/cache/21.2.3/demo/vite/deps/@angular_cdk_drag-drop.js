@@ -11,9 +11,6 @@ import {
   coerceArray
 } from "./chunk-N4DOILP3.js";
 import {
-  _CdkPrivateStyleLoader
-} from "./chunk-MV2NGOTN.js";
-import {
   CdkScrollable,
   CdkScrollableModule,
   ScrollDispatcher,
@@ -24,6 +21,9 @@ import "./chunk-GUGIMSVJ.js";
 import {
   Directionality
 } from "./chunk-EKTVZ2II.js";
+import {
+  _CdkPrivateStyleLoader
+} from "./chunk-MV2NGOTN.js";
 import {
   coerceElement,
   coerceNumberProperty

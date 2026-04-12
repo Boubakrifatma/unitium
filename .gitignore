@@ -1,0 +1,18 @@
+# Node
+node_modules/
+dist/
+.angular/cache/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+
+# Env files
+*.env
+.env.*
+
+# Logs
+*.log

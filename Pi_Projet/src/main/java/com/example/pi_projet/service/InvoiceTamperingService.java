@@ -69,7 +69,7 @@ public class InvoiceTamperingService {
 
     // ── Scheduled Job — every day at 02:00 AM ────────────────────────────────
 
-    @Scheduled(cron = "0 */2 * * * *")
+    @Scheduled(cron = "0 0 2 * * *")
     public void scheduledIntegrityCheck() {
         log.info("Starting scheduled invoice integrity check...");
         List<TamperingCheckDTO> results = verifyAllInvoices();
