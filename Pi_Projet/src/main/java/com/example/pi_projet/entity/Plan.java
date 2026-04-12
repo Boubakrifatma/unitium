@@ -89,6 +89,10 @@ public class Plan {
     @Column(name = "features_json", columnDefinition = "json")
     private String featuresJson;
 
+    @Column(name = "org_type", nullable = false, length = 20)
+    @Builder.Default
+    private String orgType = "enterprise";
+
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private Boolean isActive = true;

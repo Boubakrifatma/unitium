@@ -57,6 +57,7 @@ export interface PaymentRequest {
   cardNumber: string;
   expiryDate: string;
   cvv: string;
+  couponCode?: string;
 }
 
 export interface PaymentResponse {

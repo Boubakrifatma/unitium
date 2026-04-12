@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
@@ -22,15 +23,24 @@ public class WebConfig implements WebMvcConfigurer {
     }
 
     @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/uploads/**")
+                .addResourceLocations("file:./uploads/");
+    }
+
+    @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(sessionInterceptor)
                 .addPathPatterns("/api/**")
                 .excludePathPatterns(
-                    "/api/auth/login",            // login public
-                    "/api/auth/change-password",  // changement mot de passe 1er login
-                    "/api/billing/payment",        // soumission paiement public
-                    "/api/billing/payment/*",      // statut paiement public
-                    "/api/billing/plans",          // liste plans publique
+                    "/api/auth/login",                    // login public
+                    "/api/auth/change-password",          // changement mot de passe 1er login
+                    "/api/billing/create-payment-intent", // création PaymentIntent Stripe public
+                    "/api/billing/payment",               // soumission paiement public
+                    "/api/billing/payment/*",             // statut paiement public
+                    "/api/billing/plans",                 // liste plans publique
+                    "/api/billing/coupons/validate/*",   // validation coupon publique
+                    "/api/billing/coupons/active",       // coupons actifs pour home page (public)
                     "/swagger-ui/**",
                     "/v3/api-docs/**"
                 );

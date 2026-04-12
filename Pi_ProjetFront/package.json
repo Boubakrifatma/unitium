@@ -22,6 +22,7 @@
     "@fullcalendar/interaction": "^6.1.18",
     "@fullcalendar/list": "^6.1.18",
     "@fullcalendar/timegrid": "^6.1.18",
+    "@stripe/stripe-js": "^9.0.0",
     "chart.js": "^4.5.1",
     "dayjs": "^1.11.20",
     "jsvectormap": "^1.7.0",

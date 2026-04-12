@@ -8,9 +8,6 @@ import {
   _getShadowRoot
 } from "./chunk-EE4Q3I4S.js";
 import {
-  _CdkPrivateStyleLoader
-} from "./chunk-MV2NGOTN.js";
-import {
   coerceArray
 } from "./chunk-N4DOILP3.js";
 import {
@@ -24,6 +21,9 @@ import "./chunk-GUGIMSVJ.js";
 import {
   Directionality
 } from "./chunk-EKTVZ2II.js";
+import {
+  _CdkPrivateStyleLoader
+} from "./chunk-MV2NGOTN.js";
 import {
   coerceElement,
   coerceNumberProperty
@@ -67,11 +67,11 @@ import {
   ɵɵdefineInjector,
   ɵɵdefineNgModule
 } from "./chunk-EOTFVC7M.js";
+import "./chunk-JRFR6BLO.js";
 import {
   animationFrameScheduler,
   merge
 } from "./chunk-HWYXSU2G.js";
-import "./chunk-JRFR6BLO.js";
 import {
   BehaviorSubject,
   Observable,

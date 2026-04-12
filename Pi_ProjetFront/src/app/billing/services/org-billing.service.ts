@@ -15,7 +15,7 @@ export interface InvoiceDTO {
   subtotal: number; taxAmount: number; total: number; currency: string;
   billingPeriodStart: string; billingPeriodEnd: string;
   dueDate: string; paidAt: string; pdfUrl: string;
-  planName: string; createdAt: string;
+  planName: string; orgName: string; createdAt: string;
   lineItems?: InvoiceLineItemDTO[];
 }
 
@@ -25,6 +25,7 @@ export interface PlanDTO {
   maxWorkspaces: number; maxMembersPerWs: number; maxActiveProjects: number;
   storageMb: number; mlTier: string; supportTier: string;
   apiAccess: boolean; ssoEnabled: boolean; isActive: boolean;
+  orgType: string;
 }
 
 export interface InvoiceLineItemDTO {
@@ -166,7 +167,25 @@ export class OrgBillingService {
     return this.http.post<PlanDTO>(`${this.API}/plans`, plan);
   }
 
+  updatePlan(planId: string, plan: any): Observable<PlanDTO> {
+    return this.http.put<PlanDTO>(`${this.API}/plans/${planId}`, plan);
+  }
+
   deletePlan(planId: string): Observable<any> {
     return this.http.delete(`${this.API}/plans/${planId}`);
+  }
+
+  uploadInvoicePdf(invoiceId: string, file: File): Observable<{ pdfUrl: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<{ pdfUrl: string }>(`${this.API}/invoices/${invoiceId}/pdf`, formData);
+  }
+
+  cancelSubscription(): Observable<any> {
+    return this.http.delete(`${this.API}/my-subscription`);
+  }
+
+  cancelPayment(): Observable<any> {
+    return this.http.delete(`${this.API}/my-payment`);
   }
 }

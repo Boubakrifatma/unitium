@@ -2,6 +2,7 @@ package com.example.pi_projet.service;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.util.ByteArrayDataSource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -155,7 +156,8 @@ public class EmailService {
     public void sendWelcomeWithInvoiceEmail(
             String toEmail, String adminName, String orgName, String planName,
             String billingCycle, double subtotal, double taxAmount, double total,
-            String currency, String invoiceNumber, String paymentId, String tempPassword
+            String currency, String invoiceNumber, String paymentId, String tempPassword,
+            byte[] pdfBytes
     ) {
         try {
             MimeMessage msg = mailSender.createMimeMessage();
@@ -165,8 +167,11 @@ public class EmailService {
             helper.setSubject("🎉 Welcome to Unitum — Invoice " + invoiceNumber + " | " + orgName);
             helper.setText(buildWelcomeInvoiceEmail(adminName, orgName, planName, billingCycle,
                     subtotal, taxAmount, total, currency, invoiceNumber, paymentId, tempPassword, toEmail), true);
+            if (pdfBytes != null && pdfBytes.length > 0) {
+                helper.addAttachment(invoiceNumber + ".pdf", new ByteArrayDataSource(pdfBytes, "application/pdf"));
+            }
             mailSender.send(msg);
-            log.info("✉️  Welcome+Invoice email sent to {}", toEmail);
+            log.info("✉️  Welcome+Invoice email sent to {} (PDF attached: {})", toEmail, pdfBytes != null && pdfBytes.length > 0);
         } catch (Exception e) {
             log.error("❌ Failed to send welcome+invoice email: {}", e.getMessage(), e);
         }
@@ -179,7 +184,8 @@ public class EmailService {
     public void sendUpgradeInvoiceEmail(
             String toEmail, String adminName, String orgName, String planName,
             String billingCycle, double subtotal, double taxAmount, double total,
-            String currency, String invoiceNumber, String paymentId
+            String currency, String invoiceNumber, String paymentId,
+            byte[] pdfBytes
     ) {
         try {
             MimeMessage msg = mailSender.createMimeMessage();
@@ -189,8 +195,11 @@ public class EmailService {
             helper.setSubject("✅ Subscription Upgraded — Invoice " + invoiceNumber + " | " + orgName);
             helper.setText(buildUpgradeInvoiceEmail(adminName, orgName, planName, billingCycle,
                     subtotal, taxAmount, total, currency, invoiceNumber, paymentId), true);
+            if (pdfBytes != null && pdfBytes.length > 0) {
+                helper.addAttachment(invoiceNumber + ".pdf", new ByteArrayDataSource(pdfBytes, "application/pdf"));
+            }
             mailSender.send(msg);
-            log.info("✉️  Upgrade+Invoice email sent to {}", toEmail);
+            log.info("✉️  Upgrade+Invoice email sent to {} (PDF attached: {})", toEmail, pdfBytes != null && pdfBytes.length > 0);
         } catch (Exception e) {
             log.error("❌ Failed to send upgrade+invoice email: {}", e.getMessage(), e);
         }
@@ -327,21 +336,6 @@ public class EmailService {
             double subtotal, double taxAmount, double total, String currency,
             String invoiceNumber, String paymentId, String tempPassword, String email) {
 
-        String invoiceTable =
-            "<table style='width:100%;border-collapse:collapse;margin:16px 0;font-size:13px'>" +
-            "<thead><tr style='background:#f1f5f9'>" +
-            "<th style='padding:10px 12px;text-align:left;color:#64748b;font-weight:600'>Description</th>" +
-            "<th style='padding:10px 12px;text-align:right;color:#64748b;font-weight:600'>Amount</th>" +
-            "</tr></thead><tbody>" +
-            "<tr><td style='padding:10px 12px;border-bottom:1px solid #f1f5f9'>" + planName + " Plan – " + billingCycle + " Subscription</td>" +
-            "<td style='padding:10px 12px;text-align:right;border-bottom:1px solid #f1f5f9'>" + currency + " " + String.format("%.2f", subtotal) + "</td></tr>" +
-            "<tr><td style='padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#64748b'>VAT 19%</td>" +
-            "<td style='padding:10px 12px;text-align:right;border-bottom:1px solid #f1f5f9;color:#64748b'>" + currency + " " + String.format("%.2f", taxAmount) + "</td></tr>" +
-            "</tbody><tfoot>" +
-            "<tr style='background:#f8fafc'><td style='padding:12px;font-weight:700;font-size:14px'>Total</td>" +
-            "<td style='padding:12px;text-align:right;font-weight:700;font-size:14px;color:#059669'>" + currency + " " + String.format("%.2f", total) + "</td></tr>" +
-            "</tfoot></table>";
-
         return "<!DOCTYPE html><html><head><meta charset='UTF-8'></head><body style='margin:0;padding:0;background:#f0f4fa;font-family:Segoe UI,Arial,sans-serif'>" +
             "<div style='max-width:620px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)'>" +
             "<div style='background:linear-gradient(135deg,#059669,#047857);padding:40px;text-align:center'>" +
@@ -357,12 +351,10 @@ public class EmailService {
             "<p style='margin:0;color:#166534;font-size:14px'>Temporary Password: <code style='background:#d1fae5;padding:2px 8px;border-radius:4px;font-size:15px;font-weight:700'>" + tempPassword + "</code></p>" +
             "<p style='margin:6px 0 0;color:#166534;font-size:12px;opacity:.8'>⚠ You will be asked to change this password on first login.</p>" +
             "</div>" +
-            "<div style='background:#f8fafc;border-radius:12px;padding:20px 24px;margin:20px 0;border:1px solid #e2e8f0'>" +
-            "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px'>" +
-            "<h3 style='margin:0;font-size:15px;color:#1e293b'>📄 Invoice " + invoiceNumber + "</h3>" +
-            "<span style='background:#dcfce7;color:#15803d;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700'>PAID</span>" +
-            "</div>" +
-            invoiceTable +
+            "<div style='background:#fffbeb;border-radius:12px;padding:16px 24px;margin:20px 0;border-left:4px solid #f59e0b;display:flex;align-items:center;gap:12px'>" +
+            "<span style='font-size:28px'>📎</span>" +
+            "<div><p style='margin:0;font-weight:700;color:#92400e;font-size:14px'>Invoice " + invoiceNumber + " attached</p>" +
+            "<p style='margin:4px 0 0;color:#78350f;font-size:13px'>Your official invoice is attached to this email as a PDF.</p></div>" +
             "</div>" +
             "<div style='text-align:center;margin:28px 0'>" +
             "<a href='" + appUrl + "/auth/login' style='display:inline-block;background:#059669;color:#fff;text-decoration:none;padding:14px 40px;border-radius:50px;font-weight:700;font-size:15px'>Login to Unitum →</a>" +
@@ -377,21 +369,6 @@ public class EmailService {
             double subtotal, double taxAmount, double total, String currency,
             String invoiceNumber, String paymentId) {
 
-        String invoiceTable =
-            "<table style='width:100%;border-collapse:collapse;margin:16px 0;font-size:13px'>" +
-            "<thead><tr style='background:#f1f5f9'>" +
-            "<th style='padding:10px 12px;text-align:left;color:#64748b;font-weight:600'>Description</th>" +
-            "<th style='padding:10px 12px;text-align:right;color:#64748b;font-weight:600'>Amount</th>" +
-            "</tr></thead><tbody>" +
-            "<tr><td style='padding:10px 12px;border-bottom:1px solid #f1f5f9'>" + planName + " Plan – " + billingCycle + " Subscription</td>" +
-            "<td style='padding:10px 12px;text-align:right;border-bottom:1px solid #f1f5f9'>" + currency + " " + String.format("%.2f", subtotal) + "</td></tr>" +
-            "<tr><td style='padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#64748b'>VAT 19%</td>" +
-            "<td style='padding:10px 12px;text-align:right;border-bottom:1px solid #f1f5f9;color:#64748b'>" + currency + " " + String.format("%.2f", taxAmount) + "</td></tr>" +
-            "</tbody><tfoot>" +
-            "<tr style='background:#f8fafc'><td style='padding:12px;font-weight:700;font-size:14px'>Total</td>" +
-            "<td style='padding:12px;text-align:right;font-weight:700;font-size:14px;color:#2563eb'>" + currency + " " + String.format("%.2f", total) + "</td></tr>" +
-            "</tfoot></table>";
-
         return "<!DOCTYPE html><html><head><meta charset='UTF-8'></head><body style='margin:0;padding:0;background:#f0f4fa;font-family:Segoe UI,Arial,sans-serif'>" +
             "<div style='max-width:620px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)'>" +
             "<div style='background:linear-gradient(135deg,#2563eb,#1d4ed8);padding:40px;text-align:center'>" +
@@ -401,18 +378,76 @@ public class EmailService {
             "<div style='padding:36px 40px'>" +
             "<p style='color:#1e293b;font-size:15px'>Hello <strong>" + name + "</strong>,</p>" +
             "<p style='color:#475569;font-size:14px;line-height:1.7'>Your subscription for <strong>" + orgName + "</strong> has been upgraded to the <strong>" + planName + "</strong> plan. Your new plan is now active.</p>" +
-            "<div style='background:#f8fafc;border-radius:12px;padding:20px 24px;margin:20px 0;border:1px solid #e2e8f0'>" +
-            "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px'>" +
-            "<h3 style='margin:0;font-size:15px;color:#1e293b'>📄 Invoice " + invoiceNumber + "</h3>" +
-            "<span style='background:#dcfce7;color:#15803d;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700'>PAID</span>" +
-            "</div>" +
-            invoiceTable +
+            "<div style='background:#fffbeb;border-radius:12px;padding:16px 24px;margin:20px 0;border-left:4px solid #f59e0b;display:flex;align-items:center;gap:12px'>" +
+            "<span style='font-size:28px'>📎</span>" +
+            "<div><p style='margin:0;font-weight:700;color:#92400e;font-size:14px'>Invoice " + invoiceNumber + " attached</p>" +
+            "<p style='margin:4px 0 0;color:#78350f;font-size:13px'>Your official invoice is attached to this email as a PDF.</p></div>" +
             "</div>" +
             "<div style='text-align:center;margin:28px 0'>" +
             "<a href='" + appUrl + "/app/org-billing' style='display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:14px 40px;border-radius:50px;font-weight:700;font-size:15px'>View My Billing →</a>" +
             "</div></div>" +
             "<div style='background:#f8fafc;padding:16px 40px;text-align:center;border-top:1px solid #e2e8f0'>" +
             "<p style='color:#94a3b8;font-size:12px;margin:0'>© 2025 Unitum · Invoice: " + invoiceNumber + " · Tx: " + paymentId + "</p>" +
+            "</div></div></body></html>";
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // EMAIL 7 : Alerte de falsification de facture (super admin)
+    // ─────────────────────────────────────────────────────────────────────────
+    @Async
+    public void sendTamperingAlertEmail(java.util.List<com.example.pi_projet.dto.billing.TamperingCheckDTO> tamperedInvoices) {
+        try {
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
+            helper.setFrom(fromEmail, fromName);
+            helper.setTo(adminEmail);
+            helper.setSubject("🚨 SECURITY ALERT — Invoice Tampering Detected (" + tamperedInvoices.size() + " invoice(s))");
+            helper.setText(buildTamperingAlertEmail(tamperedInvoices), true);
+            mailSender.send(msg);
+            log.warn("🚨 Tamper alert email sent to admin for {} invoice(s)", tamperedInvoices.size());
+        } catch (Exception e) {
+            log.error("Failed to send tamper alert email: {}", e.getMessage(), e);
+        }
+    }
+
+    private String buildTamperingAlertEmail(java.util.List<com.example.pi_projet.dto.billing.TamperingCheckDTO> list) {
+        StringBuilder rows = new StringBuilder();
+        for (com.example.pi_projet.dto.billing.TamperingCheckDTO item : list) {
+            rows.append("<tr style='background:#fff5f5'>")
+                .append("<td style='padding:10px 12px;font-size:13px;color:#dc2626;font-weight:700'>").append(item.getInvoiceNumber()).append("</td>")
+                .append("<td style='padding:10px 12px;font-size:13px;color:#1e293b'>").append(item.getOrgName() != null ? item.getOrgName() : "—").append("</td>")
+                .append("<td style='padding:10px 12px;font-size:11px;color:#64748b;font-family:monospace'>").append(item.getStoredHash() != null ? item.getStoredHash().substring(0, 16) + "..." : "—").append("</td>")
+                .append("<td style='padding:10px 12px;font-size:11px;color:#dc2626;font-family:monospace'>").append(item.getComputedHash() != null ? item.getComputedHash().substring(0, 16) + "..." : "—").append("</td>")
+                .append("<td style='padding:10px 12px;font-size:12px;color:#64748b'>").append(item.getCheckedAt()).append("</td>")
+                .append("</tr>");
+        }
+        return "<!DOCTYPE html><html><head><meta charset='UTF-8'></head><body style='margin:0;padding:0;background:#f0f4fa;font-family:Segoe UI,Arial,sans-serif'>" +
+            "<div style='max-width:700px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)'>" +
+            "<div style='background:linear-gradient(135deg,#dc2626,#991b1b);padding:40px;text-align:center'>" +
+            "<span style='font-size:48px'>🚨</span>" +
+            "<h1 style='color:#fff;margin:12px 0 4px;font-size:26px'>Invoice Tampering Detected</h1>" +
+            "<p style='color:rgba(255,255,255,.85);margin:0'>Immediate action required — " + list.size() + " invoice(s) compromised</p></div>" +
+            "<div style='padding:36px 40px'>" +
+            "<div style='background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:16px 20px;margin-bottom:24px'>" +
+            "<p style='margin:0;color:#991b1b;font-size:14px;font-weight:600'>⚠ What happened?</p>" +
+            "<p style='margin:6px 0 0;color:#dc2626;font-size:13px;line-height:1.6'>The scheduled integrity check detected that one or more invoices have been modified directly in the database after their cryptographic signature was generated. This may indicate unauthorized access or data manipulation.</p>" +
+            "</div>" +
+            "<h3 style='color:#1e293b;font-size:14px;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px'>Affected Invoices</h3>" +
+            "<table style='width:100%;border-collapse:collapse;border-radius:8px;overflow:hidden;border:1px solid #fecaca'>" +
+            "<thead><tr style='background:#fee2e2'>" +
+            "<th style='padding:10px 12px;text-align:left;color:#991b1b;font-size:12px'>Invoice #</th>" +
+            "<th style='padding:10px 12px;text-align:left;color:#991b1b;font-size:12px'>Organization</th>" +
+            "<th style='padding:10px 12px;text-align:left;color:#991b1b;font-size:12px'>Stored Hash</th>" +
+            "<th style='padding:10px 12px;text-align:left;color:#991b1b;font-size:12px'>Computed Hash</th>" +
+            "<th style='padding:10px 12px;text-align:left;color:#991b1b;font-size:12px'>Detected At</th>" +
+            "</tr></thead><tbody>" + rows + "</tbody></table>" +
+            "<div style='text-align:center;margin:28px 0'>" +
+            "<a href='" + appUrl + "/billing/admin-payments' style='display:inline-block;background:#dc2626;color:#fff;text-decoration:none;padding:14px 40px;border-radius:50px;font-weight:700;font-size:15px'>View in Dashboard →</a>" +
+            "</div>" +
+            "<p style='color:#64748b;font-size:12px;text-align:center'>This alert was generated automatically by the Unitum Billing Security System.</p>" +
+            "</div>" +
+            "<div style='background:#f8fafc;padding:16px 40px;text-align:center;border-top:1px solid #e2e8f0'>" +
+            "<p style='color:#94a3b8;font-size:12px;margin:0'>© 2025 Unitum Security · Automated Integrity Check</p>" +
             "</div></div></body></html>";
     }
 

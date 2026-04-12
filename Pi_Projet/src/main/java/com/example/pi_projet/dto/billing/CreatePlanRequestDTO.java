@@ -23,6 +23,7 @@ public class CreatePlanRequestDTO {
     @Positive(message = "Storage must be positive")
     private Long storageMb;
 
+    private String orgType; // enterprise, academic
     private String mlTier; // NONE, BASIC, FULL, FULL_API
     private String supportTier; // COMMUNITY, EMAIL, PRIORITY, DEDICATED, ACADEMIC
 

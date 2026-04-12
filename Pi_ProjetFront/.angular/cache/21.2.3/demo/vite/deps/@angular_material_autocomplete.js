@@ -17,7 +17,7 @@ import {
   createFlexibleConnectedPositionStrategy,
   createOverlayRef,
   createRepositionScrollStrategy
-} from "./chunk-G5B6F3QR.js";
+} from "./chunk-PT3OL6AV.js";
 import {
   TemplatePortal
 } from "./chunk-MZ2QDMBJ.js";
@@ -69,7 +69,6 @@ import {
   _getEventTarget,
   _getFocusedElementPierceShadowDom
 } from "./chunk-EE4Q3I4S.js";
-import "./chunk-MV2NGOTN.js";
 import {
   coerceArray
 } from "./chunk-N4DOILP3.js";
@@ -83,6 +82,7 @@ import {
   BidiModule,
   Directionality
 } from "./chunk-EKTVZ2II.js";
+import "./chunk-MV2NGOTN.js";
 import "./chunk-KFOSV5VH.js";
 import {
   Platform
@@ -136,11 +136,11 @@ import {
   ɵɵqueryRefresh,
   ɵɵviewQuery
 } from "./chunk-EOTFVC7M.js";
+import "./chunk-JRFR6BLO.js";
 import {
   defer,
   merge
 } from "./chunk-HWYXSU2G.js";
-import "./chunk-JRFR6BLO.js";
 import {
   Observable,
   Subject,

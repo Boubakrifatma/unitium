@@ -4,7 +4,6 @@ import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { PaymentResponse } from '../../models/billing.models';
-import { AuthService } from '../../../auth/auth.service';
 
 @Component({
   selector: 'app-payment-confirmation',
@@ -16,7 +15,7 @@ import { AuthService } from '../../../auth/auth.service';
       <div class="conf-card">
 
         <!-- ── CAS 1 : Utilisateur DÉJÀ CONNECTÉ (upgrade depuis l'app) ── -->
-        @if (isLoggedIn) {
+        @if (isUpgrade) {
 
           <!-- Icône succès -->
           <div class="success-icon-wrap">
@@ -171,33 +170,19 @@ import { AuthService } from '../../../auth/auth.service';
   `],
 })
 export class PaymentConfirmationComponent implements OnInit {
-  private authService = inject(AuthService);
   private router = inject(Router);
 
   payment = signal<PaymentResponse | null>(null);
 
-  /** True si l'utilisateur était déjà connecté quand il a fait le paiement (upgrade) */
-  get isLoggedIn(): boolean {
-    // Only consider it an "upgrade" if:
-    // 1. User is logged in AND
-    // 2. Payment data exists (not a first-time purchase)
-    const hasPaymentData = !!this.payment();
-    const isAuthenticated = !!this.authService.getToken() && !!this.authService.currentUser();
-    return isAuthenticated && hasPaymentData;
+  /** True uniquement sur la route /app/upgrade-confirmation (admin qui upgrade) */
+  get isUpgrade(): boolean {
+    return this.router.url.includes('upgrade-confirmation');
   }
 
   ngOnInit() {
-    // Récupérer les données du paiement depuis la navigation state
-    const nav = this.router.getCurrentNavigation();
-    const st = nav?.extras?.state as any;
-    if (st?.payment) {
-      this.payment.set(st.payment);
-      return;
-    }
-    // Fallback : history.state (rechargement page)
     const hist = history.state;
     if (hist?.payment) {
-      this.payment.set(hist.payment);
+      this.payment.set(hist.payment as PaymentResponse);
     }
   }
 

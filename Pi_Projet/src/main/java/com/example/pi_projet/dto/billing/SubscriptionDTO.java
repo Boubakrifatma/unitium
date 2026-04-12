@@ -17,6 +17,8 @@ public class SubscriptionDTO {
     private String currentPeriodStart;
     private String currentPeriodEnd;
     private String createdAt;
+    private String canceledAt;
+    private Boolean cancelAtPeriodEnd;
 
     public static SubscriptionDTO from(Subscription s) {
         return SubscriptionDTO.builder()
@@ -30,6 +32,8 @@ public class SubscriptionDTO {
             .currentPeriodStart(s.getCurrentPeriodStart() != null ? s.getCurrentPeriodStart().toString() : null)
             .currentPeriodEnd(s.getCurrentPeriodEnd() != null ? s.getCurrentPeriodEnd().toString() : null)
             .createdAt(s.getCreatedAt() != null ? s.getCreatedAt().toString() : null)
+            .canceledAt(s.getCanceledAt() != null ? s.getCanceledAt().toString() : null)
+            .cancelAtPeriodEnd(s.getCancelAtPeriodEnd())
             .build();
     }
 }

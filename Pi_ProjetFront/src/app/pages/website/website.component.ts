@@ -17,6 +17,7 @@ import { MatButtonToggleModule } from "@angular/material/button-toggle";
 import { BarBlueChartjs100Component } from "../../components/charts/bar-blue-chartjs-100.component";
 import Swiper from "swiper";
 import { register } from "swiper/element/bundle";
+import { HttpClient } from "@angular/common/http";
 register();
 
 @Component({
@@ -24,6 +25,39 @@ register();
     standalone: true,
     imports: [CommonModule, RouterLink, FormsModule, MatExpansionModule, MatButtonToggleModule, MatListModule, MatMenuModule, MatButtonModule, MatIconModule, MatInputModule, MatFormFieldModule, MatCardModule, MatToolbarModule, MatButtonModule, BarBlueChartjs100Component, AreaBlueChartjs60Component],
     template: `
+        <!-- Coupon Popup for First-time Visitors -->
+        @if (showCouponPopup && firstCoupon) {
+          <div class="coupon-overlay" (click)="couponClickable && closeCouponPopup()">
+            <div class="coupon-popup" (click)="$event.stopPropagation()">
+              <button class="coupon-close" (click)="closeCouponPopup()">
+                <mat-icon>close</mat-icon>
+              </button>
+              <div class="coupon-icon-wrap">
+                <mat-icon class="coupon-main-icon">local_offer</mat-icon>
+              </div>
+              <h4 class="coupon-title">Welcome! Special Offer</h4>
+              <p class="coupon-subtitle">Use this exclusive coupon on your first subscription</p>
+              <div class="coupon-code-box">
+                <span class="coupon-code-label">Your Coupon Code</span>
+                <div class="coupon-code-value">{{ firstCoupon.code }}</div>
+                <div class="coupon-discount-info">
+                  @if (firstCoupon.discountType === 'PERCENTAGE') {
+                    <span class="coupon-badge-discount">{{ firstCoupon.discountValue }}% OFF</span>
+                  } @else {
+                    <span class="coupon-badge-discount">\${{ firstCoupon.discountValue }} OFF</span>
+                  }
+                  @if (firstCoupon.description) {
+                    <span class="coupon-desc">{{ firstCoupon.description }}</span>
+                  }
+                </div>
+              </div>
+              <button class="coupon-btn-use" (click)="scrollToPlans(); closeCouponPopup()">
+                <mat-icon>rocket_launch</mat-icon> Get Started with this Coupon
+              </button>
+            </div>
+          </div>
+        }
+
         <div class="bg-theme-white-gradient bg-light-gradient position-relative pt-5">
             <div class="container py-4 pt-lg-5 z-index-1 position-relative ">
                 <div class="row gx-3 gx-lg-4 justify-content-center text-center">
@@ -35,7 +69,7 @@ register();
                             Multi-Device UI Consistency
                         </h1>
                         <p class="opacity-75 mb-4 mb-lg-5">Enhance your web projects with our responsive Angular Material Admin Dashboard Template. This comprehensive UI kit provides a sleek, modern, and intuitive design to help you build powerful, feature-rich admin panels with ease.</p>
-                        <button routerLink="/billing/pricing" matButton="filled" class="mx-2">Get Started <mat-icon iconPositionEnd>arrow_forward</mat-icon></button>
+                        <button (click)="scrollToPlans()" matButton="filled" class="mx-2">Get Started <mat-icon iconPositionEnd>arrow_forward</mat-icon></button>
                     </div>
                 </div>
             </div>
@@ -403,7 +437,7 @@ register();
         <!-- ══════════════════════════════════════════════════════════
              PRICING SECTION — CMP Plans (Enterprise & Academic)
              ══════════════════════════════════════════════════════════ -->
-        <div class="container py-4 py-lg-5">
+        <div id="plans-section" class="container py-4 py-lg-5">
             <!-- Section Header -->
             <div class="row gx-3 gx-lg-4 justify-content-center mb-3 mb-lg-4">
                 <div class="col-12 col-md-8 col-lg-6 text-center">
@@ -828,6 +862,65 @@ register();
         </div>
     `,
     styles: [`
+    /* ── Coupon Popup ── */
+    .coupon-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 9999;
+      display: flex; align-items: center; justify-content: center; padding: 16px;
+      animation: fadeIn .25s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+    .coupon-popup {
+      background: var(--bs-card-bg, #fff); border-radius: 20px;
+      padding: 36px 32px 28px; max-width: 420px; width: 100%;
+      position: relative; text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,.18);
+      animation: slideUp .28s ease;
+    }
+    @keyframes slideUp { from { transform: translateY(30px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+    .coupon-close {
+      position: absolute; top: 12px; right: 12px;
+      background: none; border: none; cursor: pointer; opacity: .5;
+      width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; transition: opacity .2s, background .2s;
+    }
+    .coupon-close:hover { opacity: 1; background: var(--bs-secondary-bg); }
+    .coupon-icon-wrap {
+      width: 64px; height: 64px; border-radius: 18px;
+      background: linear-gradient(135deg, #0d6efd22, #0d6efd11);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px;
+    }
+    .coupon-main-icon { font-size: 32px; width: 32px; height: 32px; color: var(--bs-primary, #0d6efd); }
+    .coupon-title { font-weight: 800; font-size: 1.35rem; margin-bottom: 6px; }
+    .coupon-subtitle { color: var(--bs-secondary-color); font-size: .88rem; margin-bottom: 20px; }
+    .coupon-code-box {
+      background: var(--bs-tertiary-bg, #f8f9fa); border-radius: 14px;
+      padding: 18px 20px; margin-bottom: 22px; border: 1.5px dashed var(--bs-primary, #0d6efd);
+    }
+    .coupon-code-label { font-size: .72rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 1px; color: var(--bs-secondary-color); display: block; margin-bottom: 6px; }
+    .coupon-code-value {
+      font-size: 2rem; font-weight: 900; letter-spacing: 4px;
+      color: var(--bs-primary, #0d6efd); font-family: monospace;
+    }
+    .coupon-discount-info { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 10px; }
+    .coupon-badge-discount {
+      background: var(--bs-primary, #0d6efd); color: #fff;
+      font-size: .78rem; font-weight: 700; padding: 3px 12px;
+      border-radius: 50px; display: inline-block;
+    }
+    .coupon-desc { font-size: .82rem; color: var(--bs-secondary-color); }
+    .coupon-btn-use {
+      width: 100%; background: var(--bs-primary, #0d6efd); color: #fff;
+      border: none; border-radius: 12px; padding: 12px 24px;
+      font-size: .95rem; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: opacity .2s;
+    }
+    .coupon-btn-use:hover { opacity: .88; }
+    .coupon-btn-use mat-icon { font-size: 18px; width: 18px; height: 18px; }
+    /* ── end Coupon Popup ── */
+
     .badge-outline-theme {
       border: 1.5px solid var(--bs-primary, #0d6efd); color: var(--bs-primary, #0d6efd);
       background: transparent; padding: 4px 14px; border-radius: 50px;
@@ -874,7 +967,41 @@ register();
   `],
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
-export class WebsiteComponent {
+export class WebsiteComponent implements OnInit {
+    private readonly API = 'http://localhost:8084/api/billing';
+
+    // ─── Coupon popup ─────────────────────────────────────────────────────────
+    showCouponPopup = false;
+    couponClickable = false;
+    firstCoupon: any = null;
+
+    constructor(private http: HttpClient) {}
+
+    ngOnInit() {
+        const seen = localStorage.getItem('coupon_popup_seen');
+        if (!seen) {
+            this.http.get<any[]>(`${this.API}/coupons/active`).subscribe({
+                next: (coupons) => {
+                    if (coupons.length > 0) {
+                        this.firstCoupon = coupons[0];
+                        // Délai pour éviter que le clic de navigation ferme immédiatement le popup
+                        setTimeout(() => {
+                            this.showCouponPopup = true;
+                            setTimeout(() => { this.couponClickable = true; }, 400);
+                        }, 600);
+                    }
+                },
+                error: () => {}
+            });
+        }
+    }
+
+    closeCouponPopup() {
+        this.showCouponPopup = false;
+        this.couponClickable = false;
+        localStorage.setItem('coupon_popup_seen', '1');
+    }
+
     // ─── Pricing section ─────────────────────────────────────────────────────
     homePricingTab = signal<'enterprise' | 'academic'>('enterprise');
     homeBillingCycle = signal<'monthly' | 'annual'>('monthly');
@@ -885,5 +1012,9 @@ export class WebsiteComponent {
     hideSingleSelectionIndicator = signal(false);
     toggleSingleSelectionIndicator() {
         this.hideSingleSelectionIndicator.update((value) => !value);
+    }
+
+    scrollToPlans() {
+        document.getElementById('plans-section')?.scrollIntoView({ behavior: 'smooth' });
     }
 }

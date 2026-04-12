@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -6,12 +6,13 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { RouterModule } from '@angular/router';
-import { forkJoin, of, switchMap, map } from 'rxjs';
+import { RouterModule, Router } from '@angular/router';
+import { forkJoin, of, switchMap, map, catchError } from 'rxjs';
 import {
   OrgBillingService, SubscriptionDTO, InvoiceDTO, PlanDTO,
   MyPaymentDTO, PaymentAttemptDTO, UsageQuotaDTO
 } from '../../../billing/services/org-billing.service';
+import { CheckoutStateService } from '../../../billing/services/checkout-state.service';
 
 @Component({
   selector: 'app-org-billing',
@@ -106,12 +107,13 @@ import {
                       <div class="sub-row"><span>Subscribed On</span><strong>{{ subscription.createdAt | date:'dd MMM yyyy' }}</strong></div>
                     </div>
                     <div class="sub-footer">
-                      <button mat-flat-button color="primary" routerLink="/billing/pricing">
+                      <button mat-flat-button color="primary" (click)="goUpgrade()">
                         <mat-icon class="material-icons-outlined">upgrade</mat-icon> Upgrade Plan
                       </button>
-                      <button mat-stroked-button class="ms-2" style="color:#ef4444;border-color:#ef4444" (click)="cancelSub()">
+                      <button *ngIf="(subscription?.status ?? '').toUpperCase() !== 'CANCELED'" mat-stroked-button class="ms-2" style="color:#ef4444;border-color:#ef4444" (click)="cancelSub()">
                         <mat-icon class="material-icons-outlined">cancel</mat-icon> Cancel
                       </button>
+                      <span *ngIf="(subscription?.status ?? '').toUpperCase() === 'CANCELED'" class="pill pill-red">Canceled</span>
                     </div>
                   </div>
                 </ng-container>
@@ -137,9 +139,15 @@ import {
                       <div class="sub-row"><span>Subscribed On</span><strong>{{ myPayment.createdAt | date:'dd MMM yyyy' }}</strong></div>
                     </div>
                     <div class="sub-footer">
-                      <button mat-flat-button color="primary" routerLink="/billing/pricing">
+                      <button mat-flat-button color="primary" (click)="goUpgrade()">
                         <mat-icon class="material-icons-outlined">upgrade</mat-icon> Upgrade Plan
                       </button>
+                      <button *ngIf="(myPayment?.status ?? '').toUpperCase() !== 'CANCELED'" mat-stroked-button class="ms-2" style="color:#ef4444;border-color:#ef4444"
+                              [disabled]="unsubscribing" (click)="cancelSub()">
+                        <mat-icon class="material-icons-outlined">{{ unsubscribing ? 'hourglass_empty' : 'cancel' }}</mat-icon>
+                        {{ unsubscribing ? 'Processing…' : 'Unsubscribe' }}
+                      </button>
+                      <span *ngIf="(myPayment?.status ?? '').toUpperCase() === 'CANCELED'" class="pill pill-red">Canceled</span>
                     </div>
                   </div>
                 </ng-container>
@@ -366,8 +374,8 @@ import {
                           Period: {{ inv.billingPeriodStart | date:'dd/MM/yy' }} → {{ inv.billingPeriodEnd | date:'dd/MM/yy' }}
                           <span *ngIf="inv.paidAt"> · Paid: {{ inv.paidAt | date:'dd MMM yyyy' }}</span>
                         </p>
-                        <button mat-icon-button matTooltip="Download PDF" [disabled]="!inv.pdfUrl" (click)="dl(inv)">
-                          <mat-icon class="material-icons-outlined">download</mat-icon>
+                        <button mat-icon-button matTooltip="Download invoice PDF" (click)="dl(inv)">
+                          <mat-icon class="material-icons-outlined" style="color:#dc2626">picture_as_pdf</mat-icon>
                         </button>
                       </div>
                     </mat-card-content>
@@ -484,7 +492,7 @@ import {
                   <div><h4 class="mb-1">Available Plans</h4><p class="text-secondary small mb-0">Compare and upgrade</p></div>
                 </div>
                 <div class="row gx-3 gx-lg-4 mt-3">
-                  <div class="col-12 col-md-6 col-xl-4" *ngFor="let p of availablePlans">
+                  <div class="col-12 col-md-6 col-xl-4" *ngFor="let p of filteredPlans">
                     <mat-card class="plan-card mb-3" [class.current-plan]="isCurrentPlan(p)">
                       <mat-card-content>
                         <div class="plan-head">
@@ -501,7 +509,7 @@ import {
                           <div class="meta-row"><mat-icon class="material-icons-outlined">support_agent</mat-icon>{{ p.supportTier }}</div>
                           <div class="meta-row"><mat-icon class="material-icons-outlined">lock_open</mat-icon>API: {{ p.apiAccess?'Yes':'No' }} · SSO: {{ p.ssoEnabled?'Yes':'No' }}</div>
                         </div>
-                        <button mat-flat-button color="primary" class="w-100" *ngIf="!isCurrentPlan(p)" routerLink="/billing/pricing">
+                        <button mat-flat-button color="primary" class="w-100" *ngIf="!isCurrentPlan(p)" (click)="goUpgrade(p)">
                           Upgrade to {{ p.displayName }}
                         </button>
                         <button mat-stroked-button class="w-100" *ngIf="isCurrentPlan(p)" disabled>✓ Your Current Plan</button>
@@ -592,6 +600,24 @@ import {
 })
 export class OrgBillingComponent implements OnInit {
   private orgBilling = inject(OrgBillingService);
+  private cdr = inject(ChangeDetectorRef);
+  private router = inject(Router);
+  private checkoutState = inject(CheckoutStateService);
+
+  goUpgrade(plan?: PlanDTO): void {
+    this.checkoutState.setUpgradeMode();
+    if (plan) {
+      this.router.navigate(['/billing/checkout'], {
+        queryParams: {
+          plan: plan.name,
+          type: plan.orgType ?? 'enterprise',
+          cycle: 'monthly'
+        }
+      });
+    } else {
+      this.router.navigate(['/billing/pricing']);
+    }
+  }
 
   subscription: SubscriptionDTO | null = null;
   myPayment: MyPaymentDTO | null = null;
@@ -602,9 +628,10 @@ export class OrgBillingComponent implements OnInit {
   attemptCols = ['attempt', 'invoice', 'amount', 'status', 'error', 'date'];
   availablePlans: PlanDTO[] = [];
   loading = true;
+  unsubscribing = false;
 
   get planLabel() { return this.subscription?.planDisplayName ?? this.myPayment?.planName ?? '—'; }
-  get statusLabel() { return this.subscription?.status ?? (this.myPayment ? 'ACTIVE' : '—'); }
+  get statusLabel() { return this.subscription?.status ?? this.myPayment?.status ?? '—'; }
   get renewalDate() {
     if (this.subscription?.currentPeriodEnd)
       return new Date(this.subscription.currentPeriodEnd).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
@@ -616,27 +643,44 @@ export class OrgBillingComponent implements OnInit {
     return p.name === cur || p.displayName === cur;
   }
 
+  get isAcademicOrg(): boolean {
+    if (this.myPayment?.orgType) {
+      return this.myPayment.orgType.toUpperCase() === 'ACADEMIC';
+    }
+    const planName = (this.subscription?.planName ?? '').toLowerCase();
+    return planName.includes('academic');
+  }
+
+  get filteredPlans(): PlanDTO[] {
+    return this.availablePlans.filter(p =>
+      this.isAcademicOrg
+        ? p.name.toLowerCase().includes('academic')
+        : !p.name.toLowerCase().includes('academic')
+    );
+  }
+
   ngOnInit() {
     forkJoin({
-      sub:      this.orgBilling.getMySubscription(),
-      invoices: this.orgBilling.getMyInvoices(),
-      payment:  this.orgBilling.getMyPayment(),
-      plans:    this.orgBilling.getActivePlans(),
-      usage:    this.orgBilling.getMyUsage(),
-      attempts: this.orgBilling.getMyPaymentAttempts(),
+      sub:      this.orgBilling.getMySubscription().pipe(catchError(() => of(null))),
+      invoices: this.orgBilling.getMyInvoices().pipe(catchError(() => of([]))),
+      payment:  this.orgBilling.getMyPayment().pipe(catchError(() => of(null))),
+      plans:    this.orgBilling.getActivePlans().pipe(catchError(() => of([]))),
+      usage:    this.orgBilling.getMyUsage().pipe(catchError(() => of(null))),
+      attempts: this.orgBilling.getMyPaymentAttempts().pipe(catchError(() => of([]))),
     }).pipe(
       switchMap(({ sub, invoices, payment, plans, usage, attempts }) => {
-        if (invoices.length === 0) {
-          return of({ sub, invoices, payment, plans, usage, attempts });
+        if (!invoices || (invoices as any[]).length === 0) {
+          return of({ sub, invoices: invoices ?? [], payment, plans: plans ?? [], usage, attempts: attempts ?? [] });
         }
-        const lineItemsRequests = invoices.map(inv =>
+        const lineItemsRequests = (invoices as InvoiceDTO[]).map(inv =>
           this.orgBilling.getLineItemsByInvoice(inv.id).pipe(
+            catchError(() => of([])),
             map(items => ({ ...inv, lineItems: items }))
           )
         );
         return forkJoin(lineItemsRequests).pipe(
           map(invoicesWithItems => ({
-            sub, invoices: invoicesWithItems, payment, plans, usage, attempts
+            sub, invoices: invoicesWithItems, payment, plans: plans ?? [], usage, attempts: attempts ?? []
           }))
         );
       })
@@ -650,17 +694,105 @@ export class OrgBillingComponent implements OnInit {
         this.paymentAttempts = attempts;
         this.attemptsDS.data = attempts;
         this.loading = false;
+        this.cdr.detectChanges();
       },
-      error: () => { this.loading = false; }
+      error: () => { this.loading = false; this.cdr.detectChanges(); }
     });
   }
 
   cancelSub() {
-    if (confirm('Are you sure you want to cancel your subscription?'))
-      console.log('Cancel → PATCH /api/billing/my-subscription');
+    if (!confirm('Are you sure you want to unsubscribe? This action cannot be undone.')) return;
+    this.unsubscribing = true;
+    const cancel$ = this.subscription
+      ? this.orgBilling.cancelSubscription()
+      : this.orgBilling.cancelPayment();
+
+    cancel$.subscribe({
+      next: () => {
+        this.unsubscribing = false;
+        if (this.subscription) {
+          this.subscription = { ...this.subscription, status: 'CANCELED' };
+        }
+        if (this.myPayment) {
+          this.myPayment = { ...this.myPayment, status: 'CANCELED' };
+        }
+        this.cdr.detectChanges();
+        alert('You have been successfully unsubscribed.');
+      },
+      error: () => {
+        this.unsubscribing = false;
+        this.cdr.detectChanges();
+        alert('Failed to unsubscribe. Please try again or contact support.');
+      }
+    });
   }
 
-  dl(i: InvoiceDTO) { if (i.pdfUrl) window.open(i.pdfUrl, '_blank'); }
+  dl(inv: InvoiceDTO) {
+    const fmt = (d: string | null) => d ? new Date(d).toLocaleDateString('fr-FR') : '—';
+    const fmtUsd = (v: number) => '$' + v.toFixed(2);
+    const lineItemsHtml = (inv.lineItems ?? []).map(li => `
+      <tr>
+        <td>${li.description}</td>
+        <td style="text-align:center">${li.quantity}</td>
+        <td style="text-align:right">${fmtUsd(li.unitPrice)}</td>
+        <td style="text-align:center">${li.taxRate > 0 ? li.taxRate + '%' : '0%'}</td>
+        <td style="text-align:right"><strong>${fmtUsd(li.totalPrice)}</strong></td>
+      </tr>`).join('');
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+      <title>Invoice ${inv.invoiceNumber}</title>
+      <style>
+        body{font-family:Arial,sans-serif;color:#1e293b;padding:40px;max-width:800px;margin:0 auto}
+        h1{font-size:28px;margin:0} .sub{color:#64748b;font-size:13px}
+        .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px}
+        .badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;
+               background:${inv.status==='PAID'?'#dcfce7':'#dbeafe'};color:${inv.status==='PAID'?'#15803d':'#1d4ed8'}}
+        .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px}
+        .info-box{background:#f8fafc;border-radius:8px;padding:16px}
+        .info-box p{margin:0 0 4px;font-size:11px;color:#94a3b8;text-transform:uppercase;font-weight:700}
+        .info-box h3{margin:0;font-size:15px}
+        table{width:100%;border-collapse:collapse;margin-bottom:24px}
+        th{background:#f1f5f9;padding:10px 12px;text-align:left;font-size:12px;color:#64748b;text-transform:uppercase}
+        td{padding:10px 12px;border-bottom:1px solid #f1f5f9;font-size:13px}
+        .totals{margin-left:auto;width:280px}
+        .totals tr td{border:none;padding:6px 12px}
+        .totals tr.grand td{font-size:16px;font-weight:800;border-top:2px solid #1e293b;padding-top:12px}
+        .footer{margin-top:40px;text-align:center;font-size:11px;color:#94a3b8}
+        @media print{body{padding:20px}}
+      </style></head><body>
+      <div class="header">
+        <div><h1>INVOICE</h1><p class="sub">${inv.invoiceNumber}</p></div>
+        <div style="text-align:right">
+          <span class="badge">${inv.status}</span>
+          <p class="sub" style="margin-top:8px">Issued: ${fmt(inv.createdAt)}</p>
+          <p class="sub">Paid: ${fmt(inv.paidAt)}</p>
+        </div>
+      </div>
+      <div class="info-grid">
+        <div class="info-box"><p>Plan</p><h3>${inv.planName ?? '—'}</h3></div>
+        <div class="info-box"><p>Currency</p><h3>${inv.currency}</h3></div>
+        <div class="info-box"><p>Billing Period</p><h3>${fmt(inv.billingPeriodStart)} → ${fmt(inv.billingPeriodEnd)}</h3></div>
+        <div class="info-box"><p>Due Date</p><h3>${fmt(inv.dueDate)}</h3></div>
+      </div>
+      <table>
+        <thead><tr><th>Description</th><th style="text-align:center">Qty</th>
+          <th style="text-align:right">Unit Price</th><th style="text-align:center">Tax</th>
+          <th style="text-align:right">Total</th></tr></thead>
+        <tbody>${lineItemsHtml}</tbody>
+      </table>
+      <table class="totals">
+        <tr><td>Subtotal</td><td style="text-align:right">${fmtUsd(inv.subtotal)}</td></tr>
+        <tr><td>Tax (19%)</td><td style="text-align:right">${fmtUsd(inv.taxAmount)}</td></tr>
+        <tr class="grand"><td>Total</td><td style="text-align:right">${fmtUsd(inv.total)} ${inv.currency}</td></tr>
+      </table>
+      <div class="footer">Unitum · unitumgroup1@gmail.com · Generated ${new Date().toLocaleString()}</div>
+      <script>window.onload=()=>{window.print()}</script>
+      </body></html>`;
+
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  }
 
   getSubStatusClass(s?: string) { return ({ACTIVE:'pill-green',TRIALING:'pill-blue',PAST_DUE:'pill-yellow',CANCELED:'pill-red'})[s??'']??'pill-blue'; }
   getInvClass(s: string) { return ({PAID:'pill-green',OPEN:'pill-yellow',DRAFT:'pill-blue',VOID:'pill-red'})[s]??'pill-blue'; }

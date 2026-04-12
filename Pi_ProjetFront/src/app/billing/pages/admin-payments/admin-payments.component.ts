@@ -82,6 +82,47 @@ import { PaymentResponse } from '../../models/billing.models';
         </div>
       </div>
 
+      <!-- Security Alerts Banner -->
+      @if (securityAlerts().length > 0) {
+        <div class="security-banner">
+          <div class="security-banner-header">
+            <div class="security-banner-title">
+              <mat-icon>gpp_bad</mat-icon>
+              <span>🚨 Invoice Tampering Detected — {{ securityAlerts().length }} invoice(s) compromised</span>
+            </div>
+            <button class="btn-dismiss" (click)="dismissAlerts()">
+              <mat-icon>close</mat-icon> Dismiss
+            </button>
+          </div>
+          <div class="security-alert-list">
+            @for (alert of securityAlerts(); track alert.invoiceId) {
+              <div class="security-alert-item">
+                <div class="alert-row">
+                  <span class="alert-label">Invoice</span>
+                  <code class="alert-invoice">{{ alert.invoiceNumber }}</code>
+                </div>
+                <div class="alert-row">
+                  <span class="alert-label">Organization</span>
+                  <span class="alert-value">{{ alert.orgName }}</span>
+                </div>
+                <div class="alert-row">
+                  <span class="alert-label">Stored Hash</span>
+                  <code class="hash-old">{{ alert.storedHash?.substring(0, 20) }}...</code>
+                </div>
+                <div class="alert-row">
+                  <span class="alert-label">Computed Hash</span>
+                  <code class="hash-new">{{ alert.computedHash?.substring(0, 20) }}...</code>
+                </div>
+                <div class="alert-row">
+                  <span class="alert-label">Detected At</span>
+                  <span class="alert-value">{{ alert.checkedAt }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
       <!-- Loading -->
       @if (loading()) {
         <div class="loading-box">
@@ -387,6 +428,40 @@ import { PaymentResponse } from '../../models/billing.models';
     }
     .error-box mat-icon { font-size: 40px; color: #dc2626; }
     .empty-box mat-icon { font-size: 48px; color: #cbd5e1; }
+
+    /* Security Alerts Banner */
+    .security-banner {
+      background: #fff5f5; border: 2px solid #fca5a5; border-radius: 14px;
+      margin-bottom: 24px; overflow: hidden;
+    }
+    .security-banner-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 20px; background: #dc2626;
+    }
+    .security-banner-title {
+      display: flex; align-items: center; gap: 10px;
+      color: #fff; font-size: 15px; font-weight: 700;
+    }
+    .security-banner-title mat-icon { font-size: 22px; }
+    .btn-dismiss {
+      display: flex; align-items: center; gap: 4px;
+      background: rgba(255,255,255,.2); color: #fff; border: none;
+      border-radius: 8px; padding: 6px 14px; font-size: 13px;
+      font-weight: 600; cursor: pointer;
+    }
+    .btn-dismiss:hover { background: rgba(255,255,255,.3); }
+    .security-alert-list { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+    .security-alert-item {
+      background: #fff; border-radius: 10px; padding: 14px 18px;
+      border-left: 4px solid #dc2626;
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px;
+    }
+    .alert-row { display: flex; flex-direction: column; gap: 2px; }
+    .alert-label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: .5px; }
+    .alert-value { font-size: 13px; font-weight: 600; color: #1e293b; }
+    .alert-invoice { font-size: 13px; font-weight: 700; color: #dc2626; background: #fee2e2; padding: 2px 8px; border-radius: 4px; width: fit-content; }
+    .hash-old { font-size: 11px; color: #64748b; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
+    .hash-new { font-size: 11px; color: #dc2626; background: #fee2e2; padding: 2px 6px; border-radius: 4px; }
   </style>
   `,
 })
@@ -397,20 +472,24 @@ export class AdminPaymentsComponent implements OnInit {
   error = signal<string | null>(null);
   filter = signal<string>('all');
   actionLoading = signal<string | null>(null);
+  securityAlerts = signal<any[]>([]);
 
   rejectTarget = signal<PaymentResponse | null>(null);
   rejectReason = '';
 
   constructor(private billing: BillingService) {}
 
-  ngOnInit() { this.loadPayments(); }
+  ngOnInit() {
+    this.loadPayments();
+    this.loadSecurityAlerts();
+  }
 
   loadPayments() {
     this.loading.set(true);
     this.error.set(null);
     this.billing.getAllPayments().subscribe({
       next: (payments) => { this.allPayments.set(payments as any); this.loading.set(false); },
-      error: (err) => {
+      error: () => {
         this.error.set('Failed to load payments. Is the backend running on port 8084?');
         this.loading.set(false);
       }
@@ -438,7 +517,7 @@ export class AdminPaymentsComponent implements OnInit {
   confirmPayment(p: any) {
     this.actionLoading.set(p.paymentId + '-confirm');
     this.billing.confirmPayment(p.paymentId).subscribe({
-      next: (updated) => {
+      next: () => {
         this.allPayments.update(list =>
           list.map(item => item.paymentId === p.paymentId ? { ...item, status: 'CONFIRMED' } : item)
         );
@@ -474,6 +553,20 @@ export class AdminPaymentsComponent implements OnInit {
         alert('Error: ' + (err.error?.error || 'Could not reject payment'));
         this.actionLoading.set(null);
       }
+    });
+  }
+
+  loadSecurityAlerts() {
+    this.billing.getSecurityAlerts().subscribe({
+      next: (res) => this.securityAlerts.set(res.alerts),
+      error: () => {}
+    });
+  }
+
+  dismissAlerts() {
+    this.billing.clearSecurityAlerts().subscribe({
+      next: () => this.securityAlerts.set([]),
+      error: () => this.securityAlerts.set([])
     });
   }
 }

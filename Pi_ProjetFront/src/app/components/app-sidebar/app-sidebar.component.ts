@@ -156,6 +156,7 @@ export class AppSidebarComponent {
         if (this.isSuperAdmin) {
             all.push({ name: "Platform Overview", route: "/app/super-admin", icon: "admin_panel_settings" });
             all.push({ name: "All Users", route: "/app/users", icon: "manage_accounts" });
+            all.push({ name: "Churn ML", route: "/app/churn-dashboard", icon: "psychology" });
         }
 
         // ADMIN + SUPER_ADMIN

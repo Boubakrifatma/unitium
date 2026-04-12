@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
+import { Component, OnInit, signal, inject, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -411,12 +411,26 @@ import { Plan, OrgType, BillingCycle } from '../../models/billing.models';
 export class CheckoutComponent implements OnInit {
   selectedPlan = signal<Plan | null>(null);
   isSubmitting = signal(false);
+  private pendingPlanId = signal<string | null>(null);
 
   private fb = inject(FormBuilder);
   private billing = inject(BillingService);
   private stateService = inject(CheckoutStateService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+
+  constructor() {
+    // Met à jour le plan sélectionné dès que l'API répond
+    effect(() => {
+      const id = this.pendingPlanId();
+      if (!id) return;
+      const plan = this.billing.getPlanById(id);
+      if (plan) {
+        this.selectedPlan.set(plan);
+        this.pendingPlanId.set(null);
+      }
+    });
+  }
 
   form = this.fb.group({
     orgType: ['enterprise' as OrgType, Validators.required],
@@ -443,12 +457,9 @@ export class CheckoutComponent implements OnInit {
       const cycle = params['cycle'] as BillingCycle;
 
       if (planId) {
-        const plan = this.billing.getPlanById(planId);
-        if (plan) {
-          this.selectedPlan.set(plan);
-          if (type) this.form.get('orgType')?.setValue(type);
-          if (cycle) this.form.get('billingCycle')?.setValue(cycle);
-        }
+        if (type) this.form.get('orgType')?.setValue(type);
+        if (cycle) this.form.get('billingCycle')?.setValue(cycle);
+        this.pendingPlanId.set(planId); // déclenche l'effect (immédiat ou après chargement API)
       } else if (this.stateService.hasState()) {
         const state = this.stateService.checkoutState();
         if (state) {
@@ -476,6 +487,7 @@ export class CheckoutComponent implements OnInit {
       return;
     }
     const v = this.form.value;
+    const isAcademic = v.orgType === 'academic';
     const state = {
       plan: this.selectedPlan()!,
       orgType: v.orgType as OrgType,
@@ -488,6 +500,8 @@ export class CheckoutComponent implements OnInit {
       address: v.address || '',
       vatNumber: v.vatNumber || undefined,
       department: v.department || undefined,
+      institution: isAcademic ? (v.orgName || undefined) : undefined,
+      studentCount: isAcademic ? (v.numUsers || undefined) : undefined,
     };
     this.stateService.save(state);
 

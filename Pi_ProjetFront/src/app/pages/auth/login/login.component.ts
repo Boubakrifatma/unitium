@@ -190,7 +190,7 @@ export class LoginComponent implements OnInit {
 
     testAccounts = [
         { email: 'superadmin@cmp.com', password: 'superadmin123', role: 'SUPER_ADMIN' },
-        { email: 'evenixgroup@gmail.com', password: 'Esprit1234', role: 'ADMIN'       },
+        { email: 'evenixgroup@gmail.com', password: 'Evenix1234', role: 'ADMIN'       },
         { email: 'manager@test.com',   password: 'manager123',    role: 'MANAGER'        },
         { email: 'po@test.com',        password: 'productowner123', role: 'PRODUCT_OWNER'  },
         { email: 'tutor@test.com',     password: 'tutor123',      role: 'TUTOR'          },
