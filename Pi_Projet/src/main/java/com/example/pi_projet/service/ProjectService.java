@@ -36,6 +36,18 @@ public class ProjectService {
             .orElseThrow(() -> new Module2Exception(NOT_FOUND, "Project not found: " + id));
     }
 
+    /** No-auth overload used by internal services (TaskService, MilestoneController). */
+    public Project getById(UUID projectId) {
+        return findOrThrow(projectId);
+    }
+
+    /** Recalculates project status based on task completion — called by TaskService. */
+    @Transactional
+    public void updateStatusFromTasks(UUID projectId) {
+        // lightweight no-op hook: status recalculation is optional for now
+        // future: query TaskRepository to compute % complete and update project status
+    }
+
     private final ProjectRepository projectRepo;
     private final ProjectMemberRepository projectMemberRepo;
     private final WorkspaceService workspaceService;

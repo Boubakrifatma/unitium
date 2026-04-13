@@ -54,6 +54,12 @@ public class UserService {
         return UserDTO.from(user);
     }
 
+    /** Returns the raw User entity — used by TaskController for assignee lookups. */
+    public User getUserByIdForTasks(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
+    }
+
     public UserDTO updateUser(Long id, UpdateUserRequest body) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
