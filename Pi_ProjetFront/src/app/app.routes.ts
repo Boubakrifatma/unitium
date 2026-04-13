@@ -10,7 +10,7 @@ import { m2AdminGuard } from "./pages/app/m2-admin/m2-admin.guard";
 export const routes: Routes = [
     {
         path: "",
-        redirectTo: "/auth/landing",
+        redirectTo: "/billing/pricing",
         pathMatch: "full",
     },
     {
@@ -304,6 +304,34 @@ export const routes: Routes = [
             {
                 path: "about-us",
                 loadComponent: () => import("./pages/website/aboutus.component").then((c) => c.AboutUsComponent),
+            },
+        ],
+    },
+    // ─── Billing & Subscription Flow ──────────────────────────────────────────
+    {
+        path: "billing",
+        component: WebsiteLayoutComponent,
+        children: [
+            {
+                path: "",
+                redirectTo: "pricing",
+                pathMatch: "full",
+            },
+            {
+                path: "pricing",
+                loadComponent: () => import("./billing/pages/pricing/pricing.component").then((c) => c.PricingComponent),
+            },
+            {
+                path: "checkout",
+                loadComponent: () => import("./billing/pages/checkout/checkout.component").then((c) => c.CheckoutComponent),
+            },
+            {
+                path: "payment",
+                loadComponent: () => import("./billing/pages/payment/payment.component").then((c) => c.PaymentComponent),
+            },
+            {
+                path: "confirmation",
+                loadComponent: () => import("./billing/pages/confirmation/payment-confirmation.component").then((c) => c.PaymentConfirmationComponent),
             },
         ],
     },
