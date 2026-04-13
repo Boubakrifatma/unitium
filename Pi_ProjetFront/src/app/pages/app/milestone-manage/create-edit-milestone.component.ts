@@ -855,14 +855,14 @@ export class CreateEditMilestoneComponent implements OnInit {
 
     loadProjects() {
         this.projectService.getAll().subscribe({
-            next: (projects) => {
+            next: (projects: Project[]) => {
                 this.projects = projects;
                 if (!this.isEdit && projects.length > 0) {
                     this.milestoneForm.patchValue({ projectId: projects[0].id });
                 }
                 this.cdr.markForCheck();
             },
-            error: (err) => {
+            error: (err: any) => {
                 console.error('Error loading projects', err);
                 this.showSnackBar('Failed to load projects', 'error');
             }
@@ -898,7 +898,7 @@ export class CreateEditMilestoneComponent implements OnInit {
                         this.dialogRef.close(true);
                     }, 800);
                 },
-                error: (err) => {
+                error: (err: any) => {
                     this.isSubmitting = false;
                     this.cdr.markForCheck();
                     console.error('Error submitting milestone', err);
