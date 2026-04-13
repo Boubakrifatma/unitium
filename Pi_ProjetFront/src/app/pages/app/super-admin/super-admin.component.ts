@@ -1,5 +1,5 @@
 import { Component, inject, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DecimalPipe } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -8,11 +8,12 @@ import { MatChipsModule } from '@angular/material/chips';
 import { RouterModule } from '@angular/router';
 import { UserService, UserDTO } from '../../../users/user.service';
 import { AuthService } from '../../../auth/auth.service';
+import { FaceService, FaceDuplicatePair } from '../../../auth/face.service';
 
 @Component({
   selector: 'app-super-admin',
   standalone: true,
-  imports: [CommonModule, MatCardModule, MatIconModule, MatButtonModule, MatTableModule, MatChipsModule, RouterModule],
+  imports: [CommonModule, DecimalPipe, MatCardModule, MatIconModule, MatButtonModule, MatTableModule, MatChipsModule, RouterModule],
   template: `
     <div class="container-fluid fade-in mb-3 mb-lg-4">
       <mat-card class="bg-light-theme shadow-none pt-3 pb-lg-3 px-3">
@@ -194,21 +195,74 @@ import { AuthService } from '../../../auth/auth.service';
         </div>
       </div>
 
+      <!-- Face Duplicate Alerts -->
+      <div class="row gx-3 gx-lg-4 mb-3" *ngIf="faceDuplicates.length > 0">
+        <div class="col-12">
+          <mat-card class="border-warn">
+            <mat-card-header>
+              <div class="col mb-2">
+                <h3 class="mb-1 text-warn">
+                  <mat-icon class="material-icons-outlined" style="vertical-align:middle;color:#f59e0b">face_retouching_off</mat-icon>
+                  Face ID Duplicates Detected
+                </h3>
+                <p class="text-secondary small">The following accounts share the same facial identity</p>
+              </div>
+            </mat-card-header>
+            <mat-card-content>
+              <div *ngFor="let pair of faceDuplicates" class="duplicate-row">
+                <div class="dup-user">
+                  <mat-icon class="material-icons-outlined text-secondary">person</mat-icon>
+                  <div>
+                    <strong>{{ pair.user1.fullName }}</strong>
+                    <span class="text-secondary small d-block">{{ pair.user1.email }}</span>
+                  </div>
+                </div>
+                <div class="dup-dist">
+                  <mat-icon class="material-icons-outlined text-warn">sync_alt</mat-icon>
+                  <span class="badge-dist">{{ pair.distance | number:'1.3-3' }}</span>
+                </div>
+                <div class="dup-user">
+                  <mat-icon class="material-icons-outlined text-secondary">person</mat-icon>
+                  <div>
+                    <strong>{{ pair.user2.fullName }}</strong>
+                    <span class="text-secondary small d-block">{{ pair.user2.email }}</span>
+                  </div>
+                </div>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        </div>
+      </div>
+
     </div>
   `,
   styles: [`
     .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
     .progress-bar { height: 6px; }
+    .border-warn { border-left: 4px solid #f59e0b !important; }
+    .border-danger { border-left: 4px solid #ef4444 !important; }
+    .text-warn { color: #92400e !important; }
+    .duplicate-row {
+      display: flex; align-items: center; gap: 16px;
+      padding: 10px 0; border-bottom: 1px solid #f0f0f0;
+    }
+    .duplicate-row:last-child { border-bottom: none; }
+    .dup-user { display: flex; align-items: center; gap: 8px; flex: 1; }
+    .dup-dist { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .badge-dist { font-size: 11px; font-weight: 700; color: #f59e0b; }
+    .score-critical { color: #ef4444; font-weight: 700; }
+    .score-warn { color: #f59e0b; font-weight: 700; }
   `]
 })
 export class SuperAdminComponent implements OnInit {
-  private userService = inject(UserService);
-  private authService = inject(AuthService);
+  private userService  = inject(UserService);
+  private authService  = inject(AuthService);
+  private faceService  = inject(FaceService);
 
   users: UserDTO[] = [];
   dataSource = new MatTableDataSource<UserDTO>([]);
   cols = ['user', 'role', 'status', 'created'];
-
+  faceDuplicates: FaceDuplicatePair[] = [];
   get currentUser() { return this.authService.currentUser(); }
   get activeUsers() { return this.users.filter(u => u.isActive).length; }
   get adminUsers()  { return this.users.filter(u => u.role === 'ADMIN' || u.role === 'SUPER_ADMIN').length; }
@@ -228,6 +282,20 @@ export class SuperAdminComponent implements OnInit {
         this.dataSource.data = data;
       }
     });
+
+    this.faceService.getFaceDuplicates().subscribe({
+      next: (pairs) => this.faceDuplicates = pairs,
+      error: () => {}
+    });
+
+  }
+
+  getUserName(userId: number): string {
+    return this.users.find(u => u.id === userId)?.fullName ?? `User #${userId}`;
+  }
+
+  getUserEmail(userId: number): string {
+    return this.users.find(u => u.id === userId)?.email ?? '';
   }
 
   getRoleBadge(role: string): string {

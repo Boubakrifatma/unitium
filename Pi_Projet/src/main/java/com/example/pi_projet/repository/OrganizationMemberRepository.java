@@ -8,13 +8,28 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface OrganizationMemberRepository extends JpaRepository<OrganizationMember, UUID> {
 
-    /** All members of an org */
+    /** All members of an org (simple) */
     List<OrganizationMember> findByOrganization_Id(UUID orgId);
+
+    /** Eagerly loads the user in the same query — no lazy-load surprises. */
+    @Query("SELECT m FROM OrganizationMember m LEFT JOIN FETCH m.user WHERE m.organization.id = :orgId")
+    List<OrganizationMember> findByOrganizationId(@Param("orgId") UUID orgId);
+
+    List<OrganizationMember> findByUserId(Long userId);
+    Optional<OrganizationMember> findByOrganizationIdAndUserId(UUID organizationId, Long userId);
+    boolean existsByOrganizationIdAndUserId(UUID organizationId, Long userId);
+
+    /** Native SQL — bypasses @SQLRestriction so soft-deleted rows are also returned. */
+    @Query(value = "SELECT * FROM org_members WHERE organization_id = :orgId AND user_id = :userId LIMIT 1",
+           nativeQuery = true)
+    Optional<OrganizationMember> findByOrganizationIdAndUserIdIncludingDeleted(
+            @Param("orgId") UUID orgId, @Param("userId") Long userId);
 
     /** Members who logged in during the last N days (via User.lastLoginAt) */
     @Query("""

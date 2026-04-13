@@ -48,6 +48,18 @@ export const routes: Routes = [
                 path: "signup-success",
                 loadComponent: () => import("./pages/auth/signup-success/signup-success.component").then((c) => c.SignupSuccessComponent),
             },
+            {
+                path: "oauth2-callback",
+                loadComponent: () => import("./pages/auth/oauth2-callback/oauth2-callback.component").then((c) => c.OAuth2CallbackComponent),
+            },
+            {
+                path: "magic-callback",
+                loadComponent: () => import("./pages/auth/magic-callback/magic-callback.component").then((c) => c.MagicCallbackComponent),
+            },
+            {
+                path: "invitation",
+                loadComponent: () => import("./pages/auth/invitation/invitation-response.component").then((c) => c.InvitationResponseComponent),
+            },
         ],
     },
     {
@@ -189,8 +201,28 @@ export const routes: Routes = [
                 loadComponent: () => import("./billing/pages/confirmation/payment-confirmation.component").then((c) => c.PaymentConfirmationComponent),
             },
             {
+                path: "organizations",
+                loadComponent: () => import("./organizations/organizations.component").then((c) => c.OrganizationsComponent),
+            },
+            {
+                path: "organizations/:id",
+                loadComponent: () => import("./organizations/organization-detail.component").then((c) => c.OrganizationDetailComponent),
+            },
+            {
+                path: "audit-logs",
+                loadComponent: () => import("./organizations/audit-log.component").then((c) => c.AuditLogComponent),
+            },
+            {
+                path: "my-organization",
+                loadComponent: () => import("./organizations/my-organization.component").then((c) => c.MyOrganizationComponent),
+            },
+            {
                 path: "po",
                 loadComponent: () => import("./pages/app/po/po-dashboard.component").then((c) => c.PoDashboardComponent),
+            },
+            {
+                path: "activity-stats",
+                loadComponent: () => import("./pages/app/activity-stats/activity-stats.component").then((c) => c.ActivityStatsComponent),
             },
         ],
     },

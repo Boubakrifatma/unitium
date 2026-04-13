@@ -1,7 +1,15 @@
 # Node
 node_modules/
 dist/
-.angular/cache/
+.angular/
+
+# Java / Maven
+target/
+*.class
+*.jar
+
+# Uploads (user-generated files — never commit)
+uploads/
 
 # Python
 __pycache__/
@@ -16,3 +24,8 @@ venv/
 
 # Logs
 *.log
+
+# IDE
+.idea/
+*.iml
+.vscode/

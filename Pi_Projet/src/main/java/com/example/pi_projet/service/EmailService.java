@@ -205,6 +205,81 @@ public class EmailService {
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // EMAIL 7 : Invitation d'un membre par un Admin
+    // ─────────────────────────────────────────────────────────────────────────
+    @Async
+    public void sendMemberInviteEmail(
+            String toEmail,
+            String fullName,
+            String orgName,
+            String platformRole,
+            String tempPassword
+    ) {
+        try {
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
+            helper.setFrom(fromEmail, fromName);
+            helper.setTo(toEmail);
+            helper.setSubject("🎉 You've been invited to join " + orgName + " on Unitum");
+            helper.setText(buildMemberInviteEmail(fullName, orgName, platformRole, tempPassword, toEmail), true);
+            mailSender.send(msg);
+            log.info("✉️  Invite email sent to {}", toEmail);
+        } catch (Exception e) {
+            log.error("❌ Failed to send invite email to {}: {}", toEmail, e.getMessage(), e);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // EMAIL 8 : Invitation avec boutons Accept / Decline
+    // ─────────────────────────────────────────────────────────────────────────
+    @Async
+    public void sendInvitationEmail(String toEmail, String fullName, String orgName,
+                                    String platformRole, String acceptUrl, String declineUrl) {
+        try {
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
+            helper.setFrom(fromEmail, fromName);
+            helper.setTo(toEmail);
+            helper.setSubject("You're invited to join " + orgName + " on Unitum");
+            String name = (fullName != null && !fullName.isBlank()) ? fullName : "there";
+            String html = """
+                <div style="font-family:Inter,Arial,sans-serif;max-width:540px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
+                  <div style="background:linear-gradient(135deg,#6366f1,#4f46e5);padding:36px;text-align:center">
+                    <div style="font-size:2.8rem;margin-bottom:12px">🏢</div>
+                    <h1 style="color:#fff;font-size:22px;font-weight:700;margin:0">You're invited!</h1>
+                    <p style="color:rgba(255,255,255,0.8);font-size:14px;margin:8px 0 0">Join <strong>%s</strong> on Unitum</p>
+                  </div>
+                  <div style="padding:36px">
+                    <p style="color:#374151;font-size:15px;margin:0 0 8px">Hi <strong>%s</strong>,</p>
+                    <p style="color:#6b7280;font-size:14px;margin:0 0 8px">
+                      You have been invited to join the organization <strong>%s</strong> with the role <strong>%s</strong>.
+                    </p>
+                    <p style="color:#6b7280;font-size:13px;margin:0 0 28px">This invitation expires in <strong>48 hours</strong>.</p>
+
+                    <div style="display:flex;gap:12px;justify-content:center;margin-bottom:28px">
+                      <a href="%s" style="display:inline-block;background:#10b981;color:#fff;padding:13px 28px;border-radius:10px;font-size:14px;font-weight:700;text-decoration:none">
+                        ✅ Accept Invitation
+                      </a>
+                      <a href="%s" style="display:inline-block;background:#f3f4f6;color:#374151;padding:13px 28px;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none;border:1px solid #e5e7eb">
+                        ❌ Decline
+                      </a>
+                    </div>
+
+                    <p style="color:#9ca3af;font-size:12px;text-align:center;margin:0">
+                      If you didn't expect this invitation, you can safely ignore this email.
+                    </p>
+                  </div>
+                </div>
+                """.formatted(orgName, name, orgName, platformRole, acceptUrl, declineUrl);
+            helper.setText(html, true);
+            mailSender.send(msg);
+            log.info("✉️  Invitation email sent to {}", toEmail);
+        } catch (Exception e) {
+            log.error("❌ Failed to send invitation email to {}: {}", toEmail, e.getMessage());
+        }
+    }
+
     // ═════════════════════════════════════════════════════════════════════════
     // HTML Templates
     // ═════════════════════════════════════════════════════════════════════════
@@ -451,8 +526,79 @@ public class EmailService {
             "</div></div></body></html>";
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // EMAIL 8 : Invitation d'un membre (membership module)
+    // ─────────────────────────────────────────────────────────────────────────
+    private String buildMemberInviteEmail(String name, String orgName, String platformRole, String tempPassword, String email) {
+        return "<!DOCTYPE html><html><head><meta charset='UTF-8'></head><body style='margin:0;padding:0;background:#f0f4fa;font-family:Segoe UI,Arial,sans-serif'>" +
+            "<div style='max-width:600px;margin:40px auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)'>" +
+            "<div style='background:linear-gradient(135deg,#6366f1,#4f46e5);padding:40px;text-align:center'>" +
+            "<span style='font-size:42px'>👋</span>" +
+            "<h1 style='color:#fff;margin:12px 0 4px;font-size:26px'>You're Invited!</h1>" +
+            "<p style='color:rgba(255,255,255,.85);margin:0'>You've been added to <strong>" + orgName + "</strong></p></div>" +
+            "<div style='padding:36px 40px'>" +
+            "<p style='color:#1e293b;font-size:15px'>Hello <strong>" + name + "</strong>,</p>" +
+            "<p style='color:#475569;font-size:14px;line-height:1.7'>You have been invited to join <strong>" + orgName + "</strong> on <strong>Unitum</strong> as a <strong>" + platformRole + "</strong>. Your account has been created — use the credentials below to log in.</p>" +
+            "<div style='background:#f0f4ff;border-radius:12px;padding:20px 24px;margin:20px 0;border-left:4px solid #6366f1'>" +
+            "<p style='margin:0 0 8px;font-weight:700;color:#3730a3;font-size:14px'>🔑 Your Login Credentials</p>" +
+            "<p style='margin:0 0 4px;color:#3730a3;font-size:14px'>Email: <strong>" + email + "</strong></p>" +
+            "<p style='margin:0 0 4px;color:#3730a3;font-size:14px'>Temporary Password: <code style='background:#e0e7ff;padding:2px 10px;border-radius:4px;font-size:16px;font-weight:700'>" + tempPassword + "</code></p>" +
+            "<p style='margin:8px 0 0;color:#4338ca;font-size:12px'>⚠ You will be asked to change this password on your first login.</p>" +
+            "</div>" +
+            "<div style='text-align:center;margin:28px 0'>" +
+            "<a href='" + appUrl + "/auth/login' style='display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:14px 40px;border-radius:50px;font-weight:700;font-size:15px'>Login to Unitum →</a>" +
+            "</div>" +
+            "<p style='color:#64748b;font-size:13px;line-height:1.7'>If you were not expecting this invitation, please contact us at <a href='mailto:" + adminEmail + "' style='color:#6366f1'>" + adminEmail + "</a>.</p>" +
+            "</div>" +
+            "<div style='background:#f8fafc;padding:20px 40px;text-align:center;border-top:1px solid #e2e8f0'>" +
+            "<p style='color:#94a3b8;font-size:12px;margin:0'>© 2025 Unitum · Powered by Evenix Group</p>" +
+            "</div></div></body></html>";
+    }
+
     private String row(String label, String value) {
         return "<tr><td style='padding:6px 0;color:#64748b;font-size:13px;width:150px'>" + label + ":</td>" +
                "<td style='padding:6px 0;color:#1e293b;font-size:13px;font-weight:600'>" + value + "</td></tr>";
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Magic Link
+    // ─────────────────────────────────────────────────────────────────────────
+    @Async
+    public void sendMagicLink(String toEmail, String fullName, String magicUrl) {
+        try {
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
+            helper.setFrom(fromEmail, fromName);
+            helper.setTo(toEmail);
+            helper.setSubject("Your sign-in link for Unitum");
+            helper.setText(buildMagicLinkEmail(fullName, magicUrl), true);
+            mailSender.send(msg);
+        } catch (Exception e) {
+            log.error("Failed to send magic link to {}: {}", toEmail, e.getMessage());
+        }
+    }
+
+    private String buildMagicLinkEmail(String fullName, String magicUrl) {
+        String name = (fullName != null && !fullName.isBlank()) ? fullName : "there";
+        return """
+            <div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
+              <div style="background:linear-gradient(135deg,#6366f1,#4f46e5);padding:32px;text-align:center">
+                <div style="width:52px;height:52px;background:rgba(255,255,255,0.2);border-radius:14px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px">
+                  <span style="font-size:24px">🔑</span>
+                </div>
+                <h1 style="color:#fff;font-size:22px;font-weight:700;margin:0">Sign in to Unitum</h1>
+              </div>
+              <div style="padding:32px">
+                <p style="color:#374151;font-size:15px;margin:0 0 8px">Hi <strong>%s</strong>,</p>
+                <p style="color:#6b7280;font-size:14px;margin:0 0 28px">Click the button below to sign in. This link expires in <strong>10 minutes</strong> and can only be used once.</p>
+                <div style="text-align:center;margin-bottom:28px">
+                  <a href="%s" style="display:inline-block;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;padding:14px 32px;border-radius:10px;font-size:15px;font-weight:600;text-decoration:none">
+                    Sign In to Unitum
+                  </a>
+                </div>
+                <p style="color:#9ca3af;font-size:12px;text-align:center;margin:0">If you didn't request this link, you can safely ignore this email.</p>
+              </div>
+            </div>
+            """.formatted(name, magicUrl);
     }
 }

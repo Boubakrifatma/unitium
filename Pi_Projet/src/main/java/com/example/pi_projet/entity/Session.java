@@ -45,27 +45,8 @@ public class Session {
     @Column(name = "revoked_at")
     private LocalDateTime revokedAt;
 
-    // MlLoginAnomaly mergée ici
-    @Column(name = "anomaly_score")
-    private Float anomalyScore;
-
-    @Column(name = "features_snapshot_json", columnDefinition = "TEXT")
-    private String featuresSnapshotJson;
-
-    @Builder.Default
-    @Enumerated(EnumType.STRING)
-    @Column(name = "action_taken")
-    private ActionTaken actionTaken = ActionTaken.NONE;
-
-    @Column(name = "model_version")
-    private String modelVersion;
-
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
-    }
-
-    public enum ActionTaken {
-        NONE, MFA_FORCED, ACCOUNT_LOCKED
     }
 }

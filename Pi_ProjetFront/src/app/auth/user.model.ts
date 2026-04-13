@@ -4,6 +4,7 @@ export interface User {
   fullName: string;
   role: 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'EMPLOYEE' | 'TUTOR' | 'PRODUCT_OWNER' | 'STUDENT' | 'VIEWER';
   mustChangePassword?: boolean;
+  avatarUrl?: string | null;
 }
 
 export interface AuthResponse {
