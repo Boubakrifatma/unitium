@@ -207,6 +207,7 @@ export class AppSidebarComponent {
             name: "Applications",
             icon: "apps",
             children: [
+                { name: "Task Kanban", route: "/app/kanban", icon: "view_kanban" },
                 { name: "Explorer", route: "/app/explorer", icon: "folder_zip" },
                 { name: "Calendar", route: "/app/calendar", icon: "event" },
                 { name: "Chat", route: "/app/chat", icon: "chat" },
