@@ -39,9 +39,15 @@ public class Workspace {
     @JoinColumn(name = "owner_id", insertable = false, updatable = false)
     private User owner;
 
+    @Column(name = "organization_id", insertable = false, updatable = false)
+    private UUID organizationId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id", nullable = false)
     private Organization organization;
+
+    @Column(name = "org_type", length = 20)
+    private String orgType;
 
     @JsonIgnore
     @OneToMany(mappedBy = "workspace", cascade = CascadeType.ALL, fetch = FetchType.LAZY)

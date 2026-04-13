@@ -30,6 +30,7 @@ import { Router, RouterLink, RouterLinkActive } from "@angular/router";
                         {{ link.label }}
                     </a>
                     }
+                    <a routerLink="/app/dashboard" routerLinkActive="active" matButton="elevated"> Demo </a>
                 </span>
             </div>
             <!-- light dark -->
@@ -68,7 +69,7 @@ export class IndexHeaderComponent {
     }
 
     goToAuth() {
-        this.router.navigate(["/auth/login"]);
+        this.router.navigate(["/"]);
     }
     goToSignup() {
         this.router.navigate(["/auth/signup"]);

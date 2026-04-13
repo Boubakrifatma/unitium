@@ -51,4 +51,15 @@ public interface OrganizationMemberRepository extends JpaRepository<Organization
           AND u.isActive = true
     """)
     java.time.LocalDateTime findLastMemberLogin(@Param("orgId") UUID orgId);
+
+    // ── Module-2 soft-delete aware queries ────────────────────────────────────
+    List<OrganizationMember> findAllByUserIdAndDeletedAtIsNull(Long userId);
+
+    List<OrganizationMember> findAllByOrganization_IdAndDeletedAtIsNull(UUID organizationId);
+
+    Optional<OrganizationMember> findByOrganization_IdAndUserIdAndDeletedAtIsNull(UUID organizationId, Long userId);
+
+    long countByOrganization_IdAndDeletedAtIsNull(UUID organizationId);
+
+    boolean existsByOrganization_IdAndUserIdAndDeletedAtIsNull(UUID organizationId, Long userId);
 }

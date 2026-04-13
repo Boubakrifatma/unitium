@@ -108,9 +108,9 @@ import { EmployeeSelect2Component } from "../../../components/employee-select/em
         <mat-dialog-actions>
             <div class="col">
                 @if (projectData.name) {
-                <button matButton="filled" mat-dialog-close (click)="updateOrder()"><mat-icon class="material-icons-outlined">event</mat-icon> Update</button>
+                <button matButton="filled" (click)="updateOrder()"><mat-icon class="material-icons-outlined">event</mat-icon> Update</button>
                 } @else {
-                <button matButton="filled" mat-dialog-close><mat-icon class="material-icons-outlined">event</mat-icon> Add</button>
+                <button matButton="filled" (click)="addOrder()"><mat-icon class="material-icons-outlined">event</mat-icon> Add</button>
                 }
             </div>
             <div class="col-auto">
@@ -122,7 +122,6 @@ import { EmployeeSelect2Component } from "../../../components/employee-select/em
 })
 export class CreateEditProjectModal implements OnDestroy {
     public projectData: TableItem;
-    private updateTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
     constructor(public dialogRef: MatDialogRef<CreateEditProjectModal>, @Inject(MAT_DIALOG_DATA) public data: TableItem, private snackBar: MatSnackBar) {
         this.projectData = data;
@@ -132,14 +131,15 @@ export class CreateEditProjectModal implements OnDestroy {
     }
 
     updateOrder(): void {
-        // Simulate a successful API call or update operation
-        if (this.updateTimeoutId !== null) {
-            clearTimeout(this.updateTimeoutId);
-        }
-        this.updateTimeoutId = setTimeout(() => {
-            this.openSnackBar("Order has been successfully updated.", "Dismiss");
-            this.updateTimeoutId = null;
-        }, 1000);
+        // Return updated project data and close dialog
+        this.dialogRef.close(this.projectData);
+        this.openSnackBar("Project has been successfully updated.", "Dismiss");
+    }
+
+    addOrder(): void {
+        // Return new project data and close dialog
+        this.dialogRef.close(this.projectData);
+        this.openSnackBar("Project has been successfully added.", "Dismiss");
     }
 
     openSnackBar(message: string, action: string): void {
@@ -152,8 +152,6 @@ export class CreateEditProjectModal implements OnDestroy {
     }
 
     ngOnDestroy(): void {
-        if (this.updateTimeoutId !== null) {
-            clearTimeout(this.updateTimeoutId);
-        }
+        // Cleanup if needed
     }
 }

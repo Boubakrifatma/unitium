@@ -148,6 +148,8 @@ export class AppSidebarComponent {
     get isSuperAdmin(): boolean { return this.role === 'SUPER_ADMIN'; }
     get isAdmin(): boolean      { return this.role === 'ADMIN' || this.isSuperAdmin; }
     get isManager(): boolean    { return this.role === 'MANAGER' || this.isAdmin; }
+    get isTutor(): boolean      { return this.role === 'TUTOR'; }
+    get canManageWorkspaces(): boolean { return this.isManager || this.isTutor; }
 
     get navItems(): NavItem[] {
         const all: NavItem[] = [];
@@ -168,24 +170,36 @@ export class AppSidebarComponent {
             all.push({ name: "Dashboard", route: "/app/dashboard", icon: "house" });
             all.push({ name: "My Organization", route: "/app/my-organization", icon: "corporate_fare" });
             all.push({ name: "Employees", route: "/app/employee", icon: "person" });
+            all.push({ name: "Admin Dashboard", route: "/app/m2-admin", icon: "admin_panel_settings" });
         }
 
-        // MANAGER + above
-        if (this.isManager) {
-            all.push({
-                name: "Projects",
-                icon: "dashboard",
-                children: [
-                    { name: "Projects", route: "/app/projects", icon: "assignment" },
-                    { name: "Project Details", route: "/app/project-details", icon: "subject" },
-                    { name: "All Task", route: "/app/all-tasks", icon: "checklist" },
-                    { name: "Tasks Details", route: "/app/task-details", icon: "task" },
-                    { name: "Task Kanban", route: "/app/kanban", icon: "view_kanban" },
-                    { name: "Task Gantt Chart", route: "/app/gantt-chart", icon: "event" },
-                    { name: "Time Tracking", route: "/app/time-tracking", icon: "alarm" },
-                ],
-            });
+        // All authenticated roles can access Workspaces list and their projects.
+        const projectChildren: NavItem[] = [
+            { name: "Workspaces", route: "/app/workspaces", icon: "workspaces" },
+            { name: "My Projects", route: "/app/real-projects", icon: "folder_special" },
+        ];
+        if (this.canManageWorkspaces) {
+            projectChildren.push({ name: "Templates Hub", route: "/app/templates", icon: "layers" });
         }
+
+        // Manager/Admin/Tutor roles can access broader project/task workspace management views.
+        if (this.canManageWorkspaces) {
+            projectChildren.push(
+                { name: "Projects (Template)", route: "/app/projects", icon: "assignment" },
+                { name: "Project Details (Template)", route: "/app/project-details", icon: "subject" },
+                { name: "All Task", route: "/app/all-tasks", icon: "checklist" },
+                { name: "Tasks Details", route: "/app/task-details", icon: "task" },
+                { name: "Task Kanban", route: "/app/kanban", icon: "view_kanban" },
+                { name: "Task Gantt Chart", route: "/app/gantt-chart", icon: "event" },
+                { name: "Time Tracking", route: "/app/time-tracking", icon: "alarm" },
+            );
+        }
+
+        all.push({
+            name: "Projects",
+            icon: "dashboard",
+            children: projectChildren,
+        });
 
         // EMPLOYEE + above
         all.push({
@@ -206,27 +220,15 @@ export class AppSidebarComponent {
             ],
         });
 
-        // SUPER_ADMIN — billing plateforme globale
-        if (this.isSuperAdmin) {
-            all.push({
-                name: "Billing Platform",
-                icon: "account_balance",
-                children: [
-                    { name: "Plans & Revenue",   route: "/app/super-admin-billing", icon: "inventory_2" },
-                    { name: "Payment History",   route: "/app/super-admin-billing", icon: "receipt_long" },
-                ],
-            });
-        }
-
-        // ADMIN org uniquement — billing organisation
-        if (this.isAdmin && !this.isSuperAdmin) {
+        // ADMIN + above — billing
+        if (this.isAdmin) {
             all.push({
                 name: "Billing",
                 icon: "receipt_long",
                 children: [
-                    { name: "My Subscription", route: "/app/org-billing", icon: "workspace_premium" },
-                    { name: "My Invoices",     route: "/app/org-billing", icon: "receipt_long" },
-                    { name: "Available Plans", route: "/app/org-billing", icon: "inventory_2" },
+                    { name: "Subscription", route: "/app/subscription", icon: "workspace_premium" },
+                    { name: "Plans", route: "/app/plans", icon: "star" },
+                    { name: "Invoice", route: "/app/invoice", icon: "receipt" },
                 ],
             });
         }
@@ -242,6 +244,7 @@ export class AppSidebarComponent {
             name: "Projects",
             icon: "dashboard",
             children: [
+                { name: "Workspaces", route: "/app/workspaces", icon: "workspaces" },
                 { name: "Projects", route: "/app/projects", icon: "assignment" },
                 { name: "Project Details", route: "/app/project-details", icon: "subject" },
                 { name: "All Task", route: "/app/all-tasks", icon: "checklist" },

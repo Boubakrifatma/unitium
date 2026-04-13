@@ -52,11 +52,9 @@ export class ForgotPasswordComponent {
 
     onSubmit() {
         if (this.forgotForm.valid) {
-            const email = this.forgotForm.value.email;
-            // Pass the email to change-password page via navigation state
-            this.router.navigate(["/auth/change-password"], {
-                state: { email }
-            });
+            this.router.navigate(["/auth/change-password"]);
+            // Handle password reset logic
+            console.log("Password reset requested for:", this.forgotForm.value.email);
         }
     }
 }

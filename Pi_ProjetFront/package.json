@@ -24,6 +24,7 @@
     "@fullcalendar/timegrid": "^6.1.18",
     "@stripe/stripe-js": "^9.0.0",
     "chart.js": "^4.5.1",
+    "d3": "^7.9.0",
     "dayjs": "^1.11.20",
     "face-api.js": "^0.22.2",
     "jsvectormap": "^1.7.0",
@@ -38,6 +39,7 @@
     "@angular/cli": "^21.2.3",
     "@angular/compiler-cli": "^21.2.5",
     "@types/chart.js": "^2.9.41",
+    "@types/d3": "^7.4.3",
     "postcss": "^8.5.8",
     "typescript": "^5.9.3"
   },

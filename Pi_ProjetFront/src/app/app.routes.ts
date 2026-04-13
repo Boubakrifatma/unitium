@@ -4,11 +4,12 @@ import { AppLayoutComponent } from "./layouts/app-layout/app-layout.component";
 import { FullLayoutComponent } from "./layouts/full-layout/full-layout.component";
 import { WebsiteLayoutComponent } from "./layouts/website-layout/websitelayout.component";
 import { authGuard } from "./auth/auth.guard";
+import { m2AdminGuard } from "./pages/app/m2-admin/m2-admin.guard";
 
 export const routes: Routes = [
     {
         path: "",
-        redirectTo: "/web/website",
+        redirectTo: "/auth/landing",
         pathMatch: "full",
     },
     {
@@ -39,10 +40,6 @@ export const routes: Routes = [
             {
                 path: "change-password",
                 loadComponent: () => import("./pages/auth/change-password/change-password.component").then((c) => c.ChangePasswordComponent),
-            },
-            {
-                path: "first-login",
-                loadComponent: () => import("./pages/auth/first-login/first-login.component").then((c) => c.FirstLoginComponent),
             },
             {
                 path: "signup-success",
@@ -77,12 +74,52 @@ export const routes: Routes = [
                 loadComponent: () => import("./pages/app/dashboard/dashboard.component").then((c) => c.DashboardComponent),
             },
             {
+                path: "workspaces",
+                loadComponent: () => import("./pages/app/m2-workspaces/m2-workspaces.component").then((c) => c.M2WorkspacesComponent),
+            },
+            {
+                path: "workspaces/:workspaceId",
+                loadComponent: () => import("./pages/app/m2-workspaces/m2-workspace-details.component").then((c) => c.M2WorkspaceDetailsComponent),
+            },
+            {
+                path: "workspaces/:workspaceId/war-room",
+                loadComponent: () => import("./pages/app/m2-workspaces/war-room/war-room.component").then((c) => c.WarRoomComponent),
+            },
+            {
+                path: "workspace-details/:workspaceId",
+                redirectTo: "workspaces/:workspaceId",
+            },
+            {
                 path: "projects",
                 loadComponent: () => import("./pages/app/projects/projects.component").then((c) => c.ProjectsComponent),
             },
             {
                 path: "project-details",
                 loadComponent: () => import("./pages/app/projects/project-details.component").then((c) => c.ProjectDetailsComponent),
+            },
+            {
+                path: "real-projects",
+                loadComponent: () => import("./pages/app/m2-projects/real-projects.component").then((c) => c.RealProjectsComponent),
+            },
+            {
+                path: "real-projects/:workspaceId/:projectId",
+                loadComponent: () => import("./pages/app/m2-projects/real-project-details.component").then((c) => c.ProjectDetailsComponent),
+            },
+            {
+                path: "templates",
+                loadComponent: () => import("./pages/app/m2-templates/m2-templates.component").then((c) => c.M2TemplatesComponent),
+            },
+            {
+                path: "templates/:templateId",
+                loadComponent: () => import("./pages/app/m2-templates/m2-template-details.component").then((c) => c.M2TemplateDetailsComponent),
+            },
+            {
+                path: "m2-projects",
+                loadComponent: () => import("./pages/app/m2-projects/projects.component").then((c) => c.ProjectsComponent),
+            },
+            {
+                path: "m2-projects/:workspaceId/:projectId",
+                loadComponent: () => import("./pages/app/m2-projects/project-details.component").then((c) => c.ProjectDetailsComponent),
             },
             {
                 path: "employee",
@@ -201,6 +238,11 @@ export const routes: Routes = [
                 loadComponent: () => import("./billing/pages/confirmation/payment-confirmation.component").then((c) => c.PaymentConfirmationComponent),
             },
             {
+                path: "m2-admin",
+                canActivate: [m2AdminGuard],
+                loadComponent: () => import("./pages/app/m2-admin/m2-admin.component").then((c) => c.M2AdminComponent),
+            },
+            {
                 path: "organizations",
                 loadComponent: () => import("./organizations/organizations.component").then((c) => c.OrganizationsComponent),
             },
@@ -253,34 +295,6 @@ export const routes: Routes = [
             {
                 path: "about-us",
                 loadComponent: () => import("./pages/website/aboutus.component").then((c) => c.AboutUsComponent),
-            },
-        ],
-    },
-    // ─── Billing & Subscription Flow ──────────────────────────────────────────
-    {
-        path: "billing",
-        component: WebsiteLayoutComponent,
-        children: [
-            {
-                path: "",
-                redirectTo: "pricing",
-                pathMatch: "full",
-            },
-            {
-                path: "pricing",
-                loadComponent: () => import("./billing/pages/pricing/pricing.component").then((c) => c.PricingComponent),
-            },
-            {
-                path: "checkout",
-                loadComponent: () => import("./billing/pages/checkout/checkout.component").then((c) => c.CheckoutComponent),
-            },
-            {
-                path: "payment",
-                loadComponent: () => import("./billing/pages/payment/payment.component").then((c) => c.PaymentComponent),
-            },
-            {
-                path: "confirmation",
-                loadComponent: () => import("./billing/pages/confirmation/payment-confirmation.component").then((c) => c.PaymentConfirmationComponent),
             },
         ],
     },

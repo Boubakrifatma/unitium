@@ -7,13 +7,38 @@ export interface User {
   avatarUrl?: string | null;
 }
 
+export interface OrganizationContext {
+  organizationId: string;
+  organizationName: string;
+  organizationSlug: string;
+  organizationType: string;
+  membershipRole: string;
+}
+
+export interface OrganizationOption {
+  organizationId: string;
+  organizationName: string;
+  organizationSlug: string;
+  organizationType: string;
+  membershipRole: string;
+}
+
+export interface AuthOrganization {
+  id: string;
+  name: string;
+  slug: string;
+  orgType: string;
+  memberRole: string;
+}
+
 export interface AuthResponse {
   token: string;
   id: number;
   email: string;
   fullName: string;
   role: string;
-  mustChangePassword: boolean;
+  mustChangePassword?: boolean;
+  organizations?: AuthOrganization[];
 }
 
 export interface LoginRequest {

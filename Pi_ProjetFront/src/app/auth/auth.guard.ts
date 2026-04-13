@@ -1,11 +1,11 @@
 import { inject, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { CanActivateFn, Router, ActivatedRouteSnapshot, RouterStateSnapshot } from '@angular/router';
+import { CanActivateFn, Router } from '@angular/router';
 import { map, catchError } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { AuthService } from './auth.service';
 
-export const authGuard: CanActivateFn = (route: ActivatedRouteSnapshot, state: RouterStateSnapshot) => {
+export const authGuard: CanActivateFn = () => {
   const platformId = inject(PLATFORM_ID);
 
   // SSR: no localStorage, let client handle auth
@@ -14,11 +14,9 @@ export const authGuard: CanActivateFn = (route: ActivatedRouteSnapshot, state: R
   const authService = inject(AuthService);
   const router = inject(Router);
 
-  // No token at all → go to login, preserve returnUrl for billing flow
+  // No token at all → go to login
   if (!authService.getToken()) {
-    return router.createUrlTree(['/auth/login'], {
-      queryParams: { returnUrl: state.url }
-    });
+    return router.createUrlTree(['/auth/login']);
   }
 
   // Token exists and user already loaded (SPA navigation) → allow
@@ -29,9 +27,7 @@ export const authGuard: CanActivateFn = (route: ActivatedRouteSnapshot, state: R
     map(() => true),
     catchError(() => {
       authService.clearSession();
-      return of(router.createUrlTree(['/auth/login'], {
-        queryParams: { returnUrl: state.url }
-      }));
+      return of(router.createUrlTree(['/auth/login']));
     })
   );
 };

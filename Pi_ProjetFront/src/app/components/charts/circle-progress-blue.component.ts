@@ -1,5 +1,4 @@
-import { Component, AfterViewInit, ChangeDetectorRef } from "@angular/core";
-import { Location } from "@angular/common";
+import { Component, Input } from "@angular/core";
 import { NgCircleProgressModule, CircleProgressOptions } from "ng-circle-progress";
 
 @Component({
@@ -11,17 +10,18 @@ import { NgCircleProgressModule, CircleProgressOptions } from "ng-circle-progres
             provide: CircleProgressOptions,
         },
     ],
-    template: `<circle-progress class="avatar avatar-80" [percent]="65" [space]="-6" [radius]="40" [outerStrokeWidth]="6" [innerStrokeWidth]="6" [outerStrokeColor]="'#0088FF'" [innerStrokeColor]="'rgba(0, 73, 232, 0.15)'" [animation]="true" [showSubtitle]="false" [titleFontSize]="'26px'" [unitsFontSize]="'20px'" [titleColor]="'#0088FF'" [unitsColor]="'#0088FF'" [animationDuration]="300"></circle-progress>`,
+    template: `<circle-progress class="avatar avatar-80" [percent]="safePercent" [space]="-6" [radius]="40" [outerStrokeWidth]="6" [innerStrokeWidth]="6" [outerStrokeColor]="'#0088FF'" [innerStrokeColor]="'rgba(0, 73, 232, 0.15)'" [animation]="false" [showSubtitle]="false" [titleFontSize]="'26px'" [unitsFontSize]="'20px'" [titleColor]="'#0088FF'" [unitsColor]="'#0088FF'" [animationDuration]="300"></circle-progress>`,
 })
-export class CircleProgressBlueComponent implements AfterViewInit {
-    constructor(private cdr: ChangeDetectorRef) {}
-    ngAfterViewInit() {
-        setTimeout(() => {
-            window.dispatchEvent(new Event("scroll"));
-            window.dispatchEvent(new Event("resize"));
-            this.cdr.detectChanges();
-        }, 300);
+export class CircleProgressBlueComponent {
+    @Input() percent = 65;
+
+    get safePercent(): number {
+        if (!Number.isFinite(this.percent)) {
+            return 0;
+        }
+        return Math.max(0, Math.min(100, Math.round(this.percent)));
     }
+
 }
 
 

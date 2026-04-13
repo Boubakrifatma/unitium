@@ -69,6 +69,36 @@ public class MLTeamRecommendation {
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
+    /**
+     * Stage 4 weighted score breakdown stored as JSON for explainability.
+     */
+    @Column(name = "ml_score_breakdown_json", columnDefinition = "TEXT DEFAULT NULL COMMENT 'Stage 4 weighted score breakdown JSON.'")
+    private String mlScoreBreakdownJson;
+
+    /**
+     * Human-readable recommendation reasons as JSON array.
+     */
+    @Column(name = "ml_reasons_json", columnDefinition = "TEXT DEFAULT NULL COMMENT 'Recommendation reasons JSON array.'")
+    private String mlReasonsJson;
+
+    /**
+     * True when recommendation was produced under cold-start fallback mode.
+     */
+    @Column(name = "ml_cold_start_mode", columnDefinition = "TINYINT(1) DEFAULT NULL COMMENT 'True when generated under cold-start mode.'")
+    private Boolean mlColdStartMode;
+
+    /**
+     * Model or artifact version identifier used during recommendation generation.
+     */
+    @Column(name = "ml_model_version", length = 50, columnDefinition = "VARCHAR(50) DEFAULT NULL COMMENT 'Model version identifier for recommendation.'")
+    private String mlModelVersion;
+
+    /**
+     * Reviewer note captured when recommendation is accepted or rejected.
+     */
+    @Column(name = "ml_decision_note", columnDefinition = "TEXT DEFAULT NULL COMMENT 'Reviewer decision note for recommendation.'")
+    private String mlDecisionNote;
+
     public enum RecommendationStatus {
         PENDING, ACCEPTED, REJECTED, EXPIRED
     }

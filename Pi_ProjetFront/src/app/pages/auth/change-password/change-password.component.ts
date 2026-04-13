@@ -8,6 +8,7 @@ import { MatFormFieldModule } from "@angular/material/form-field";
 import { AbstractControl, FormBuilder, FormGroup, ReactiveFormsModule, ValidationErrors, Validators } from "@angular/forms";
 import { Router, RouterModule } from "@angular/router";
 import { AuthService } from "../../../auth/auth.service";
+import { PasswordStrengthComponent } from "../../../components/password-strength/password-strength.component";
 
 function passwordsMatch(group: AbstractControl): ValidationErrors | null {
     const pw = group.get('newPassword')?.value;
@@ -18,7 +19,7 @@ function passwordsMatch(group: AbstractControl): ValidationErrors | null {
 @Component({
     selector: "app-change-password",
     standalone: true,
-    imports: [CommonModule, MatCardModule, MatInputModule, MatButtonModule, MatIconModule, MatFormFieldModule, ReactiveFormsModule, RouterModule],
+    imports: [CommonModule, MatCardModule, MatInputModule, MatButtonModule, MatIconModule, MatFormFieldModule, ReactiveFormsModule, RouterModule, PasswordStrengthComponent],
     template: `
         <div class="row gx-3 justify-content-center align-items-center" style="min-height: var(--min-height)">
             <div class="col maxwidth-dynamic position-relative" style="--mw-dynamic:440px">
@@ -30,75 +31,47 @@ function passwordsMatch(group: AbstractControl): ValidationErrors | null {
                         </div>
                         <br />
 
-                        <!-- Success state -->
-                        <div *ngIf="success" class="text-center py-3">
-                            <mat-icon style="font-size:48px;width:48px;height:48px;color:#22c55e">check_circle</mat-icon>
-                            <h3 class="mt-2">Password updated!</h3>
-                            <p class="text-secondary">Redirecting to Sign In…</p>
-                        </div>
+                        @if (success) {
+                            <div class="alert alert-success text-center mb-3">
+                                Password changed successfully! Redirecting to dashboard...
+                            </div>
+                        }
+                        @if (errorMessage) {
+                            <div class="alert alert-danger text-center mb-3">{{ errorMessage }}</div>
+                        }
 
-                        <form *ngIf="!success" [formGroup]="changeForm" (ngSubmit)="onSubmit()" class="change-form">
+                        <form [formGroup]="changeForm" (ngSubmit)="onSubmit()" class="change-form">
+                            <app-password-strength class="w-100"></app-password-strength>
 
-                            <!-- New Password -->
-                            <mat-form-field appearance="outline" class="w-100">
-                                <mat-label>New Password</mat-label>
-                                <input matInput formControlName="newPassword"
-                                       [type]="hideNewPassword ? 'password' : 'text'"
-                                       placeholder="At least 8 characters" />
-                                <button matIconButton matSuffix (click)="hideNewPassword = !hideNewPassword" type="button">
-                                    <mat-icon class="material-icons-outlined">{{ hideNewPassword ? "visibility_off" : "visibility" }}</mat-icon>
-                                </button>
-                                <mat-error *ngIf="changeForm.get('newPassword')?.hasError('required')">Password is required</mat-error>
-                                <mat-error *ngIf="changeForm.get('newPassword')?.hasError('minlength')">Minimum 8 characters</mat-error>
-                                <mat-error *ngIf="changeForm.get('newPassword')?.hasError('pattern')">Must include uppercase, lowercase &amp; number</mat-error>
-                            </mat-form-field>
-
-                            <!-- Confirm Password -->
                             <mat-form-field appearance="outline" class="w-100">
                                 <mat-label>Confirm New Password</mat-label>
-                                <input matInput formControlName="confirmPassword"
-                                       [type]="hideConfirmPassword ? 'password' : 'text'"
-                                       placeholder="Confirm new password" />
+                                <input matInput formControlName="confirmPassword" [type]="hideConfirmPassword ? 'password' : 'text'" placeholder="Confirm new password" />
                                 <button matIconButton matSuffix (click)="hideConfirmPassword = !hideConfirmPassword" type="button">
                                     <mat-icon class="material-icons-outlined">{{ hideConfirmPassword ? "visibility_off" : "visibility" }}</mat-icon>
                                 </button>
-                                <mat-error *ngIf="changeForm.hasError('mismatch') && changeForm.get('confirmPassword')?.touched">
-                                    Passwords do not match
-                                </mat-error>
                             </mat-form-field>
 
-                            <!-- Error message -->
-                            <div *ngIf="errorMessage" style="color:#ef4444;font-size:13px;margin-bottom:12px">
-                                {{ errorMessage }}
-                            </div>
-
                             <button matButton="filled" color="primary" type="submit" class="w-100" [disabled]="changeForm.invalid || loading">
-                                {{ loading ? 'Saving…' : 'Update Password' }}
+                                {{ loading ? 'Updating...' : 'Update Password' }}
                             </button>
                         </form>
                     </mat-card-content>
                 </mat-card>
                 <div class="text-center">
-                    <p class="text-secondary mb-1">Do you remember your password?</p>
-                    <button matButton color="primary" routerLink="/auth/login" class="continue-button">
-                        <mat-icon class="material-icons-outlined">arrow_back</mat-icon>Back to Sign In
-                    </button>
+                    <p class="text-secondary mb-1">Do you know your password?</p>
+                    <button matButton color="primary" routerLink="/auth/login" class="continue-button"><mat-icon class="material-icons-outlined">arrow_back</mat-icon>Back to Sign In</button>
                 </div>
             </div>
         </div>
     `,
     styles: [``],
 })
-export class ChangePasswordComponent implements OnInit {
+export class ChangePasswordComponent {
     changeForm: FormGroup;
-    hideNewPassword = true;
     hideConfirmPassword = true;
     loading = false;
     success = false;
     errorMessage = '';
-
-    // Email received from forgot-password via navigation state
-    private email = '';
 
     constructor(
       private fb: FormBuilder,
@@ -107,28 +80,14 @@ export class ChangePasswordComponent implements OnInit {
       private cdr: ChangeDetectorRef
     ) {
         this.changeForm = this.fb.group({
-            newPassword: ["", [
-                Validators.required,
-                Validators.minLength(8),
-                Validators.pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/)
-            ]],
+            newPassword: ["", [Validators.required, Validators.minLength(8)]],
             confirmPassword: ["", [Validators.required]],
         }, { validators: passwordsMatch });
     }
 
-    ngOnInit() {
-        // Receive email from forgot-password page (passed via navigation state)
-        const st = history.state;
-        if (st?.email) {
-            this.email = st.email;
-        }
-    }
-
     onSubmit() {
-        if (this.changeForm.invalid) {
-            this.changeForm.markAllAsTouched();
-            return;
-        }
+        if (this.changeForm.invalid) return;
+
         const userId = this.authService.getUserId();
         if (!userId) {
             this.router.navigate(['/auth/login']);
@@ -140,7 +99,6 @@ export class ChangePasswordComponent implements OnInit {
         const newPassword = this.changeForm.value.newPassword;
         this.authService.changePassword(userId, newPassword).subscribe({
             next: () => {
-                // Clear mustChangePassword flag in cached user
                 const u = this.authService.currentUser();
                 if (u) this.authService.currentUser.set({ ...u, mustChangePassword: false });
                 this.loading = false;

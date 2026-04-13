@@ -10,6 +10,7 @@ import { filter } from "rxjs/operators";
 import { RouterOutlet } from "@angular/router";
 import { MatProgressBarModule } from "@angular/material/progress-bar";
 import { authInterceptor } from "./app/auth/auth.interceptor";
+import "@angular/compiler";
 
 if (environment.production) {
     enableProdMode();

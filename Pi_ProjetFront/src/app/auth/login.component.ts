@@ -1,7 +1,7 @@
 import { Component, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from './auth.service';
 
 @Component({
@@ -19,16 +19,17 @@ export class LoginComponent {
   loading  = false;
 
   // ── Étape 2FA ──────────────────────────────────────────────────────────────
-  step: 'credentials' | 'mfa' = 'credentials'; // étape courante
-  mfaCode    = '';                              // code 6 chiffres saisi par l'user
-  pendingUserId: number | null = null;          // userId en attente de vérification 2FA
+  step: 'credentials' | 'mfa' = 'credentials';
+  mfaCode    = '';
+  pendingUserId: number | null = null;
 
   // Comptes de test — retirer en production
   testAccounts = [
     { email: 'evenixgroup@gmail.com',      password: 'Esprit1234', role: 'ADMIN'    },
     { email: 'yosra.ben.alii17@gmail.com', password: 'Yosra123.',  role: 'ADMIN'    },
-    { email: 'manager@test.com',           password: 'manager123',  role: 'MANAGER'  },
-    { email: 'employee@test.com',          password: 'employee123', role: 'EMPLOYEE' },
+    { email: 'admin@test.com',             password: 'admin123',   role: 'ADMIN'    },
+    { email: 'manager@test.com',           password: 'manager123', role: 'MANAGER'  },
+    { email: 'employee@test.com',          password: 'employee123',role: 'EMPLOYEE' },
   ];
 
   constructor(

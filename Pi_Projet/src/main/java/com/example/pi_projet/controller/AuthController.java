@@ -3,8 +3,10 @@ package com.example.pi_projet.controller;
 import com.example.pi_projet.annotation.Authorized;
 import com.example.pi_projet.dto.AuthResponse;
 import com.example.pi_projet.dto.LoginRequest;
+import com.example.pi_projet.entity.OrganizationMember;
 import com.example.pi_projet.entity.Session;
 import com.example.pi_projet.entity.User;
+import com.example.pi_projet.repository.OrganizationMemberRepository;
 import com.example.pi_projet.repository.SessionRepository;
 import com.example.pi_projet.repository.UserRepository;
 import com.example.pi_projet.service.AuthService;
@@ -31,12 +33,13 @@ import java.util.Optional;
 @Tag(name = "Authentication", description = "Login, logout, session and Face ID endpoints")
 public class AuthController {
 
-    private final AuthService               authService;
-    private final TwoFactorService          twoFactorService;
-    private final MagicLinkService          magicLinkService;
-    private final UserRepository            userRepository;
-    private final SessionRepository         sessionRepository;
-    private final BCryptPasswordEncoder     passwordEncoder;
+    private final AuthService                   authService;
+    private final TwoFactorService              twoFactorService;
+    private final MagicLinkService              magicLinkService;
+    private final UserRepository                userRepository;
+    private final SessionRepository             sessionRepository;
+    private final OrganizationMemberRepository  organizationMemberRepository;
+    private final BCryptPasswordEncoder         passwordEncoder;
 
     // ── POST /api/auth/login ──────────────────────────────────────────────
     @Operation(summary = "Sign in with email + password")
@@ -126,6 +129,30 @@ public class AuthController {
                 user.getRole().name(),
                 Boolean.TRUE.equals(user.getMustChangePassword())
         ));
+    }
+
+    // ── GET /api/auth/me/organizations ────────────────────────────────────
+    @Authorized
+    @Operation(summary = "Get all organizations the current user belongs to")
+    @GetMapping("/me/organizations")
+    public ResponseEntity<?> meOrganizations(HttpServletRequest request) {
+        User user = (User) request.getAttribute("currentUser");
+        List<OrganizationMember> memberships =
+            organizationMemberRepository.findAllByUserIdAndDeletedAtIsNull(user.getId());
+        List<Map<String, Object>> result = memberships.stream()
+            .filter(m -> m.getOrganization() != null)
+            .map(m -> {
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("organizationId",   m.getOrganization().getId());
+                row.put("organizationName", m.getOrganization().getName());
+                row.put("organizationSlug", m.getOrganization().getSlug());
+                row.put("organizationType", m.getOrganization().getOrgType() != null
+                    ? m.getOrganization().getOrgType().name() : "ENTERPRISE");
+                row.put("membershipRole",   m.getRole() != null ? m.getRole().name() : "MEMBER");
+                return row;
+            })
+            .toList();
+        return ResponseEntity.ok(result);
     }
 
     // ── POST /api/auth/change-password ────────────────────────────────────
