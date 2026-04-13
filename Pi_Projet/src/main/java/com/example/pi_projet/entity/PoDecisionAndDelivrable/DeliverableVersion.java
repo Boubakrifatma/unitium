@@ -45,30 +45,17 @@ public class DeliverableVersion {
     @Enumerated(EnumType.STRING)
     private VirusScanStatus virusScanStatus;  // pending | clean | infected
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
         if (virusScanStatus == null) {
-            virusScanStatus = VirusScanStatus.PENDING;
+            virusScanStatus = VirusScanStatus.pending;
         }
         if (submittedAt == null) {
             submittedAt = LocalDateTime.now();
         }
     }
 
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
-
     public enum VirusScanStatus {
-        PENDING, CLEAN, INFECTED
+        pending, clean, infected
     }
 }

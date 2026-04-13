@@ -24,6 +24,10 @@ public interface DeliverableRepository extends JpaRepository<Deliverable, Long> 
     @Query("SELECT d FROM Deliverable d WHERE d.project.id = :projectId")
     List<Deliverable> findByProjectId(@Param("projectId") UUID projectId);
 
+    @EntityGraph(attributePaths = {"task", "task.milestone", "task.assignedTo", "project", "submittedBy"})
+    @Query("SELECT d FROM Deliverable d WHERE d.project.id = :projectId ORDER BY d.submittedAt DESC")
+    List<Deliverable> findByProjectIdWithMilestone(@Param("projectId") UUID projectId);
+
     @EntityGraph(attributePaths = {"task", "project", "submittedBy"})
     @Query("SELECT d FROM Deliverable d WHERE d.submittedBy.id = :userId")
     List<Deliverable> findBySubmittedById(@Param("userId") Long userId);

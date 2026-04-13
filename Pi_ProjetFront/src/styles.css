@@ -1,1 +1,19 @@
 /* You can add global styles to this file, and also import other style files */
+
+/* ── Notification toast bulle ─────────────────────────────────────────────── */
+.notif-snackbar-wrap .mat-mdc-snack-bar-container {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.notif-snackbar-wrap .mdc-snackbar__surface {
+  background: transparent !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35) !important;
+  border-radius: 12px !important;
+  padding: 0 !important;
+  min-width: unset !important;
+}
+.notif-snackbar-wrap .mat-mdc-snack-bar-label {
+  padding: 0 !important;
+}
+

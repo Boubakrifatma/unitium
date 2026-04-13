@@ -1,13 +1,15 @@
 package com.example.pi_projet.service;
 
-import com.example.pi_projet.dto.DeliverableCreateDto;
-import com.example.pi_projet.dto.DeliverableResponseDto;
+import com.example.pi_projet.dto.*;
 import com.example.pi_projet.entity.PoDecisionAndDelivrable.Deliverable;
 import com.example.pi_projet.entity.PoDecisionAndDelivrable.Deliverable.DeliverableStatus;
+import com.example.pi_projet.entity.PoDecisionAndDelivrable.DeliverableVersion;
 import com.example.pi_projet.entity.Project;
+import com.example.pi_projet.entity.TimeLineAndDeadLine.Milestone;
 import com.example.pi_projet.entity.TimeLineAndDeadLine.Task;
 import com.example.pi_projet.entity.User;
 import com.example.pi_projet.repository.DeliverableRepository;
+import com.example.pi_projet.repository.DeliverableVersionRepository;
 import com.example.pi_projet.repository.TaskRepository;
 import com.example.pi_projet.repository.ProjectRepository;
 import com.example.pi_projet.repository.UserRepository;
@@ -16,8 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,9 +27,11 @@ import java.util.stream.Collectors;
 public class DeliverableService {
 
     private final DeliverableRepository deliverableRepository;
+    private final DeliverableVersionRepository versionRepository;
     private final TaskRepository taskRepository;
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     // ═════════════════════════════════════════════════════════════════════════
     // CREATE
@@ -50,10 +53,15 @@ public class DeliverableService {
         User submittedBy = userRepository.findById(dto.getSubmittedById())
                 .orElseThrow(() -> new RuntimeException("User not found: " + dto.getSubmittedById()));
 
-        // Statut par défaut : draft si non fourni, sinon on parse
-        DeliverableStatus status = DeliverableStatus.draft;
+        // ✅ Statut par défaut : under_review (en révision) lors de la création
+        DeliverableStatus status = DeliverableStatus.under_review;
         if (dto.getStatus() != null && !dto.getStatus().isBlank()) {
-            status = DeliverableStatus.valueOf(dto.getStatus().toLowerCase());
+            try {
+                status = DeliverableStatus.valueOf(dto.getStatus().toLowerCase());
+            } catch (IllegalArgumentException e) {
+                // Si le statut fourni est invalide, on garde under_review par défaut
+                status = DeliverableStatus.under_review;
+            }
         }
 
         Deliverable deliverable = Deliverable.builder()
@@ -70,7 +78,12 @@ public class DeliverableService {
                 .submittedAt(LocalDateTime.now())
                 .build();
 
-        return mapToDto(deliverableRepository.save(deliverable));
+        Deliverable saved = deliverableRepository.save(deliverable);
+
+        // Notifier tous les managers qu'un nouveau livrable est soumis
+        notificationService.notifyManagersOnSubmission(saved, submittedBy);
+
+        return mapToDto(saved);
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -176,6 +189,123 @@ public class DeliverableService {
 
     public void deleteByProjectId(String projectId) {
         deliverableRepository.deleteByProjectId(UUID.fromString(projectId));
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // MANAGER VIEW - grouped by milestone then task
+    // ═════════════════════════════════════════════════════════════════════════
+
+    @Transactional(readOnly = true)
+    public List<MilestoneDeliverableGroupDto> getManagerView(String projectId) {
+        List<Deliverable> deliverables = deliverableRepository
+                .findByProjectIdWithMilestone(UUID.fromString(projectId));
+
+        // Separate deliverables with and without milestone
+        Map<Long, List<Deliverable>> byMilestone = new LinkedHashMap<>();
+        Map<Long, Milestone> milestoneMap = new LinkedHashMap<>();
+        List<Deliverable> noMilestone = new ArrayList<>();
+
+        for (Deliverable d : deliverables) {
+            Milestone m = d.getTask() != null ? d.getTask().getMilestone() : null;
+            if (m != null) {
+                byMilestone.computeIfAbsent(m.getId(), k -> new ArrayList<>()).add(d);
+                milestoneMap.put(m.getId(), m);
+            } else {
+                noMilestone.add(d);
+            }
+        }
+
+        List<MilestoneDeliverableGroupDto> result = new ArrayList<>();
+
+        // Build milestone groups
+        for (Map.Entry<Long, List<Deliverable>> entry : byMilestone.entrySet()) {
+            Milestone m = milestoneMap.get(entry.getKey());
+            result.add(MilestoneDeliverableGroupDto.builder()
+                    .milestoneId(m.getId())
+                    .milestoneName(m.getName())
+                    .milestoneDescription(m.getDescription())
+                    .milestoneStatus(m.getStatus().name())
+                    .dueDate(m.getDueDate())
+                    .completionPct(m.getCompletionPct())
+                    .tasks(buildTaskGroups(entry.getValue()))
+                    .build());
+        }
+
+        // Deliverables without milestone
+        if (!noMilestone.isEmpty()) {
+            result.add(MilestoneDeliverableGroupDto.builder()
+                    .milestoneId(null)
+                    .milestoneName("Sans milestone")
+                    .milestoneDescription(null)
+                    .milestoneStatus(null)
+                    .dueDate(null)
+                    .completionPct(null)
+                    .tasks(buildTaskGroups(noMilestone))
+                    .build());
+        }
+
+        return result;
+    }
+
+    private List<TaskDeliverableGroupDto> buildTaskGroups(List<Deliverable> deliverables) {
+        Map<Long, List<Deliverable>> byTask = deliverables.stream()
+                .collect(Collectors.groupingBy(
+                        d -> d.getTask().getId(),
+                        LinkedHashMap::new,
+                        Collectors.toList()));
+
+        return byTask.entrySet().stream().map(e -> {
+            Task task = e.getValue().get(0).getTask();
+            List<DeliverableWithVersionsDto> deliverableDtos = e.getValue().stream()
+                    .map(this::buildDeliverableWithVersions)
+                    .collect(Collectors.toList());
+            return TaskDeliverableGroupDto.builder()
+                    .taskId(task.getId())
+                    .taskTitle(task.getTitle())
+                    .taskStatus(task.getStatus().name())
+                    .assignedToName(task.getAssignedTo() != null ? task.getAssignedTo().getFullName() : null)
+                    .deliverables(deliverableDtos)
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
+    private DeliverableWithVersionsDto buildDeliverableWithVersions(Deliverable d) {
+        List<DeliverableVersion> versions = versionRepository.findByDeliverableId(d.getId());
+        List<DeliverableVersionDto> versionDtos = versions.stream()
+                .map(v -> DeliverableVersionDto.builder()
+                        .id(v.getId())
+                        .deliverableId(d.getId())
+                        .versionNumber(v.getVersionNumber())
+                        .fileUrl(v.getFileUrl())
+                        .fileSizeKb(v.getFileSizeKb())
+                        .changeSummary(v.getChangeSummary())
+                        .submittedById(v.getSubmittedBy().getId())
+                        .submittedByName(v.getSubmittedBy().getFullName())
+                        .submittedAt(v.getSubmittedAt())
+                        .virusScanStatus(v.getVirusScanStatus().name().toLowerCase())
+                        .build())
+                .collect(Collectors.toList());
+
+        return DeliverableWithVersionsDto.builder()
+                .deliverableId(d.getId())
+                .taskId(d.getTask().getId())
+                .taskTitle(d.getTask().getTitle())
+                .taskStatus(d.getTask().getStatus().name())
+                .taskDueDate(d.getTask().getDueDate())
+                .projectId(d.getProject().getId().toString())
+                .employeeId(d.getSubmittedBy().getId())
+                .employeeName(d.getSubmittedBy().getFullName())
+                .title(d.getTitle())
+                .description(d.getDescription())
+                .currentVersion(d.getCurrentVersion())
+                .overallStatus(d.getStatus().name())
+                .fileUrl(d.getFileUrl())
+                .fileType(d.getFileType())
+                .fileSizeKb(d.getFileSizeKb())
+                .submittedAt(d.getSubmittedAt())
+                .updatedAt(d.getUpdatedAt())
+                .versions(versionDtos)
+                .build();
     }
 
     // ═════════════════════════════════════════════════════════════════════════

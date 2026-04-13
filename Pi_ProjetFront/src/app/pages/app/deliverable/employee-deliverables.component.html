@@ -34,28 +34,45 @@
           <span class="pill-count">{{ deliverables().length }}</span>
         </button>
         
-        <button mat-stroked-button 
-                [class.active]="selectedStatus() === 'submitted'"
-                (click)="filterByStatus('submitted')"
+        <button mat-stroked-button
+                [class.active]="selectedStatus() === 'under_review'"
+                (click)="filterByStatus('under_review')"
                 class="filter-pill submitted">
-          <mat-icon>send</mat-icon>
-          Soumis
+          <mat-icon>hourglass_empty</mat-icon>
+          En révision
         </button>
-        
-        <button mat-stroked-button 
+
+        <button mat-stroked-button
+                [class.active]="selectedStatus() === 'manager_viewed'"
+                (click)="filterByStatus('manager_viewed')"
+                class="filter-pill manager-viewed">
+          <mat-icon>visibility</mat-icon>
+          Vu par le manager
+        </button>
+
+
+        <button mat-stroked-button
                 [class.active]="selectedStatus() === 'revision_required'"
                 (click)="filterByStatus('revision_required')"
                 class="filter-pill revision">
           <mat-icon>rate_review</mat-icon>
           À Réviser
         </button>
-        
-        <button mat-stroked-button 
+
+        <button mat-stroked-button
                 [class.active]="selectedStatus() === 'accepted_by_manager'"
                 (click)="filterByStatus('accepted_by_manager')"
                 class="filter-pill accepted">
           <mat-icon>check_circle</mat-icon>
           Acceptés
+        </button>
+
+        <button mat-stroked-button
+                [class.active]="selectedStatus() === 'validated'"
+                (click)="filterByStatus('validated')"
+                class="filter-pill validated">
+          <mat-icon>verified</mat-icon>
+          Validés
         </button>
       </div>
     </div>
@@ -108,15 +125,12 @@
           <mat-icon>inbox</mat-icon>
         </div>
         <h3>Aucun livrable trouvé</h3>
-        <p *ngIf="selectedStatus() !== null">
-          Aucun livrable avec le statut "{{ deliverableService.getStatusLabel(selectedStatus()!) }}" pour le moment.
-        </p>
-        <p *ngIf="selectedStatus() === null">
-          Vous n'avez encore soumis aucun livrable.
-        </p>
-        <button *ngIf="selectedStatus() !== null" mat-stroked-button (click)="filterByStatus(null)">
-          Voir tous les livrables
-        </button>
+        @if (selectedStatus() !== null) {
+          <p>Aucun livrable avec le statut "{{ deliverableService.getStatusLabel(selectedStatus()!) }}" pour le moment.</p>
+          <button mat-stroked-button (click)="filterByStatus(null)">Voir tous les livrables</button>
+        } @else {
+          <p>Vous n'avez encore soumis aucun livrable.</p>
+        }
       </div>
     </div>
   }
@@ -127,11 +141,11 @@
       @for (deliverable of filteredDeliverables(); track deliverable.id) {
         <mat-card class="deliverable-card" (click)="viewDetails(deliverable)">
           <!-- Status Badge with Glassmorphism -->
-          <div class="status-badge" 
-               [style.background]="deliverableService.getStatusColor(deliverable.status)"
-               [style.boxShadow]="'0 8px 20px ' + deliverableService.getStatusColor(deliverable.status) + '40'">
-            <mat-icon class="status-icon">{{ getStatusIcon(deliverable.status) }}</mat-icon>
-            <span>{{ deliverableService.getStatusLabel(deliverable.status) }}</span>
+          <div class="status-badge"
+               [style.background]="deliverableService.getStatusColor(getEffectiveStatus(deliverable))"
+               [style.boxShadow]="'0 8px 20px ' + deliverableService.getStatusColor(getEffectiveStatus(deliverable)) + '40'">
+            <mat-icon class="status-icon">{{ getStatusIcon(getEffectiveStatus(deliverable)) }}</mat-icon>
+            <span>{{ deliverableService.getStatusLabel(getEffectiveStatus(deliverable)) }}</span>
           </div>
 
           <!-- Version Badge -->
@@ -203,7 +217,11 @@
             </button>
 
             @if (deliverable.fileUrl) {
-              <a mat-stroked-button [href]="deliverable.fileUrl" target="_blank" (click)="$event.stopImmediatePropagation()">
+              <a mat-stroked-button
+                 [href]="deliverableService.getDownloadUrl(deliverable.fileUrl)"
+                 target="_blank"
+                 download
+                 (click)="$event.stopImmediatePropagation()">
                 <mat-icon>download</mat-icon>
                 Télécharger
               </a>

@@ -2,11 +2,16 @@ package com.example.pi_projet.controller;
 
 import com.example.pi_projet.dto.DeliverableCreateDto;
 import com.example.pi_projet.dto.DeliverableResponseDto;
+import com.example.pi_projet.dto.MilestoneDeliverableGroupDto;
 import com.example.pi_projet.service.DeliverableService;
+import com.example.pi_projet.service.FileStorageService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -16,11 +21,48 @@ import java.util.List;
 public class DeliverableController {
 
     private final DeliverableService deliverableService;
+    private final FileStorageService fileStorageService;
 
     // ─── POST /api/deliverables ───────────────────────────────────────────────
     // Business rule enforced in service: task.status must be 'done'
     @PostMapping
     public ResponseEntity<DeliverableResponseDto> create(@RequestBody DeliverableCreateDto dto) {
+        return ResponseEntity.ok(deliverableService.create(dto));
+    }
+
+    // ─── POST /api/deliverables/upload ───────────────────────────────────────
+    // Convenience: uploads the file and creates the deliverable in one request.
+    // Sends multipart/form-data with:
+    //   - file       (required)  the deliverable file
+    //   - taskId     (required)
+    //   - projectId  (required)
+    //   - submittedById (required)
+    //   - title      (required)
+    //   - description (optional)
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<DeliverableResponseDto> uploadAndCreate(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("taskId") Long taskId,
+            @RequestParam("projectId") String projectId,
+            @RequestParam("submittedById") Long submittedById,
+            @RequestParam("title") String title,
+            @RequestParam(value = "description", required = false) String description
+    ) throws IOException {
+        if (file.isEmpty()) return ResponseEntity.badRequest().build();
+
+        String storedName = fileStorageService.store(file);
+        String fileUrl = "/api/files/deliverables/" + storedName;
+
+        DeliverableCreateDto dto = new DeliverableCreateDto();
+        dto.setTaskId(taskId);
+        dto.setProjectId(projectId);
+        dto.setSubmittedById(submittedById);
+        dto.setTitle(title);
+        dto.setDescription(description);
+        dto.setFileUrl(fileUrl);
+        dto.setFileType(file.getContentType());
+        dto.setFileSizeKb(Math.max(1L, file.getSize() / 1024));
+
         return ResponseEntity.ok(deliverableService.create(dto));
     }
 
@@ -46,6 +88,13 @@ public class DeliverableController {
     @GetMapping("/project/{projectId}")
     public ResponseEntity<List<DeliverableResponseDto>> getByProject(@PathVariable String projectId) {
         return ResponseEntity.ok(deliverableService.getByProjectId(projectId));
+    }
+
+    // ─── GET /api/deliverables/project/{projectId}/manager-view ──────────────
+    // Returns deliverables grouped by milestone > task, with all versions
+    @GetMapping("/project/{projectId}/manager-view")
+    public ResponseEntity<List<MilestoneDeliverableGroupDto>> getManagerView(@PathVariable String projectId) {
+        return ResponseEntity.ok(deliverableService.getManagerView(projectId));
     }
 
     // ─── GET /api/deliverables/user/{userId} ──────────────────────────────────

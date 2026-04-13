@@ -1,208 +1,158 @@
-import { Component, Input, signal, inject, computed } from "@angular/core";
-import { CommonModule, NgFor, NgIf } from "@angular/common";
-import { LiveAnnouncer } from "@angular/cdk/a11y";
-import { COMMA, ENTER } from "@angular/cdk/keycodes";
+import { Component } from "@angular/core";
+import { CommonModule } from "@angular/common";
 import { MatListModule } from "@angular/material/list";
 import { MatIconModule } from "@angular/material/icon";
-import { RouterModule } from "@angular/router";
-import { MatExpansionModule } from "@angular/material/expansion";
-import { MatDrawer, MatSidenavModule } from "@angular/material/sidenav";
 import { MatButtonModule } from "@angular/material/button";
 import { MatTabsModule } from "@angular/material/tabs";
-import { MatBadge, MatBadgeModule } from "@angular/material/badge";
-import { MatButtonToggleModule } from "@angular/material/button-toggle";
-import { MatChipEditedEvent, MatChipInputEvent, MatChipsModule } from "@angular/material/chips";
-import { MatFormFieldModule } from "@angular/material/form-field";
-import { MatInputModule } from "@angular/material/input";
-import { MatStepperModule } from "@angular/material/stepper";
-import { MatCardModule } from "@angular/material/card";
-import { MatSelect, MatSelectModule } from "@angular/material/select";
-
-export interface Keywords {
-    name: string;
-}
+import { MatBadgeModule } from "@angular/material/badge";
+import { NotificationService } from "../../services/notification.service";
 
 @Component({
     selector: "app-notification-sidenav",
     standalone: true,
-    imports: [CommonModule, MatListModule, MatIconModule, RouterModule, MatSidenavModule, MatButtonToggleModule, MatSelectModule, MatCardModule, MatStepperModule, MatFormFieldModule, MatChipsModule, MatInputModule, MatBadgeModule, MatTabsModule, MatButtonModule, MatExpansionModule],
+    imports: [CommonModule, MatListModule, MatIconModule, MatBadgeModule, MatTabsModule, MatButtonModule],
     template: `
-        <div class="sidebar height-dynamic" style="--h-dynamic: calc(100% - 64px)">
+        <div class="sidebar height-dynamic" style="--h-dynamic: calc(100% - 64px); overflow-y:auto">
+
+            <!-- Header avec badge -->
+            <div class="d-flex justify-content-between align-items-center px-3 pt-3 pb-2">
+                <div class="d-flex align-items-center gap-2">
+                    <mat-icon>notifications</mat-icon>
+                    <span class="fw-bold fs-6">Notifications</span>
+                    @if (notifService.unreadCount() > 0) {
+                        <span class="badge rounded-pill bg-danger" style="font-size:11px">
+                            {{ notifService.unreadCount() }} non lue(s)
+                        </span>
+                    }
+                </div>
+                @if (notifService.unreadCount() > 0) {
+                    <button mat-button class="button-sm" (click)="notifService.markAllAsRead()">
+                        Tout marquer lu
+                    </button>
+                }
+            </div>
+
             <mat-tab-group>
-                <mat-tab label="All">
+                <!-- Onglet Non lues -->
+                <mat-tab>
+                    <ng-template mat-tab-label>
+                        Non lues
+                        @if (notifService.unreadCount() > 0) {
+                            <span class="badge rounded-pill bg-danger ms-1" style="font-size:10px">
+                                {{ notifService.unreadCount() }}
+                            </span>
+                        }
+                    </ng-template>
                     <mat-list>
-                        @for (notification of allNotifications(); track notification.id) {
-                        <mat-list-item>
-                            <div class="row gx-3">
-                                <div class="col-auto">
-                                    <div class="avatar avatar-40 bg-light-theme text-theme rounded" [ngClass]="{ 'theme-red': notification.type === 'system', 'theme-yellow': notification.type === 'comment', 'theme-blue': notification.type === 'sale', 'theme-green': notification.type === 'taskStatus' }">
-                                        <mat-icon matListItemIcon>{{ notification.icon }}</mat-icon>
-                                    </div>
-                                </div>
-                                <div class="col maxwidth-dynamic" style="--mw-dynamic:calc(100% - 40px - 1rem)">
-                                    <h4 matListItemTitle class="fw-bold mb-0">{{ notification.title }}</h4>
-                                    <p matListItemLine class="mb-0">{{ notification.text }}</p>
-                                    <div matListItemLine class="small opacity-75 mb-3">{{ notification.timestamp | date : "shortTime" }}</div>
-                                    @if (notification.type === 'sale') {
-                                    <div matListItemActions class="mb-3">
-                                        <button matButton="filled" class="button-sm">Approve</button>
-                                        <button matButton class="theme-red mx-1 button-sm">Reject</button>
-                                    </div>
-                                    } @else if (notification.type === 'comment') {
-                                    <div matListItemActions class="mb-3">
-                                        <button matButton="filled" class="button-sm">Reply</button>
-                                    </div>
-                                    } @else if (notification.type === 'request') {
-                                    <div matListItemActions class="mb-3">
-                                        <button matButton="filled" class="button-sm">Approve</button>
-                                        <button mat-button class="theme-red button-sm">Reject</button>
-                                    </div>
-                                    }
-                                </div>
+                        @if (notifService.unreadNotifications().length === 0) {
+                            <div class="text-center py-4 opacity-50 small">
+                                <mat-icon style="font-size:32px;height:32px;width:32px">notifications_none</mat-icon>
+                                <p class="mt-1">Aucune notification non lue</p>
                             </div>
-                        </mat-list-item>
+                        }
+                        @for (n of notifService.unreadNotifications(); track n.id) {
+                            <mat-list-item (click)="notifService.markAsRead(n.id)" style="cursor:pointer; height:auto">
+                                <div class="row gx-2 align-items-start py-2 w-100">
+                                    <div class="col-auto">
+                                        <div class="avatar avatar-36 rounded-circle d-flex align-items-center justify-content-center"
+                                             [style.background]="iconBg(n.eventType)">
+                                            <mat-icon style="font-size:18px;height:18px;width:18px;color:#fff">
+                                                {{ iconFor(n.eventType) }}
+                                            </mat-icon>
+                                        </div>
+                                    </div>
+                                    <div class="col">
+                                        <div class="fw-bold small">{{ n.title }}</div>
+                                        <div class="small opacity-75 text-wrap">{{ n.message }}</div>
+                                        <div class="small opacity-50 mt-1">{{ n.createdAt | date:'dd/MM/yyyy HH:mm' }}</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <span class="rounded-circle bg-primary d-block"
+                                              style="width:8px;height:8px;margin-top:6px"></span>
+                                    </div>
+                                </div>
+                            </mat-list-item>
                         }
                     </mat-list>
                 </mat-tab>
-                <mat-tab [label]="'Unread (' + unreadNotifications().length + ')'">
+
+                <!-- Onglet Toutes -->
+                <mat-tab label="Toutes">
                     <mat-list>
-                        @for (notification of unreadNotifications(); track notification.id) {
-                        <mat-list-item>
-                            <div class="row gx-3 flex-nowrap">
-                                <div class="col-auto">
-                                    <div class="avatar avatar-40 bg-light-theme text-theme rounded" [ngClass]="{ 'theme-red': notification.type === 'system', 'theme-yellow': notification.type === 'comment', 'theme-blue': notification.type === 'sale', 'theme-green': notification.type === 'taskStatus' }">
-                                        <mat-icon matListItemIcon>{{ notification.icon }}</mat-icon>
+                        @if (notifService.notifications().length === 0) {
+                            <div class="text-center py-4 opacity-50 small">
+                                <mat-icon style="font-size:32px;height:32px;width:32px">notifications_none</mat-icon>
+                                <p class="mt-1">Aucune notification</p>
+                            </div>
+                        }
+                        @for (n of notifService.notifications(); track n.id) {
+                            <mat-list-item (click)="!n.isRead && notifService.markAsRead(n.id)"
+                                           [style.cursor]="!n.isRead ? 'pointer' : 'default'"
+                                           [style.background]="!n.isRead ? 'rgba(99,102,241,0.05)' : 'transparent'"
+                                           style="height:auto">
+                                <div class="row gx-2 align-items-start py-2 w-100">
+                                    <div class="col-auto">
+                                        <div class="avatar avatar-36 rounded-circle d-flex align-items-center justify-content-center"
+                                             [style.background]="iconBg(n.eventType)"
+                                             [style.opacity]="n.isRead ? '0.5' : '1'">
+                                            <mat-icon style="font-size:18px;height:18px;width:18px;color:#fff">
+                                                {{ iconFor(n.eventType) }}
+                                            </mat-icon>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col">
-                                    <h4 matListItemTitle class="fw-bold mb-0">{{ notification.title }}</h4>
-                                    <div matListItemLine>{{ notification.text }}</div>
-                                    <div matListItemLine class="small opacity-75 mb-3">{{ notification.timestamp | date : "shortTime" }}</div>
-                                    @if (notification.type === 'sale') {
-                                    <div matListItemActions class="mb-3">
-                                        <button matButton="filled" class="button-sm">Approve</button>
-                                        <button mat-button class="theme-red button-sm">Reject</button>
+                                    <div class="col">
+                                        <div [class.fw-bold]="!n.isRead" class="small">{{ n.title }}</div>
+                                        <div class="small opacity-75 text-wrap">{{ n.message }}</div>
+                                        <div class="small opacity-50 mt-1">{{ n.createdAt | date:'dd/MM/yyyy HH:mm' }}</div>
                                     </div>
-                                    } @else if (notification.type === 'comment') {
-                                    <div matListItemActions class="mb-3">
-                                        <button matButton="filled" class="button-sm">Reply</button>
-                                    </div>
-                                    } @else if (notification.type === 'request') {
-                                    <div matListItemActions class="mb-3">
-                                        <button matButton="filled" class="button-sm">Approve</button>
-                                        <button mat-button class="theme-red button-sm">Reject</button>
-                                    </div>
+                                    @if (!n.isRead) {
+                                        <div class="col-auto">
+                                            <span class="rounded-circle bg-primary d-block"
+                                                  style="width:8px;height:8px;margin-top:6px"></span>
+                                        </div>
                                     }
                                 </div>
-                            </div>
-                        </mat-list-item>
-                        }
-                    </mat-list>
-                </mat-tab>
-                <mat-tab label="Systems">
-                    <mat-list>
-                        @for (notification of systemNotifications(); track notification.id) {
-                        <mat-list-item>
-                            <div class="row gx-3">
-                                <div class="col-auto">
-                                    <div class="avatar avatar-40 bg-light-theme text-theme rounded" [ngClass]="{ 'theme-red': notification.type === 'system', 'theme-yellow': notification.type === 'comment', 'theme-blue': notification.type === 'sale' }">
-                                        <mat-icon matListItemIcon>{{ notification.icon }}</mat-icon>
-                                    </div>
-                                </div>
-                                <div class="col">
-                                    <h4 matListItemTitle class="fw-bold mb-0">{{ notification.title }}</h4>
-                                    <div matListItemLine>{{ notification.text }}</div>
-                                    <div matListItemLine class="small opacity-75 mb-3">{{ notification.timestamp | date : "shortTime" }}</div>
-                                </div>
-                            </div>
-                        </mat-list-item>
+                            </mat-list-item>
                         }
                     </mat-list>
                 </mat-tab>
             </mat-tab-group>
         </div>
     `,
-    styles: [
-        `
-            mat-list mat-list-item {
-                border-bottom: 1px dashed rgba(180, 180, 180, 0.5);
-            }
-        `,
-    ],
+    styles: [`
+        mat-list mat-list-item {
+            border-bottom: 1px dashed rgba(180, 180, 180, 0.5);
+        }
+    `],
 })
 export class NotificationSidenavComponent {
-    value = "";
-    // notifications data
-    private notifications = signal([
-        { id: 1, type: "taskStatus", title: "Task Moved", text: "#021 moved to ready-to-test by Jia Doe.", icon: "assignment", timestamp: new Date(), read: false },
-        { id: 2, type: "request", title: "Leave request", text: "Leave request raised by by Liana Doe.", icon: "event", timestamp: new Date(), read: false },
-        { id: 3, type: "sale", title: "New Sale!", text: "Order #12345 has been placed.", icon: "attach_money", timestamp: new Date(), read: false },
-        { id: 4, type: "comment", title: "New Comment", text: "Someone commented on your latest post.", icon: "comment", timestamp: new Date(Date.now() - 60000), read: false },
-        { id: 5, type: "system", title: "System Update", text: "A new feature has been deployed.", icon: "system_update", timestamp: new Date(Date.now() - 120000), read: true },
-        { id: 6, type: "sale", title: "Sale Completed", text: "Order #12344 has been shipped.", icon: "shopping_bag", timestamp: new Date(Date.now() - 180000), read: true },
-        { id: 7, type: "system", title: "System Downtime", text: "Scheduled maintenance from 2-4 AM.", icon: "warning", timestamp: new Date(Date.now() - 240000), read: false },
-    ]);
+    constructor(public notifService: NotificationService) {}
 
-    allNotifications = this.notifications.asReadonly();
-
-    unreadNotifications = computed(() => this.notifications().filter((n) => !n.read));
-
-    systemNotifications = computed(() => this.notifications().filter((n) => n.type === "system"));
-
-    // button group
-    hideSingleSelectionIndicator = signal(false);
-    toggleSingleSelectionIndicator() {
-        this.hideSingleSelectionIndicator.update((value) => !value);
-    }
-
-    // mat chips
-    readonly addOnBlur = true;
-    readonly separatorKeysCodes = [ENTER, COMMA] as const;
-    readonly Keywords = signal<Keywords[]>([{ name: "Transaction" }, { name: "Income" }, { name: "Expense" }]);
-    readonly announcer = inject(LiveAnnouncer);
-
-    add(event: MatChipInputEvent): void {
-        const value = (event.value || "").trim();
-
-        // Add our Keyword
-        if (value) {
-            this.Keywords.update((Keywords) => [...Keywords, { name: value }]);
+    iconFor(eventType: string): string {
+        switch (eventType) {
+            case 'SUBMITTED_TO_MANAGER':         return 'upload_file';
+            case 'MANAGER_VIEWED':               return 'visibility';
+            case 'ACCEPTED_BY_MANAGER':          return 'check_circle';
+            case 'REVISION_REQUIRED_BY_MANAGER': return 'edit_note';
+            case 'VALIDATED_BY_PO':              return 'verified';
+            case 'VALIDATED_EMPLOYEE':           return 'emoji_events';
+            case 'REJECTED_BY_PO':               return 'cancel';
+            case 'REVISION_REQUIRED_BY_PO':      return 'replay';
+            default:                             return 'notifications';
         }
-
-        // Clear the input value
-        event.chipInput!.clear();
     }
 
-    remove(Keyword: Keywords): void {
-        this.Keywords.update((Keywords) => {
-            const index = Keywords.indexOf(Keyword);
-            if (index < 0) {
-                return Keywords;
-            }
-
-            Keywords.splice(index, 1);
-            this.announcer.announce(`Removed ${Keyword.name}`);
-            return [...Keywords];
-        });
-    }
-
-    edit(Keyword: Keywords, event: MatChipEditedEvent) {
-        const value = event.value.trim();
-
-        // Remove Keyword if it no longer has a name
-        if (!value) {
-            this.remove(Keyword);
-            return;
+    iconBg(eventType: string): string {
+        switch (eventType) {
+            case 'SUBMITTED_TO_MANAGER':         return '#6366f1';
+            case 'MANAGER_VIEWED':               return '#8b5cf6';
+            case 'ACCEPTED_BY_MANAGER':          return '#22c55e';
+            case 'REVISION_REQUIRED_BY_MANAGER': return '#f59e0b';
+            case 'VALIDATED_BY_PO':              return '#06b6d4';
+            case 'VALIDATED_EMPLOYEE':           return '#10b981';
+            case 'REJECTED_BY_PO':               return '#ef4444';
+            case 'REVISION_REQUIRED_BY_PO':      return '#f97316';
+            default:                             return '#6366f1';
         }
-
-        // Edit existing Keyword
-        this.Keywords.update((Keywords) => {
-            const index = Keywords.indexOf(Keyword);
-            if (index >= 0) {
-                Keywords[index].name = value;
-                return [...Keywords];
-            }
-            return Keywords;
-        });
     }
 }

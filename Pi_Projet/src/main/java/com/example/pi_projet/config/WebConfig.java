@@ -26,11 +26,13 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addInterceptor(sessionInterceptor)
                 .addPathPatterns("/api/**")
                 .excludePathPatterns(
-                    "/api/auth/login",            // login public
-                    "/api/auth/change-password",  // changement mot de passe 1er login
-                    "/api/billing/payment",        // soumission paiement public
-                    "/api/billing/payment/*",      // statut paiement public
-                    "/api/billing/plans",          // liste plans publique
+                    "/api/auth/login",
+                    "/api/auth/change-password",
+                    "/api/billing/payment",
+                    "/api/billing/payment/*",
+                    "/api/billing/plans",
+                    "/api/files/**",
+                    "/api/deliverable-notifications/stream", // SSE : EventSource ne peut pas envoyer Bearer
                     "/swagger-ui/**",
                     "/v3/api-docs/**"
                 );

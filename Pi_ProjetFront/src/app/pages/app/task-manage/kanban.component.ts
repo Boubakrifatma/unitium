@@ -51,6 +51,8 @@ export interface TaskItem {
   assignHours:     string;
   loggedHours:     string;
   dueDate:         string;
+  hasDeliverable?: boolean;  // ✅ Indique si la tâche a un livrable
+  deliverableId?:  number;   // ✅ ID du livrable associé
 }
 
 @Component({
@@ -81,6 +83,7 @@ export class KanbanComponent implements OnInit {
   error                = signal('');
   selectedProjectId    = signal<string>('all');
   dialogLoading        = signal(false);
+  taskDeliverables     = signal<Map<number, { hasDeliverable: boolean; deliverableId?: number }>>(new Map());
 
   // ── Projets distincts extraits des tâches ──────────────────────
   projectList = computed(() => {
@@ -135,7 +138,12 @@ export class KanbanComponent implements OnInit {
     this.error.set('');
     this.taskService.getMyTasks().subscribe({
       next: (data: TaskResponseDto[]) => {
-        this.tasks.set(data.map(t => this.mapToTaskItem(t)));
+        const mappedTasks = data.map(t => this.mapToTaskItem(t));
+        this.tasks.set(mappedTasks);
+        
+        // ✅ Charger les livrables pour chaque tâche
+        this.loadTaskDeliverables(mappedTasks);
+        
         // ✅ Sélectionner automatiquement le premier projet
         const first = this.projectList()[0];
         if (first) this.selectedProjectId.set(first.id);
@@ -149,6 +157,32 @@ export class KanbanComponent implements OnInit {
     });
   }
 
+  // ── Charger les livrables pour chaque tâche ────────────────────
+  private loadTaskDeliverables(tasks: TaskItem[]) {
+    const deliverableMap = new Map<number, { hasDeliverable: boolean; deliverableId?: number }>();
+    
+    tasks.forEach(task => {
+      this.deliverableService.getByTaskId(task.taskId).subscribe({
+        next: (deliverables) => {
+          if (deliverables && deliverables.length > 0) {
+            deliverableMap.set(task.taskId, {
+              hasDeliverable: true,
+              deliverableId: deliverables[0].id
+            });
+          } else {
+            deliverableMap.set(task.taskId, { hasDeliverable: false });
+          }
+          this.taskDeliverables.set(new Map(deliverableMap));
+        },
+        error: (err) => {
+          console.error(`Error loading deliverables for task ${task.taskId}:`, err);
+          deliverableMap.set(task.taskId, { hasDeliverable: false });
+          this.taskDeliverables.set(new Map(deliverableMap));
+        }
+      });
+    });
+  }
+
   // ── Changer de projet ──────────────────────────────────────────
   selectProject(projectId: string) {
     this.selectedProjectId.set(projectId);
@@ -156,6 +190,7 @@ export class KanbanComponent implements OnInit {
 
   // ── Mapping backend → frontend ─────────────────────────────────
   private mapToTaskItem(t: TaskResponseDto): TaskItem {
+    const deliverableInfo = this.taskDeliverables().get(t.id);
     return {
       taskId:          t.id,
       projectId:       t.projectId ?? '',
@@ -170,7 +205,23 @@ export class KanbanComponent implements OnInit {
       assignHours:     t.estimatedHours != null ? `${t.estimatedHours}h` : '0h',
       loggedHours:     t.actualHours    != null ? `${t.actualHours}h`    : '0h',
       dueDate:         t.dueDate ?? '',
+      hasDeliverable:  deliverableInfo?.hasDeliverable ?? false,
+      deliverableId:   deliverableInfo?.deliverableId,
     };
+  }
+
+  /**
+   * Vérifie si une tâche a un livrable
+   */
+  hasDeliverable(taskId: number): boolean {
+    return this.taskDeliverables().get(taskId)?.hasDeliverable ?? false;
+  }
+
+  /**
+   * Récupère l'ID du livrable d'une tâche
+   */
+  getDeliverableId(taskId: number): number | undefined {
+    return this.taskDeliverables().get(taskId)?.deliverableId;
   }
 
   private mapStatus(status: string): TaskStatus {
@@ -266,7 +317,7 @@ export class KanbanComponent implements OnInit {
   }
 
   // ── Open Deliverable Dialog ────────────────────────────────────
-  openDeliverableDialog(task: TaskItem) {
+  openDeliverableDialog(task: TaskItem, mode: 'create' | 'add-version' = 'create') {
     this.dialogLoading.set(true);
 
     // Load only users and projects (we already have tasks from current view)
@@ -287,14 +338,19 @@ export class KanbanComponent implements OnInit {
         const assignedUser = activeUsers.find(u => u.email === task.assignedToEmail);
         const userId = assignedUser?.id || 1; // Fallback to 1 if not found
 
-        // Open dialog with assignedTo user ID
+        // Determine mode based on whether task has deliverable
+        const hasExistingDeliverable = this.hasDeliverable(task.taskId);
+        const dialogMode = hasExistingDeliverable ? 'add-version' : 'create';
+        const deliverableId = this.getDeliverableId(task.taskId);
+
+        // Open dialog with appropriate mode
         const dialogRef = this.dialog.open(DeliverableDialogComponent, {
           width: '600px',
           maxWidth: '95vw',
           autoFocus: false,
           panelClass: 'custom-dialog-container',
           data: {
-            mode: 'create',
+            mode: dialogMode,
             deliverable: null,
             tasks: completedTasks.map(t => ({
               id: t.taskId,
@@ -303,15 +359,18 @@ export class KanbanComponent implements OnInit {
             })),
             users: activeUsers,
             projects: projects,
-            currentUserId: userId,  // ✅ Uses assignedTo from task
+            currentUserId: userId,
             currentProjectId: task.projectId,
+            deliverableId: deliverableId,  // ✅ Pass deliverableId for version creation
+            hasExistingDeliverable: hasExistingDeliverable,
           } satisfies DeliverableFormData,
         });
 
         dialogRef.afterClosed().subscribe(saved => {
           if (saved) {
-            console.log('Deliverable created successfully');
-            // Optional: reload deliverables list
+            console.log('Deliverable action completed successfully');
+            // Refresh deliverables info
+            this.loadTaskDeliverables(this.tasks());
           }
         });
       },

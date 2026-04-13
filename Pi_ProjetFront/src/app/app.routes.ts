@@ -82,7 +82,19 @@ export const routes: Routes = [
     loadComponent: () =>
         import("./pages/app/deliverable/Employee-deliverables.component")
         .then(m => m.EmployeeDeliverablesComponent)
-},
+  },
+  {
+    path: 'manager-deliverables',
+    loadComponent: () =>
+        import("./pages/app/deliverable/manager-deliverables.component")
+        .then(m => m.ManagerDeliverablesComponent)
+  },
+  {
+    path: 'mes-fichiers',
+    loadComponent: () =>
+        import("./pages/app/deliverable/employee-files.component")
+        .then(m => m.EmployeeFilesComponent)
+  },
             {
                 path: "employee",
                 loadComponent: () => import("./pages/app/employee/employee.component").then((c) => c.EmployeeComponent),
@@ -200,6 +212,10 @@ export const routes: Routes = [
             {
                 path: "po",
                 loadComponent: () => import("./pages/app/po/po-dashboard.component").then((c) => c.PoDashboardComponent),
+            },
+            {
+                path: "po-deliverables",
+                loadComponent: () => import("./pages/app/po/po-deliverables.component").then((c) => c.PoDeliverablesComponent),
             },
             
         ],

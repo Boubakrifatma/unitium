@@ -1,13 +1,22 @@
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { Subject, takeUntil, interval } from 'rxjs';
 
 import { DeliverableService, Deliverable } from '../../../services/Deliverable.service';
 import { DeliverableDetailDialogComponent } from './deliverable-detail-dialog.component';
+import { NotificationService } from '../../../services/notification.service';
+
+const STATUS_CHANGE_EVENTS = new Set([
+  'ACCEPTED_BY_MANAGER',
+  'REVISION_REQUIRED_BY_MANAGER',
+  'VALIDATED_EMPLOYEE',
+  'REVISION_REQUIRED_BY_PO',
+]);
 
 @Component({
   selector: 'app-employee-deliverables',
@@ -19,36 +28,97 @@ import { DeliverableDetailDialogComponent } from './deliverable-detail-dialog.co
     MatBadgeModule,
     MatIconModule,
     MatDialogModule,
-    
   ],
   templateUrl: './employee-deliverables.component.html',
   styleUrls: ['./employee-deliverables.component.scss']
 })
-export class EmployeeDeliverablesComponent implements OnInit {
+export class EmployeeDeliverablesComponent implements OnInit, OnDestroy {
 
   private dialog = inject(MatDialog);
+  private destroy$ = new Subject<void>();
 
   deliverables = signal<Deliverable[]>([]);
   loading = signal(true);
   error = signal<string | null>(null);
   selectedStatus = signal<string | null>(null);
 
+  /**
+   * IDs des livrables dont le manager a ouvert la review.
+   * Calculé depuis les notifications existantes (signal réactif).
+   */
+  managerViewedIds = computed(() =>
+    new Set(
+      this.notificationService.notifications()
+        .filter(n => n.eventType === 'MANAGER_VIEWED' && n.deliverableId !== null)
+        .map(n => n.deliverableId as number)
+    )
+  );
+
+  /** Retourne le statut effectif : 'manager_viewed' si notifié, sinon le statut réel */
+  getEffectiveStatus(deliverable: Deliverable): string {
+    if (deliverable.status === 'under_review' && this.managerViewedIds().has(deliverable.id)) {
+      return 'manager_viewed';
+    }
+    return deliverable.status;
+  }
+
   filteredDeliverables = computed(() => {
     const status = this.selectedStatus();
     const all = this.deliverables();
-    return status ? all.filter(d => d.status === status) : all;
+    if (!status) return all;
+    // Pour le filtre 'manager_viewed', on filtre via getEffectiveStatus
+    if (status === 'manager_viewed') {
+      return all.filter(d => this.getEffectiveStatus(d) === 'manager_viewed');
+    }
+    return all.filter(d => d.status === status);
   });
 
-  constructor(public deliverableService: DeliverableService) {}
+  constructor(
+    public deliverableService: DeliverableService,
+    private notificationService: NotificationService
+  ) {}
 
   ngOnInit(): void {
     this.loadDeliverables();
+
+    // Recharger quand un changement de statut réel arrive via SSE
+    this.notificationService.newNotification$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(notif => {
+        if (STATUS_CHANGE_EVENTS.has(notif.eventType)) {
+          this.loadDeliverables();
+        }
+      });
+
+    // Polling silencieux toutes les 5 s
+    interval(5000)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => this.silentReload());
+  }
+
+  private silentReload(): void {
+    this.deliverableService.getMyDeliverables().subscribe({
+      next: (data) => {
+        const current = this.deliverables();
+        const changed = data.some(d => {
+          const existing = current.find(c => c.id === d.id);
+          return !existing || existing.status !== d.status;
+        });
+        if (changed || data.length !== current.length) {
+          this.deliverables.set(data);
+        }
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   loadDeliverables(): void {
     this.loading.set(true);
     this.error.set(null);
-
     this.deliverableService.getMyDeliverables().subscribe({
       next: (data) => {
         this.deliverables.set(data);
@@ -66,7 +136,6 @@ export class EmployeeDeliverablesComponent implements OnInit {
     this.selectedStatus.set(status);
   }
 
-  /** ✅ Cette méthode est obligatoire pour le template */
   getStatusColor(status: string): string {
     return this.deliverableService.getStatusColor(status) || 'primary';
   }
@@ -78,16 +147,19 @@ export class EmployeeDeliverablesComponent implements OnInit {
       data: deliverable
     });
   }
-getStatusIcon(status: string): string {
-  const icons: Record<string, string> = {
-    'submitted': 'send',
-    'revision_required': 'rate_review',
-    'accepted_by_manager': 'check_circle',
-    'in_progress': 'pending',
-    'draft': 'edit_note'
-  };
-  return icons[status] || 'assignment';
-}
+
+  getStatusIcon(status: string): string {
+    const icons: Record<string, string> = {
+      'submitted': 'send',
+      'under_review': 'hourglass_empty',
+      'manager_viewed': 'visibility',
+      'revision_required': 'rate_review',
+      'accepted_by_manager': 'check_circle',
+      'validated': 'verified',
+      'draft': 'edit_note'
+    };
+    return icons[status] || 'assignment';
+  }
 
   editDeliverable(id: number): void {
     console.log('Modifier livrable ID:', id);

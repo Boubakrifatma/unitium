@@ -41,8 +41,29 @@ public class DeliverableReviewService {
         Deliverable deliverable = deliverableRepository.findById(deliverableId)
                 .orElseThrow(() -> new RuntimeException("Deliverable not found"));
 
-        DeliverableVersion version = versionRepository.findById(request.getVersionId())
-                .orElseThrow(() -> new RuntimeException("Version not found"));
+        // Resolve version: use provided versionId, or latest, or auto-create from deliverable data
+        DeliverableVersion version;
+        if (request.getVersionId() != null) {
+            version = versionRepository.findById(request.getVersionId())
+                    .orElseThrow(() -> new RuntimeException("Version not found"));
+        } else {
+            version = versionRepository.findLatestByDeliverableId(deliverableId)
+                    .orElseGet(() -> {
+                        // Auto-create a version record from the deliverable itself
+                        User submitter = deliverable.getSubmittedBy();
+                        DeliverableVersion auto = DeliverableVersion.builder()
+                                .deliverable(deliverable)
+                                .versionNumber(deliverable.getCurrentVersion() != null ? deliverable.getCurrentVersion() : 1)
+                                .fileUrl(deliverable.getFileUrl() != null ? deliverable.getFileUrl() : "")
+                                .fileSizeKb(deliverable.getFileSizeKb())
+                                .changeSummary("Version initiale")
+                                .submittedBy(submitter)
+                                .submittedAt(deliverable.getSubmittedAt() != null ? deliverable.getSubmittedAt() : java.time.LocalDateTime.now())
+                                .virusScanStatus(DeliverableVersion.VirusScanStatus.clean)
+                                .build();
+                        return versionRepository.save(auto);
+                    });
+        }
 
         User manager = userRepository.findById(reviewerId)
                 .orElseThrow(() -> new RuntimeException("Manager not found"));
@@ -83,15 +104,158 @@ public class DeliverableReviewService {
         // ✅ Update deliverable status & notify
         if (decision == DeliverableReview.ReviewDecision.ACCEPTED) {
             deliverable.setStatus(Deliverable.DeliverableStatus.accepted_by_manager);
-            notifyPODeliverableReady(deliverable, manager);
+            notificationService.notifyPOsOnManagerAccepted(deliverable, manager);
         } else {
             deliverable.setStatus(Deliverable.DeliverableStatus.revision_required);
-            notifyEmployeeToRevise(deliverable, manager, request.getFeedbackText());
+            notificationService.notifyEmployeeOnRevisionRequired(deliverable, manager, request.getFeedbackText());
         }
 
         deliverableRepository.save(deliverable);
 
         return mapToDeliverableWithReview(deliverable);
+    }
+
+    /**
+     * PO submits final decision on an accepted deliverable
+     *
+     * ✅ WORKFLOW:
+     * decision = ACCEPTED   → Deliverable status = validated
+     * decision = REJECTED   → Deliverable status = rejected_final
+     * decision = REVISION   → Deliverable status = revision_required (back to employee)
+     */
+    public DeliverableWithReviewDto submitPOReview(
+            Long deliverableId,
+            Long poId,
+            String decision,
+            String feedbackText) {
+
+        Deliverable deliverable = deliverableRepository.findById(deliverableId)
+                .orElseThrow(() -> new RuntimeException("Deliverable not found"));
+
+        User po = userRepository.findById(poId)
+                .orElseThrow(() -> new RuntimeException("PO not found"));
+
+        if (feedbackText == null || feedbackText.trim().length() < 5) {
+            throw new IllegalArgumentException("Feedback requis (minimum 5 caractères)");
+        }
+
+        DeliverableReview.ReviewDecision reviewDecision;
+        Deliverable.DeliverableStatus newStatus;
+
+        switch (decision.toUpperCase()) {
+            case "ACCEPTED" -> {
+                reviewDecision = DeliverableReview.ReviewDecision.ACCEPTED;
+                newStatus = Deliverable.DeliverableStatus.validated;
+            }
+            case "REJECTED" -> {
+                reviewDecision = DeliverableReview.ReviewDecision.REJECTED;
+                newStatus = Deliverable.DeliverableStatus.rejected_final;
+            }
+            default -> {
+                reviewDecision = DeliverableReview.ReviewDecision.REVISION_REQUIRED;
+                newStatus = Deliverable.DeliverableStatus.revision_required;
+            }
+        }
+
+        // Resolve version (latest or auto-create)
+        DeliverableVersion version = versionRepository.findLatestByDeliverableId(deliverableId)
+                .orElseGet(() -> {
+                    DeliverableVersion auto = DeliverableVersion.builder()
+                            .deliverable(deliverable)
+                            .versionNumber(deliverable.getCurrentVersion() != null ? deliverable.getCurrentVersion() : 1)
+                            .fileUrl(deliverable.getFileUrl() != null ? deliverable.getFileUrl() : "")
+                            .fileSizeKb(deliverable.getFileSizeKb())
+                            .changeSummary("Version initiale")
+                            .submittedBy(deliverable.getSubmittedBy())
+                            .submittedAt(deliverable.getSubmittedAt() != null ? deliverable.getSubmittedAt() : java.time.LocalDateTime.now())
+                            .virusScanStatus(DeliverableVersion.VirusScanStatus.clean)
+                            .build();
+                    return versionRepository.save(auto);
+                });
+
+        DeliverableReview review = DeliverableReview.builder()
+                .deliverable(deliverable)
+                .version(version)
+                .reviewer(po)
+                .reviewerRole(DeliverableReview.ReviewerRole.PO)
+                .feedbackText(feedbackText.trim())
+                .decision(reviewDecision)
+                .reviewedAt(java.time.LocalDateTime.now())
+                .build();
+
+        reviewRepository.save(review);
+
+        // Update deliverable status and poDecisionField
+        deliverable.setStatus(newStatus);
+        if (reviewDecision == DeliverableReview.ReviewDecision.ACCEPTED) {
+            deliverable.setPoDecisionField(Deliverable.PoDecisionField.validated);
+        } else if (reviewDecision == DeliverableReview.ReviewDecision.REJECTED) {
+            deliverable.setPoDecisionField(Deliverable.PoDecisionField.rejected);
+        } else {
+            deliverable.setPoDecisionField(Deliverable.PoDecisionField.major_rework);
+        }
+        deliverableRepository.save(deliverable);
+
+        // Find the manager who previously reviewed this deliverable
+        User managerWhoReviewed = reviewRepository.findLatestManagerReview(deliverableId)
+                .map(DeliverableReview::getReviewer)
+                .orElse(null);
+
+        if (reviewDecision == DeliverableReview.ReviewDecision.ACCEPTED) {
+            // Employé : son livrable est validé
+            notificationService.notifyEmployeeOnPOValidated(deliverable, po);
+            // Manager : le PO a validé, suggérer une réunion
+            if (managerWhoReviewed != null) {
+                notificationService.notifyManagerOnPOValidated(deliverable, po, managerWhoReviewed);
+            }
+        } else if (reviewDecision == DeliverableReview.ReviewDecision.REJECTED) {
+            // Manager : le PO a rejeté
+            if (managerWhoReviewed != null) {
+                notificationService.notifyManagerOnPORejected(deliverable, po, managerWhoReviewed, feedbackText);
+            }
+        } else {
+            // REVISION_REQUIRED : employé doit refaire le livrable
+            notificationService.notifyEmployeeOnPORevision(deliverable, po, feedbackText);
+        }
+
+        return mapToDeliverableWithReview(deliverable);
+    }
+
+    /**
+     * Get all deliverables pending PO review for a project
+     */
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public List<com.example.pi_projet.dto.DeliverableResponseDto> getDeliverablesPendingPOReview(String projectId) {
+        return deliverableRepository
+                .findByProjectId(java.util.UUID.fromString(projectId))
+                .stream()
+                .filter(d -> d.getStatus() == Deliverable.DeliverableStatus.accepted_by_manager)
+                .map(this::mapDeliverableToResponseDto)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    private com.example.pi_projet.dto.DeliverableResponseDto mapDeliverableToResponseDto(Deliverable d) {
+        return com.example.pi_projet.dto.DeliverableResponseDto.builder()
+                .id(d.getId())
+                .title(d.getTitle())
+                .description(d.getDescription())
+                .currentVersion(d.getCurrentVersion())
+                .fileUrl(d.getFileUrl())
+                .fileType(d.getFileType())
+                .fileSizeKb(d.getFileSizeKb())
+                .status(d.getStatus() != null ? d.getStatus().name().toLowerCase() : null)
+                .poDecisionField(d.getPoDecisionField() != null ? d.getPoDecisionField().name().toLowerCase() : null)
+                .submittedAt(d.getSubmittedAt())
+                .updatedAt(d.getUpdatedAt())
+                .taskId(d.getTask() != null ? d.getTask().getId() : null)
+                .taskTitle(d.getTask() != null ? d.getTask().getTitle() : null)
+                .taskStatus(d.getTask() != null ? d.getTask().getStatus().name() : null)
+                .projectId(d.getProject() != null ? d.getProject().getId().toString() : null)
+                .projectName(d.getProject() != null ? d.getProject().getName() : null)
+                .submittedById(d.getSubmittedBy() != null ? d.getSubmittedBy().getId() : null)
+                .submittedByName(d.getSubmittedBy() != null ? d.getSubmittedBy().getFullName() : null)
+                .submittedByEmail(d.getSubmittedBy() != null ? d.getSubmittedBy().getEmail() : null)
+                .build();
     }
 
     /**
@@ -159,26 +323,6 @@ public class DeliverableReviewService {
     // ─────────────────────────────────────────────────────────────────────────
     // PRIVATE HELPERS
     // ─────────────────────────────────────────────────────────────────────────
-
-    private void notifyPODeliverableReady(Deliverable deliverable, User manager) {
-        notificationService.sendNotification(
-                null,
-                "Deliverable Ready for Review",
-                "Manager " + manager.getFullName() + " has accepted deliverable '" +
-                        deliverable.getTitle() + "'. It's now ready for your review.",
-                "deliverable_ready_po"
-        );
-    }
-
-    private void notifyEmployeeToRevise(Deliverable deliverable, User manager, String feedback) {
-        notificationService.sendNotification(
-                deliverable.getSubmittedBy(),
-                "Revision Required",
-                "Your deliverable '" + deliverable.getTitle() + "' requires revision. " +
-                        "Feedback: " + feedback,
-                "deliverable_revision_required"
-        );
-    }
 
     private DeliverableReviewDto mapReviewToDto(DeliverableReview review) {
         return DeliverableReviewDto.builder()

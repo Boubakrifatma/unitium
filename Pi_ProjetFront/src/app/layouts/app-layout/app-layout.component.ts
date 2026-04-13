@@ -15,6 +15,10 @@ import { map, shareReplay } from "rxjs/operators";
 import { AsyncPipe, CommonModule } from "@angular/common";
 import { ThemeComponent } from "../../components/theme/theme.component";
 import { NotificationSidenavComponent } from "../../components/notification-sidenav/app-notification-sidenav.component";
+import { NotificationService } from "../../services/notification.service";
+import { AuthService } from "../../auth/auth.service";
+import { MatSnackBar, MatSnackBarModule } from "@angular/material/snack-bar";
+import { NotificationToastComponent } from "../../components/notification-toast/notification-toast.component";
 import { Subject } from "rxjs";
 import { takeUntil } from "rxjs/operators";
 
@@ -40,7 +44,7 @@ const themes = [
 @Component({
     selector: "app-app-layout",
     standalone: true,
-    imports: [RouterOutlet, CommonModule, MatSidenavModule, MatToolbarModule, MatIconModule, MatButtonModule, AppHeaderComponent, AppSidebarComponent, AppFooterComponent, AsyncPipe, ThemeComponent, NotificationSidenavComponent],
+    imports: [RouterOutlet, CommonModule, MatSidenavModule, MatToolbarModule, MatIconModule, MatButtonModule, MatSnackBarModule, AppHeaderComponent, AppSidebarComponent, AppFooterComponent, AsyncPipe, ThemeComponent, NotificationSidenavComponent],
     template: `
         <div class="app-layout" [class.is-mobile]="isMobile">
             <mat-sidenav-container class="sidenav-container" [ngClass]="iconicSidebar() && !isMobile ? (drawers.opened ? 'icon-sidebar-opened' : 'icon-sidebar-closed') : ''">
@@ -117,9 +121,38 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
         private renderer: Renderer2,
         private breakpointObserver: BreakpointObserver,
         @Inject(DOCUMENT) private document: Document,
+        private notificationService: NotificationService,
+        private snackBar: MatSnackBar,
+        private authService: AuthService,
     ) {}
 
     ngOnInit(): void {
+        // Restaurer currentUser depuis localStorage si page refreshée
+        if (!this.authService.currentUser() && this.authService.getToken()) {
+            this.authService.fetchMe().subscribe({
+                next: () => this.notificationService.connect(),
+                error: () => this.notificationService.connect() // connect quand même avec getUserId()
+            });
+        } else {
+            this.notificationService.connect();
+        }
+
+        // Toast bulle personnalisé — reste jusqu'au clic sur "Fermer"
+        this.notificationService.newNotification$
+            .pipe(takeUntil(this.destroy$))
+            .subscribe(notif => {
+                // Notification écrite
+                this.snackBar.openFromComponent(NotificationToastComponent, {
+                    data: notif,
+                    duration: 0,
+                    horizontalPosition: 'right',
+                    verticalPosition: 'top',
+                    panelClass: ['notif-snackbar-wrap']
+                });
+                // Notification vocale
+                this.speak(notif.title + '. ' + notif.message);
+            });
+
         // mobile view detect to add is-mobile class on body
         this.breakpointObserver
             .observe([Breakpoints.HandsetPortrait, Breakpoints.HandsetLandscape])
@@ -196,8 +229,20 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
         }
     }
 
+    /** Notification vocale via Web Speech API */
+    private speak(text: string): void {
+        if (!('speechSynthesis' in window)) return;
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'fr-FR';
+        utterance.rate = 0.95;
+        utterance.pitch = 1;
+        window.speechSynthesis.speak(utterance);
+    }
+
     // responsive is mobile
     ngOnDestroy(): void {
+        this.notificationService.disconnect();
         if (this.resizeObserver) {
             this.resizeObserver.disconnect();
             this.resizeObserver = null;

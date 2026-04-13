@@ -30,7 +30,7 @@ public interface DeliverableVersionRepository extends JpaRepository<DeliverableV
 
     // Get all versions pending virus scan
     @Query("SELECT dv FROM DeliverableVersion dv " +
-            "WHERE dv.virusScanStatus = 'PENDING' " +
+            "WHERE dv.virusScanStatus = com.example.pi_projet.entity.PoDecisionAndDelivrable.DeliverableVersion.VirusScanStatus.pending " +
             "ORDER BY dv.submittedAt ASC")
     List<DeliverableVersion> findPendingVirusScan();
 
@@ -53,7 +53,7 @@ public interface DeliverableVersionRepository extends JpaRepository<DeliverableV
 
     // Find infected versions
     @Query("SELECT dv FROM DeliverableVersion dv " +
-            "WHERE dv.virusScanStatus = 'INFECTED' " +
+            "WHERE dv.virusScanStatus = com.example.pi_projet.entity.PoDecisionAndDelivrable.DeliverableVersion.VirusScanStatus.infected " +
             "ORDER BY dv.submittedAt DESC")
     List<DeliverableVersion> findInfectedVersions();
 }

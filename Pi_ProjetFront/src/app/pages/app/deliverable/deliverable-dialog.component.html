@@ -1,36 +1,122 @@
 <h2 mat-dialog-title>
-  Ajouter un livrable
+  {{ data.mode === 'add-version' ? 'Ajouter une nouvelle version' : 'Ajouter un livrable' }}
 </h2>
 
 <mat-dialog-content>
   <!-- Error Message -->
-  <mat-card *ngIf="error" class="mb-3" style="background-color: #ffebee; border-left: 4px solid #f44336;">
-    <mat-card-content class="pb-2 pt-2">
-      <div class="d-flex align-items-center gap-2">
-        <mat-icon style="color: #f44336;">error_outline</mat-icon>
-        <span style="color: #c62828;">{{ error }}</span>
-      </div>
-    </mat-card-content>
-  </mat-card>
+  @if (error) {
+    <mat-card class="mb-3" style="background-color: #ffebee; border-left: 4px solid #f44336;">
+      <mat-card-content class="pb-2 pt-2">
+        <div class="d-flex align-items-center gap-2">
+          <mat-icon style="color: #f44336;">error_outline</mat-icon>
+          <span style="color: #c62828;">{{ error }}</span>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  <!-- Info Message for Version Mode -->
+  @if (data.mode === 'add-version') {
+    <mat-card class="mb-3" style="background-color: #e3f2fd; border-left: 4px solid #2196f3;">
+      <mat-card-content class="pb-2 pt-2">
+        <div class="d-flex align-items-center gap-2">
+          <mat-icon style="color: #1976d2;">info</mat-icon>
+          <span style="color: #1565c0;">Vous ajoutez une nouvelle version à un livrable existant.</span>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  }
 
   <form [formGroup]="form">
-    <!-- Title -->
-    <mat-form-field appearance="outline" class="w-100 mb-3">
-      <mat-label>Titre du livrable *</mat-label>
-      <input matInput formControlName="title" placeholder="Ex: Documentation API">
-      <mat-error *ngIf="submitted && form.get('title')?.invalid">
-        {{ form.get('title')?.hasError('required') ? 'Le titre est requis' : 'Minimum 3 caractères' }}
-      </mat-error>
-    </mat-form-field>
+    <!-- Title (hidden in version mode) -->
+    @if (data.mode !== 'add-version') {
+      <mat-form-field appearance="outline" class="w-100 mb-3">
+        <mat-label>Titre du livrable *</mat-label>
+        <input matInput formControlName="title" placeholder="Ex: Documentation API">
+        @if (submitted && form.get('title')?.invalid) {
+          <mat-error>
+            {{ form.get('title')?.hasError('required') ? 'Le titre est requis' : 'Minimum 3 caractères' }}
+          </mat-error>
+        }
+      </mat-form-field>
+    }
 
-    <!-- Description -->
-    <mat-form-field appearance="outline" class="w-100 mb-3">
-      <mat-label>Description *</mat-label>
-      <textarea matInput formControlName="description" placeholder="Décrivez le livrable..." rows="3"></textarea>
-      <mat-error *ngIf="submitted && form.get('description')?.invalid">
-        {{ form.get('description')?.hasError('required') ? 'La description est requise' : 'Minimum 10 caractères' }}
-      </mat-error>
-    </mat-form-field>
+    <!-- Description (hidden in version mode) -->
+    @if (data.mode !== 'add-version') {
+      <mat-form-field appearance="outline" class="w-100" style="margin-bottom: 8px;">
+        <mat-label>Description *</mat-label>
+        <textarea matInput formControlName="description" placeholder="Décrivez le livrable..." rows="3"></textarea>
+        @if (submitted && form.get('description')?.invalid) {
+          <mat-error>
+            @if (form.get('description')?.hasError('required')) { La description est requise }
+            @else if (form.get('description')?.hasError('minlength')) { Minimum 10 caractères }
+            @else if (form.get('description')?.hasError('vagueDescription')) { Description trop vague — soyez plus précis }
+          </mat-error>
+        }
+      </mat-form-field>
+
+      <!-- Smart Description Analyzer -->
+      @if (form.get('description')?.value?.length > 0) {
+        <div class="desc-analyzer mb-3">
+          <!-- Score Bar -->
+          <div class="score-header">
+            <span class="score-label">Pertinence de la description</span>
+            <span class="score-value" [style.color]="getScoreColor()">
+              {{ descriptionScore() }}% — {{ getScoreLabel() }}
+            </span>
+          </div>
+          <div class="score-bar-bg">
+            <div class="score-bar-fill"
+                 [style.width.%]="descriptionScore()"
+                 [style.background]="getScoreColor()">
+            </div>
+          </div>
+
+          <!-- Missing Keywords -->
+          @if (missingKeywords().length > 0) {
+            <div class="keywords-section">
+              <span class="keywords-label">
+                <mat-icon style="font-size:14px; height:14px; width:14px; vertical-align:middle;">label_off</mat-icon>
+                Mots-clés manquants :
+              </span>
+              <div class="keyword-chips">
+                @for (kw of missingKeywords(); track kw) {
+                  <span class="keyword-chip"
+                        (click)="form.get('description')!.setValue(form.get('description')!.value + ' ' + kw); analyzeDescription()"
+                        [matTooltip]="'Cliquer pour ajouter « ' + kw + ' »'">
+                    + {{ kw }}
+                  </span>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- Auto-suggest -->
+          @if (descriptionSuggestion()) {
+            <button type="button" mat-stroked-button class="suggest-btn"
+                    (click)="applySuggestion()"
+                    matTooltip="Remplacer avec une description auto-générée">
+              <mat-icon>auto_fix_high</mat-icon>
+              Auto-suggestion
+            </button>
+          }
+        </div>
+      }
+    }
+
+    <!-- Change Summary (required in version mode) -->
+    @if (data.mode === 'add-version') {
+      <mat-form-field appearance="outline" class="w-100 mb-3">
+        <mat-label>Résumé des changements *</mat-label>
+        <textarea matInput formControlName="changeSummary" placeholder="Décrivez les changements apportés dans cette version..." rows="3"></textarea>
+        <mat-hint>Ce champ est obligatoire pour créer une nouvelle version</mat-hint>
+        @if (submitted && form.get('changeSummary')?.invalid) {
+          <mat-error>
+            {{ form.get('changeSummary')?.hasError('required') ? 'Le résumé des changements est requis' : 'Minimum 5 caractères' }}
+          </mat-error>
+        }
+      </mat-form-field>
+    }
 
     <!-- Task ID (Hidden, auto-selected) -->
     <input type="hidden" formControlName="taskId">
@@ -44,23 +130,47 @@
     <!-- Status (Hidden, default to draft) -->
     <input type="hidden" formControlName="status">
 
-    <!-- File URL (Optional) -->
-    <mat-form-field appearance="outline" class="w-100 mb-3">
-      <mat-label>URL du fichier (optionnel)</mat-label>
-      <input matInput formControlName="fileUrl" placeholder="https://...">
-    </mat-form-field>
+    <!-- File Upload -->
+    <div class="mb-3">
+      <input type="file" #fileInput style="display:none" (change)="onFileSelected($event)" [disabled]="uploading">
+      <button type="button" mat-stroked-button color="primary" class="w-100" (click)="fileInput.click()" [disabled]="uploading">
+        @if (uploading) {
+          <mat-progress-spinner diameter="18" mode="indeterminate" style="display:inline-block; margin-right:8px;"></mat-progress-spinner>
+          Upload en cours...
+        } @else {
+          <ng-container>
+            <mat-icon class="me-2">upload_file</mat-icon>
+            {{ selectedFile() ? 'Changer le fichier' : 'Sélectionner un fichier *' }}
+          </ng-container>
+        }
+      </button>
+      @if (submitted && form.get('fileUrl')?.invalid) {
+        <span style="font-size:12px; margin-top:4px; display:block; color: #f44336;">
+          Veuillez sélectionner un fichier
+        </span>
+      }
+    </div>
 
-    <!-- File Type (Optional) -->
-    <mat-form-field appearance="outline" class="w-100 mb-3">
-      <mat-label>Type de fichier (optionnel)</mat-label>
-      <input matInput formControlName="fileType" placeholder="Ex: PDF, DOC, ZIP">
-    </mat-form-field>
+    <!-- Selected File Info -->
+    @if (selectedFile() && !uploading) {
+      <mat-card class="mb-3" style="background-color: #f1f8e9; border-left: 4px solid #66bb6a;">
+        <mat-card-content class="pt-2 pb-2">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <mat-icon style="color: #388e3c;">insert_drive_file</mat-icon>
+            <strong style="color: #2e7d32; word-break: break-all;">{{ selectedFile()!.name }}</strong>
+          </div>
+          <div class="d-flex gap-3" style="font-size: 13px; color: #555;">
+            <span><strong>Type :</strong> {{ form.get('fileType')?.value }}</span>
+            <span><strong>Taille :</strong> {{ form.get('fileSizeKb')?.value }} KB</span>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    }
 
-    <!-- File Size (Optional) -->
-    <mat-form-field appearance="outline" class="w-100 mb-3">
-      <mat-label>Taille du fichier en KB (optionnel)</mat-label>
-      <input matInput type="number" formControlName="fileSizeKb" placeholder="Ex: 2048">
-    </mat-form-field>
+    <!-- Hidden fields (auto-filled) -->
+    <input type="hidden" formControlName="fileUrl">
+    <input type="hidden" formControlName="fileType">
+    <input type="hidden" formControlName="fileSizeKb">
   </form>
 </mat-dialog-content>
 
@@ -69,19 +179,14 @@
     Annuler
   </button>
   <button mat-raised-button color="primary" (click)="onSubmit()" [disabled]="loading">
-    <mat-icon *ngIf="!loading" class="me-1">save</mat-icon>
-    <mat-progress-spinner *ngIf="loading" diameter="20" mode="indeterminate"></mat-progress-spinner>
-    <span *ngIf="!loading">Créer</span>
-  </button>
-</mat-dialog-actions>
-
-<mat-dialog-actions align="end">
-  <button mat-button (click)="onCancel()" [disabled]="loading">
-    Annuler
-  </button>
-  <button mat-raised-button color="primary" (click)="onSubmit()" [disabled]="loading">
-    <mat-icon *ngIf="!loading" class="me-1">save</mat-icon>
-    <mat-progress-spinner *ngIf="loading" diameter="20" mode="indeterminate"></mat-progress-spinner>
-    <span *ngIf="!loading">{{ data.mode === 'create' ? 'Créer' : 'Modifier' }}</span>
+    @if (!loading) {
+      <mat-icon class="me-1">save</mat-icon>
+    }
+    @if (loading) {
+      <mat-progress-spinner diameter="20" mode="indeterminate"></mat-progress-spinner>
+    }
+    @if (!loading) {
+      <span>{{ data.mode === 'add-version' ? 'Ajouter la version' : 'Créer' }}</span>
+    }
   </button>
 </mat-dialog-actions>

@@ -66,3 +66,95 @@ button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+// ── Smart Description Analyzer ──────────────────────────────────────────
+.desc-analyzer {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 13px;
+
+  .score-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+
+    .score-label {
+      color: #555;
+      font-weight: 500;
+    }
+
+    .score-value {
+      font-weight: 700;
+      font-size: 12px;
+    }
+  }
+
+  .score-bar-bg {
+    height: 6px;
+    background: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 10px;
+
+    .score-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.4s ease, background 0.3s ease;
+    }
+  }
+
+  .keywords-section {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+
+    .keywords-label {
+      color: #888;
+      white-space: nowrap;
+      padding-top: 2px;
+    }
+
+    .keyword-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .keyword-chip {
+      background: #fff3e0;
+      border: 1px solid #ffb74d;
+      color: #e65100;
+      border-radius: 12px;
+      padding: 2px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+
+      &:hover {
+        background: #ffe0b2;
+      }
+    }
+  }
+
+  .suggest-btn {
+    font-size: 12px;
+    height: 30px;
+    line-height: 30px;
+    padding: 0 12px;
+    color: #1976d2;
+    border-color: #1976d2;
+
+    mat-icon {
+      font-size: 16px;
+      height: 16px;
+      width: 16px;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+  }
+}

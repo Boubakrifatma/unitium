@@ -149,6 +149,7 @@ export class AppSidebarComponent {
     get isAdmin(): boolean      { return this.role === 'ADMIN' || this.isSuperAdmin; }
     get isManager(): boolean    { return this.role === 'MANAGER' || this.isAdmin; }
     get isTutor(): boolean      { return this.role === 'TUTOR' || this.isManager; }
+    get isProductOwner(): boolean { return this.role === 'PRODUCT_OWNER'}
 
     get navItems(): NavItem[] {
         const all: NavItem[] = [];
@@ -159,6 +160,7 @@ export class AppSidebarComponent {
             all.push({ name: "All Users", route: "/app/users", icon: "manage_accounts" });
         }
 
+    
         // ADMIN + SUPER_ADMIN
         if (this.isAdmin) {
             all.push({ name: "Dashboard", route: "/app/dashboard", icon: "house" });
@@ -167,7 +169,15 @@ export class AppSidebarComponent {
             }
             all.push({ name: "Employees", route: "/app/employee", icon: "person" });
         }
-
+           if(this.isProductOwner){
+           all.push({
+                name: "Projects",
+                icon: "dashboard",
+                children: [
+                    { name: "Projects", route: "/app/po-deliverables", icon: "assignment" },
+                ],
+            });
+           }
         // MANAGER + above
         if (this.isManager||this.isTutor) {
             all.push({
@@ -176,6 +186,7 @@ export class AppSidebarComponent {
                 children: [
                     { name: "Projects", route: "/app/projects", icon: "assignment" },
                     { name: "Project Details", route: "/app/project-details", icon: "subject" },
+                    { name: "Manager Deliverables", route: "/app/manager-deliverables", icon: "assignment_turned_in" },
                     { name: "Milestones", route: "/app/milestones", icon: "flag" },
                     { name: "Task Kanban", route: "/app/kanban", icon: "view_kanban" },
                     { name: "Task Gantt Chart", route: "/app/gantt-chart", icon: "event" },
@@ -191,6 +202,7 @@ export class AppSidebarComponent {
             children: [
                 { name: "Task Kanban", route: "/app/kanban", icon: "view_kanban" },
                 { name: "Deliverables", route: "/app/deliverables", icon: "upload_file" },
+                { name: "Mes Fichiers", route: "/app/mes-fichiers", icon: "folder_open" },
                 { name: "Explorer", route: "/app/explorer", icon: "folder_zip" },
                 { name: "Calendar", route: "/app/calendar", icon: "event" },
                 { name: "Chat", route: "/app/chat", icon: "chat" },
@@ -206,6 +218,7 @@ export class AppSidebarComponent {
                 { name: "Settings", route: "/app/settings", icon: "settings" },
             ],
         });
+
 
         // SUPER_ADMIN — billing plateforme globale
         if (this.isSuperAdmin) {
@@ -231,6 +244,7 @@ export class AppSidebarComponent {
                 ],
             });
         }
+      
 
         return all;
     }

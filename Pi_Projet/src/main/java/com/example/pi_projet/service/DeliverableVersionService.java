@@ -23,6 +23,7 @@ public class DeliverableVersionService {
     private final DeliverableRepository deliverableRepository;
     private final DeliverableReviewRepository reviewRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     // ─────────────────────────────────────────────────────────────────────────
     // CREATE NEW VERSION
@@ -59,7 +60,7 @@ public class DeliverableVersionService {
                 .changeSummary(request.getChangeSummary())
                 .submittedBy(submittedBy)
                 .submittedAt(LocalDateTime.now())
-                .virusScanStatus(DeliverableVersion.VirusScanStatus.PENDING)
+                .virusScanStatus(DeliverableVersion.VirusScanStatus.pending)
                 .build();
 
         DeliverableVersion saved = versionRepository.save(version);
@@ -68,6 +69,9 @@ public class DeliverableVersionService {
         deliverable.setCurrentVersion(nextVersion);
         deliverable.setStatus(Deliverable.DeliverableStatus.under_review);
         deliverableRepository.save(deliverable);
+
+        // Notifier les managers qu'une nouvelle version a été soumise
+        notificationService.notifyManagersOnSubmission(deliverable, submittedBy);
 
         return mapToDto(saved);
     }
@@ -165,13 +169,13 @@ public class DeliverableVersionService {
                 .orElseThrow(() -> new RuntimeException("Version not found"));
 
         DeliverableVersion.VirusScanStatus scanStatus =
-                DeliverableVersion.VirusScanStatus.valueOf(status.toUpperCase());
+                DeliverableVersion.VirusScanStatus.valueOf(status.toLowerCase());
 
         version.setVirusScanStatus(scanStatus);
         versionRepository.save(version);
 
         // If infected, mark deliverable as draft
-        if (scanStatus == DeliverableVersion.VirusScanStatus.INFECTED) {
+        if (scanStatus == DeliverableVersion.VirusScanStatus.infected) {
             Deliverable deliverable = version.getDeliverable();
             deliverable.setStatus(Deliverable.DeliverableStatus.draft);
             deliverableRepository.save(deliverable);

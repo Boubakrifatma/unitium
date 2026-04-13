@@ -1,6 +1,7 @@
 import { Component, Input, Renderer2, Output, EventEmitter, signal, Inject, inject } from "@angular/core";
 import { DOCUMENT } from "@angular/common";
 import { AuthService } from "../../auth/auth.service";
+import { NotificationService } from "../../services/notification.service";
 import { CommonModule } from "@angular/common";
 import { MatToolbarModule } from "@angular/material/toolbar";
 import { MatIconModule } from "@angular/material/icon";
@@ -62,7 +63,15 @@ import { MatFormFieldModule } from "@angular/material/form-field";
                 <button matIconButton (click)="toggleMode()"><mat-icon class="dark">dark_mode</mat-icon><mat-icon class="light">sunny</mat-icon></button>
 
                 <!-- settings -->
-                <button matIconButton (click)="openSettingsMenu.emit()" [matBadge]="3" matBadgeColor="warn" matBadgeSize="small"><mat-icon class="material-icons-outlined">notifications</mat-icon></button>
+                <button matIconButton (click)="openSettingsMenu.emit()"
+                    [matBadge]="notifService.unreadCount() > 0 ? notifService.unreadCount() : null"
+                    [matBadgeHidden]="notifService.unreadCount() === 0"
+                    matBadgeColor="warn"
+                    matBadgeSize="small">
+                    <mat-icon class="material-icons-outlined">
+                        {{ notifService.unreadCount() > 0 ? 'notifications_active' : 'notifications' }}
+                    </mat-icon>
+                </button>
 
                 <!-- language -->
                 <button mat-icon-button [matMenuTriggerFor]="language" class="d-none d-lg-inline-block">
@@ -134,6 +143,7 @@ export class AppHeaderComponent {
     selectedLanguage = signal(this.languages()[0]);
 
     authService = inject(AuthService);
+    notifService = inject(NotificationService);
 
     constructor(private router: Router, private renderer: Renderer2, @Inject(DOCUMENT) private document: Document) {}
 
