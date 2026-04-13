@@ -76,6 +76,22 @@ export class TaskService {
 
   constructor(private http: HttpClient) {}
 
+  private toLocalDateString(val: any): string | null {
+    if (val == null) return null;
+    if (val instanceof Date) return val.toISOString().split('T')[0];
+    if (typeof val === 'string') {
+      if (val.includes('T')) return val.split('T')[0];
+      if (val.trim() === '') return null;
+      return val;
+    }
+    try {
+      // fallback: try to coerce to Date
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+    } catch (_) {}
+    return null;
+  }
+
   private getHeaders(): HttpHeaders {
     const token = localStorage.getItem('token');
     return new HttpHeaders({ Authorization: `Bearer ${token}` });
@@ -107,18 +123,24 @@ export class TaskService {
 
   // ── Créer ──────────────────────────────────────────────────────
   create(payload: TaskWritePayload): Observable<TaskResponseDto> {
+    const body = { ...payload } as any;
+    body.startDate = this.toLocalDateString(payload.startDate);
+    body.dueDate = this.toLocalDateString(payload.dueDate);
     return this.http.post<TaskResponseDto>(
       this.api,
-      payload,
+      body,
       { headers: this.getHeaders() }
     );
   }
 
   // ── Mettre à jour ──────────────────────────────────────────────
   update(id: number, payload: Partial<TaskWritePayload>): Observable<TaskResponseDto> {
+    const body = { ...payload } as any;
+    if (payload.startDate !== undefined) body.startDate = this.toLocalDateString(payload.startDate);
+    if (payload.dueDate !== undefined) body.dueDate = this.toLocalDateString(payload.dueDate);
     return this.http.put<TaskResponseDto>(
       `${this.api}/${id}`,
-      payload,
+      body,
       { headers: this.getHeaders() }
     );
   }

@@ -125,10 +125,7 @@ export const routes: Routes = [
                 path: "employee",
                 loadComponent: () => import("./pages/app/employee/employee.component").then((c) => c.EmployeeComponent),
             },
-            {
-                path: "time-tracking",
-                loadComponent: () => import("./pages/app/task-manage/time-tracking.component").then((c) => c.TimeTrackingComponent),
-            },
+           
             {
                 path: "task-details",
                 loadComponent: () => import("./pages/app/task-manage/task-details.component").then((c) => c.TaskDetailsComponent),
@@ -137,10 +134,7 @@ export const routes: Routes = [
                 path: "kanban",
                 loadComponent: () => import("./pages/app/task-manage/kanban.component").then((c) => c.KanbanComponent),
             },
-            {
-                path: "gantt-chart",
-                loadComponent: () => import("./pages/app/task-manage/gantt-chart.component").then((c) => c.GanttChartComponent),
-            },
+            
             {
                 path: "all-tasks",
                 loadComponent: () => import("./pages/app/task-manage/all-task.component").then((c) => c.AllTaskComponent),
