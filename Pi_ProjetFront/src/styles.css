@@ -1,1 +1,50 @@
 /* You can add global styles to this file, and also import other style files */
+
+/* ── Snackbar: success ─────────────────────────────────────────────────── */
+@keyframes snack-slide-in {
+    from { transform: translateY(24px) scale(0.96); opacity: 0; }
+    to   { transform: translateY(0)    scale(1);    opacity: 1; }
+}
+
+.snack-success .mat-mdc-snackbar-surface {
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%) !important;
+    color: #fff !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 28px rgba(22, 163, 74, 0.35), 0 2px 8px rgba(0,0,0,0.12) !important;
+    animation: snack-slide-in 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    border-left: 4px solid rgba(255,255,255,0.35);
+}
+.snack-success .mat-mdc-snack-bar-label {
+    color: #fff !important;
+    font-weight: 600 !important;
+    font-size: 13.5px !important;
+}
+.snack-success .mat-mdc-button {
+    color: rgba(255,255,255,0.80) !important;
+    font-weight: 600 !important;
+}
+.snack-success .mat-mdc-button:hover {
+    color: #fff !important;
+}
+
+/* ── Snackbar: error ───────────────────────────────────────────────────── */
+.snack-error .mat-mdc-snackbar-surface {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
+    color: #fff !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 28px rgba(220, 38, 38, 0.35), 0 2px 8px rgba(0,0,0,0.12) !important;
+    animation: snack-slide-in 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    border-left: 4px solid rgba(255,255,255,0.35);
+}
+.snack-error .mat-mdc-snack-bar-label {
+    color: #fff !important;
+    font-weight: 600 !important;
+    font-size: 13.5px !important;
+}
+.snack-error .mat-mdc-button {
+    color: rgba(255,255,255,0.80) !important;
+    font-weight: 600 !important;
+}
+.snack-error .mat-mdc-button:hover {
+    color: #fff !important;
+}

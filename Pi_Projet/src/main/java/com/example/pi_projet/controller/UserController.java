@@ -86,6 +86,12 @@ public class UserController {
         return ResponseEntity.ok(userService.changeRole(id, body.get("role")));
     }
 
+    @Operation(summary = "Get users by role (e.g. EMPLOYEE, STUDENT, MANAGER, TUTOR)")
+    @GetMapping("/by-role/{role}")
+    public ResponseEntity<List<UserDTO>> getUsersByRole(@PathVariable String role) {
+        return ResponseEntity.ok(userService.getUsersByRole(role));
+    }
+
     @Operation(summary = "Activate or deactivate a user")
     @PatchMapping("/{id}/status")
     public ResponseEntity<UserDTO> changeStatus(@PathVariable Long id, @RequestBody Map<String, Boolean> body) {

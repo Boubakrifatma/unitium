@@ -89,6 +89,16 @@ public class UserService {
         return UserDTO.from(userRepository.save(user));
     }
 
+    public List<UserDTO> getUsersByRole(String role) {
+        try {
+            User.RoleName r = User.RoleName.valueOf(role.toUpperCase());
+            return userRepository.findByRole(r).stream().map(UserDTO::from).toList();
+        } catch (IllegalArgumentException e) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Invalid role: " + role);
+        }
+    }
+
     public UserDTO changeStatus(Long id, boolean isActive) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));

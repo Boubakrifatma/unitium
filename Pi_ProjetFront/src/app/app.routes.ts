@@ -4,6 +4,7 @@ import { AppLayoutComponent } from "./layouts/app-layout/app-layout.component";
 import { FullLayoutComponent } from "./layouts/full-layout/full-layout.component";
 import { WebsiteLayoutComponent } from "./layouts/website-layout/websitelayout.component";
 import { authGuard } from "./auth/auth.guard";
+import { roleGuard } from "./auth/role.guard";
 import { m2AdminGuard } from "./pages/app/m2-admin/m2-admin.guard";
 
 export const routes: Routes = [
@@ -189,7 +190,17 @@ export const routes: Routes = [
             },
             {
                 path: "chat",
-                loadComponent: () => import("./pages/app/applications/chat/chat.component").then((c) => c.ChatComponent),
+                children: [
+                    {
+                        path: "",
+                        loadComponent: () => import("./pages/app/applications/chat/chat.component").then((c) => c.ChatComponent),
+                    },
+                    {
+                        path: "dashboard",
+                        canActivate: [authGuard, roleGuard],
+                        loadComponent: () => import("./pages/app/applications/chat/chat-dashboard-page.component").then((c) => c.ChatDashboardPageComponent),
+                    },
+                ],
             },
             {
                 path: "profile",

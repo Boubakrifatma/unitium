@@ -583,15 +583,19 @@ export class LoginComponent implements OnInit {
     pendingUserId: number | null = null;
 
     testAccounts = [
-        { email: 'superadmin@cmp.com',         password: 'superadmin123',   role: 'SUPER_ADMIN'   },
-        { email: 'evenixgroup@gmail.com',       password: 'Esprit1234',      role: 'ADMIN'         },
-        { email: 'yosra.ben.alii17@gmail.com',  password: 'Yosra123.',       role: 'ADMIN'         },
-        { email: 'manager@test.com',            password: 'manager123',      role: 'MANAGER'       },
-        { email: 'po@test.com',                 password: 'productowner123', role: 'PRODUCT_OWNER' },
-        { email: 'tutor@test.com',              password: 'tutor123',        role: 'TUTOR'         },
-        { email: 'student@test.com',            password: 'student123',      role: 'STUDENT'       },
-        { email: 'viewer@test.com',             password: 'viewer123',       role: 'VIEWER'        },
-        { email: 'employee@test.com',           password: 'employee123',     role: 'EMPLOYEE'      },
+        { email: 'superadmin@cmp.com', password: 'superadmin123',   role: 'SUPER_ADMIN',   fullname: ''       },
+        { email: 'admin@test.com',     password: 'admin123',         role: 'ADMIN',         fullname: ''       },
+        { email: 'manager@test.com',   password: 'manager123',       role: 'MANAGER',       fullname: ''       },
+        { email: 'po@test.com',        password: 'productowner123',  role: 'PRODUCT_OWNER', fullname: ''       },
+        { email: 'tutor@test.com',     password: 'tutor123',         role: 'TUTOR',         fullname: ''       },
+        { email: 'student@test.com',   password: 'student123',       role: 'STUDENT',       fullname: ''       },
+        { email: 'student2@test.com',  password: 'student123',       role: 'STUDENT',       fullname: 'MOTAZ'  },
+        { email: 'student3@test.com',  password: 'student123',       role: 'STUDENT',       fullname: 'SONDOS' },
+        { email: 'viewer@test.com',    password: 'viewer123',        role: 'VIEWER',        fullname: ''       },
+        { email: 'employee@test.com',  password: 'employee123',      role: 'EMPLOYEE',      fullname: 'Fatma'  },
+        { email: 'employee2@test.com', password: 'employee123',      role: 'EMPLOYEE',      fullname: 'EYA'    },
+        { email: 'employee3@test.com', password: 'employee123',      role: 'EMPLOYEE',      fullname: 'YOSRA'  },
+        { email: 'employee4@test.com', password: 'employee123',      role: 'EMPLOYEE',      fullname: 'MINIAR' },
     ];
 
     constructor(
