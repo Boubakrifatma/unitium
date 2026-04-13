@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, Subject, BehaviorSubject } from 'rxjs';
+import { Observable, Subject, BehaviorSubject, from } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { Client, IMessage, StompSubscription } from '@stomp/stompjs';
 
@@ -336,6 +336,58 @@ export class ChatMessageService {
     return this.http.get<MessageDTO[]>(
       `${this.BASE_URL}/api/chat/rooms/${roomId}/messages/pinned`,
     );
+  }
+
+  private readonly GEMINI_API_KEY = 'AIzaSyDClEW2bKNcYKSpLEXuMh2vtDMmRa2vPz4';
+  private readonly GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${this.GEMINI_API_KEY}`;
+
+  /** Call Gemini via native fetch to bypass Angular interceptors. */
+  private geminiPost(prompt: string): Observable<string> {
+    return from(
+      fetch(this.GEMINI_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+      }).then(async res => {
+        if (!res.ok) {
+          const body = await res.text();
+          throw new Error(`Gemini ${res.status}: ${body}`);
+        }
+        const json = await res.json();
+        const text: string = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) throw new Error('Gemini returned empty response');
+        return text;
+      })
+    );
+  }
+
+  /** Summarize a consecutive group of messages using Gemini. */
+  summarizeGroup(prompt: string): Observable<string> {
+    return this.geminiPost(prompt);
+  }
+
+  /** Summarize a full conversation using Gemini. */
+  summarizeMessages(messages: any[]): Observable<string> {
+    const stripHtml = (html: string) => html?.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() ?? '';
+    const conversation = messages
+      .filter(m => !m.isSystemMessage && !m.isAgendaItem && m.contentText)
+      .slice(-50)
+      .map(m => `${m.senderName}: ${stripHtml(m.contentText)}`)
+      .filter(line => line.trim().length > 0)
+      .join('\n');
+
+    const prompt = `You are a professional meeting assistant. Summarize the following chat conversation in a clear, structured format with:
+- A one-sentence overview
+- 3-5 key discussion points as bullet points
+- Any action items or decisions mentioned
+- Overall sentiment (positive/neutral/concerns)
+
+Keep it concise and professional.
+
+Conversation:
+${conversation}`;
+
+    return this.geminiPost(prompt);
   }
 
   /**

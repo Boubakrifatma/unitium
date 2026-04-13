@@ -36,6 +36,7 @@ import {
 } from '@angular/animations';
 import { QuillModule } from 'ngx-quill';
 import { SnackbarSuccessComponent } from '../calendar/snackbar-event.component';
+import { Router } from '@angular/router';
 
 /* ══ Room Creation / Edit Wizard Dialog ══════════════════════════════════ */
 @Component({
@@ -1491,6 +1492,648 @@ export class DeleteRoomDialogComponent {
     }
 }
 
+/* ══ Schedule Message Dialog ══════════════════════════════════════════════ */
+@Component({
+    selector: 'app-schedule-dialog',
+    standalone: true,
+    imports: [CommonModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatDialogModule],
+    template: `
+        <div class="scd-wrap">
+            <div class="scd-shimmer-line" aria-hidden="true"></div>
+
+            <!-- Icon ring (primary) -->
+            <div class="scd-icon-ring">
+                <mat-icon class="scd-icon">schedule_send</mat-icon>
+            </div>
+            <h2 class="scd-title">Schedule Message</h2>
+            <p class="scd-subtitle">Choose when your message is delivered</p>
+
+            <!-- Message preview chip -->
+            <div class="scd-preview-chip">
+                <span class="scd-preview-text">{{ data.content || 'Your message…' }}</span>
+            </div>
+
+            <!-- Step tabs: Date / Time / Repeat -->
+            <div class="scd-tabs">
+                @for (tab of scTabs; track tab.step) {
+                    <button class="scd-tab"
+                            [class.scd-tab-active]="step() === tab.step"
+                            [class.scd-tab-done]="step() > tab.step"
+                            (click)="jumpStep(tab.step)">
+                        @if (step() > tab.step) {
+                            <mat-icon class="scd-tab-check-icon">check</mat-icon>
+                        }
+                        {{ tab.label }}
+                    </button>
+                }
+            </div>
+
+            <!-- Step body -->
+            <div class="scd-body">
+
+                <!-- STEP 1: DATE -->
+                @if (step() === 1) {
+                    <div class="scd-step">
+                        <div class="scd-step-label">Pick a date</div>
+                        <div class="scd-date-strip">
+                            @for (d of availableDates; track d.isoDate; let i = $index) {
+                                <button class="scd-date-card"
+                                        [class.scd-date-card-active]="selectedDateIdx() === i"
+                                        (click)="selectDate(i)">
+                                    <span class="scd-date-weekday">{{ d.weekday }}</span>
+                                    <span class="scd-date-num">{{ d.dateNum }}</span>
+                                    <span class="scd-date-month">{{ d.month }}</span>
+                                    @if (i === 0) { <span class="scd-date-today-dot"></span> }
+                                </button>
+                            }
+                        </div>
+                    </div>
+                }
+
+                <!-- STEP 2: TIME -->
+                @if (step() === 2) {
+                    <div class="scd-step">
+                        <div class="scd-time-cols">
+                            <div class="scd-time-col">
+                                <div class="scd-time-col-label">Hour</div>
+                                <div class="scd-hours-grid">
+                                    @for (h of [1,2,3,4,5,6,7,8,9,10,11,12]; track h) {
+                                        <button class="scd-time-pill"
+                                                [class.scd-time-pill-active]="hour() === h"
+                                                (click)="setHour(h)">{{ h }}</button>
+                                    }
+                                </div>
+                            </div>
+                            <div class="scd-time-col scd-time-col-mins">
+                                <div class="scd-time-col-label">Minute</div>
+                                <div class="scd-mins-col">
+                                    @for (m of [0,15,30,45]; track m) {
+                                        <button class="scd-time-pill scd-time-pill-min"
+                                                [class.scd-time-pill-active]="minute() === m"
+                                                (click)="setMinute(m)">{{ m === 0 ? '00' : m }}</button>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                        <div class="scd-ampm-row">
+                            <button class="scd-ampm-btn" [class.scd-ampm-active]="ampm() === 'AM'" (click)="setAmPm('AM')">AM</button>
+                            <button class="scd-ampm-btn" [class.scd-ampm-active]="ampm() === 'PM'" (click)="setAmPm('PM')">PM</button>
+                        </div>
+                    </div>
+                }
+
+                <!-- STEP 3: REPEAT -->
+                @if (step() === 3) {
+                    <div class="scd-step">
+                        <div class="scd-rec-row">
+                            @for (rec of recurrenceCards; track rec.type) {
+                                <button class="scd-rec-card"
+                                        [class.scd-rec-card-active]="recurrence() === rec.type"
+                                        (click)="setRecurrence(rec.type)">
+                                    <span class="scd-rec-emoji">{{ rec.emoji }}</span>
+                                    <span class="scd-rec-label">{{ rec.label }}</span>
+                                    <span class="scd-rec-sub">{{ rec.sub }}</span>
+                                </button>
+                            }
+                        </div>
+                        @if (recurrence() === 'CUSTOM') {
+                            <div class="scd-day-circles">
+                                @for (d of daysList; track d.key) {
+                                    <button class="scd-day-circle"
+                                            [class.scd-day-circle-active]="customDays().has(d.key)"
+                                            (click)="toggleDay(d.key)">
+                                        {{ d.label.charAt(0) }}
+                                    </button>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+
+            </div><!-- /scd-body -->
+
+            <!-- Live brief — always visible -->
+            <div class="scd-brief">
+                <span class="scd-brief-text">Sends <strong class="scd-brief-val">{{ briefDate() }}</strong><span class="scd-brief-sep"> · </span><strong class="scd-brief-val">{{ briefRepeat() }}</strong></span>
+                @if (formError()) {
+                    <div class="scd-error">
+                        <mat-icon style="font-size:12px;width:12px;height:12px;vertical-align:middle">error_outline</mat-icon>
+                        {{ formError() }}
+                    </div>
+                }
+            </div>
+
+            <!-- Footer -->
+            <div class="scd-footer">
+                <div class="scd-step-dots">
+                    @for (s of [1,2,3]; track s) {
+                        <div class="scd-dot"
+                             [class.scd-dot-active]="step() === s"
+                             [class.scd-dot-done]="step() > s"
+                             (click)="jumpStep(s)"></div>
+                    }
+                </div>
+                <div class="scd-footer-btns">
+                    <button mat-stroked-button class="scd-cancel-btn" (click)="cancel()" [disabled]="saving()">
+                        Cancel
+                    </button>
+                    @if (step() > 1) {
+                        <button class="scd-btn-back" (click)="prevStep()" [disabled]="saving()">Back</button>
+                    }
+                    @if (step() < 3) {
+                        <button class="scd-btn-next" (click)="nextStep()">Next →</button>
+                    } @else {
+                        @if (done()) {
+                            <div class="scd-success-inline">
+                                <mat-icon style="font-size:18px;width:18px;height:18px">check_circle</mat-icon>
+                                <span class="scd-success-text">Scheduled!</span>
+                            </div>
+                        } @else {
+                            <button mat-flat-button class="scd-schedule-btn"
+                                    [disabled]="saving()"
+                                    (click)="submit()">
+                                @if (saving()) {
+                                    <mat-spinner diameter="16" class="scd-spinner"></mat-spinner>
+                                } @else {
+                                    <mat-icon style="font-size:16px;width:16px;height:16px;margin-right:4px">schedule_send</mat-icon>
+                                    Schedule
+                                }
+                            </button>
+                        }
+                    }
+                </div>
+            </div>
+
+        </div>
+    `,
+    styles: [`
+        .scd-wrap {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 32px 28px 8px;
+            text-align: center;
+            overflow: hidden;
+        }
+        .scd-shimmer-line {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(
+                90deg,
+                var(--mat-sys-primary) 0%,
+                color-mix(in srgb, var(--mat-sys-primary) 60%, var(--mat-sys-tertiary, var(--mat-sys-primary))) 50%,
+                var(--mat-sys-primary) 100%
+            );
+            background-size: 200% 100%;
+            animation: scdShimmer 2s linear infinite;
+        }
+        @keyframes scdShimmer {
+            0%   { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        @keyframes scd-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--mat-sys-primary) 35%, transparent); }
+            50%       { box-shadow: 0 0 0 10px color-mix(in srgb, var(--mat-sys-primary) 0%, transparent); }
+        }
+        .scd-icon-ring {
+            width: 64px; height: 64px;
+            border-radius: 50%;
+            background: linear-gradient(135deg,
+                color-mix(in srgb, var(--mat-sys-primary) 15%, transparent),
+                color-mix(in srgb, var(--mat-sys-primary) 8%, transparent));
+            border: 2px solid color-mix(in srgb, var(--mat-sys-primary) 30%, transparent);
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 16px;
+            animation: scd-pulse 2s ease-in-out infinite;
+        }
+        .scd-icon {
+            font-size: 28px !important; width: 28px !important; height: 28px !important;
+            color: var(--mat-sys-primary);
+        }
+        .scd-title {
+            font-size: 18px; font-weight: 700; margin: 0 0 6px;
+            letter-spacing: -0.02em;
+        }
+        .scd-subtitle {
+            font-size: 13px; color: var(--mat-sys-on-surface-variant);
+            margin: 0 0 14px; line-height: 1.6;
+        }
+        .scd-preview-chip {
+            width: 100%; margin: 0 0 6px;
+            padding: 6px 12px; border-radius: 8px;
+            background: color-mix(in srgb, var(--mat-sys-surface-container-high) 60%, transparent);
+            border-left: 3px solid var(--mat-sys-primary);
+            border-top: 1px solid var(--mat-sys-outline-variant);
+            border-right: 1px solid var(--mat-sys-outline-variant);
+            border-bottom: 1px solid var(--mat-sys-outline-variant);
+            text-align: left;
+        }
+        .scd-preview-text {
+            font-size: 12px; font-style: italic;
+            color: var(--mat-sys-on-surface-variant);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;
+        }
+        .scd-tabs {
+            display: flex; width: 100%;
+            border-bottom: 1px solid var(--mat-sys-outline-variant);
+        }
+        .scd-tab {
+            display: flex; align-items: center; gap: 4px;
+            padding: 8px 16px;
+            border: none; background: transparent;
+            color: var(--mat-sys-on-surface-variant);
+            font-size: 12.5px; font-weight: 600; cursor: pointer;
+            position: relative; transition: color 0.15s ease; letter-spacing: 0.2px;
+        }
+        .scd-tab::after {
+            content: ''; position: absolute;
+            bottom: -1px; left: 0; right: 0;
+            height: 2px; background: var(--mat-sys-primary);
+            border-radius: 2px 2px 0 0;
+            transform: scaleX(0);
+            transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        .scd-tab-active { color: var(--mat-sys-primary); }
+        .scd-tab-active::after { transform: scaleX(1); }
+        .scd-tab-done { color: var(--mat-sys-on-surface-variant); }
+        .scd-tab-check-icon {
+            font-size: 11px !important; width: 11px !important; height: 11px !important;
+            color: var(--mat-sys-primary); border-radius: 50%;
+            background: color-mix(in srgb, var(--mat-sys-primary) 15%, transparent); padding: 1px;
+        }
+        .scd-body {
+            width: 100%; padding: 14px 0 8px;
+            min-height: 168px; text-align: left;
+        }
+        .scd-step { width: 100%; }
+        .scd-step-label {
+            font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+            color: var(--mat-sys-on-surface-variant);
+            text-transform: uppercase; margin-bottom: 10px;
+        }
+        /* DATE STRIP */
+        .scd-date-strip {
+            display: flex; gap: 6px;
+            overflow-x: auto; padding-bottom: 4px;
+            scrollbar-width: none; scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+        }
+        .scd-date-strip::-webkit-scrollbar { display: none; }
+        .scd-date-card {
+            flex-shrink: 0; position: relative;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 1px; width: 60px; height: 80px;
+            border-radius: 14px;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            background: var(--mat-sys-surface-container-low);
+            cursor: pointer; scroll-snap-align: center;
+            transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+        }
+        .scd-date-card:hover:not(.scd-date-card-active) { transform: translateY(-2px); border-color: var(--mat-sys-primary); }
+        .scd-date-card-active {
+            background: var(--mat-sys-primary) !important;
+            border-color: var(--mat-sys-primary) !important;
+            color: var(--mat-sys-on-primary) !important;
+            transform: translateY(-4px);
+            box-shadow: 0 6px 18px color-mix(in srgb, var(--mat-sys-primary) 38%, transparent);
+        }
+        .scd-date-weekday {
+            font-size: 9px; font-weight: 700; letter-spacing: 0.6px;
+            text-transform: uppercase; color: var(--mat-sys-on-surface-variant);
+        }
+        .scd-date-card-active .scd-date-weekday { color: color-mix(in srgb, var(--mat-sys-on-primary) 75%, transparent); }
+        .scd-date-num { font-size: 22px; font-weight: 800; color: var(--mat-sys-on-surface); line-height: 1; }
+        .scd-date-card-active .scd-date-num { color: var(--mat-sys-on-primary); }
+        .scd-date-month {
+            font-size: 9px; font-weight: 500; color: var(--mat-sys-on-surface-variant);
+            text-transform: uppercase; letter-spacing: 0.4px;
+        }
+        .scd-date-card-active .scd-date-month { color: color-mix(in srgb, var(--mat-sys-on-primary) 75%, transparent); }
+        .scd-date-today-dot {
+            width: 5px; height: 5px; border-radius: 50%;
+            background: var(--mat-sys-primary); position: absolute; bottom: 7px;
+        }
+        .scd-date-card-active .scd-date-today-dot { background: var(--mat-sys-on-primary); }
+        /* TIME STEP */
+        .scd-time-cols { display: flex; gap: 16px; align-items: flex-start; }
+        .scd-time-col { flex: 1; }
+        .scd-time-col-mins { flex: 0 0 auto; width: 88px; }
+        .scd-time-col-label {
+            font-size: 10px; font-weight: 700; letter-spacing: 1px;
+            text-transform: uppercase; color: var(--mat-sys-on-surface-variant); margin-bottom: 8px;
+        }
+        .scd-hours-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+        .scd-mins-col { display: flex; flex-direction: column; gap: 5px; }
+        .scd-time-pill {
+            display: flex; align-items: center; justify-content: center;
+            padding: 7px 6px; border-radius: 8px;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            background: transparent; font-size: 13px; font-weight: 600;
+            color: var(--mat-sys-on-surface); cursor: pointer;
+            transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+        }
+        .scd-time-pill:hover:not(.scd-time-pill-active) {
+            border-color: var(--mat-sys-primary);
+            background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
+            color: var(--mat-sys-primary);
+        }
+        .scd-time-pill-active {
+            background: var(--mat-sys-primary) !important;
+            border-color: var(--mat-sys-primary) !important;
+            color: var(--mat-sys-on-primary) !important;
+            transform: scale(1.05);
+        }
+        .scd-time-pill-min { padding: 9px 6px; }
+        .scd-ampm-row { display: flex; gap: 6px; margin-top: 12px; }
+        .scd-ampm-btn {
+            flex: 1; padding: 7px 0; border-radius: 8px;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            background: transparent; font-size: 12px; font-weight: 700; cursor: pointer;
+            color: var(--mat-sys-on-surface-variant); transition: all 0.15s ease; letter-spacing: 0.5px;
+        }
+        .scd-ampm-btn:hover:not(.scd-ampm-active) { border-color: var(--mat-sys-primary); color: var(--mat-sys-primary); }
+        .scd-ampm-active {
+            background: var(--mat-sys-primary) !important;
+            border-color: var(--mat-sys-primary) !important;
+            color: var(--mat-sys-on-primary) !important;
+        }
+        /* RECURRENCE CARDS */
+        .scd-rec-row {
+            display: flex; gap: 5px;
+            overflow-x: auto; scrollbar-width: none; padding-bottom: 2px;
+        }
+        .scd-rec-row::-webkit-scrollbar { display: none; }
+        .scd-rec-card {
+            flex-shrink: 0; display: flex; flex-direction: column; align-items: center;
+            gap: 3px; padding: 9px 8px; border-radius: 12px;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            background: var(--mat-sys-surface-container-low);
+            cursor: pointer; min-width: 66px;
+            transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+        }
+        .scd-rec-card:hover:not(.scd-rec-card-active) { transform: translateY(-3px); border-color: var(--mat-sys-primary); }
+        .scd-rec-card-active {
+            border-color: var(--mat-sys-primary) !important;
+            background: color-mix(in srgb, var(--mat-sys-primary) 12%, var(--mat-sys-surface-container-low)) !important;
+            transform: translateY(-4px);
+            box-shadow: 0 4px 14px color-mix(in srgb, var(--mat-sys-primary) 25%, transparent);
+        }
+        .scd-rec-emoji { font-size: 18px; line-height: 1; }
+        .scd-rec-label { font-size: 10px; font-weight: 800; color: var(--mat-sys-on-surface); letter-spacing: 0.2px; }
+        .scd-rec-card-active .scd-rec-label { color: var(--mat-sys-primary); }
+        .scd-rec-sub { font-size: 9px; color: var(--mat-sys-on-surface-variant); white-space: nowrap; }
+        /* DAY CIRCLES */
+        .scd-day-circles { display: flex; gap: 4px; margin-top: 10px; justify-content: space-between; }
+        .scd-day-circle {
+            width: 36px; height: 36px; border-radius: 50%;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            background: transparent; font-size: 11px; font-weight: 700; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--mat-sys-on-surface-variant); transition: all 0.15s ease;
+            animation: scdCircleIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both;
+        }
+        .scd-day-circle:nth-child(1) { animation-delay:  0ms; }
+        .scd-day-circle:nth-child(2) { animation-delay: 40ms; }
+        .scd-day-circle:nth-child(3) { animation-delay: 80ms; }
+        .scd-day-circle:nth-child(4) { animation-delay:120ms; }
+        .scd-day-circle:nth-child(5) { animation-delay:160ms; }
+        .scd-day-circle:nth-child(6) { animation-delay:200ms; }
+        .scd-day-circle:nth-child(7) { animation-delay:240ms; }
+        @keyframes scdCircleIn {
+            from { transform: scale(0); opacity: 0; }
+            to   { transform: scale(1); opacity: 1; }
+        }
+        .scd-day-circle:hover:not(.scd-day-circle-active) { border-color: var(--mat-sys-primary); color: var(--mat-sys-primary); }
+        .scd-day-circle-active {
+            background: var(--mat-sys-primary) !important;
+            border-color: var(--mat-sys-primary) !important;
+            color: var(--mat-sys-on-primary) !important;
+        }
+        /* LIVE BRIEF */
+        .scd-brief {
+            width: 100%; padding: 8px 0 6px;
+            border-top: 1px solid var(--mat-sys-outline-variant);
+            font-size: 12px; color: var(--mat-sys-on-surface-variant);
+            line-height: 1.5; text-align: left; margin-top: 4px;
+        }
+        .scd-brief-val { color: var(--mat-sys-primary); font-weight: 700; }
+        .scd-brief-sep { margin: 0 2px; }
+        .scd-error {
+            margin-top: 5px; font-size: 11px; color: var(--mat-sys-error);
+            display: flex; align-items: center; gap: 4px;
+        }
+        /* FOOTER */
+        .scd-footer {
+            display: flex; align-items: center; justify-content: space-between;
+            width: 100%; padding: 12px 0 4px;
+        }
+        .scd-step-dots { display: flex; gap: 5px; align-items: center; }
+        .scd-dot {
+            height: 6px; border-radius: 50px;
+            background: var(--mat-sys-outline-variant); cursor: pointer;
+            transition: width 0.25s cubic-bezier(0.34,1.56,0.64,1), background 0.2s ease;
+            width: 6px;
+        }
+        .scd-dot-active { width: 18px; background: var(--mat-sys-primary); }
+        .scd-dot-done { background: color-mix(in srgb, var(--mat-sys-primary) 45%, var(--mat-sys-outline-variant)); }
+        .scd-footer-btns { display: flex; gap: 6px; align-items: center; }
+        .scd-cancel-btn { height: 36px; font-size: 13px; }
+        .scd-btn-back {
+            padding: 7px 14px; border-radius: 50px;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            background: transparent; color: var(--mat-sys-on-surface-variant);
+            font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s ease;
+        }
+        .scd-btn-back:hover:not(:disabled) { border-color: var(--mat-sys-primary); color: var(--mat-sys-primary); }
+        .scd-btn-back:disabled { opacity: 0.5; cursor: not-allowed; }
+        .scd-btn-next {
+            padding: 7px 18px; border-radius: 50px; border: none;
+            background: var(--mat-sys-primary); color: var(--mat-sys-on-primary);
+            font-size: 12px; font-weight: 700; cursor: pointer;
+            transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.15s ease;
+            box-shadow: 0 2px 10px color-mix(in srgb, var(--mat-sys-primary) 35%, transparent);
+        }
+        .scd-btn-next:hover { transform: translateY(-1px) scale(1.04); box-shadow: 0 5px 16px color-mix(in srgb, var(--mat-sys-primary) 45%, transparent); }
+        .scd-schedule-btn {
+            height: 36px !important;
+            background: var(--mat-sys-primary) !important;
+            color: var(--mat-sys-on-primary) !important;
+            display: flex !important; align-items: center !important; justify-content: center !important;
+            gap: 2px !important; border-radius: 50px !important;
+            font-size: 13px !important; font-weight: 700 !important;
+            box-shadow: 0 2px 10px color-mix(in srgb, var(--mat-sys-primary) 35%, transparent) !important;
+            transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+        }
+        .scd-schedule-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 5px 16px color-mix(in srgb, var(--mat-sys-primary) 45%, transparent) !important; }
+        .scd-schedule-btn:disabled { opacity: 0.75; }
+        .scd-spinner { display: inline-block; }
+        ::ng-deep .scd-spinner circle { stroke: var(--mat-sys-on-primary) !important; }
+        .scd-success-inline { display: flex; align-items: center; gap: 6px; color: var(--mat-sys-primary); font-size: 13px; font-weight: 700; }
+        .scd-success-text { color: var(--mat-sys-primary); }
+    `],
+})
+export class ScheduleDialogComponent {
+    step            = signal<1 | 2 | 3>(1);
+    hour            = signal(9);
+    minute          = signal(0);
+    ampm            = signal<'AM' | 'PM'>('AM');
+    selectedDateIdx = signal(1);
+    recurrence      = signal<'ONCE' | 'DAILY' | 'WEEKDAYS' | 'WEEKLY' | 'CUSTOM'>('ONCE');
+    customDays      = signal<Set<string>>(new Set());
+    formError       = signal('');
+    saving          = signal(false);
+    done            = signal(false);
+
+    readonly scTabs = [
+        { step: 1 as const, label: 'Date' },
+        { step: 2 as const, label: 'Time' },
+        { step: 3 as const, label: 'Repeat' },
+    ];
+
+    readonly recurrenceCards: Array<{
+        type: 'ONCE' | 'DAILY' | 'WEEKDAYS' | 'WEEKLY' | 'CUSTOM';
+        emoji: string; label: string; sub: string;
+    }> = [
+        { type: 'ONCE',     emoji: '1️⃣', label: 'Once',     sub: 'Send it once' },
+        { type: 'DAILY',    emoji: '📅', label: 'Daily',    sub: 'Every day'   },
+        { type: 'WEEKDAYS', emoji: '💼', label: 'Weekdays', sub: 'Mon → Fri'   },
+        { type: 'WEEKLY',   emoji: '📆', label: 'Weekly',   sub: 'Once a week' },
+        { type: 'CUSTOM',   emoji: '⚙️', label: 'Custom',   sub: 'Choose days' },
+    ];
+
+    readonly daysList = [
+        { key: 'MONDAY',    label: 'Mon' }, { key: 'TUESDAY',   label: 'Tue' },
+        { key: 'WEDNESDAY', label: 'Wed' }, { key: 'THURSDAY',  label: 'Thu' },
+        { key: 'FRIDAY',    label: 'Fri' }, { key: 'SATURDAY',  label: 'Sat' },
+        { key: 'SUNDAY',    label: 'Sun' },
+    ];
+
+    get availableDates(): Array<{ weekday: string; dateNum: string; month: string; isoDate: string; date: Date }> {
+        const result: Array<{ weekday: string; dateNum: string; month: string; isoDate: string; date: Date }> = [];
+        const now = new Date();
+        for (let i = 0; i < 14; i++) {
+            const d = new Date(now);
+            d.setDate(d.getDate() + i);
+            d.setHours(0, 0, 0, 0);
+            const weekday = i === 0 ? 'Today' : i === 1 ? 'Tmrw'
+                          : d.toLocaleDateString('en', { weekday: 'short' });
+            result.push({
+                weekday,
+                dateNum: String(d.getDate()),
+                month:   d.toLocaleDateString('en', { month: 'short' }),
+                isoDate: d.toISOString(),
+                date:    d,
+            });
+        }
+        return result;
+    }
+
+    get selectedDate(): Date {
+        return this.availableDates[this.selectedDateIdx()]?.date ?? new Date();
+    }
+
+    get scheduleTime(): string {
+        let h = this.hour();
+        const ap = this.ampm();
+        if (ap === 'AM' && h === 12) h = 0;
+        else if (ap === 'PM' && h !== 12) h += 12;
+        return `${String(h).padStart(2, '0')}:${String(this.minute()).padStart(2, '0')}`;
+    }
+
+    constructor(
+        public dialogRef: MatDialogRef<ScheduleDialogComponent>,
+        @Inject(MAT_DIALOG_DATA) public data: { content: string; roomId: number },
+        private chatMessageService: ChatMessageService,
+    ) {}
+
+    selectDate(i: number): void { this.selectedDateIdx.set(i); }
+    setHour(h: number):    void { this.hour.set(h); }
+    setMinute(m: number):  void { this.minute.set(m); }
+    setAmPm(ap: 'AM' | 'PM'): void { this.ampm.set(ap); }
+
+    setRecurrence(t: 'ONCE' | 'DAILY' | 'WEEKDAYS' | 'WEEKLY' | 'CUSTOM'): void {
+        this.recurrence.set(t);
+    }
+
+    toggleDay(key: string): void {
+        this.customDays.update(s => {
+            const n = new Set(s);
+            n.has(key) ? n.delete(key) : n.add(key);
+            return n;
+        });
+    }
+
+    nextStep(): void { if (this.step() < 3) this.step.update(s => (s + 1) as 1 | 2 | 3); }
+    prevStep(): void { if (this.step() > 1) this.step.update(s => (s - 1) as 1 | 2 | 3); }
+    jumpStep(s: number): void { this.step.set(s as 1 | 2 | 3); }
+
+    briefDate(): string {
+        const d = new Date(this.selectedDate);
+        const [hh, mm] = this.scheduleTime.split(':').map(Number);
+        d.setHours(hh, mm, 0, 0);
+        const now = new Date(); now.setHours(0, 0, 0, 0);
+        const target = new Date(d); target.setHours(0, 0, 0, 0);
+        const diff = Math.round((target.getTime() - now.getTime()) / 86400000);
+        const dayLabel = diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow'
+            : d.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' });
+        return `${dayLabel} at ${this.hour()}:${this.minute() === 0 ? '00' : this.minute()} ${this.ampm()}`;
+    }
+
+    briefRepeat(): string {
+        const map: Record<string, string> = {
+            ONCE: 'Once', DAILY: 'Every day', WEEKDAYS: 'Mon–Fri',
+            WEEKLY: 'Once a week', CUSTOM: 'Custom days',
+        };
+        return map[this.recurrence()] ?? this.recurrence();
+    }
+
+    private formatIso(d: Date): string {
+        const pad = (n: number) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+    }
+
+    submit(): void {
+        if (!this.data.content.trim()) {
+            this.formError.set('Message content is required.'); return;
+        }
+        const [hh, mm] = this.scheduleTime.split(':').map(Number);
+        const dt = new Date(this.selectedDate);
+        dt.setHours(hh, mm, 0, 0);
+        if (dt <= new Date()) {
+            this.formError.set('Please select a future time.'); return;
+        }
+        const recType = this.recurrence();
+        if (recType === 'CUSTOM' && this.customDays().size === 0) {
+            this.formError.set('Select at least one day for Custom recurrence.'); return;
+        }
+        const body: ScheduledPayload = {
+            content: this.data.content.trim(),
+            scheduledAt: this.formatIso(dt),
+            recurrenceType: recType,
+            ...(recType === 'CUSTOM' ? { recurrenceDays: [...this.customDays()] } : {}),
+        };
+        this.saving.set(true);
+        this.formError.set('');
+        this.chatMessageService.createScheduled(this.data.roomId, body).subscribe({
+            next: (dto) => {
+                this.saving.set(false);
+                this.done.set(true);
+                setTimeout(() => this.dialogRef.close({ scheduled: true, dto }), 900);
+            },
+            error: (err) => {
+                this.saving.set(false);
+                this.formError.set(err?.error?.message ?? 'Failed to schedule message.');
+            },
+        });
+    }
+
+    cancel(): void {
+        if (!this.saving()) this.dialogRef.close();
+    }
+}
+
 /* ══ Voice Send Choice Dialog ════════════════════════════════════════════ */
 @Component({
     selector: 'app-voice-send-choice-dialog',
@@ -1929,6 +2572,12 @@ export class RemoveMemberDialogComponent {
     }
 }
 
+interface MessageGroup {
+    senderId: number;
+    senderName: string;
+    messages: MessageDTO[];
+}
+
 @Component({
     selector: "app-chat",
     standalone: true,
@@ -1947,6 +2596,7 @@ export class RemoveMemberDialogComponent {
         QuillModule,
         RoomWizardDialogComponent,
         DeleteRoomDialogComponent,
+        ScheduleDialogComponent,
         CancelScheduledDialogComponent,
         RemoveMemberDialogComponent,
         VoiceSendChoiceDialogComponent,
@@ -1961,6 +2611,14 @@ export class RemoveMemberDialogComponent {
                         <h3 class="mb-1 fw-bold">Chat Rooms</h3>
                         <p class="text-secondary small mb-0">Collaborate with your team in real time</p>
                     </div>
+                    @if (canManageMembers) {
+                        <div class="col-auto mb-3 mb-xl-0">
+                            <button mat-icon-button (click)="openDashboard()"
+                                    matTooltip="My Dashboard">
+                                <mat-icon>bar_chart</mat-icon>
+                            </button>
+                        </div>
+                    }
                     <div class="col-auto mb-3 mb-xl-0">
                         <app-page-right></app-page-right>
                     </div>
@@ -2265,6 +2923,12 @@ export class RemoveMemberDialogComponent {
                                                 <mat-icon class="material-icons-outlined" style="font-size:19px;width:19px;height:19px">event_note</mat-icon>
                                             </button>
                                         }
+                                        <button matIconButton matTooltip="Summarize conversation"
+                                                (click)="openSummary()"
+                                                [class.header-btn-active]="showSummaryPanel()">
+                                            <mat-icon class="material-icons-outlined ai-summary-icon"
+                                                      style="font-size:19px;width:19px;height:19px">auto_awesome</mat-icon>
+                                        </button>
                                         <button matIconButton matTooltip="{{ isSearchVisible() ? 'Close search' : 'Search messages' }}"
                                                 (click)="toggleSearch()"
                                                 [class.header-btn-active]="isSearchVisible()">
@@ -2911,6 +3575,133 @@ export class RemoveMemberDialogComponent {
                                     </div>
                                 }
 
+                                <!-- ── AI Summary Panel ── -->
+                                @if (showSummaryPanel()) {
+                                    <div class="members-panel summary-panel" [@summaryPanelSlide] (click)="$event.stopPropagation()">
+                                        <!-- Shimmer gradient accent bar -->
+                                        <div class="summary-accent-bar"></div>
+
+                                        <!-- Header -->
+                                        <div class="members-panel-header">
+                                            <div class="members-panel-title">
+                                                <mat-icon class="material-icons-outlined summary-header-icon"
+                                                          style="font-size:18px;width:18px;height:18px">auto_awesome</mat-icon>
+                                                <span>AI Summary</span>
+                                                <span class="summary-claude-badge">Powered by Claude</span>
+                                            </div>
+                                            <button class="pp-close-btn" (click)="closeSummary()">
+                                                <mat-icon style="font-size:18px;width:18px;height:18px">close</mat-icon>
+                                            </button>
+                                        </div>
+
+                                        <!-- Subheader: room name + message count -->
+                                        @if (summaryRoomName()) {
+                                            <div class="summary-subheader">
+                                                <mat-icon class="material-icons-outlined" style="font-size:12px;width:12px;height:12px">tag</mat-icon>
+                                                <span>{{ summaryRoomName() }}</span>
+                                                <span class="summary-subheader-sep">·</span>
+                                                <span>{{ messages().filter(msg => !msg.isSystemMessage && !msg.isAgendaItem && msg.contentText).length }} messages</span>
+                                            </div>
+                                        }
+
+                                        <!-- Content area -->
+                                        <div class="pinned-panel-body summary-body">
+
+                                            <!-- Empty state: not enough messages -->
+                                            @if (!summaryHasEnoughMessages() && !summaryLoading()) {
+                                                <div class="summary-empty-state">
+                                                    <mat-icon class="material-icons-outlined summary-empty-icon">auto_awesome</mat-icon>
+                                                    <p class="summary-empty-title">Not enough messages</p>
+                                                    <p class="summary-empty-sub">Send some messages first to use AI summary.</p>
+                                                </div>
+                                            }
+
+                                            <!-- Loading state: premium AI-thinking animation -->
+                                            @if (summaryLoading()) {
+                                                <div class="summary-loading-wrap">
+                                                    <mat-icon class="material-icons-outlined summary-spin-icon"
+                                                              style="font-size:32px;width:32px;height:32px">auto_awesome</mat-icon>
+                                                    <div class="summary-dots">
+                                                        <span class="summary-dot"></span>
+                                                        <span class="summary-dot"></span>
+                                                        <span class="summary-dot"></span>
+                                                    </div>
+                                                    <div class="summary-skeleton-wrap">
+                                                        <div class="summary-skeleton" style="width:100%"></div>
+                                                        <div class="summary-skeleton" style="width:85%"></div>
+                                                        <div class="summary-skeleton" style="width:70%"></div>
+                                                    </div>
+                                                    <p class="summary-loading-text">Analyzing conversation…</p>
+                                                </div>
+                                            }
+
+                                            <!-- Error state -->
+                                            @if (summaryError() && !summaryLoading()) {
+                                                <div class="summary-error-card">
+                                                    <mat-icon class="material-icons-outlined"
+                                                              style="color:var(--mat-sys-error);font-size:32px;width:32px;height:32px">error_outline</mat-icon>
+                                                    <p class="summary-error-msg">{{ summaryError() }}</p>
+                                                    <button mat-stroked-button color="primary" (click)="openSummary()">Try Again</button>
+                                                </div>
+                                            }
+
+                                            <!-- Summary content: typewriter effect, section-styled -->
+                                            @if (summaryDisplayText() && !summaryLoading() && !summaryError()) {
+                                                <div class="summary-content">
+                                                    @for (line of summaryDisplayText().split('\n'); track $index) {
+                                                        @if (line.startsWith('- ') || line.startsWith('• ')) {
+                                                            <div class="sum-bullet" [@summaryLineIn]>
+                                                                <span class="sum-dot"></span>
+                                                                <span>{{ line.slice(2) }}</span>
+                                                            </div>
+                                                        } @else if (line.trim() === '') {
+                                                            <div class="sum-spacer"></div>
+                                                        } @else if ($index === 0) {
+                                                            <div class="sum-overview" [@summaryLineIn]>{{ line }}</div>
+                                                        } @else {
+                                                            <p class="sum-para" [@summaryLineIn]>{{ line }}</p>
+                                                        }
+                                                    }
+                                                    <!-- Sentiment badge — shown only when typewriter completes -->
+                                                    @if (summaryText() === summaryDisplayText()) {
+                                                        <div class="sum-sentiment" [@summaryLineIn]>
+                                                            <span [class]="'sum-sentiment-badge sum-sentiment-' + summarySentiment()">
+                                                                @if (summarySentiment() === 'positive') { ✅ Positive }
+                                                                @if (summarySentiment() === 'neutral') { 🔵 Neutral }
+                                                                @if (summarySentiment() === 'concerns') { ⚠️ Concerns }
+                                                            </span>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+
+                                        <!-- Footer: Copy + Pin actions -->
+                                        @if (summaryText() && !summaryLoading()) {
+                                            <div class="summary-footer">
+                                                <button matButton
+                                                        class="summary-copy-btn"
+                                                        (click)="copySummary()"
+                                                        [class.summary-copy-done]="summaryCopied()">
+                                                    <mat-icon style="font-size:16px;width:16px;height:16px">
+                                                        {{ summaryCopied() ? 'check' : 'content_copy' }}
+                                                    </mat-icon>
+                                                    {{ summaryCopied() ? 'Copied!' : 'Copy' }}
+                                                </button>
+                                                <button mat-flat-button color="primary"
+                                                        class="summary-pin-btn"
+                                                        (click)="pinSummaryAsMessage()"
+                                                        [disabled]="summaryPinning() || summaryPinned()">
+                                                    <mat-icon style="font-size:16px;width:16px;height:16px">
+                                                        {{ summaryPinned() ? 'check_circle' : (summaryPinning() ? 'hourglass_empty' : 'push_pin') }}
+                                                    </mat-icon>
+                                                    {{ summaryPinned() ? 'Pinned!' : (summaryPinning() ? 'Pinning…' : 'Pin to Room') }}
+                                                </button>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+
                                 <!-- Messages scroll area -->
                                 <div class="messages-scroll overflow-y-auto h-100" #messagePane>
 
@@ -3218,6 +4009,42 @@ export class RemoveMemberDialogComponent {
                                                 </div>
                                             </div>
                                             } <!-- /else not system message -->
+
+                                            <!-- ── Inline group summarize pill (3+ consecutive msgs from same sender) ── -->
+                                            @if (!message.isSystemMessage && !message.isAgendaItem && isGroupEnd(i) && groupSize(i) >= 3) {
+                                                @let gid = getGroupFirstId(i);
+                                                <div class="group-summarize-row"
+                                                     [class.own]="message.senderId === currentUser?.id">
+                                                    <button class="summarize-pill"
+                                                            (click)="summarizeGroupAtIndex(i)"
+                                                            [class.loading]="summarizingGroupId() === gid"
+                                                            [class.done]="groupSummaries().has(gid)">
+                                                        @if (summarizingGroupId() === gid) {
+                                                            <span class="pill-spinner"></span>
+                                                            <span>Summarizing…</span>
+                                                        } @else if (groupSummaries().has(gid)) {
+                                                            <span>✨</span>
+                                                            <span>{{ groupSummaries().get(gid)?.collapsed ? groupSize(i) + ' messages · tap to expand' : 'Hide summary' }}</span>
+                                                        } @else if (groupErrors().has(gid)) {
+                                                            @let errMsg = groupErrors().get(gid) ?? '';
+                                                            <span>⚠️</span>
+                                                            <span title="{{ errMsg }}">{{ errMsg.length > 40 ? errMsg.slice(0, 40) + '…' : errMsg }} · tap to retry</span>
+                                                        } @else {
+                                                            <span>✨</span>
+                                                            <span>Summarize {{ groupSize(i) }} messages</span>
+                                                        }
+                                                    </button>
+
+                                                    @if (groupSummaries().has(gid) && !groupSummaries().get(gid)?.collapsed) {
+                                                        <div class="inline-summary" [@summaryReveal]
+                                                             [class.own]="message.senderId === currentUser?.id">
+                                                            <div class="inline-summary-text"
+                                                                 [id]="'summary-' + gid"></div>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            }
+
                                         }
 
                                         @if (messages().length === 0 && !historyError()) {
@@ -3298,89 +4125,186 @@ export class RemoveMemberDialogComponent {
                                     </div>
                                 }
 
-                                <!-- "Send Later" / "Schedule Recurring" slide-up panel -->
-                                @if (scheduleFormType() !== 'none' && activeRoom()) {
-                                    <div class="schedule-panel" [@schedFormSlide]>
-                                        <div class="schedule-panel-header">
-                                            <div class="d-flex align-items-center gap-2">
-                                                <mat-icon class="material-icons-outlined" style="font-size:17px;width:17px;height:17px;color:var(--mat-sys-primary)">
-                                                    {{ scheduleFormType() === 'once' ? 'schedule' : 'repeat' }}
-                                                </mat-icon>
-                                                <span style="font-weight:600;font-size:13px">
-                                                    {{ editingScheduledId() ? 'Edit Scheduled Message' : (scheduleFormType() === 'once' ? 'Send Later' : 'Schedule Recurring') }}
-                                                </span>
+                                <!-- ══ SCHEDULE COMPOSER ══════════════════════════════════ -->
+                                @if (timeCapsuleOpen() && activeRoom()) {
+                                    <div class="sc-composer" [@scComposerEnter] (click)="$event.stopPropagation()">
+
+                                        <!-- 3px animated gradient shimmer line at very top -->
+                                        <div class="sc-shimmer-line" aria-hidden="true"></div>
+
+                                        <!-- Header -->
+                                        <div class="sc-header">
+                                            <div class="sc-header-left">
+                                                <div class="sc-header-icon">
+                                                    <mat-icon class="material-icons-outlined" style="font-size:18px;width:18px;height:18px">schedule_send</mat-icon>
+                                                </div>
+                                                <div class="sc-header-text">
+                                                    <span class="sc-title">Schedule message</span>
+                                                    <span class="sc-subtitle">Choose when your message arrives</span>
+                                                </div>
                                             </div>
-                                            <button class="pp-close-btn" (click)="closeSchedulePanel()">
-                                                <mat-icon style="font-size:16px;width:16px;height:16px">close</mat-icon>
+                                            <button class="sc-close-btn" (click)="closeTimeCapsule()" matTooltip="Close">
+                                                <mat-icon style="font-size:18px;width:18px;height:18px">close</mat-icon>
                                             </button>
                                         </div>
 
-                                        <div class="schedule-panel-body">
-                                            <!-- Content textarea -->
-                                            <mat-form-field appearance="outline" class="w-100 inline-small">
-                                                <mat-label>Message</mat-label>
-                                                <textarea matInput [(ngModel)]="scheduleContent" rows="2" placeholder="What do you want to say?"></textarea>
-                                            </mat-form-field>
+                                        <!-- Message preview chip -->
+                                        <div class="sc-preview-chip">
+                                            <span class="sc-preview-text">{{ scheduleContent || 'Your message…' }}</span>
+                                        </div>
 
-                                            <div class="d-flex gap-2">
-                                                <!-- Date picker -->
-                                                <mat-form-field appearance="outline" class="inline-small" style="flex:1">
-                                                    <mat-label>Date</mat-label>
-                                                    <input matInput [matDatepicker]="schedPicker"
-                                                           [(ngModel)]="scheduleDate"
-                                                           [min]="today"
-                                                           placeholder="Pick date">
-                                                    <mat-datepicker-toggle matIconSuffix [for]="schedPicker"></mat-datepicker-toggle>
-                                                    <mat-datepicker #schedPicker></mat-datepicker>
-                                                </mat-form-field>
-
-                                                <!-- Time input -->
-                                                <mat-form-field appearance="outline" class="inline-small" style="flex:1">
-                                                    <mat-label>Time</mat-label>
-                                                    <input matInput type="time" [(ngModel)]="scheduleTime">
-                                                </mat-form-field>
-                                            </div>
-
-                                            <!-- Recurrence pills (only for recurring) -->
-                                            @if (scheduleFormType() === 'recurring') {
-                                                <div class="sched-recurrence-row">
-                                                    @for (r of [['DAILY','Daily'],['WEEKDAYS','Weekdays'],['WEEKLY','Weekly'],['CUSTOM','Custom']]; track r[0]) {
-                                                        <button class="sched-pill"
-                                                                [class.sched-pill-active]="scheduleRecurrence() === r[0]"
-                                                                (click)="setScheduleRecurrence(r[0])">{{ r[1] }}</button>
+                                        <!-- Step tabs: Date / Time / Repeat -->
+                                        <div class="sc-tabs">
+                                            @for (tab of scTabs; track tab.step) {
+                                                <button class="sc-tab"
+                                                        [class.sc-tab-active]="tcStep() === tab.step"
+                                                        [class.sc-tab-done]="tcStep() > tab.step"
+                                                        (click)="tcJumpStep(tab.step)">
+                                                    @if (tcStep() > tab.step) {
+                                                        <mat-icon class="sc-tab-check-icon">check</mat-icon>
                                                     }
-                                                </div>
+                                                    {{ tab.label }}
+                                                </button>
+                                            }
+                                        </div>
 
-                                                @if (scheduleRecurrence() === 'CUSTOM') {
-                                                    <div class="sched-recurrence-row mt-1">
-                                                        @for (d of DAYS_LIST; track d.key) {
-                                                            <button class="sched-pill sched-day-pill"
-                                                                    [class.sched-pill-active]="scheduleCustomDays().has(d.key)"
-                                                                    (click)="toggleCustomDay(d.key)">{{ d.label }}</button>
+                                        <!-- Step body -->
+                                        <div class="sc-body">
+
+                                            <!-- ── STEP 1: DATE ───────────────────────────────── -->
+                                            @if (tcStep() === 1) {
+                                                <div class="sc-step"
+                                                     [@scStepAnim]="{ value: tcStep(), params: { from: tcStepDir() === 'fwd' ? 'translateX(20px)' : 'translateX(-20px)', to: tcStepDir() === 'fwd' ? 'translateX(-20px)' : 'translateX(20px)' } }">
+                                                    <div class="sc-step-label">Pick a date</div>
+                                                    <div class="sc-date-strip">
+                                                        @for (d of tcAvailableDates; track d.isoDate; let i = $index) {
+                                                            <button class="sc-date-card"
+                                                                    [class.sc-date-card-active]="tcSelectedDateIdx() === i"
+                                                                    (click)="selectTcDate(i)">
+                                                                <span class="sc-date-weekday">{{ d.weekday }}</span>
+                                                                <span class="sc-date-num">{{ d.dateNum }}</span>
+                                                                <span class="sc-date-month">{{ d.month }}</span>
+                                                                @if (i === 0) { <span class="sc-date-today-dot"></span> }
+                                                            </button>
                                                         }
                                                     </div>
-                                                }
+                                                </div>
                                             }
 
-                                            <!-- Validation error -->
+                                            <!-- ── STEP 2: TIME ───────────────────────────────── -->
+                                            @if (tcStep() === 2) {
+                                                <div class="sc-step"
+                                                     [@scStepAnim]="{ value: tcStep(), params: { from: tcStepDir() === 'fwd' ? 'translateX(20px)' : 'translateX(-20px)', to: tcStepDir() === 'fwd' ? 'translateX(-20px)' : 'translateX(20px)' } }">
+                                                    <div class="sc-time-cols">
+                                                        <div class="sc-time-col">
+                                                            <div class="sc-time-col-label">Hour</div>
+                                                            <div class="sc-hours-grid">
+                                                                @for (h of [1,2,3,4,5,6,7,8,9,10,11,12]; track h) {
+                                                                    <button class="sc-time-pill"
+                                                                            [class.sc-time-pill-active]="tcHour() === h"
+                                                                            (click)="setTcHourDirect(h)">{{ h }}</button>
+                                                                }
+                                                            </div>
+                                                        </div>
+                                                        <div class="sc-time-col sc-time-col-mins">
+                                                            <div class="sc-time-col-label">Minute</div>
+                                                            <div class="sc-mins-col">
+                                                                @for (m of [0,15,30,45]; track m) {
+                                                                    <button class="sc-time-pill sc-time-pill-min"
+                                                                            [class.sc-time-pill-active]="tcMinute() === m"
+                                                                            (click)="setTcMinuteDirect(m)">{{ m === 0 ? '00' : m }}</button>
+                                                                }
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="sc-ampm-row">
+                                                        <button class="sc-ampm-btn" [class.sc-ampm-active]="tcAmPm() === 'AM'" (click)="setTcAmPm('AM')">AM</button>
+                                                        <button class="sc-ampm-btn" [class.sc-ampm-active]="tcAmPm() === 'PM'" (click)="setTcAmPm('PM')">PM</button>
+                                                    </div>
+                                                </div>
+                                            }
+
+                                            <!-- ── STEP 3: REPEAT ─────────────────────────────── -->
+                                            @if (tcStep() === 3) {
+                                                <div class="sc-step"
+                                                     [@scStepAnim]="{ value: tcStep(), params: { from: tcStepDir() === 'fwd' ? 'translateX(20px)' : 'translateX(-20px)', to: tcStepDir() === 'fwd' ? 'translateX(-20px)' : 'translateX(20px)' } }">
+                                                    <div class="sc-rec-row">
+                                                        @for (rec of tcRecurrenceCards; track rec.type) {
+                                                            <button class="sc-rec-card"
+                                                                    [class.sc-rec-card-active]="tcRecurrence() === rec.type"
+                                                                    (click)="setTcRecurrence(rec.type)">
+                                                                <span class="sc-rec-emoji">{{ rec.emoji }}</span>
+                                                                <span class="sc-rec-label">{{ rec.label }}</span>
+                                                                <span class="sc-rec-sub">{{ rec.sub }}</span>
+                                                            </button>
+                                                        }
+                                                    </div>
+                                                    @if (tcRecurrence() === 'CUSTOM') {
+                                                        <div class="sc-day-circles" [@tcNextSendsFade]>
+                                                            @for (d of DAYS_LIST; track d.key) {
+                                                                <button class="sc-day-circle"
+                                                                        [class.sc-day-circle-active]="scheduleCustomDays().has(d.key)"
+                                                                        (click)="toggleCustomDay(d.key); updateTcNextSends()">
+                                                                    {{ d.label.charAt(0) }}
+                                                                </button>
+                                                            }
+                                                        </div>
+                                                    }
+                                                </div>
+                                            }
+
+                                        </div><!-- /sc-body -->
+
+                                        <!-- Live brief — always visible -->
+                                        <div class="sc-brief">
+                                            <span class="sc-brief-text">Sends <strong class="sc-brief-val">{{ tcBriefDate() }}</strong><span class="sc-brief-sep"> · </span><strong class="sc-brief-val">{{ tcBriefRepeat() }}</strong></span>
                                             @if (scheduleFormError()) {
-                                                <div class="chat-error px-2 py-1 small mt-1">{{ scheduleFormError() }}</div>
+                                                <div class="sc-error">
+                                                    <mat-icon style="font-size:12px;width:12px;height:12px;vertical-align:middle">error_outline</mat-icon>
+                                                    {{ scheduleFormError() }}
+                                                </div>
                                             }
+                                        </div>
 
-                                            <!-- Actions -->
-                                            <div class="d-flex gap-2 mt-2">
-                                                <button mat-stroked-button style="flex:1;height:34px;font-size:12px"
-                                                        (click)="closeSchedulePanel()">Cancel</button>
-                                                <button mat-flat-button color="primary"
-                                                        style="flex:1.5;height:34px;font-size:12px"
-                                                        [disabled]="scheduleSaving()"
-                                                        (click)="submitScheduled()">
-                                                    @if (scheduleSaving()) { <mat-spinner diameter="15" style="display:inline-block"></mat-spinner> }
-                                                    @else { {{ editingScheduledId() ? 'Save Changes' : 'Schedule' }} }
-                                                </button>
+                                        <!-- Footer: step dots + navigation buttons -->
+                                        <div class="sc-footer">
+                                            <div class="sc-step-dots">
+                                                @for (s of [1,2,3]; track s) {
+                                                    <div class="sc-dot"
+                                                         [class.sc-dot-active]="tcStep() === s"
+                                                         [class.sc-dot-done]="tcStep() > s"
+                                                         (click)="tcJumpStep(s)"></div>
+                                                }
+                                            </div>
+                                            <div class="sc-footer-btns">
+                                                @if (tcStep() > 1) {
+                                                    <button class="sc-btn-back" (click)="tcPrevStep()">Back</button>
+                                                }
+                                                @if (tcStep() < 3) {
+                                                    <button class="sc-btn-next" (click)="tcNextStep()">Next →</button>
+                                                } @else {
+                                                    @if (tcTransmitState() === 'done') {
+                                                        <div class="sc-success-inline">
+                                                            <span class="sc-success-star">✦</span>
+                                                            <span class="sc-success-text">Message scheduled!</span>
+                                                        </div>
+                                                    } @else {
+                                                        <button class="sc-btn-transmit"
+                                                                [disabled]="tcTransmitState() !== 'idle'"
+                                                                [class.sc-transmit-shake]="tcBtnShaking()"
+                                                                (click)="submitTimeCapsule()">
+                                                            @if (tcTransmitState() === 'idle') {
+                                                                Transmit ✦
+                                                            } @else {
+                                                                <mat-icon class="sc-spin" style="font-size:16px;width:16px;height:16px">sync</mat-icon>
+                                                            }
+                                                        </button>
+                                                    }
+                                                }
                                             </div>
                                         </div>
-                                    </div>
+
+                                    </div><!-- /sc-composer -->
                                 }
 
                                 <!-- Input card -->
@@ -3388,6 +4312,7 @@ export class RemoveMemberDialogComponent {
                                      [class.input-card-disabled]="!activeRoom()"
                                      [class.input-card-has-file]="!!selectedFile"
                                      [class.input-card-video-recording]="videoPhase() !== 'idle'"
+                                     [class.input-card-heartbeat]="tcInputHeartbeat()"
                                      (keydown.control.enter)="sendRichMessage()">
 
                                     @if (isRecording()) {
@@ -3513,41 +4438,24 @@ export class RemoveMemberDialogComponent {
 
                                             <div class="input-right-actions">
                                                 <span class="input-hint-text">Ctrl+Enter</span>
-                                                @if (canManageMembers) {
-                                                    <!-- Split button: Send Now (left) + expand (right) -->
-                                                    <div class="send-split" [class.send-split-disabled]="!activeRoom() || (!hasText && !selectedFile)">
-                                                        <button class="send-fab send-fab-main"
-                                                                [disabled]="!activeRoom() || (!hasText && !selectedFile)"
-                                                                (click)="sendRichMessage()"
-                                                                matTooltip="Send now">
-                                                            <mat-icon style="font-size:20px;width:20px;height:20px">send</mat-icon>
-                                                        </button>
-                                                        <button class="send-fab send-fab-arrow"
-                                                                [disabled]="!activeRoom()"
-                                                                [matMenuTriggerFor]="sendLaterMenu"
-                                                                matTooltip="More send options">
-                                                            <mat-icon style="font-size:16px;width:16px;height:16px">expand_more</mat-icon>
-                                                        </button>
-                                                        <mat-menu #sendLaterMenu="matMenu" xPosition="before">
-                                                            <button mat-menu-item (click)="openSchedulePanel('once')">
-                                                                <mat-icon>schedule</mat-icon>
-                                                                <span>Send Later</span>
-                                                            </button>
-                                                            <button mat-menu-item (click)="openSchedulePanel('recurring')">
-                                                                <mat-icon>repeat</mat-icon>
-                                                                <span>Schedule Recurring</span>
-                                                            </button>
-                                                        </mat-menu>
-                                                    </div>
-                                                } @else {
-                                                    <!-- Original send button for non-managers -->
-                                                    <button class="send-fab"
+                                                <!-- Split send button: left = send now, right = schedule -->
+                                                <div class="sc-send-split">
+                                                    <button class="sc-send-main send-fab"
                                                             [disabled]="!activeRoom() || (!hasText && !selectedFile)"
                                                             (click)="sendRichMessage()"
-                                                            matTooltip="Send message">
+                                                            matTooltip="Send now (Ctrl+Enter)">
                                                         <mat-icon style="font-size:20px;width:20px;height:20px">send</mat-icon>
                                                     </button>
-                                                }
+                                                    @if (canManageMembers) {
+                                                        <button class="sc-send-arrow"
+                                                                [disabled]="!activeRoom()"
+                                                                [class.sc-send-arrow-active]="scheduleDialogOpen()"
+                                                                (click)="openScheduleDialog()"
+                                                                matTooltip="Schedule message">
+                                                            <mat-icon style="font-size:14px;width:14px;height:14px">expand_more</mat-icon>
+                                                        </button>
+                                                    }
+                                                </div>
                                             </div>
                                         </div>
                                     }
@@ -3841,6 +4749,7 @@ export class RemoveMemberDialogComponent {
             </div>
         </div>
     }
+
     `,
     styles: [`
         /* ── Layout ─────────────────────────────────────────────────── */
@@ -7434,6 +8343,617 @@ export class RemoveMemberDialogComponent {
             50%       { opacity: 1;   transform: scale(1.06); }
         }
 
+        /* ══════════════════════════════════════════════════════════
+           TIME CAPSULE — PREMIUM REDESIGN
+           ══════════════════════════════════════════════════════════ */
+
+        /* Backdrop */
+        /* ═══ SCHEDULE COMPOSER ═══════════════════════════════════════ */
+
+        /* Floating composer container */
+        .sc-composer {
+            position: absolute;
+            bottom: calc(100% + 8px);
+            right: 0;
+            width: 100%;
+            max-width: 480px;
+            background: var(--mat-sys-surface-container);
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            border-radius: 20px;
+            box-shadow:
+                0 8px 40px rgba(0,0,0,0.18),
+                0 2px 12px rgba(0,0,0,0.08),
+                0 0 0 1px rgba(255,255,255,0.04);
+            overflow: hidden;
+            z-index: 50;
+        }
+
+        /* 3px animated shimmer line at very top */
+        .sc-shimmer-line {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(
+                90deg,
+                var(--mat-sys-primary) 0%,
+                color-mix(in srgb, var(--mat-sys-tertiary, var(--mat-sys-primary)) 70%, var(--mat-sys-primary)) 50%,
+                var(--mat-sys-primary) 100%
+            );
+            background-size: 200% 100%;
+            animation: scShimmer 2s linear infinite;
+            pointer-events: none;
+        }
+        @keyframes scShimmer {
+            0%   { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Header */
+        .sc-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px 10px;
+            border-bottom: 1px solid var(--mat-sys-outline-variant);
+        }
+        .sc-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .sc-header-icon {
+            width: 34px; height: 34px;
+            border-radius: 10px;
+            background: color-mix(in srgb, var(--mat-sys-primary) 14%, var(--mat-sys-surface-container-high));
+            display: flex; align-items: center; justify-content: center;
+            color: var(--mat-sys-primary);
+            flex-shrink: 0;
+        }
+        .sc-header-text {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+        .sc-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--mat-sys-on-surface);
+            line-height: 1.2;
+        }
+        .sc-subtitle {
+            font-size: 11px;
+            color: var(--mat-sys-on-surface-variant);
+            font-weight: 400;
+        }
+        .sc-close-btn {
+            width: 30px; height: 30px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            color: var(--mat-sys-on-surface-variant);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            transition: background 0.15s ease, color 0.15s ease, transform 0.18s cubic-bezier(0.34,1.56,0.64,1);
+            flex-shrink: 0;
+        }
+        .sc-close-btn:hover { background: var(--mat-sys-surface-container-high); color: var(--mat-sys-on-surface); transform: scale(1.1); }
+
+        /* Message preview chip */
+        .sc-preview-chip {
+            margin: 10px 16px 0;
+            padding: 6px 12px;
+            border-radius: 8px;
+            background: color-mix(in srgb, var(--mat-sys-surface-container-high) 60%, transparent);
+            border-left: 3px solid var(--mat-sys-primary);
+            border-top: 1px solid var(--mat-sys-outline-variant);
+            border-right: 1px solid var(--mat-sys-outline-variant);
+            border-bottom: 1px solid var(--mat-sys-outline-variant);
+        }
+        .sc-preview-text {
+            font-size: 12px;
+            font-style: italic;
+            color: var(--mat-sys-on-surface-variant);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+        }
+
+        /* Step tabs */
+        .sc-tabs {
+            display: flex;
+            gap: 0;
+            padding: 8px 16px 0;
+            border-bottom: 1px solid var(--mat-sys-outline-variant);
+        }
+        .sc-tab {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 7px 14px;
+            border: none;
+            background: transparent;
+            color: var(--mat-sys-on-surface-variant);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            position: relative;
+            transition: color 0.15s ease;
+            letter-spacing: 0.2px;
+        }
+        .sc-tab::after {
+            content: '';
+            position: absolute;
+            bottom: -1px; left: 0; right: 0;
+            height: 2px;
+            background: var(--mat-sys-primary);
+            border-radius: 2px 2px 0 0;
+            transform: scaleX(0);
+            transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        .sc-tab-active { color: var(--mat-sys-primary); }
+        .sc-tab-active::after { transform: scaleX(1); }
+        .sc-tab-done { color: var(--mat-sys-on-surface-variant); }
+        .sc-tab-check-icon {
+            font-size: 11px !important;
+            width: 11px !important;
+            height: 11px !important;
+            color: var(--mat-sys-primary);
+            border-radius: 50%;
+            background: color-mix(in srgb, var(--mat-sys-primary) 15%, transparent);
+            padding: 1px;
+        }
+
+        /* Step body */
+        .sc-body {
+            padding: 14px 16px 8px;
+            min-height: 160px;
+            position: relative;
+            overflow: hidden;
+        }
+        .sc-step {
+            width: 100%;
+        }
+        .sc-step-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            color: var(--mat-sys-on-surface-variant);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        /* ── DATE STRIP ──────────────────────────────────────────── */
+        .sc-date-strip {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            scrollbar-width: none;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+        }
+        .sc-date-strip::-webkit-scrollbar { display: none; }
+
+        .sc-date-card {
+            flex-shrink: 0;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1px;
+            width: 60px;
+            height: 80px;
+            border-radius: 14px;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            background: var(--mat-sys-surface-container-low);
+            cursor: pointer;
+            scroll-snap-align: center;
+            transition:
+                transform 0.15s ease,
+                border-color 0.15s ease,
+                background 0.15s ease,
+                box-shadow 0.15s ease;
+        }
+        .sc-date-card:hover:not(.sc-date-card-active) {
+            transform: translateY(-2px);
+            border-color: var(--mat-sys-primary);
+        }
+        .sc-date-card-active {
+            background: var(--mat-sys-primary) !important;
+            border-color: var(--mat-sys-primary) !important;
+            color: var(--mat-sys-on-primary) !important;
+            transform: translateY(-4px);
+            box-shadow: 0 6px 18px color-mix(in srgb, var(--mat-sys-primary) 38%, transparent);
+        }
+        .sc-date-weekday {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+            color: var(--mat-sys-on-surface-variant);
+        }
+        .sc-date-card-active .sc-date-weekday { color: color-mix(in srgb, var(--mat-sys-on-primary) 75%, transparent); }
+        .sc-date-num {
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--mat-sys-on-surface);
+            line-height: 1;
+        }
+        .sc-date-card-active .sc-date-num { color: var(--mat-sys-on-primary); }
+        .sc-date-month {
+            font-size: 9px;
+            font-weight: 500;
+            color: var(--mat-sys-on-surface-variant);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+        .sc-date-card-active .sc-date-month { color: color-mix(in srgb, var(--mat-sys-on-primary) 75%, transparent); }
+        .sc-date-today-dot {
+            width: 5px; height: 5px;
+            border-radius: 50%;
+            background: var(--mat-sys-primary);
+            position: absolute;
+            bottom: 7px;
+        }
+        .sc-date-card-active .sc-date-today-dot { background: var(--mat-sys-on-primary); }
+
+        /* ── TIME STEP ───────────────────────────────────────────── */
+        .sc-time-cols {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+        }
+        .sc-time-col { flex: 1; }
+        .sc-time-col-mins { flex: 0 0 auto; width: 88px; }
+        .sc-time-col-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--mat-sys-on-surface-variant);
+            margin-bottom: 8px;
+        }
+        .sc-hours-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+        }
+        .sc-mins-col {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .sc-time-pill {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 7px 6px;
+            border-radius: 8px;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            background: transparent;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--mat-sys-on-surface);
+            cursor: pointer;
+            transition:
+                transform 0.15s ease,
+                border-color 0.15s ease,
+                background 0.15s ease,
+                color 0.15s ease;
+        }
+        .sc-time-pill:hover:not(.sc-time-pill-active) {
+            border-color: var(--mat-sys-primary);
+            background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
+            color: var(--mat-sys-primary);
+        }
+        .sc-time-pill-active {
+            background: var(--mat-sys-primary) !important;
+            border-color: var(--mat-sys-primary) !important;
+            color: var(--mat-sys-on-primary) !important;
+            transform: scale(1.05);
+        }
+        .sc-time-pill-min { padding: 9px 6px; }
+        .sc-ampm-row {
+            display: flex;
+            gap: 6px;
+            margin-top: 12px;
+        }
+        .sc-ampm-btn {
+            flex: 1;
+            padding: 7px 0;
+            border-radius: 8px;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            background: transparent;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            color: var(--mat-sys-on-surface-variant);
+            transition: all 0.15s ease;
+            letter-spacing: 0.5px;
+        }
+        .sc-ampm-btn:hover:not(.sc-ampm-active) {
+            border-color: var(--mat-sys-primary);
+            color: var(--mat-sys-primary);
+        }
+        .sc-ampm-active {
+            background: var(--mat-sys-primary) !important;
+            border-color: var(--mat-sys-primary) !important;
+            color: var(--mat-sys-on-primary) !important;
+        }
+
+        /* ── RECURRENCE CARDS ────────────────────────────────────── */
+        .sc-rec-row {
+            display: flex;
+            gap: 5px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            padding-bottom: 2px;
+        }
+        .sc-rec-row::-webkit-scrollbar { display: none; }
+        .sc-rec-card {
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            padding: 9px 8px;
+            border-radius: 12px;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            background: var(--mat-sys-surface-container-low);
+            cursor: pointer;
+            min-width: 66px;
+            transition:
+                transform 0.15s ease,
+                border-color 0.15s ease,
+                background 0.15s ease,
+                box-shadow 0.15s ease;
+        }
+        .sc-rec-card:hover:not(.sc-rec-card-active) {
+            transform: translateY(-3px);
+            border-color: var(--mat-sys-primary);
+        }
+        .sc-rec-card-active {
+            border-color: var(--mat-sys-primary) !important;
+            background: color-mix(in srgb, var(--mat-sys-primary) 12%, var(--mat-sys-surface-container-low)) !important;
+            transform: translateY(-4px);
+            box-shadow: 0 4px 14px color-mix(in srgb, var(--mat-sys-primary) 25%, transparent);
+        }
+        .sc-rec-emoji {
+            font-size: 18px;
+            line-height: 1;
+        }
+        .sc-rec-label {
+            font-size: 10px;
+            font-weight: 800;
+            color: var(--mat-sys-on-surface);
+            letter-spacing: 0.2px;
+        }
+        .sc-rec-card-active .sc-rec-label { color: var(--mat-sys-primary); }
+        .sc-rec-sub {
+            font-size: 9px;
+            color: var(--mat-sys-on-surface-variant);
+            white-space: nowrap;
+        }
+
+        /* Custom day circles */
+        .sc-day-circles {
+            display: flex;
+            gap: 4px;
+            margin-top: 10px;
+            justify-content: space-between;
+        }
+        .sc-day-circle {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            background: transparent;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--mat-sys-on-surface-variant);
+            transition: all 0.15s ease;
+            animation: scCircleIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both;
+        }
+        .sc-day-circle:nth-child(1) { animation-delay:  0ms; }
+        .sc-day-circle:nth-child(2) { animation-delay: 40ms; }
+        .sc-day-circle:nth-child(3) { animation-delay: 80ms; }
+        .sc-day-circle:nth-child(4) { animation-delay:120ms; }
+        .sc-day-circle:nth-child(5) { animation-delay:160ms; }
+        .sc-day-circle:nth-child(6) { animation-delay:200ms; }
+        .sc-day-circle:nth-child(7) { animation-delay:240ms; }
+        @keyframes scCircleIn {
+            from { transform: scale(0); opacity: 0; }
+            to   { transform: scale(1); opacity: 1; }
+        }
+        .sc-day-circle:hover:not(.sc-day-circle-active) {
+            border-color: var(--mat-sys-primary);
+            color: var(--mat-sys-primary);
+        }
+        .sc-day-circle-active {
+            background: var(--mat-sys-primary) !important;
+            border-color: var(--mat-sys-primary) !important;
+            color: var(--mat-sys-on-primary) !important;
+        }
+
+        /* ── LIVE BRIEF ──────────────────────────────────────────── */
+        .sc-brief {
+            padding: 8px 16px;
+            border-top: 1px solid var(--mat-sys-outline-variant);
+            background: color-mix(in srgb, var(--mat-sys-surface-container-high) 40%, transparent);
+            font-size: 12px;
+            color: var(--mat-sys-on-surface-variant);
+            line-height: 1.5;
+        }
+        .sc-brief-val {
+            color: var(--mat-sys-primary);
+            font-weight: 700;
+        }
+        .sc-brief-sep { margin: 0 2px; }
+        .sc-error {
+            margin-top: 5px;
+            font-size: 11px;
+            color: var(--mat-sys-error);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* ── FOOTER ──────────────────────────────────────────────── */
+        .sc-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px 14px;
+        }
+        .sc-step-dots {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+        .sc-dot {
+            height: 6px;
+            border-radius: 50px;
+            background: var(--mat-sys-outline-variant);
+            cursor: pointer;
+            transition: width 0.25s cubic-bezier(0.34,1.56,0.64,1), background 0.2s ease;
+            width: 6px;
+        }
+        .sc-dot-active {
+            width: 18px;
+            background: var(--mat-sys-primary);
+        }
+        .sc-dot-done { background: color-mix(in srgb, var(--mat-sys-primary) 45%, var(--mat-sys-outline-variant)); }
+        .sc-footer-btns {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .sc-btn-back {
+            padding: 7px 14px;
+            border-radius: 50px;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            background: transparent;
+            color: var(--mat-sys-on-surface-variant);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .sc-btn-back:hover { border-color: var(--mat-sys-primary); color: var(--mat-sys-primary); }
+        .sc-btn-next {
+            padding: 7px 18px;
+            border-radius: 50px;
+            border: none;
+            background: var(--mat-sys-primary);
+            color: var(--mat-sys-on-primary);
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.15s ease;
+            box-shadow: 0 2px 10px color-mix(in srgb, var(--mat-sys-primary) 35%, transparent);
+        }
+        .sc-btn-next:hover {
+            transform: translateY(-1px) scale(1.04);
+            box-shadow: 0 5px 16px color-mix(in srgb, var(--mat-sys-primary) 45%, transparent);
+        }
+        .sc-btn-transmit {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 7px 18px;
+            border-radius: 50px;
+            border: none;
+            background: linear-gradient(135deg, var(--mat-sys-primary) 0%, color-mix(in srgb, var(--mat-sys-tertiary, var(--mat-sys-primary)) 60%, var(--mat-sys-primary)) 100%);
+            color: var(--mat-sys-on-primary);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.15s ease, opacity 0.15s;
+            box-shadow: 0 3px 14px color-mix(in srgb, var(--mat-sys-primary) 40%, transparent);
+            min-width: 100px;
+            justify-content: center;
+        }
+        .sc-btn-transmit:not(:disabled):hover {
+            transform: translateY(-2px) scale(1.04);
+            box-shadow: 0 6px 20px color-mix(in srgb, var(--mat-sys-primary) 52%, transparent);
+        }
+        .sc-btn-transmit:disabled { opacity: 0.75; cursor: not-allowed; }
+        @keyframes scBtnShake {
+            0%,100% { transform: translateX(0); }
+            20%      { transform: translateX(-5px); }
+            40%      { transform: translateX(5px); }
+            60%      { transform: translateX(-3px); }
+            80%      { transform: translateX(3px); }
+        }
+        .sc-transmit-shake { animation: scBtnShake 0.45s ease !important; }
+        @keyframes scSpin {
+            to { transform: rotate(360deg); }
+        }
+        .sc-spin { animation: scSpin 0.8s linear infinite; }
+        .sc-success-inline {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: var(--mat-sys-primary);
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .sc-success-star {
+            font-size: 16px;
+            animation: scPulse 1s cubic-bezier(0.34,1.56,0.64,1) infinite;
+        }
+        @keyframes scPulse {
+            0%,100% { transform: scale(1); }
+            50%      { transform: scale(1.25); }
+        }
+
+        /* ── SPLIT SEND BUTTON ───────────────────────────────────── */
+        .sc-send-split {
+            display: flex;
+            align-items: stretch;
+            gap: 0;
+        }
+        .sc-send-main {
+            border-radius: 50px 0 0 50px !important;
+            padding-right: 9px !important;
+        }
+        .sc-send-arrow {
+            width: 26px;
+            border-radius: 0 50px 50px 0 !important;
+            border: none;
+            border-left: 1px solid rgba(255,255,255,0.22) !important;
+            background: linear-gradient(135deg,
+                var(--mat-sys-primary) 0%,
+                color-mix(in srgb, var(--mat-sys-primary) 65%, var(--mat-sys-tertiary)) 100%);
+            color: var(--mat-sys-on-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition:
+                filter 0.15s ease,
+                transform 0.15s cubic-bezier(0.34,1.56,0.64,1);
+            flex-shrink: 0;
+        }
+        .sc-send-arrow:hover:not(:disabled) { filter: brightness(1.12); }
+        .sc-send-arrow:active:not(:disabled) { transform: scale(0.9); }
+        .sc-send-arrow:disabled { opacity: 0.4; cursor: not-allowed; }
+        .sc-send-arrow-active {
+            background: color-mix(in srgb, var(--mat-sys-primary) 80%, black) !important;
+        }
+
+        /* Input card heartbeat animation */
+        @keyframes tcHeartbeat {
+            0%,100% { transform: scale(1); }
+            30%      { transform: scale(1.018); }
+            60%      { transform: scale(0.996); }
+        }
+        .input-card-heartbeat { animation: tcHeartbeat 0.42s cubic-bezier(0.34,1.56,0.64,1) !important; }
+
         /* Split send button */
         .send-split {
             display: flex;
@@ -8167,6 +9687,355 @@ export class RemoveMemberDialogComponent {
             margin-top: auto;
         }
 
+        /* ── Inline Group Summarize ─────────────────────────────────────── */
+        .group-summarize-row {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            margin: -2px 0 6px 48px;
+            gap: 8px;
+        }
+        .group-summarize-row.own {
+            align-items: flex-end;
+            margin: -2px 0 6px 0;
+            margin-right: 4px;
+        }
+        .summarize-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px dashed var(--mat-sys-primary);
+            background: transparent;
+            font-size: 12px;
+            color: var(--mat-sys-primary);
+            cursor: pointer;
+            transition: all 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+            opacity: 0.65;
+            outline: none;
+        }
+        .summarize-pill:hover {
+            opacity: 1;
+            background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
+            transform: scale(1.03);
+            border-style: solid;
+        }
+        .summarize-pill.loading {
+            opacity: 0.6;
+            cursor: wait;
+            border-style: solid;
+        }
+        .summarize-pill.done {
+            opacity: 1;
+            border-style: solid;
+            background: color-mix(in srgb, var(--mat-sys-primary) 10%, transparent);
+        }
+        .pill-spinner {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 1.5px solid color-mix(in srgb, var(--mat-sys-primary) 30%, transparent);
+            border-top-color: var(--mat-sys-primary);
+            animation: pillSpin 0.8s linear infinite;
+            flex-shrink: 0;
+        }
+        @keyframes pillSpin { to { transform: rotate(360deg); } }
+        .inline-summary {
+            max-width: 320px;
+            padding: 10px 14px;
+            background: color-mix(in srgb, var(--mat-sys-primary) 6%, var(--mat-sys-surface));
+            border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 20%, transparent);
+            border-left: 3px solid var(--mat-sys-primary);
+            border-radius: 0 12px 12px 12px;
+            overflow: hidden;
+        }
+        .inline-summary.own {
+            border-left: 1px solid color-mix(in srgb, var(--mat-sys-primary) 20%, transparent);
+            border-right: 3px solid var(--mat-sys-primary);
+            border-radius: 12px 0 12px 12px;
+        }
+        .inline-summary-text {
+            font-size: 13px;
+            color: var(--mat-sys-on-surface);
+            line-height: 1.5;
+            font-style: italic;
+            min-height: 1em;
+        }
+
+        /* ── AI Summary Panel ───────────────────────────────────────────── */
+        .summary-panel {
+            background: var(--mat-sys-surface-container-lowest);
+            overflow: hidden;
+        }
+        .summary-accent-bar {
+            height: 3px;
+            flex-shrink: 0;
+            background: linear-gradient(90deg,
+                var(--mat-sys-primary) 0%,
+                var(--mat-sys-tertiary) 50%,
+                var(--mat-sys-primary) 100%);
+            background-size: 200%;
+            animation: summaryShimmer 2s linear infinite;
+        }
+        @keyframes summaryShimmer {
+            0%   { background-position: 100% 0; }
+            100% { background-position: -100% 0; }
+        }
+        .summary-header-icon {
+            color: var(--mat-sys-primary);
+            animation: summaryIconPulse 2.5s ease-in-out infinite;
+        }
+        @keyframes summaryIconPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50%      { opacity: 0.7; transform: scale(1.1); }
+        }
+        .ai-summary-icon { transition: color 0.2s ease, filter 0.2s ease; }
+        button:hover .ai-summary-icon {
+            animation: summarySparkle 0.55s ease-in-out infinite;
+            color: var(--mat-sys-primary);
+        }
+        @keyframes summarySparkle {
+            0%, 100% { filter: drop-shadow(0 0 0px var(--mat-sys-primary)); transform: rotate(0deg); }
+            25%      { filter: drop-shadow(0 0 5px var(--mat-sys-primary)); transform: rotate(-12deg); }
+            75%      { filter: drop-shadow(0 0 5px var(--mat-sys-tertiary)); transform: rotate(12deg); }
+        }
+        .summary-claude-badge {
+            font-size: 9px;
+            font-weight: 600;
+            padding: 2px 7px;
+            border-radius: 20px;
+            background: color-mix(in srgb, var(--mat-sys-tertiary-container) 60%, var(--mat-sys-surface));
+            color: var(--mat-sys-on-surface-variant);
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+        }
+        .summary-subheader {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            color: var(--mat-sys-on-surface-variant);
+            padding: 4px 14px 6px;
+            border-bottom: 1px solid var(--mat-sys-outline-variant);
+            flex-shrink: 0;
+        }
+        .summary-subheader-sep { opacity: 0.5; }
+        .summary-body {
+            overflow-y: auto;
+            flex: 1;
+            padding: 16px;
+        }
+        /* Loading */
+        .summary-loading-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            padding: 24px 8px;
+        }
+        .summary-spin-icon {
+            color: var(--mat-sys-primary);
+            animation: summarySpin 2s linear infinite;
+        }
+        @keyframes summarySpin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        .summary-dots {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .summary-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--mat-sys-primary);
+            animation: summaryDotPulse 1.4s ease-in-out infinite;
+        }
+        .summary-dot:nth-child(1) { animation-delay: 0ms; }
+        .summary-dot:nth-child(2) { animation-delay: 200ms; }
+        .summary-dot:nth-child(3) { animation-delay: 400ms; }
+        @keyframes summaryDotPulse {
+            0%, 80%, 100% { transform: scale(0.7); opacity: 0.5; }
+            40%            { transform: scale(1.0); opacity: 1; }
+        }
+        .summary-skeleton-wrap {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .summary-skeleton {
+            height: 12px;
+            border-radius: 6px;
+            background: linear-gradient(90deg,
+                var(--mat-sys-surface-container) 25%,
+                var(--mat-sys-surface-container-high) 50%,
+                var(--mat-sys-surface-container) 75%);
+            background-size: 200%;
+            animation: summarySkeletonShimmer 1.5s linear infinite;
+        }
+        @keyframes summarySkeletonShimmer {
+            0%   { background-position: 100% 0; }
+            100% { background-position: -100% 0; }
+        }
+        .summary-loading-text {
+            font-size: 12px;
+            color: var(--mat-sys-on-surface-variant);
+            font-style: italic;
+            margin: 0;
+            animation: summaryLoadTextFade 1.8s ease-in-out infinite;
+        }
+        @keyframes summaryLoadTextFade {
+            0%, 100% { opacity: 0.6; }
+            50%      { opacity: 1; }
+        }
+        /* Error */
+        .summary-error-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            padding: 24px 16px;
+            text-align: center;
+        }
+        .summary-error-msg {
+            font-size: 13px;
+            color: var(--mat-sys-on-surface-variant);
+            margin: 0;
+        }
+        /* Empty state */
+        .summary-empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 32px 16px;
+            text-align: center;
+        }
+        .summary-empty-icon {
+            font-size: 40px !important;
+            width: 40px !important;
+            height: 40px !important;
+            color: var(--mat-sys-outline-variant);
+            margin-bottom: 8px;
+        }
+        .summary-empty-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--mat-sys-on-surface);
+            margin: 0;
+        }
+        .summary-empty-sub {
+            font-size: 12px;
+            color: var(--mat-sys-on-surface-variant);
+            margin: 0;
+        }
+        /* Content */
+        .summary-content {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .sum-overview {
+            font-size: 13px;
+            font-weight: 500;
+            line-height: 1.5;
+            color: var(--mat-sys-on-surface);
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 20%, var(--mat-sys-surface));
+            border-left: 3px solid var(--mat-sys-primary);
+            border-radius: 4px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+        }
+        .sum-bullet {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+            font-size: 13px;
+            line-height: 1.5;
+            color: var(--mat-sys-on-surface);
+            padding: 3px 0;
+        }
+        .sum-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--mat-sys-primary);
+            flex-shrink: 0;
+            margin-top: 5px;
+        }
+        .sum-para {
+            font-size: 13px;
+            line-height: 1.5;
+            color: var(--mat-sys-on-surface);
+            margin: 0;
+            padding: 3px 0;
+        }
+        .sum-spacer { height: 8px; }
+        .sum-sentiment {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--mat-sys-outline-variant);
+        }
+        .sum-sentiment-badge {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 20px;
+            display: inline-block;
+        }
+        .sum-sentiment-positive {
+            background: color-mix(in srgb, #16a34a 15%, var(--mat-sys-surface));
+            color: #16a34a;
+        }
+        .sum-sentiment-neutral {
+            background: color-mix(in srgb, var(--mat-sys-primary) 15%, var(--mat-sys-surface));
+            color: var(--mat-sys-primary);
+        }
+        .sum-sentiment-concerns {
+            background: color-mix(in srgb, #eab308 15%, var(--mat-sys-surface));
+            color: #a16207;
+        }
+        /* Footer */
+        .summary-footer {
+            display: flex;
+            gap: 8px;
+            padding: 12px 14px;
+            border-top: 1px solid var(--mat-sys-outline-variant);
+            flex-shrink: 0;
+            background: var(--mat-sys-surface-container-lowest);
+        }
+        .summary-copy-btn {
+            flex: 0 0 auto;
+            font-size: 12px !important;
+            height: 34px !important;
+            min-width: 0 !important;
+            padding: 0 12px !important;
+            border: 1px solid var(--mat-sys-outline-variant) !important;
+            border-radius: 8px !important;
+            transition: background 0.15s ease, color 0.15s ease !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 4px !important;
+        }
+        .summary-copy-done {
+            color: #16a34a !important;
+            border-color: #16a34a !important;
+        }
+        .summary-pin-btn {
+            flex: 1;
+            font-size: 12px !important;
+            height: 34px !important;
+            border-radius: 8px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 4px !important;
+        }
+
     `],
     animations: [
         trigger('pillEnter', [
@@ -8401,6 +10270,35 @@ export class RemoveMemberDialogComponent {
                     style({ transform: 'translateX(0)', opacity: 1 })),
             ]),
         ]),
+        trigger('summaryReveal', [
+            transition(':enter', [
+                style({ opacity: 0, transform: 'translateY(-6px) scale(0.97)', height: '0px', overflow: 'hidden' }),
+                animate('300ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    style({ opacity: 1, transform: 'translateY(0) scale(1)', height: '*' })),
+            ]),
+            transition(':leave', [
+                animate('200ms ease-in',
+                    style({ opacity: 0, transform: 'translateY(-4px)', height: '0px' })),
+            ]),
+        ]),
+        trigger('summaryPanelSlide', [
+            transition(':enter', [
+                style({ transform: 'translateX(100%)', opacity: 0 }),
+                animate('350ms cubic-bezier(0.16, 1, 0.3, 1)',
+                    style({ transform: 'translateX(0)', opacity: 1 })),
+            ]),
+            transition(':leave', [
+                animate('220ms cubic-bezier(0.4,0,1,1)',
+                    style({ transform: 'translateX(100%)', opacity: 0 })),
+            ]),
+        ]),
+        trigger('summaryLineIn', [
+            transition(':enter', [
+                style({ transform: 'translateX(-12px)', opacity: 0 }),
+                animate('280ms cubic-bezier(0.34,1.56,0.64,1)',
+                    style({ transform: 'translateX(0)', opacity: 1 })),
+            ]),
+        ]),
         trigger('calOverlayEnter', [
             transition(':enter', [
                 style({ opacity: 0 }),
@@ -8408,6 +10306,40 @@ export class RemoveMemberDialogComponent {
             ]),
             transition(':leave', [
                 animate('180ms ease-in', style({ opacity: 0 })),
+            ]),
+        ]),
+        // ── Schedule Composer ──────────────────────────────────
+        trigger('scComposerEnter', [
+            transition(':enter', [
+                style({ transform: 'translateY(16px) scale(0.97)', opacity: 0 }),
+                animate('300ms cubic-bezier(0.16, 1, 0.3, 1)',
+                    style({ transform: 'translateY(0) scale(1)', opacity: 1 })),
+            ]),
+            transition(':leave', [
+                animate('200ms cubic-bezier(0.4, 0, 1, 1)',
+                    style({ transform: 'translateY(16px) scale(0.97)', opacity: 0 })),
+            ]),
+        ]),
+        trigger('scStepAnim', [
+            transition(':enter', [
+                style({ transform: '{{from}}', opacity: 0 }),
+                animate('280ms cubic-bezier(0.16, 1, 0.3, 1)',
+                    style({ transform: 'translateX(0)', opacity: 1 })),
+            ], { params: { from: 'translateX(20px)', to: 'translateX(-20px)' } }),
+            transition(':leave', [
+                animate('180ms cubic-bezier(0.4, 0, 1, 1)',
+                    style({ transform: '{{to}}', opacity: 0 })),
+            ], { params: { from: 'translateX(20px)', to: 'translateX(-20px)' } }),
+        ]),
+        trigger('tcNextSendsFade', [
+            transition(':enter', [
+                style({ opacity: 0, transform: 'translateY(8px)' }),
+                animate('250ms cubic-bezier(0.34,1.56,0.64,1)',
+                    style({ opacity: 1, transform: 'translateY(0)' })),
+            ]),
+            transition(':leave', [
+                animate('180ms ease-in',
+                    style({ opacity: 0, transform: 'translateY(8px)' })),
             ]),
         ]),
     ],
@@ -8578,6 +10510,7 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
 
     // ── Scheduled Messages ─────────────────────────────────────────
     scheduledPanelOpen   = signal(false);
+    scheduleDialogOpen   = signal(false);
     scheduledMessages    = signal<ScheduledMessageDTO[]>([]);
     scheduledLoading     = signal(false);
     scheduledError       = signal('');
@@ -8591,6 +10524,69 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
     scheduleSaving       = signal(false);
     scheduleFormError    = signal('');
     editingScheduledId   = signal<number | null>(null);
+
+    // ── Time Capsule Panel signals ─────────────────────────────
+    timeCapsuleOpen     = signal(false);
+    timeCapsuleBtnState = signal<'idle' | 'loading' | 'success'>('idle'); // kept for compat
+    tcTransmitState     = signal<'idle' | 'launching' | 'done'>('idle');
+    tcBtnShaking        = signal(false);
+    tcStep              = signal<1 | 2 | 3>(1);
+    tcStepDir           = signal<'fwd' | 'back'>('fwd');
+    tcInputHeartbeat    = signal(false);
+    tcClockPhase        = signal<'hour' | 'minute'>('hour');
+    tcHour              = signal(9);
+    tcMinute            = signal(0);
+    tcAmPm              = signal<'AM' | 'PM'>('AM');
+    tcSelectedDateIdx   = signal(1);
+    tcDayCirclesVisible = signal(false);
+    tcRecurrence        = signal<'ONCE' | 'DAILY' | 'WEEKDAYS' | 'WEEKLY' | 'CUSTOM'>('ONCE');
+    tcNextSends         = signal<string[]>([]);
+    private tcDragStartY    = 0;
+    private tcDragCurrentY  = 0;
+    private tcClockDragging = false;
+    private tcClockSvgRef: SVGSVGElement | null = null;
+    // Typewriter effect signals for BRIEF card
+    tcBriefDateTyped    = signal('');
+    tcBriefRepeatTyped  = signal('');
+    private tcTypewriterTimers: ReturnType<typeof setTimeout>[] = [];
+
+    readonly scTabs = [
+        { step: 1 as const, label: 'Date' },
+        { step: 2 as const, label: 'Time' },
+        { step: 3 as const, label: 'Repeat' },
+    ];
+
+    readonly tcRecurrenceCards = [
+        { type: 'ONCE' as const, icon: 'looks_one', emoji: '1️⃣', label: 'Once', sub: 'Send it once' },
+        { type: 'DAILY' as const, icon: 'today', emoji: '📅', label: 'Daily', sub: 'Every day' },
+        { type: 'WEEKDAYS' as const, icon: 'work', emoji: '💼', label: 'Weekdays', sub: 'Mon → Fri' },
+        { type: 'WEEKLY' as const, icon: 'date_range', emoji: '📆', label: 'Weekly', sub: 'Once a week' },
+        { type: 'CUSTOM' as const, icon: 'tune', emoji: '⚙️', label: 'Custom', sub: 'Choose days' },
+    ];
+
+    readonly tcMinuteSegments = [
+        { value: 0,  dotX: 120, dotY: 14,  label: '00' },
+        { value: 15, dotX: 226, dotY: 120, label: '15' },
+        { value: 30, dotX: 120, dotY: 226, label: '30' },
+        { value: 45, dotX: 14,  dotY: 120, label: '45' },
+    ];
+
+    get tcAvailableDates(): Array<{ weekday: string; dateNum: string; month: string; isoDate: string; date: Date }> {
+        const result: Array<{ weekday: string; dateNum: string; month: string; isoDate: string; date: Date }> = [];
+        const now = new Date();
+        for (let i = 0; i < 14; i++) {
+            const d = new Date(now);
+            d.setDate(d.getDate() + i);
+            d.setHours(0, 0, 0, 0);
+            const weekday = i === 0 ? 'Today' : i === 1 ? 'Tmrw'
+                          : d.toLocaleDateString('en', { weekday: 'short' });
+            const dateNum = String(d.getDate());
+            const month   = d.toLocaleDateString('en', { month: 'short' });
+            result.push({ weekday, dateNum, month, isoDate: d.toISOString(), date: d });
+        }
+        return result;
+    }
+
     /** Countdown display; refreshed every 60 s */
     private scheduledNow = signal(new Date());
     private scheduledNowInterval: ReturnType<typeof setInterval> | null = null;
@@ -8763,6 +10759,33 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
                                'July','August','September','October','November','December'];
     readonly CAL_OVL_DOW   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     meetingRooms = computed(() => this.rooms().filter(r => r.roomType === 'meeting' && r.startTime));
+
+    // ── Inline group summarization ────────────────────────────────────────
+    summarizingGroupId = signal<number | null>(null);
+    groupSummaries     = signal<Map<number, { text: string; collapsed: boolean }>>(new Map());
+    groupErrors        = signal<Map<number, string>>(new Map());
+
+    // ── AI Summary Panel ───────────────────────────────────────────────────
+    showSummaryPanel  = signal<boolean>(false);
+    summaryLoading    = signal<boolean>(false);
+    summaryText       = signal<string>('');
+    summaryError      = signal<string>('');
+    summaryRoomName   = signal<string>('');
+    summaryDisplayText = signal<string>('');
+    summaryCopied     = signal<boolean>(false);
+    summaryPinning    = signal<boolean>(false);
+    summaryPinned     = signal<boolean>(false);
+    summaryHasEnoughMessages = computed(() =>
+        this.messages().filter(m => !m.isSystemMessage && !m.isAgendaItem && m.contentText).length >= 3
+    );
+    summarySentiment = computed<'positive' | 'neutral' | 'concerns'>(() => {
+        const t = this.summaryText().toLowerCase();
+        if (t.includes('positive')) return 'positive';
+        if (t.includes('concern') || t.includes('negative')) return 'concerns';
+        return 'neutral';
+    });
+    private summaryTypewriterInterval: ReturnType<typeof setInterval> | null = null;
+
     roomsByType = computed(() => {
         const rooms = this.filteredRooms();
         const groups = new Map<string, ChatRoom[]>();
@@ -9070,6 +11093,7 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         private snackBar: MatSnackBar,
         private renderer: Renderer2,
         private dialog: MatDialog,
+        private router: Router,
         readonly notifService: ScheduledNotificationService,
         @Inject(DOCUMENT) private document: Document,
     ) {
@@ -9190,6 +11214,7 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         this._revokeRecordedUrl();
         if (this.audioProgressInterval) { clearInterval(this.audioProgressInterval); }
         this.audioMap.get(this.playingAudioId() ?? -1)?.pause();
+        if (this.summaryTypewriterInterval) { clearInterval(this.summaryTypewriterInterval); }
     }
 
     // ── Data loading ───────────────────────────────────────────────
@@ -9812,12 +11837,25 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         this.scheduleCustomDays.set(new Set());
         this.scheduleFormError.set('');
         this.editingScheduledId.set(null);
+        // also open TC panel
+        this.tcRecurrence.set(type === 'once' ? 'ONCE' : 'DAILY');
+        this.tcDayCirclesVisible.set(false);
+        this.tcStep.set(1); this.tcStepDir.set('fwd');
+        this.tcClockPhase.set('hour'); this.tcTransmitState.set('idle');
+        const days = this.tcAvailableDates;
+        this.tcSelectedDateIdx.set(1);
+        this.scheduleDate  = days[1]?.date ?? new Date();
+        this.tcHour.set(9); this.tcMinute.set(0); this.tcAmPm.set('AM');
+        this.scheduleTime  = '09:00';
+        this.timeCapsuleOpen.set(true);
+        this.updateTcNextSends();
     }
 
     closeSchedulePanel(): void {
         this.scheduleFormType.set('none');
         this.scheduleFormError.set('');
         this.editingScheduledId.set(null);
+        this.timeCapsuleOpen.set(false);
     }
 
     setScheduleRecurrence(value: string): void {
@@ -9836,6 +11874,20 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         this.scheduleFormError.set('');
         this.editingScheduledId.set(item.id);
         this.scheduledPanelOpen.set(true);
+        // sync TC panel state
+        this.tcRecurrence.set(item.recurrenceType as 'ONCE' | 'DAILY' | 'WEEKDAYS' | 'WEEKLY' | 'CUSTOM');
+        // find date index or default to 0
+        const avail = this.tcAvailableDates;
+        const matchIdx = avail.findIndex(a => a.date.toDateString() === d.toDateString());
+        this.tcSelectedDateIdx.set(matchIdx >= 0 ? matchIdx : 0);
+        const h24 = d.getHours();
+        this.tcAmPm.set(h24 >= 12 ? 'PM' : 'AM');
+        this.tcHour.set(h24 > 12 ? h24 - 12 : (h24 === 0 ? 12 : h24));
+        this.tcMinute.set(d.getMinutes());
+        this.tcDayCirclesVisible.set(item.recurrenceType === 'CUSTOM');
+        this.timeCapsuleBtnState.set('idle');
+        this.timeCapsuleOpen.set(true);
+        this.updateTcNextSends();
     }
 
     toggleCustomDay(day: string): void {
@@ -9843,6 +11895,454 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
             const n = new Set(s);
             n.has(day) ? n.delete(day) : n.add(day);
             return n;
+        });
+    }
+
+    // ── Dashboard navigation ─────────────────────────────────────
+    openDashboard(): void {
+        this.router.navigate(['/app/chat/dashboard']);
+    }
+
+    // ── Schedule Dialog ─────────────────────────────────────────
+
+    openScheduleDialog(): void {
+        const roomId = this.activeRoom()?.id;
+        if (!roomId) return;
+        const content = this.richContent ? this.stripHtml(this.richContent) : '';
+        this.scheduleDialogOpen.set(true);
+        const dialogRef = this.dialog.open(ScheduleDialogComponent, {
+            data: { content, roomId },
+            width: '520px',
+            maxWidth: '95vw',
+            panelClass: 'schedule-dialog-panel',
+            disableClose: false,
+            enterAnimationDuration: '0ms',
+            exitAnimationDuration: '0ms',
+        });
+        dialogRef.afterClosed().subscribe((result: { scheduled: boolean; dto: ScheduledMessageDTO } | undefined) => {
+            this.scheduleDialogOpen.set(false);
+            if (result?.scheduled && result.dto) {
+                this.scheduledMessages.update(list => {
+                    const idx = list.findIndex(m => m.id === result.dto.id);
+                    if (idx !== -1) { const u = [...list]; u[idx] = result.dto; return u; }
+                    return [result.dto, ...list];
+                });
+                this.notify('Message scheduled!');
+            }
+        });
+    }
+
+    // ── Time Capsule Panel methods ─────────────────────────────
+
+    openTimeCapsule(): void {
+        this.scheduleContent = this.richContent ? this.stripHtml(this.richContent) : '';
+        this.scheduleFormError.set('');
+        this.editingScheduledId.set(null);
+        this.tcRecurrence.set('ONCE');
+        this.scheduleFormType.set('once');
+        this.scheduleCustomDays.set(new Set());
+        this.tcDayCirclesVisible.set(false);
+        this.tcStep.set(1);
+        this.tcStepDir.set('fwd');
+        this.tcClockPhase.set('hour');
+        this.tcTransmitState.set('idle');
+        // default to tomorrow 09:00 AM
+        const days = this.tcAvailableDates;
+        this.tcSelectedDateIdx.set(1);
+        this.scheduleDate = new Date(days[1]?.date ?? days[0].date);
+        this.tcHour.set(9);
+        this.tcMinute.set(0);
+        this.tcAmPm.set('AM');
+        this.scheduleTime = '09:00';
+        this.timeCapsuleOpen.set(true);
+        this.updateTcNextSends();
+        // heartbeat pulse on input card
+        this.tcInputHeartbeat.set(true);
+        setTimeout(() => this.tcInputHeartbeat.set(false), 420);
+        // seed typewriter with initial values
+        setTimeout(() => this.tcTypeAllBrief(), 500);
+    }
+
+    closeTimeCapsule(): void {
+        this.timeCapsuleOpen.set(false);
+        this.scheduleFormType.set('none');
+        this.scheduleFormError.set('');
+        this.editingScheduledId.set(null);
+        this.tcTransmitState.set('idle');
+    }
+
+    selectTcDate(idx: number): void {
+        this.tcSelectedDateIdx.set(idx);
+        const d = this.tcAvailableDates[idx];
+        if (d) {
+            this.scheduleDate = new Date(d.date);
+            this.updateTcNextSends();
+            this.tcTypeBriefDate();
+        }
+    }
+
+    setTcHour(h: number): void {
+        this.tcHour.set(h);
+        this.syncTcTime();
+    }
+
+    setTcMinute(m: number): void {
+        this.tcMinute.set(m);
+        this.syncTcTime();
+    }
+
+    setTcAmPm(ap: 'AM' | 'PM'): void {
+        this.tcAmPm.set(ap);
+        this.syncTcTime();
+        this.tcTypeBriefDate();
+    }
+
+    private syncTcTime(): void {
+        let h = this.tcHour();
+        const ap = this.tcAmPm();
+        if (ap === 'PM' && h !== 12) h += 12;
+        if (ap === 'AM' && h === 12) h = 0;
+        this.scheduleTime = `${String(h).padStart(2, '0')}:${String(this.tcMinute()).padStart(2, '0')}`;
+        this.updateTcNextSends();
+    }
+
+    setTcRecurrence(type: 'ONCE' | 'DAILY' | 'WEEKDAYS' | 'WEEKLY' | 'CUSTOM'): void {
+        this.tcRecurrence.set(type);
+        this.scheduleFormType.set(type === 'ONCE' ? 'once' : 'recurring');
+        if (type !== 'ONCE') this.scheduleRecurrence.set(type);
+        this.scheduleFormError.set('');
+        this.updateTcNextSends();
+        this.tcTypeBriefRepeat();
+    }
+
+    updateTcNextSends(): void {
+        if (!this.scheduleDate || !this.scheduleTime) { this.tcNextSends.set([]); return; }
+        const [hh, mm] = this.scheduleTime.split(':').map(Number);
+        const base = new Date(this.scheduleDate);
+        base.setHours(hh, mm, 0, 0);
+        const recType = this.tcRecurrence();
+        const sends: string[] = [];
+
+        const fmt = (d: Date): string => {
+            const now = new Date(); now.setHours(0, 0, 0, 0);
+            const tom = new Date(now); tom.setDate(tom.getDate() + 1);
+            const t   = new Date(d);  t.setHours(0, 0, 0, 0);
+            const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+            if (t.getTime() === now.getTime()) return `Today ${time}`;
+            if (t.getTime() === tom.getTime()) return `Tomorrow ${time}`;
+            return d.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' }) + ` ${time}`;
+        };
+
+        if (recType === 'ONCE') {
+            sends.push(fmt(base));
+        } else if (recType === 'DAILY') {
+            for (let i = 0; i < 3; i++) {
+                const d = new Date(base); d.setDate(d.getDate() + i); sends.push(fmt(d));
+            }
+        } else if (recType === 'WEEKDAYS') {
+            let d = new Date(base);
+            for (let guard = 0; sends.length < 3 && guard < 14; guard++) {
+                const dow = d.getDay();
+                if (dow >= 1 && dow <= 5) sends.push(fmt(d));
+                d = new Date(d); d.setDate(d.getDate() + 1);
+            }
+        } else if (recType === 'WEEKLY') {
+            for (let i = 0; i < 3; i++) {
+                const d = new Date(base); d.setDate(d.getDate() + i * 7); sends.push(fmt(d));
+            }
+        } else if (recType === 'CUSTOM') {
+            const dayMap: Record<string, number> = {
+                SUNDAY: 0, MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3,
+                THURSDAY: 4, FRIDAY: 5, SATURDAY: 6,
+            };
+            const sel = [...this.scheduleCustomDays()].map(k => dayMap[k]).filter(n => n !== undefined);
+            if (sel.length > 0) {
+                let d = new Date(base);
+                for (let guard = 0; sends.length < 3 && guard < 30; guard++) {
+                    if (sel.includes(d.getDay())) sends.push(fmt(d));
+                    d = new Date(d); d.setDate(d.getDate() + 1);
+                }
+            }
+        }
+        this.tcNextSends.set(sends);
+    }
+
+    // ── Clock helpers ───────────────────────────────────────────
+    private tcAngleRad(h: number): number { return (h * 30 - 90) * Math.PI / 180; }
+    tcHourDotX(h: number):  number { return 120 + 97 * Math.cos(this.tcAngleRad(h)); }
+    tcHourDotY(h: number):  number { return 120 + 97 * Math.sin(this.tcAngleRad(h)); }
+    tcHourTextX(h: number): number { return 120 + 78 * Math.cos(this.tcAngleRad(h)); }
+    tcHourTextY(h: number): number { return 120 + 78 * Math.sin(this.tcAngleRad(h)); }
+    tcNeedleX(): number { return 120 + 68 * Math.cos(this.tcAngleRad(this.tcHour())); }
+    tcNeedleY(): number { return 120 + 68 * Math.sin(this.tcAngleRad(this.tcHour())); }
+
+    onClockSvgClick(event: MouseEvent): void {
+        if (this.tcClockPhase() !== 'hour') return;
+        const svgEl = event.currentTarget as SVGSVGElement;
+        const rect  = svgEl.getBoundingClientRect();
+        const scaleX = 240 / rect.width;
+        const scaleY = 240 / rect.height;
+        const dx = (event.clientX - rect.left) * scaleX - 120;
+        const dy = (event.clientY - rect.top)  * scaleY - 120;
+        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+        const adjusted = (angle + 90 + 360) % 360;
+        let hour = Math.round(adjusted / 30);
+        if (hour === 0 || hour === 12) hour = 12;
+        else if (hour > 12) hour %= 12;
+        if (hour === 0) hour = 12;
+        this.setTcHourFromClock(hour);
+    }
+
+    /** Extracts hour 1-12 from a pointer position relative to the SVG */
+    private tcHourFromPointer(clientX: number, clientY: number, svgEl: SVGSVGElement): number {
+        const rect   = svgEl.getBoundingClientRect();
+        const scaleX = 240 / rect.width;
+        const scaleY = 240 / rect.height;
+        const dx = (clientX - rect.left) * scaleX - 120;
+        const dy = (clientY - rect.top)  * scaleY - 120;
+        const angle    = Math.atan2(dy, dx) * 180 / Math.PI;
+        const adjusted = (angle + 90 + 360) % 360;
+        let hour = Math.round(adjusted / 30);
+        if (hour === 0 || hour === 12) hour = 12;
+        else if (hour > 12) hour %= 12;
+        if (hour === 0) hour = 12;
+        return hour;
+    }
+
+    onClockSvgMousedown(event: MouseEvent): void {
+        if (this.tcClockPhase() !== 'hour') return;
+        event.preventDefault();
+        this.tcClockDragging = true;
+        this.tcClockSvgRef = event.currentTarget as SVGSVGElement;
+        // Update hour live as mouse moves
+        const onMove = (mv: MouseEvent) => {
+            if (!this.tcClockDragging || !this.tcClockSvgRef) return;
+            const h = this.tcHourFromPointer(mv.clientX, mv.clientY, this.tcClockSvgRef);
+            if (h !== this.tcHour()) {
+                this.tcHour.set(h);
+                this.syncTcTime();
+                this.tcTypeBriefDate();
+            }
+        };
+        const onUp = (mu: MouseEvent) => {
+            if (!this.tcClockDragging) return;
+            this.tcClockDragging = false;
+            // Snap to final hour and advance to minute phase
+            const h = this.tcHourFromPointer(mu.clientX, mu.clientY, this.tcClockSvgRef!);
+            this.setTcHourFromClock(h);
+            this.tcClockSvgRef = null;
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    }
+
+    onClockSvgTouchstart(event: TouchEvent): void {
+        if (this.tcClockPhase() !== 'hour') return;
+        event.preventDefault();
+        this.tcClockDragging = true;
+        this.tcClockSvgRef = event.currentTarget as SVGSVGElement;
+        const onMove = (mv: TouchEvent) => {
+            if (!this.tcClockDragging || !this.tcClockSvgRef) return;
+            const t = mv.touches[0];
+            const h = this.tcHourFromPointer(t.clientX, t.clientY, this.tcClockSvgRef);
+            if (h !== this.tcHour()) {
+                this.tcHour.set(h);
+                this.syncTcTime();
+                this.tcTypeBriefDate();
+            }
+        };
+        const onEnd = (te: TouchEvent) => {
+            if (!this.tcClockDragging) return;
+            this.tcClockDragging = false;
+            const t = te.changedTouches[0];
+            const h = this.tcHourFromPointer(t.clientX, t.clientY, this.tcClockSvgRef!);
+            this.setTcHourFromClock(h);
+            this.tcClockSvgRef = null;
+            document.removeEventListener('touchmove', onMove);
+            document.removeEventListener('touchend', onEnd);
+        };
+        document.addEventListener('touchmove', onMove, { passive: false });
+        document.addEventListener('touchend', onEnd);
+    }
+
+    setTcHourDirect(h: number): void {
+        this.tcHour.set(h);
+        this.syncTcTime();
+        this.tcTypeBriefDate();
+    }
+
+    setTcMinuteDirect(m: number): void {
+        this.tcMinute.set(m);
+        this.syncTcTime();
+        this.tcTypeBriefDate();
+    }
+
+    setTcHourFromClock(h: number): void {
+        this.tcHour.set(h);
+        this.syncTcTime();
+        this.tcTypeBriefDate();
+        setTimeout(() => this.tcClockPhase.set('minute'), 220);
+    }
+
+    setTcMinuteFromClock(m: number): void {
+        this.tcMinute.set(m);
+        this.syncTcTime();
+        this.tcTypeBriefDate();
+        setTimeout(() => this.tcClockPhase.set('hour'), 150);
+    }
+
+    // ── Step navigation ─────────────────────────────────────────
+    tcNextStep(): void {
+        if (this.tcStep() < 3) {
+            this.tcStepDir.set('fwd');
+            this.tcStep.update(s => (s + 1) as 1 | 2 | 3);
+        }
+    }
+
+    tcPrevStep(): void {
+        if (this.tcStep() > 1) {
+            this.tcStepDir.set('back');
+            this.tcStep.update(s => (s - 1) as 1 | 2 | 3);
+        }
+    }
+
+    tcJumpStep(s: number): void {
+        if (s < this.tcStep()) { this.tcStepDir.set('back'); }
+        else                   { this.tcStepDir.set('fwd');  }
+        this.tcStep.set(s as 1 | 2 | 3);
+    }
+
+    // ── Brief card getters ──────────────────────────────────────
+    tcBriefDate(): string {
+        if (!this.scheduleDate || !this.scheduleTime) return '—';
+        const [hh, mm] = this.scheduleTime.split(':').map(Number);
+        const d = new Date(this.scheduleDate);
+        d.setHours(hh, mm, 0, 0);
+        const now = new Date(); now.setHours(0,0,0,0);
+        const target = new Date(d); target.setHours(0,0,0,0);
+        const diff = Math.round((target.getTime() - now.getTime()) / 86400000);
+        const dayLabel = diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow'
+            : d.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' });
+        return `${dayLabel} at ${this.tcHour()}:${this.tcMinute() === 0 ? '00' : this.tcMinute()} ${this.tcAmPm()}`;
+    }
+
+    tcBriefRepeat(): string {
+        const map: Record<string, string> = {
+            ONCE: 'Once', DAILY: 'Every day', WEEKDAYS: 'Mon–Fri',
+            WEEKLY: 'Once a week', CUSTOM: 'Custom days',
+        };
+        return map[this.tcRecurrence()] ?? this.tcRecurrence();
+    }
+
+    // ── Typewriter helpers for BRIEF card ───────────────────────
+    private tcTypewriterAnimate(full: string, setter: (s: string) => void): void {
+        this.tcTypewriterTimers.forEach(t => clearTimeout(t));
+        this.tcTypewriterTimers = [];
+        setter('');
+        for (let i = 1; i <= full.length; i++) {
+            const snap = full.slice(0, i);
+            this.tcTypewriterTimers.push(
+                setTimeout(() => setter(snap), i * 22)
+            );
+        }
+    }
+
+    tcTypeBriefDate(): void {
+        this.tcTypewriterAnimate(this.tcBriefDate(), s => this.tcBriefDateTyped.set(s));
+    }
+
+    tcTypeBriefRepeat(): void {
+        this.tcTypewriterAnimate(this.tcBriefRepeat(), s => this.tcBriefRepeatTyped.set(s));
+    }
+
+    tcTypeAllBrief(): void {
+        this.tcTypeBriefDate();
+        setTimeout(() => this.tcTypeBriefRepeat(), 120);
+    }
+
+    // ── Drag to close ───────────────────────────────────────────
+    tcDragStart(e: MouseEvent | TouchEvent): void {
+        this.tcDragStartY   = e instanceof TouchEvent ? e.touches[0].clientY : (e as MouseEvent).clientY;
+        this.tcDragCurrentY = this.tcDragStartY;
+        const onMove = (mv: Event) => {
+            this.tcDragCurrentY = mv instanceof TouchEvent
+                ? (mv as TouchEvent).touches[0].clientY
+                : (mv as MouseEvent).clientY;
+        };
+        const onEnd = () => {
+            if (this.tcDragCurrentY - this.tcDragStartY > 80) this.closeTimeCapsule();
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup',   onEnd);
+            document.removeEventListener('touchmove', onMove);
+            document.removeEventListener('touchend',  onEnd);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup',   onEnd);
+        document.addEventListener('touchmove', onMove);
+        document.addEventListener('touchend',  onEnd);
+    }
+
+    private shakeTcBtn(): void {
+        this.tcBtnShaking.set(true);
+        setTimeout(() => this.tcBtnShaking.set(false), 600);
+    }
+
+    submitTimeCapsule(): void {
+        const roomId = this.activeRoom()?.id;
+        if (!roomId) return;
+
+        if (!this.scheduleContent.trim()) {
+            this.scheduleFormError.set('Message content is required.'); this.shakeTcBtn(); return;
+        }
+        if (!this.scheduleDate) {
+            this.scheduleFormError.set('Please pick a date.'); this.shakeTcBtn(); return;
+        }
+        const [hh, mm] = this.scheduleTime.split(':').map(Number);
+        const dt = new Date(this.scheduleDate);
+        dt.setHours(hh, mm, 0, 0);
+        if (dt <= new Date()) {
+            this.scheduleFormError.set('Please select a future time.'); this.shakeTcBtn(); return;
+        }
+        const recType = this.tcRecurrence() === 'ONCE' ? 'ONCE' : this.scheduleRecurrence();
+        if (recType === 'CUSTOM' && this.scheduleCustomDays().size === 0) {
+            this.scheduleFormError.set('Select at least one day for Custom recurrence.'); this.shakeTcBtn(); return;
+        }
+
+        const body: ScheduledPayload = {
+            content: this.scheduleContent.trim(),
+            scheduledAt: this.formatIso(dt),
+            recurrenceType: recType as ScheduledPayload['recurrenceType'],
+            ...(recType === 'CUSTOM' ? { recurrenceDays: [...this.scheduleCustomDays()] } : {}),
+        };
+
+        this.tcTransmitState.set('launching');
+        this.scheduleFormError.set('');
+        const editId = this.editingScheduledId();
+        const req$ = editId
+            ? this.chatMessageService.updateScheduled(roomId, editId, body)
+            : this.chatMessageService.createScheduled(roomId, body);
+
+        req$.subscribe({
+            next: (dto) => {
+                this.scheduledMessages.update(list => {
+                    const idx = list.findIndex(m => m.id === dto.id);
+                    if (idx !== -1) { const u = [...list]; u[idx] = dto; return u; }
+                    return [dto, ...list];
+                });
+                this.tcTransmitState.set('done');
+                setTimeout(() => {
+                    this.closeTimeCapsule();
+                    this.clearInput();
+                    this.notify('Message scheduled!');
+                }, 900);
+            },
+            error: err => {
+                this.scheduleFormError.set(err?.error?.message ?? 'Failed to save.');
+                this.tcTransmitState.set('idle');
+                this.shakeTcBtn();
+            },
         });
     }
 
@@ -10900,6 +13400,212 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
 
     getFileDownloadUrl(fileUrl: string): string {
         return `http://localhost:8084${fileUrl}`;
+    }
+
+    // ── Inline group summarization ────────────────────────────────────────
+
+    /** True when message[index] is the last consecutive message from its sender. */
+    isGroupEnd(index: number): boolean {
+        const msgs = this.messages();
+        const current = msgs[index];
+        if (!current || current.isSystemMessage || current.isAgendaItem) return false;
+        const next = msgs[index + 1];
+        return !next || next.isSystemMessage || next.isAgendaItem || next.senderId !== current.senderId;
+    }
+
+    /** Number of consecutive messages from the same sender ending at index. */
+    groupSize(index: number): number {
+        const msgs = this.messages();
+        const current = msgs[index];
+        if (!current || current.isSystemMessage || current.isAgendaItem) return 0;
+        let size = 1;
+        let i = index - 1;
+        while (i >= 0) {
+            const m = msgs[i];
+            if (m.isSystemMessage || m.isAgendaItem || m.senderId !== current.senderId) break;
+            size++;
+            i--;
+        }
+        return size;
+    }
+
+    /** ID of the first message in the consecutive group ending at index (used as map key). */
+    getGroupFirstId(index: number): number {
+        const msgs = this.messages();
+        const current = msgs[index];
+        if (!current) return -1;
+        let i = index - 1;
+        while (i >= 0) {
+            const m = msgs[i];
+            if (m.isSystemMessage || m.isAgendaItem || m.senderId !== current.senderId) break;
+            i--;
+        }
+        return msgs[i + 1]?.id ?? current.id;
+    }
+
+    /** Called when the summarize pill is clicked. Toggles or triggers summarization. */
+    summarizeGroupAtIndex(index: number): void {
+        const key = this.getGroupFirstId(index);
+
+        // If already summarized — toggle collapse
+        const existing = this.groupSummaries().get(key);
+        if (existing) {
+            const updated = new Map(this.groupSummaries());
+            updated.set(key, { ...existing, collapsed: !existing.collapsed });
+            this.groupSummaries.set(updated);
+            return;
+        }
+
+        // Clear any previous error for this group before retrying
+        if (this.groupErrors().has(key)) {
+            const cleared = new Map(this.groupErrors());
+            cleared.delete(key);
+            this.groupErrors.set(cleared);
+        }
+
+        this.summarizingGroupId.set(key);
+
+        // Collect the group messages by walking backwards from index
+        const msgs = this.messages();
+        const current = msgs[index];
+        const groupMsgs: MessageDTO[] = [];
+        let i = index;
+        while (i >= 0) {
+            const m = msgs[i];
+            if (m.isSystemMessage || m.isAgendaItem || m.senderId !== current.senderId) break;
+            groupMsgs.unshift(m);
+            i--;
+        }
+
+        const text = groupMsgs
+            .filter(m => m.contentText)
+            .map(m => this.stripHtml(m.contentText!))
+            .filter(t => t.trim())
+            .join('\n');
+
+        if (!text.trim()) {
+            this.summarizingGroupId.set(null);
+            return;
+        }
+
+        const prompt = `Summarize these consecutive messages from ${current.senderName} in one short sentence (max 20 words), written in third person. Be concise and natural, like Instagram comment summaries:\n\n${text}`;
+
+        this.chatMessageService.summarizeGroup(prompt).subscribe({
+            next: (summary) => {
+                this.summarizingGroupId.set(null);
+                const errorsCleared = new Map(this.groupErrors());
+                errorsCleared.delete(key);
+                this.groupErrors.set(errorsCleared);
+                const updated = new Map(this.groupSummaries());
+                updated.set(key, { text: summary, collapsed: false });
+                this.groupSummaries.set(updated);
+                setTimeout(() => this.typewriteInline(`summary-${key}`, summary), 50);
+            },
+            error: (err) => {
+                const msg: string = err?.message ?? String(err);
+                console.error('Summarize group error:', msg);
+                this.summarizingGroupId.set(null);
+                const errorsUpdated = new Map(this.groupErrors());
+                errorsUpdated.set(key, msg);
+                this.groupErrors.set(errorsUpdated);
+            }
+        });
+    }
+
+    typewriteInline(elementId: string, text: string): void {
+        const el = this.document.getElementById(elementId);
+        if (!el) return;
+        el.textContent = '';
+        let i = 0;
+        const interval = setInterval(() => {
+            if (i >= text.length) { clearInterval(interval); return; }
+            el.textContent += text[i];
+            i++;
+        }, 20);
+    }
+
+    // ── AI Summary Panel ──────────────────────────────────────────────────
+
+    openSummary(): void {
+        this.showSummaryPanel.set(true);
+        this.summaryText.set('');
+        this.summaryDisplayText.set('');
+        this.summaryError.set('');
+        this.summaryRoomName.set(this.activeRoom()?.name ?? '');
+
+        if (!this.summaryHasEnoughMessages()) return;
+
+        this.summaryLoading.set(true);
+
+        this.chatMessageService.summarizeMessages(this.messages()).subscribe({
+            next: (text) => {
+                this.summaryLoading.set(false);
+                this.summaryText.set(text);
+                this.startSummaryTypewriter(text);
+            },
+            error: (err: any) => {
+                const msg: string = err?.message ?? String(err);
+                console.error('Summary panel error:', msg);
+                this.summaryLoading.set(false);
+                this.summaryError.set(msg || 'Failed to generate summary. Please try again.');
+            }
+        });
+    }
+
+    closeSummary(): void {
+        if (this.summaryTypewriterInterval) {
+            clearInterval(this.summaryTypewriterInterval);
+            this.summaryTypewriterInterval = null;
+        }
+        this.showSummaryPanel.set(false);
+    }
+
+    private startSummaryTypewriter(text: string): void {
+        if (this.summaryTypewriterInterval) {
+            clearInterval(this.summaryTypewriterInterval);
+            this.summaryTypewriterInterval = null;
+        }
+        let idx = 0;
+        this.summaryDisplayText.set('');
+        this.summaryTypewriterInterval = setInterval(() => {
+            if (idx < text.length) {
+                this.summaryDisplayText.set(text.slice(0, ++idx));
+            } else {
+                clearInterval(this.summaryTypewriterInterval!);
+                this.summaryTypewriterInterval = null;
+                this.summaryDisplayText.set(text);
+            }
+        }, 15);
+    }
+
+    copySummary(): void {
+        if (!this.summaryText()) return;
+        navigator.clipboard.writeText(this.summaryText()).then(() => {
+            this.summaryCopied.set(true);
+            setTimeout(() => this.summaryCopied.set(false), 1500);
+        });
+    }
+
+    pinSummaryAsMessage(): void {
+        const room = this.activeRoom();
+        if (!room || !this.summaryText()) return;
+        this.summaryPinning.set(true);
+        const content = '📋 AI Summary:\n' + this.summaryText();
+        const fd = new FormData();
+        fd.append('content', content);
+        this.chatMessageService.uploadMessage(room.id, fd).subscribe({
+            next: (msg) => {
+                this.chatMessageService.pinMessage(room.id, msg.id).subscribe({
+                    next: () => {
+                        this.summaryPinning.set(false);
+                        this.summaryPinned.set(true);
+                        setTimeout(() => this.summaryPinned.set(false), 2000);
+                    },
+                    error: () => { this.summaryPinning.set(false); }
+                });
+            },
+            error: () => { this.summaryPinning.set(false); }
+        });
     }
 
     innersidebar(): void {

@@ -66,4 +66,31 @@ export class ChatRoomService {
   getMyRooms(): Observable<ChatRoomDTO[]> {
     return this.http.get<ChatRoomDTO[]>('http://localhost:8084/api/chat/members/my-rooms');
   }
+
+  // ── Dashboard API ────────────────────────────────────────────────────
+  private readonly DASH = 'http://localhost:8084/api/chat/dashboard';
+
+  getDashboardOverview(): Observable<any> {
+    return this.http.get<any>(`${this.DASH}/overview`);
+  }
+
+  getDashboardMembers(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.DASH}/members`);
+  }
+
+  getDashboardRooms(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.DASH}/rooms`);
+  }
+
+  getDashboardActivity(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.DASH}/activity`);
+  }
+
+  getDashboardChart(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.DASH}/chart`);
+  }
+
+  getDashboardLeaderboard(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.DASH}/leaderboard`);
+  }
 }

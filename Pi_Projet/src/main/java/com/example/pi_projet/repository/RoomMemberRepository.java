@@ -40,4 +40,8 @@ public interface RoomMemberRepository extends JpaRepository<RoomMember, Long> {
     @Transactional
     @Query("DELETE FROM RoomMember rm WHERE rm.room.id = :roomId")
     void deleteByRoomId(@Param("roomId") Long roomId);
+
+    List<RoomMember> findByRoomIn(List<ChatRoom> rooms);
+
+    long countByRoomIn(List<ChatRoom> rooms);
 }

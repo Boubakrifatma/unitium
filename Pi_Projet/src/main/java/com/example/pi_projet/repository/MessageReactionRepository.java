@@ -1,5 +1,6 @@
 package com.example.pi_projet.repository;
 
+import com.example.pi_projet.entity.ChatRoom;
 import com.example.pi_projet.entity.Message;
 import com.example.pi_projet.entity.MessageReaction;
 import com.example.pi_projet.entity.User;
@@ -28,4 +29,7 @@ public interface MessageReactionRepository extends JpaRepository<MessageReaction
     @Transactional
     @Query("DELETE FROM MessageReaction mr WHERE mr.message.room.id = :roomId")
     void deleteByRoomId(@Param("roomId") Long roomId);
+
+    @Query("SELECT COUNT(mr) FROM MessageReaction mr WHERE mr.user = :user AND mr.message.room IN :rooms")
+    long countByUserAndMessageRoomIn(@Param("user") User user, @Param("rooms") List<ChatRoom> rooms);
 }
