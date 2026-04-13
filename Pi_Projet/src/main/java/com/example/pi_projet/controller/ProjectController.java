@@ -1,19 +1,6 @@
 package com.example.pi_projet.controller;
 
-
-
-
 import com.example.pi_projet.annotation.Authorized;
-import com.example.pi_projet.dto.ProjectDTO;
-import com.example.pi_projet.repository.ProjectRepository;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
 import com.example.pi_projet.entity.Project;
 import com.example.pi_projet.entity.Project.ProjectStatus;
 import com.example.pi_projet.entity.Project.Visibility;
@@ -23,7 +10,7 @@ import com.example.pi_projet.exception.Module2Exception;
 import com.example.pi_projet.service.ProjectIntelligenceService;
 import com.example.pi_projet.service.ProjectMemberService;
 import com.example.pi_projet.service.ProjectService;
-import com.example.pi_projet.annotation.Authorized;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -33,37 +20,16 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-@Authorized
-@RestController
-@RequestMapping("/api/projects")
-@RequiredArgsConstructor
-@Tag(name = "Projects", description = "Project endpoints")
-public class ProjectController {
 
-    private final ProjectRepository projectRepository;
-
-    @Operation(summary = "List all projects (id + name) — used for dropdowns")
-    @GetMapping
-    public ResponseEntity<List<ProjectDTO>> getAllProjects() {
-        List<ProjectDTO> projects = projectRepository.findAll()
-                .stream()
-                .map(ProjectDTO::from)
-                .toList();
-        return ResponseEntity.ok(projects);
-      
-      
-      
-      
-      
-      
-      
 @Authorized
 @RestController
 @RequestMapping("/api/v1/workspaces/{workspaceId}/projects")
 @RequiredArgsConstructor
+@Tag(name = "Projects", description = "Project management endpoints")
 public class ProjectController {
 
     private final ProjectService projectService;
@@ -94,11 +60,11 @@ public class ProjectController {
         User currentUser = requireCurrentUser(request);
         String name = parseRequiredName(body.get("name"));
         LocalDate startDate = parseOptionalDate(body.get("startDate"), "startDate");
-        LocalDate endDate   = parseOptionalDate(body.get("endDate"),   "endDate");
+        LocalDate endDate = parseOptionalDate(body.get("endDate"), "endDate");
         validateDateRange(startDate, endDate);
         Visibility visibility = parseOptionalVisibility(body.get("visibility"));
         return projectService.create(workspaceId, name, (String) body.get("description"),
-            visibility, startDate, endDate, currentUser.getId());
+                visibility, startDate, endDate, currentUser.getId());
     }
 
     @PostMapping("/from-template/{templateId}")
@@ -110,7 +76,7 @@ public class ProjectController {
         User currentUser = requireCurrentUser(request);
         String nameOverride = body.containsKey("name") ? (String) body.get("name") : null;
         LocalDate startDate = parseOptionalDate(body.get("startDate"), "startDate");
-        LocalDate endDate   = parseOptionalDate(body.get("endDate"),   "endDate");
+        LocalDate endDate = parseOptionalDate(body.get("endDate"), "endDate");
         validateDateRange(startDate, endDate);
         return projectService.createProjectFromTemplate(workspaceId, templateId, nameOverride, startDate, endDate, currentUser.getId());
     }
@@ -124,15 +90,8 @@ public class ProjectController {
         String description = body.get("description") != null ? body.get("description").toString() : null;
         String documentBase64 = body.get("document_base64") != null ? body.get("document_base64").toString() : null;
         String documentFilename = body.get("document_filename") != null ? body.get("document_filename").toString() : null;
-
         return projectIntelligenceService.bootstrapProject(
-            workspaceId,
-            inputType,
-            description,
-            documentBase64,
-            documentFilename,
-            currentUser.getId()
-        );
+                workspaceId, inputType, description, documentBase64, documentFilename, currentUser.getId());
     }
 
     @GetMapping("/pib/status")
@@ -159,16 +118,19 @@ public class ProjectController {
         User currentUser = requireCurrentUser(request);
         String nameRaw = body.get("name") != null ? ((String) body.get("name")).trim() : null;
         if (nameRaw != null) {
-            if (nameRaw.isBlank())       throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "Project name cannot be blank.");
-            if (nameRaw.length() < 3)    throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "Project name must be at least 3 characters.");
-            if (nameRaw.length() > 150)  throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "Project name cannot exceed 150 characters.");
+            if (nameRaw.isBlank())
+                throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "Project name cannot be blank.");
+            if (nameRaw.length() < 3)
+                throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "Project name must be at least 3 characters.");
+            if (nameRaw.length() > 150)
+                throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "Project name cannot exceed 150 characters.");
         }
         LocalDate startDate = parseOptionalDate(body.get("startDate"), "startDate");
-        LocalDate endDate   = parseOptionalDate(body.get("endDate"),   "endDate");
+        LocalDate endDate = parseOptionalDate(body.get("endDate"), "endDate");
         validateDateRange(startDate, endDate);
         Visibility visibility = body.get("visibility") != null ? parseOptionalVisibility(body.get("visibility")) : null;
         return projectService.update(projectId, nameRaw, (String) body.get("description"),
-            visibility, startDate, endDate, currentUser.getId());
+                visibility, startDate, endDate, currentUser.getId());
     }
 
     @PatchMapping("/{projectId}/status")
@@ -191,15 +153,14 @@ public class ProjectController {
 
     @PatchMapping("/bulk-status")
     public List<Project> bulkChangeStatus(@PathVariable UUID workspaceId,
-                                           @RequestBody Map<String, Object> body,
-                                           HttpServletRequest request) {
+                                          @RequestBody Map<String, Object> body,
+                                          HttpServletRequest request) {
         User currentUser = requireCurrentUser(request);
-
         Object idsRaw = body.get("projectIds");
         if (!(idsRaw instanceof List<?>)) {
             throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "projectIds must be a list");
         }
-        List<UUID> projectIds = new java.util.ArrayList<>();
+        List<UUID> projectIds = new ArrayList<>();
         for (Object item : (List<?>) idsRaw) {
             try {
                 projectIds.add(UUID.fromString(item.toString()));
@@ -210,7 +171,6 @@ public class ProjectController {
         if (projectIds.isEmpty()) {
             throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "projectIds must not be empty");
         }
-
         String statusRaw = body.get("status") != null ? body.get("status").toString() : null;
         if (statusRaw == null || statusRaw.isBlank()) {
             throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "status is required");
@@ -221,7 +181,6 @@ public class ProjectController {
         } catch (IllegalArgumentException ex) {
             throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "Invalid status: " + statusRaw);
         }
-
         return projectService.bulkChangeStatus(workspaceId, projectIds, newStatus, currentUser.getId());
     }
 
@@ -243,21 +202,20 @@ public class ProjectController {
         projectService.hardDelete(projectId, currentUser.getId());
     }
 
-
-    // ── Project Members ───────────────────────────────────────
+    // ── Project Members ───────────────────────────────────────────────────────
 
     @GetMapping("/{projectId}/members")
     public List<Map<String, Object>> getMembers(@PathVariable UUID workspaceId,
-                                          @PathVariable UUID projectId,
-                                          HttpServletRequest request) {
+                                                @PathVariable UUID projectId,
+                                                HttpServletRequest request) {
         User currentUser = requireCurrentUser(request);
         return projectMemberService.getAll(projectId, currentUser.getId());
     }
 
     @GetMapping("/{projectId}/available-members")
     public List<Map<String, Object>> getAvailableMembers(@PathVariable UUID workspaceId,
-                                                          @PathVariable UUID projectId,
-                                                          HttpServletRequest request) {
+                                                         @PathVariable UUID projectId,
+                                                         HttpServletRequest request) {
         User currentUser = requireCurrentUser(request);
         return projectMemberService.getAvailableWorkspaceMembers(workspaceId, projectId, currentUser.getId());
     }
@@ -273,13 +231,14 @@ public class ProjectController {
         if (userIdRaw == null || userIdRaw.isBlank())
             throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "userId is required.");
         long userId;
-        try { userId = Long.parseLong(userIdRaw.trim()); }
-        catch (NumberFormatException ex) { throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "userId must be a valid number."); }
-
+        try {
+            userId = Long.parseLong(userIdRaw.trim());
+        } catch (NumberFormatException ex) {
+            throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "userId must be a valid number.");
+        }
         String role = body.get("role");
         if (role == null || role.isBlank())
             throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "role is required.");
-
         return projectMemberService.add(projectId, userId, role.trim(), currentUser.getId());
     }
 
@@ -306,6 +265,8 @@ public class ProjectController {
         projectMemberService.remove(projectId, userId, currentUser.getId());
     }
 
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
     private User requireCurrentUser(HttpServletRequest request) {
         Object user = request.getAttribute("currentUser");
         if (!(user instanceof User currentUser)) {
@@ -317,9 +278,12 @@ public class ProjectController {
     private String parseRequiredName(Object raw) {
         if (raw == null) throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "Project name is required.");
         String name = raw.toString().trim();
-        if (name.isBlank())    throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "Project name cannot be blank.");
-        if (name.length() < 3) throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "Project name must be at least 3 characters.");
-        if (name.length() > 150) throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "Project name cannot exceed 150 characters.");
+        if (name.isBlank())
+            throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "Project name cannot be blank.");
+        if (name.length() < 3)
+            throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "Project name must be at least 3 characters.");
+        if (name.length() > 150)
+            throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "Project name cannot exceed 150 characters.");
         return name;
     }
 
@@ -330,13 +294,15 @@ public class ProjectController {
         try {
             return LocalDate.parse(s);
         } catch (Exception ex) {
-            throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "Invalid date format for " + field + ". Use YYYY-MM-DD.");
+            throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION,
+                    "Invalid date format for " + field + ". Use YYYY-MM-DD.");
         }
     }
 
     private void validateDateRange(LocalDate startDate, LocalDate endDate) {
         if (startDate != null && endDate != null && endDate.isBefore(startDate)) {
-            throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "End date must be on or after the start date.");
+            throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION,
+                    "End date must be on or after the start date.");
         }
     }
 
@@ -345,7 +311,8 @@ public class ProjectController {
         try {
             return Visibility.valueOf(raw.toString().trim().toUpperCase());
         } catch (IllegalArgumentException ex) {
-            throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "Invalid visibility value. Use PUBLIC or PRIVATE.");
+            throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION,
+                    "Invalid visibility value. Use PUBLIC or PRIVATE.");
         }
     }
 }

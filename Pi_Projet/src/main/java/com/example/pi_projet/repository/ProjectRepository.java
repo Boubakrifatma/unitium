@@ -36,4 +36,15 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
     /** Returns all non-deleted projects for a workspace (no pagination). Used by War Room and PDF export. */
     List<Project> findAllByWorkspaceIdAndDeletedAtIsNull(UUID workspaceId);
 
+    /** Returns all non-deleted projects where the given user is a member. Used by chat room project dropdown. */
+    @Query("""
+        SELECT DISTINCT p FROM Project p
+        JOIN ProjectMember pm ON pm.project = p
+        WHERE pm.userId = :userId
+          AND pm.deletedAt IS NULL
+          AND p.deletedAt IS NULL
+        ORDER BY p.name ASC
+        """)
+    List<Project> findAllByMemberUserId(@Param("userId") Long userId);
+
 }
