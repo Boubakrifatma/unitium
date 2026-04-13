@@ -146,6 +146,10 @@ export const routes: Routes = [
                 loadComponent: () => import("./pages/app/task-manage/all-task.component").then((c) => c.AllTaskComponent),
             },
             {
+                path: "milestones",
+                loadComponent: () => import("./pages/app/milestone-manage/all-milestone.component").then((c) => c.AllMilestoneComponent),
+            },
+            {
                 path: "orders",
                 loadComponent: () => import("./pages/app/ecommerce/orders.component").then((c) => c.OrdersComponent),
             },

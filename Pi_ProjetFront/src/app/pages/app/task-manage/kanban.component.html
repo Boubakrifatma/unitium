@@ -1,0 +1,230 @@
+<!-- ── Header ─────────────────────────────────────────────────── -->
+<div class="container-fluid fade-in mb-3 mb-lg-4">
+  <mat-card class="bg-light-theme shadow-none pt-3 pb-lg-3 px-3">
+    <div class="row gx-3 align-items-center">
+
+      <div class="col-12 col-md mb-3 mb-xl-0 py-1">
+        <h3 class="mb-1">Mes Tâches — Kanban</h3>
+        <p class="small">
+          <span routerLink="/app/dashboard" class="me-2 text-theme style-none">
+            <mat-icon class="material-icons-outlined align-middle text-sm">house</mat-icon>
+            Home
+          </span>
+          <mat-icon class="material-icons-outlined align-middle text-sm me-2">chevron_right</mat-icon>
+          Kanban
+        </p>
+      </div>
+
+      <!-- ✅ Filtre projet par ID (signal) -->
+      <div class="col-8 col-md-6 col-lg-4 col-xl-3 mb-3 mb-xl-0">
+        <mat-form-field appearance="outline" class="w-100 inline-small">
+          <mat-label>Projet</mat-label>
+          <mat-select
+            [value]="selectedProjectId()"
+            (selectionChange)="selectProject($event.value)">
+            <mat-option value="all">Tous les projets</mat-option>
+            @for (p of projectList(); track p.id) {
+              <mat-option [value]="p.id">{{ p.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <div class="col-auto mb-3 mb-xl-0">
+        <button mat-icon-button (click)="loadMyTasks()" matTooltip="Rafraîchir">
+          <mat-icon class="material-icons-outlined">refresh</mat-icon>
+        </button>
+      </div>
+
+    </div>
+  </mat-card>
+</div>
+
+<!-- ── Loading ────────────────────────────────────────────────── -->
+@if (loading()) {
+  <div class="d-flex justify-content-center align-items-center" style="height:300px">
+    <mat-spinner diameter="50"></mat-spinner>
+  </div>
+}
+
+<!-- ── Error ──────────────────────────────────────────────────── -->
+@if (error()) {
+  <div class="container mb-3">
+    <div class="alert alert-danger d-flex align-items-center gap-2">
+      <mat-icon>error_outline</mat-icon>
+      {{ error() }}
+      <button mat-button color="warn" (click)="loadMyTasks()">Réessayer</button>
+    </div>
+  </div>
+}
+
+<!-- ── Contenu principal ───────────────────────────────────────── -->
+@if (!loading() && !error()) {
+<div class="container fade-in">
+
+  <!-- ✅ Bandeau projet sélectionné -->
+  @if (selectedProject()) {
+    <mat-card class="mb-3 mb-lg-4 px-3 py-2 bg-light-theme shadow-none">
+      <div class="d-flex align-items-center gap-3">
+        <mat-icon class="material-icons-outlined text-theme">folder_open</mat-icon>
+        <div>
+          <h5 class="mb-0">{{ selectedProject()!.name }}</h5>
+          <p class="small text-secondary mb-0">
+            {{ filteredTasks().length }} tâche(s) assignée(s)
+          </p>
+        </div>
+      </div>
+    </mat-card>
+  }
+
+  <!-- Summary cards -->
+  <div class="row gx-3 gx-lg-4 mb-2">
+    @for (summary of summaryMetrics(); track summary.title) {
+      <div class="col-6 col-md-6 col-lg-3">
+        <mat-card class="mb-3 mb-lg-4" [ngClass]="summary.colorClass">
+          <mat-card-content class="pb-0">
+            <div class="row gx-3 align-items-center">
+              <div class="col-auto mb-3">
+                <div class="avatar avatar-50 bg-light-theme text-theme rounded">
+                  <mat-icon class="material-icons-outlined">{{ summary.icon }}</mat-icon>
+                </div>
+              </div>
+              <div class="col mb-3">
+                <p class="text-secondary small mb-1">{{ summary.title }}</p>
+                <h2 class="mb-0">{{ summary.value }}</h2>
+              </div>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </div>
+    }
+  </div>
+
+  <!-- Empty state -->
+  @if (filteredTasks().length === 0) {
+    <div class="text-center py-5">
+      <mat-icon class="material-icons-outlined" style="font-size:64px; color:#ccc">
+        assignment_turned_in
+      </mat-icon>
+      <h4 class="mt-3 text-secondary">Aucune tâche pour ce projet</h4>
+      <p class="text-secondary">
+        Vous n'avez pas de tâches assignées dans ce projet.
+      </p>
+    </div>
+  }
+
+  <!-- ✅ Colonnes Kanban — filtrées par projet -->
+  @if (filteredTasks().length > 0) {
+    <div class="row gx-3 gx-lg-4">
+      @for (column of kanbanColumns; track column.id) {
+        <div class="col-12 col-sm-6 col-lg-3" [ngClass]="column.titleClass">
+          <mat-card class="mb-3 mb-lg-4 p-2 pb-0 bg-light-theme shadow-none">
+
+            <!-- Entête colonne -->
+            <h4 class="text-theme p-3 mb-2 d-flex align-items-center">
+              <mat-icon class="align-middle material-icons-outlined me-2">{{ column.icon }}</mat-icon>
+              {{ column.title }}
+              <span class="badge badge-light align-middle ms-2">
+                {{ getTasksForStatus(column.id).length }}
+              </span>
+            </h4>
+
+            <!-- Zone de drop -->
+            <div
+              cdkDropList
+              [id]="column.id"
+              [cdkDropListData]="getTasksForStatus(column.id)"
+              [cdkDropListConnectedTo]="columnIds"
+              (cdkDropListDropped)="drop($event)"
+              style="min-height: 80px"
+            >
+              <!-- Cartes tâches -->
+              @for (task of getTasksForStatus(column.id); track task.taskId) {
+                <div cdkDrag>
+
+                  <div *cdkDragPlaceholder
+                       class="mb-2 rounded"
+                       style="height:140px; background:#e0e0e0; border:2px dashed #bbb;">
+                  </div>
+
+                  <mat-card class="mb-2 position-relative" style="cursor:grab">
+                    <mat-card-content class="pb-4">
+
+                      <!-- Titre -->
+                      <p class="fw-semibold mb-1">{{ task.title }}</p>
+
+                      <!-- Projet -->
+                      @if (selectedProjectId() === 'all') {
+                        <p class="small text-secondary mb-2">
+                          <mat-icon class="material-icons-outlined me-1"
+                                    style="font-size:14px; vertical-align:middle">folder</mat-icon>
+                          {{ task.projectName }}
+                        </p>
+                      }
+
+                      <!-- Heures -->
+                      <p class="mb-1 small">
+                        <mat-icon class="material-icons-outlined text-sm me-1 text-theme"
+                                  style="font-size:14px; vertical-align:middle">schedule</mat-icon>
+                        {{ task.loggedHours }} / {{ task.assignHours }}
+                      </p>
+
+                      <!-- Assigné à -->
+                      <p class="mb-2 small">
+                        <mat-icon class="material-icons-outlined text-sm me-1 text-theme"
+                                  style="font-size:14px; vertical-align:middle">person</mat-icon>
+                        {{ task.assignedTo }}
+                      </p>
+
+                      <!-- Date échéance -->
+                      @if (task.dueDate) {
+                        <p class="mb-2 small"
+                           [ngClass]="isOverdue(task.dueDate) ? 'text-danger' : 'text-secondary'">
+                          <mat-icon class="material-icons-outlined me-1"
+                                    style="font-size:14px; vertical-align:middle">event</mat-icon>
+                          {{ task.dueDate | date:'dd MMM yyyy' }}
+                          @if (isOverdue(task.dueDate)) {
+                            <span class="ms-1 fw-bold">⚠</span>
+                          }
+                        </p>
+                      }
+
+                      <!-- Badges type & priorité -->
+                      <div class="d-flex align-items-center justify-content-between mt-2">
+                        <span class="badge badge-light" [ngClass]="getTypeBadgeClass(task.type)">
+                          {{ task.type }}
+                        </span>
+                        <span class="badge" [ngClass]="getPriorityClass(task.priority)">
+                          {{ task.priority }}
+                        </span>
+                      </div>
+
+                    </mat-card-content>
+
+                    <!-- Handle drag -->
+                    <div class="text-secondary text-center position-absolute bottom-0 start-0 end-0 opacity-50"
+                         style="line-height:1">
+                      <mat-icon class="material-icons-outlined" style="font-size:18px">drag_handle</mat-icon>
+                    </div>
+                  </mat-card>
+
+                </div>
+              }
+
+              <!-- Colonne vide -->
+              @if (getTasksForStatus(column.id).length === 0) {
+                <div class="d-flex align-items-center justify-content-center text-theme opacity-50 mb-2 rounded"
+                     style="height:80px; border:2px dashed currentColor;">
+                  <span class="small">Déposer ici</span>
+                </div>
+              }
+
+            </div>
+          </mat-card>
+        </div>
+      }
+    </div>
+  }
+
+</div>
+}

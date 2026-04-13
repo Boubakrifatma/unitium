@@ -188,6 +188,7 @@ export class AppSidebarComponent {
                 { name: "Projects (Template)", route: "/app/projects", icon: "assignment" },
                 { name: "Project Details (Template)", route: "/app/project-details", icon: "subject" },
                 { name: "All Task", route: "/app/all-tasks", icon: "checklist" },
+                { name: "Milestones", route: "/app/milestones", icon: "flag" },
                 { name: "Tasks Details", route: "/app/task-details", icon: "task" },
                 { name: "Task Kanban", route: "/app/kanban", icon: "view_kanban" },
                 { name: "Task Gantt Chart", route: "/app/gantt-chart", icon: "event" },
