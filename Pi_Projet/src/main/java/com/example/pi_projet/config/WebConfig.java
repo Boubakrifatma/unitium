@@ -4,7 +4,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import java.nio.file.Paths;
 
 @Configuration
 @RequiredArgsConstructor
@@ -16,16 +19,38 @@ public class WebConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
                 .allowedOrigins("http://localhost:4200")
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true);
+    }
+
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        String uploadsPath = Paths.get("uploads/avatars/").toAbsolutePath().toUri().toString();
+        registry.addResourceHandler("/uploads/avatars/**")
+                .addResourceLocations(uploadsPath);
     }
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(sessionInterceptor)
                 .addPathPatterns("/api/**")
-                .excludePathPatterns("/api/auth/login")
-                .excludePathPatterns("/api/chat/files/**");
+                .excludePathPatterns(
+                    "/api/auth/login",                    // login public
+                    "/api/auth/face-login",               // face login public
+                    "/api/auth/change-password",          // changement mot de passe 1er login
+                    "/api/auth/2fa/verify",               // vérification code 2FA (avant JWT)
+                    "/api/auth/magic-link",               // envoi du magic link (public)
+                    "/api/auth/magic-link/verify",        // vérification du magic link (public)
+                    "/api/invitations/respond",           // réponse à une invitation (public — GET redirect)
+                    "/api/billing/create-payment-intent", // création PaymentIntent Stripe public
+                    "/api/billing/payment",               // soumission paiement public
+                    "/api/billing/payment/*",             // statut paiement public
+                    "/api/billing/plans",                 // liste plans publique
+                    "/api/billing/coupons/validate/*",   // validation coupon publique
+                    "/api/billing/coupons/active",       // coupons actifs pour home page (public)
+                    "/swagger-ui/**",
+                    "/v3/api-docs/**"
+                );
     }
 }

@@ -3,6 +3,32 @@ export interface User {
   email: string;
   fullName: string;
   role: 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'EMPLOYEE' | 'TUTOR' | 'PRODUCT_OWNER' | 'STUDENT' | 'VIEWER';
+  mustChangePassword?: boolean;
+  avatarUrl?: string | null;
+}
+
+export interface OrganizationContext {
+  organizationId: string;
+  organizationName: string;
+  organizationSlug: string;
+  organizationType: string;
+  membershipRole: string;
+}
+
+export interface OrganizationOption {
+  organizationId: string;
+  organizationName: string;
+  organizationSlug: string;
+  organizationType: string;
+  membershipRole: string;
+}
+
+export interface AuthOrganization {
+  id: string;
+  name: string;
+  slug: string;
+  orgType: string;
+  memberRole: string;
 }
 
 export interface AuthResponse {
@@ -11,6 +37,8 @@ export interface AuthResponse {
   email: string;
   fullName: string;
   role: string;
+  mustChangePassword?: boolean;
+  organizations?: AuthOrganization[];
 }
 
 export interface LoginRequest {

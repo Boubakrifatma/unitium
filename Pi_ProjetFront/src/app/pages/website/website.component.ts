@@ -17,6 +17,7 @@ import { MatButtonToggleModule } from "@angular/material/button-toggle";
 import { BarBlueChartjs100Component } from "../../components/charts/bar-blue-chartjs-100.component";
 import Swiper from "swiper";
 import { register } from "swiper/element/bundle";
+import { HttpClient } from "@angular/common/http";
 register();
 
 @Component({
@@ -24,6 +25,39 @@ register();
     standalone: true,
     imports: [CommonModule, RouterLink, FormsModule, MatExpansionModule, MatButtonToggleModule, MatListModule, MatMenuModule, MatButtonModule, MatIconModule, MatInputModule, MatFormFieldModule, MatCardModule, MatToolbarModule, MatButtonModule, BarBlueChartjs100Component, AreaBlueChartjs60Component],
     template: `
+        <!-- Coupon Popup for First-time Visitors -->
+        @if (showCouponPopup && firstCoupon) {
+          <div class="coupon-overlay" (click)="couponClickable && closeCouponPopup()">
+            <div class="coupon-popup" (click)="$event.stopPropagation()">
+              <button class="coupon-close" (click)="closeCouponPopup()">
+                <mat-icon>close</mat-icon>
+              </button>
+              <div class="coupon-icon-wrap">
+                <mat-icon class="coupon-main-icon">local_offer</mat-icon>
+              </div>
+              <h4 class="coupon-title">Welcome! Special Offer</h4>
+              <p class="coupon-subtitle">Use this exclusive coupon on your first subscription</p>
+              <div class="coupon-code-box">
+                <span class="coupon-code-label">Your Coupon Code</span>
+                <div class="coupon-code-value">{{ firstCoupon.code }}</div>
+                <div class="coupon-discount-info">
+                  @if (firstCoupon.discountType === 'PERCENTAGE') {
+                    <span class="coupon-badge-discount">{{ firstCoupon.discountValue }}% OFF</span>
+                  } @else {
+                    <span class="coupon-badge-discount">\${{ firstCoupon.discountValue }} OFF</span>
+                  }
+                  @if (firstCoupon.description) {
+                    <span class="coupon-desc">{{ firstCoupon.description }}</span>
+                  }
+                </div>
+              </div>
+              <button class="coupon-btn-use" (click)="scrollToPlans(); closeCouponPopup()">
+                <mat-icon>rocket_launch</mat-icon> Get Started with this Coupon
+              </button>
+            </div>
+          </div>
+        }
+
         <div class="bg-theme-white-gradient bg-light-gradient position-relative pt-5">
             <div class="container py-4 pt-lg-5 z-index-1 position-relative ">
                 <div class="row gx-3 gx-lg-4 justify-content-center text-center">
@@ -35,8 +69,7 @@ register();
                             Multi-Device UI Consistency
                         </h1>
                         <p class="opacity-75 mb-4 mb-lg-5">Enhance your web projects with our responsive Angular Material Admin Dashboard Template. This comprehensive UI kit provides a sleek, modern, and intuitive design to help you build powerful, feature-rich admin panels with ease.</p>
-                        <button routerLink="/auth/landing" matButton="filled" class="mx-2">Get Started <mat-icon iconPositionEnd>arrow_forward</mat-icon></button>
-                        <button routerLink="/app/dashboard" matButton="elevated" class="mx-2">Dashboard <mat-icon iconPositionEnd>arrow_forward</mat-icon></button>
+                        <button (click)="scrollToPlans()" matButton="filled" class="mx-2">Get Started <mat-icon iconPositionEnd>arrow_forward</mat-icon></button>
                     </div>
                 </div>
             </div>
@@ -120,7 +153,6 @@ register();
                             </div>
                             <h2>Trending Design</h2>
                             <p class="text-secondary mb-4">Be with latest trending and how content are being specific in AI Age. Our today's significant move can save tomorrows lot of efforts towards user accessibility.</p>
-                            <button routerLink="/app/dashboard" matButton>Personalize <mat-icon iconPositionEnd>arrow_forward</mat-icon></button>
                         </mat-card-content>
                     </mat-card>
                 </div>
@@ -132,7 +164,6 @@ register();
                             </div>
                             <h2>Uniqueness</h2>
                             <p class="text-secondary mb-4">Standout from crowed by using unique design template and maximize usage of framework capability to stay light weight and efficient.</p>
-                            <button routerLink="/app/profile" matButton>Profile <mat-icon iconPositionEnd>arrow_forward</mat-icon></button>
                         </mat-card-content>
                     </mat-card>
                 </div>
@@ -210,7 +241,6 @@ register();
                                         <mat-list-item><mat-icon class="material-icons-outlined align-middle me-2">check_circle</mat-icon> Charts Options</mat-list-item>
                                         <mat-list-item><mat-icon class="material-icons-outlined align-middle me-2">check_circle</mat-icon> Elastic Widgets</mat-list-item>
                                     </mat-list>
-                                    <button routerLink="/app/dashboard" matButton>Dashboard <mat-icon iconPositionEnd>arrow_forward</mat-icon></button>
                                 </div>
                                 <div class="col-6 ">
                                     <img src="assets/img/feature-1.png" alt="" class="w-100 rounded" />
@@ -225,7 +255,6 @@ register();
                             <h2>Track e-Commerce</h2>
                             <p class="text-secondary mb-3">You can expand project with eCommerce store and manage at one single place.</p>
                             <img src="assets/img/feature-2.png" alt="" class="w-100 rounded mb-2" />
-                            <button routerLink="/app/ecommerce" class="" matButton>Storefront UI <mat-icon iconPositionEnd>arrow_forward</mat-icon></button>
                         </mat-card-content>
                     </mat-card>
                 </div>
@@ -235,7 +264,6 @@ register();
                             <h2>Appointment Booking</h2>
                             <p class="text-secondary mb-4">Easy to Book appointment and track with calendar. Mange your schedules personal and business now with more accessible way.</p>
                             <img src="assets/img/feature-3.png" alt="" class="w-100 mb-2" />
-                            <button routerLink="/app/calendar" class="" matButton>Calendar <mat-icon iconPositionEnd>arrow_forward</mat-icon></button>
                         </mat-card-content>
                     </mat-card>
                 </div>
@@ -251,7 +279,6 @@ register();
                                     <p class="text-secondary mb-4">Track your project and analyze task progress along with project. Review and Monitor closely with minimal effort. Manage documents and activity view which help you to have better understanding. Responsiveness and customizability allows more flexibility to achieve business goals</p>
                                 </div>
                                 <div class="col-auto align-self-end">
-                                    <button routerLink="/app/projects" class="mb-3" matButton>Projects <mat-icon iconPositionEnd>arrow_forward</mat-icon></button>
                                 </div>
                             </div>
                             <div class="row gx-3 gx-lg-4 align-items-center">
@@ -274,7 +301,6 @@ register();
                                     <p class="text-secondary mb-3">With the minimalistic Kanban chart you can manage your daily task and progress with status.</p>
                                 </div>
                                 <div class="col-auto align-self-end">
-                                    <button routerLink="/app/kanban" class="mb-3" matButton>Kanban view <mat-icon iconPositionEnd>arrow_forward</mat-icon></button>
                                 </div>
                             </div>
                             <div class="row gx-3 gx-lg-4 align-items-center">
@@ -408,127 +434,315 @@ register();
             </div>
         </div>
 
-        <div class="container py-4 py-lg-5">
-            <!-- pricing   -->
+        <!-- ══════════════════════════════════════════════════════════
+             PRICING SECTION — CMP Plans (Enterprise & Academic)
+             ══════════════════════════════════════════════════════════ -->
+        <div id="plans-section" class="container py-4 py-lg-5">
+            <!-- Section Header -->
             <div class="row gx-3 gx-lg-4 justify-content-center mb-3 mb-lg-4">
                 <div class="col-12 col-md-8 col-lg-6 text-center">
-                    <h3 class="opacity-75">Our Pricing</h3>
-                    <h2 class="mb-2">Take your saving to next level by upgrading plans</h2>
-                    <p class="text-secondary">Take a look at features and upgrade your current plan with us</p>
+                    <span class="badge badge-outline-theme mb-2">Pricing & Plans</span>
+                    <h2 class="mb-2 fw-bold">One platform, two contexts</h2>
+                    <p class="text-secondary">Choose between <strong>Enterprise</strong> (companies &amp; startups) or <strong>Academic</strong> (universities &amp; research labs).</p>
                     <br />
+                    <!-- Org Type Tabs -->
+                    <div class="pricing-tabs-wrapper d-flex justify-content-center mb-3">
+                        <div class="pricing-tabs">
+                            <button class="ptab" [class.ptab-active]="homePricingTab() === 'enterprise'" (click)="homePricingTab.set('enterprise')">
+                                <mat-icon>corporate_fare</mat-icon> Enterprise
+                            </button>
+                            <button class="ptab" [class.ptab-active]="homePricingTab() === 'academic'" (click)="homePricingTab.set('academic')">
+                                <mat-icon>school</mat-icon> Academic
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Billing Toggle -->
                     <mat-button-toggle-group name="plans" [hideSingleSelectionIndicator]="hideSingleSelectionIndicator()">
-                        <mat-button-toggle value="monthly" checked>Monthly</mat-button-toggle>
-                        <mat-button-toggle value="yearly">Yearly <span class="badge badge-theme ms-2">Save 20%</span></mat-button-toggle>
+                        <mat-button-toggle value="monthly" checked (change)="homeBillingCycle.set('monthly')">Monthly</mat-button-toggle>
+                        <mat-button-toggle value="yearly" (change)="homeBillingCycle.set('annual')">Annual <span class="badge badge-theme ms-2">Save 20%</span></mat-button-toggle>
                     </mat-button-toggle-group>
                 </div>
             </div>
-            <div class="row gx-3 gx-lg-4 align-items-center">
-                <div class="col-12 col-md-6 col-lg-4">
-                    <mat-card class="mb-3 mb-lg-4 bg-light-gradient theme-orange">
-                        <mat-card-content>
-                            <div class="row gx-3 align-items-center mb-3">
-                                <div class="col-auto">
-                                    <div class="avatar avatar-50 rounded bg-theme text-white">
-                                        <mat-icon>person</mat-icon>
-                                    </div>
-                                </div>
-                                <div class="col">
-                                    <h3 class="mb-1">Personal</h3>
-                                    <p class="opacity-75">Perfect for the individuals</p>
+
+            <!-- Enterprise Plans -->
+            @if (homePricingTab() === 'enterprise') {
+            <div class="row gx-3 gx-lg-4 align-items-stretch">
+
+                <!-- Starter -->
+                <div class="col-12 col-md-6 col-lg-3 mb-4">
+                    <mat-card class="home-plan-card h-100">
+                        <mat-card-content class="d-flex flex-column h-100">
+                            <div class="hpc-header">
+                                <div class="hpc-icon ent-icon"><mat-icon>rocket_launch</mat-icon></div>
+                                <div>
+                                    <h4 class="mb-0 fw-bold">Starter</h4>
+                                    <p class="text-secondary small mb-0">Small teams</p>
                                 </div>
                             </div>
-
-                            <h1 class="mb-1">$ 50</h1>
-                            <p class="opacity-75 mb-3 mb-lg-4">Per license</p>
-
-                            <h4 class="mb-2">Basic includes:</h4>
-                            <mat-list style="--mat-list-list-item-one-line-container-height:40px">
-                                <mat-list-item><mat-icon class="material-icons-outlined me-2 align-middle">check_circle</mat-icon> All demo access</mat-list-item>
-                                <mat-list-item><mat-icon class="material-icons-outlined me-2 align-middle">check_circle</mat-icon> Unlimited Download</mat-list-item>
-                                <mat-list-item><mat-icon class="material-icons-outlined me-2 align-middle">check_circle</mat-icon> No Contact list</mat-list-item>
-                                <mat-list-item><mat-icon class="material-icons-outlined me-2 align-middle">check_circle</mat-icon> 5 transactions per day</mat-list-item>
-                                <mat-list-item><mat-icon class="material-icons-outlined me-2 align-middle">check_circle</mat-icon> 24/7 Customer Support</mat-list-item>
+                            <div class="hpc-price">
+                                <span class="hpc-currency">$</span>
+                                <span class="hpc-amount">{{ homeBillingCycle() === 'monthly' ? '49' : '39' }}</span>
+                                <span class="hpc-period">/mo</span>
+                            </div>
+                            <mat-list class="hpc-features flex-grow-1" style="--mat-list-list-item-one-line-container-height:36px">
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>5 team members</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>3 workspaces</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>10 projects</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>5 GB storage</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>Basic ML insights</mat-list-item>
                             </mat-list>
-                        </mat-card-content>
-                        <mat-card-actions class="justify-content-center py-4">
-                            <div class="text-center">
-                                <p class="text-center mb-2"><span class="opacity-75">Your next due date is:</span> 22-June-2026</p>
-                                <span class="badge theme-green">Active</span>
-                            </div>
-                        </mat-card-actions>
-                    </mat-card>
-                </div>
-                <div class="col-12 col-md-6 col-lg-4">
-                    <mat-card class="bg-theme mb-3 mb-lg-4 theme-green">
-                        <mat-card-content class="px-1 pb-1">
-                            <h4 class="text-center text-white mb-3">Recommended</h4>
-                            <mat-card class="shadow-none">
-                                <mat-card-content>
-                                    <div class="row gx-3 align-items-center mb-3">
-                                        <div class="col-auto">
-                                            <div class="avatar avatar-50 rounded bg-theme text-white">
-                                                <mat-icon>group</mat-icon>
-                                            </div>
-                                        </div>
-                                        <div class="col">
-                                            <h3 class="mb-1">Business</h3>
-                                            <p class="opacity-75">Multiple team &amp; customer</p>
-                                        </div>
-                                    </div>
-
-                                    <h1 class="mb-1">$ 100</h1>
-                                    <p class="opacity-75 mb-3 mb-lg-4">Per license</p>
-
-                                    <h4 class="mb-2">Basic includes:</h4>
-                                    <mat-list style="--mat-list-list-item-one-line-container-height:40px">
-                                        <mat-list-item><mat-icon class="material-icons-outlined me-2 align-middle">check_circle</mat-icon> All demo access</mat-list-item>
-                                        <mat-list-item><mat-icon class="material-icons-outlined me-2 align-middle">check_circle</mat-icon> Unlimited Download</mat-list-item>
-                                        <mat-list-item><mat-icon class="material-icons-outlined me-2 align-middle">check_circle</mat-icon> No Contact list</mat-list-item>
-                                        <mat-list-item><mat-icon class="material-icons-outlined me-2 align-middle">check_circle</mat-icon> 15 transactions per day</mat-list-item>
-                                        <mat-list-item><mat-icon class="material-icons-outlined me-2 align-middle">check_circle</mat-icon> Multiple User</mat-list-item>
-                                        <mat-list-item><mat-icon class="material-icons-outlined me-2 align-middle">check_circle</mat-icon> 24/7 Customer Support</mat-list-item>
-                                    </mat-list>
-                                </mat-card-content>
-                                <mat-card-actions class="justify-content-center p-3">
-                                    <button matButton="filled" class="w-100">Buy Now</button>
-                                </mat-card-actions>
-                            </mat-card>
+                            <mat-card-actions class="pt-2">
+                                <button routerLink="/billing/checkout" [queryParams]="{plan:'starter',type:'enterprise',cycle:homeBillingCycle()}" matButton="outlined" class="w-100">
+                                    Get Started <mat-icon iconPositionEnd>arrow_forward</mat-icon>
+                                </button>
+                            </mat-card-actions>
                         </mat-card-content>
                     </mat-card>
                 </div>
-                <div class="col-12 col-md-6 col-lg-4">
-                    <mat-card class="bg-light-gradient mb-3 mb-lg-4">
-                        <mat-card-content>
-                            <div class="row gx-3 align-items-center mb-3">
-                                <div class="col-auto">
-                                    <div class="avatar avatar-50 rounded bg-theme text-white">
-                                        <mat-icon>apartment</mat-icon>
-                                    </div>
-                                </div>
-                                <div class="col">
-                                    <h3 class="mb-1">Ultra Pro</h3>
-                                    <p class="opacity-75">Multiple Application</p>
+
+                <!-- Pro (Recommended) -->
+                <div class="col-12 col-md-6 col-lg-3 mb-4">
+                    <mat-card class="home-plan-card home-plan-recommended h-100">
+                        <div class="hpc-badge"><mat-icon>star</mat-icon> Recommended</div>
+                        <mat-card-content class="d-flex flex-column h-100">
+                            <div class="hpc-header">
+                                <div class="hpc-icon ent-icon"><mat-icon>workspace_premium</mat-icon></div>
+                                <div>
+                                    <h4 class="mb-0 fw-bold">Pro</h4>
+                                    <p class="text-secondary small mb-0">Growing orgs</p>
                                 </div>
                             </div>
-
-                            <h1 class="mb-1">On Request</h1>
-                            <p class="opacity-75 mb-3 mb-lg-4">Share your customization details</p>
-
-                            <h4 class="mb-2">Basic includes:</h4>
-                            <mat-list style="--mat-list-list-item-one-line-container-height:40px">
-                                <mat-list-item><mat-icon class="material-icons-outlined me-2 align-middle">check_circle</mat-icon> All from Business plan</mat-list-item>
-                                <mat-list-item><mat-icon class="material-icons-outlined me-2 align-middle">check_circle</mat-icon> 50 transactions per day</mat-list-item>
-                                <mat-list-item><mat-icon class="material-icons-outlined me-2 align-middle">check_circle</mat-icon> Multiple user</mat-list-item>
-                                <mat-list-item><mat-icon class="material-icons-outlined me-2 align-middle">check_circle</mat-icon> Merchant Account</mat-list-item>
-                                <mat-list-item><mat-icon class="material-icons-outlined me-2 align-middle">check_circle</mat-icon> Customization as per request</mat-list-item>
+                            <div class="hpc-price">
+                                <span class="hpc-currency">$</span>
+                                <span class="hpc-amount">{{ homeBillingCycle() === 'monthly' ? '149' : '119' }}</span>
+                                <span class="hpc-period">/mo</span>
+                            </div>
+                            <mat-list class="hpc-features flex-grow-1" style="--mat-list-list-item-one-line-container-height:36px">
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>25 team members</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>10 workspaces</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>Unlimited projects</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>Full ML suite</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>Priority support</mat-list-item>
                             </mat-list>
+                            <mat-card-actions class="pt-2">
+                                <button routerLink="/billing/checkout" [queryParams]="{plan:'pro',type:'enterprise',cycle:homeBillingCycle()}" matButton="filled" class="w-100">
+                                    Get Started <mat-icon iconPositionEnd>arrow_forward</mat-icon>
+                                </button>
+                            </mat-card-actions>
                         </mat-card-content>
-                        <mat-card-actions class="justify-content-center p-3">
-                            <button routerLink="/app/contact-us" matButton="filled" class="w-100">Contact Us</button>
-                        </mat-card-actions>
+                    </mat-card>
+                </div>
+
+                <!-- Business -->
+                <div class="col-12 col-md-6 col-lg-3 mb-4">
+                    <mat-card class="home-plan-card h-100">
+                        <mat-card-content class="d-flex flex-column h-100">
+                            <div class="hpc-header">
+                                <div class="hpc-icon ent-icon"><mat-icon>corporate_fare</mat-icon></div>
+                                <div>
+                                    <h4 class="mb-0 fw-bold">Business</h4>
+                                    <p class="text-secondary small mb-0">Large enterprises</p>
+                                </div>
+                            </div>
+                            <div class="hpc-price">
+                                <span class="hpc-currency">$</span>
+                                <span class="hpc-amount">{{ homeBillingCycle() === 'monthly' ? '349' : '279' }}</span>
+                                <span class="hpc-period">/mo</span>
+                            </div>
+                            <mat-list class="hpc-features flex-grow-1" style="--mat-list-list-item-one-line-container-height:36px">
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>100 team members</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>Unlimited workspaces</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>Advanced ML models</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>SSO / SAML</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>SLA 99.9%</mat-list-item>
+                            </mat-list>
+                            <mat-card-actions class="pt-2">
+                                <button routerLink="/billing/checkout" [queryParams]="{plan:'business',type:'enterprise',cycle:homeBillingCycle()}" matButton="outlined" class="w-100">
+                                    Get Started <mat-icon iconPositionEnd>arrow_forward</mat-icon>
+                                </button>
+                            </mat-card-actions>
+                        </mat-card-content>
+                    </mat-card>
+                </div>
+
+                <!-- Enterprise / On Request -->
+                <div class="col-12 col-md-6 col-lg-3 mb-4">
+                    <mat-card class="home-plan-card home-plan-dashed h-100">
+                        <mat-card-content class="d-flex flex-column h-100">
+                            <div class="hpc-header">
+                                <div class="hpc-icon ent-icon"><mat-icon>apartment</mat-icon></div>
+                                <div>
+                                    <h4 class="mb-0 fw-bold">Enterprise</h4>
+                                    <p class="text-secondary small mb-0">Custom scale</p>
+                                </div>
+                            </div>
+                            <div class="hpc-price">
+                                <span class="hpc-amount hpc-onrequest">On Request</span>
+                            </div>
+                            <mat-list class="hpc-features flex-grow-1" style="--mat-list-list-item-one-line-container-height:36px">
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>Unlimited members</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>On-premise deploy</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>Custom ML pipelines</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>White-labeling</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>Custom SLA</mat-list-item>
+                            </mat-list>
+                            <mat-card-actions class="pt-2">
+                                <button routerLink="/web/contact-us" matButton="outlined" class="w-100">
+                                    <mat-icon>mail</mat-icon> Contact Sales
+                                </button>
+                            </mat-card-actions>
+                        </mat-card-content>
                     </mat-card>
                 </div>
             </div>
+            }
+
+            <!-- Academic Plans -->
+            @if (homePricingTab() === 'academic') {
+            <div class="row gx-3 gx-lg-4 align-items-stretch">
+
+                <!-- Free -->
+                <div class="col-12 col-md-6 col-lg-3 mb-4">
+                    <mat-card class="home-plan-card h-100">
+                        <mat-card-content class="d-flex flex-column h-100">
+                            <div class="hpc-header">
+                                <div class="hpc-icon acad-icon"><mat-icon>school</mat-icon></div>
+                                <div>
+                                    <h4 class="mb-0 fw-bold">Academic Starter</h4>
+                                    <p class="text-secondary small mb-0">Small classes &amp; labs</p>
+                                </div>
+                            </div>
+                            <div class="hpc-price">
+                                <span class="hpc-currency">$</span>
+                                <span class="hpc-amount">{{ homeBillingCycle() === 'monthly' ? '29' : '23' }}</span>
+                                <span class="hpc-period">/mo</span>
+                            </div>
+                            <mat-list class="hpc-features flex-grow-1" style="--mat-list-list-item-one-line-container-height:36px">
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>50 students</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>2 professors</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>5 course projects</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>Basic grading</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>Email support</mat-list-item>
+                            </mat-list>
+                            <mat-card-actions class="pt-2">
+                                <button routerLink="/billing/checkout" [queryParams]="{plan:'academic-starter',type:'academic',cycle:homeBillingCycle()}" matButton="outlined" class="w-100">
+                                    Get Started <mat-icon iconPositionEnd>arrow_forward</mat-icon>
+                                </button>
+                            </mat-card-actions>
+                        </mat-card-content>
+                    </mat-card>
+                </div>
+
+                <!-- Faculty -->
+                <div class="col-12 col-md-6 col-lg-3 mb-4">
+                    <mat-card class="home-plan-card h-100">
+                        <mat-card-content class="d-flex flex-column h-100">
+                            <div class="hpc-header">
+                                <div class="hpc-icon acad-icon"><mat-icon>menu_book</mat-icon></div>
+                                <div>
+                                    <h4 class="mb-0 fw-bold">Faculty</h4>
+                                    <p class="text-secondary small mb-0">Departments &amp; labs</p>
+                                </div>
+                            </div>
+                            <div class="hpc-price">
+                                <span class="hpc-currency">$</span>
+                                <span class="hpc-amount">{{ homeBillingCycle() === 'monthly' ? '39' : '31' }}</span>
+                                <span class="hpc-period">/mo</span>
+                            </div>
+                            <mat-list class="hpc-features flex-grow-1" style="--mat-list-list-item-one-line-container-height:36px">
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>100 students</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>5 professors</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>Grade management</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>Plagiarism signals</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>Email support</mat-list-item>
+                            </mat-list>
+                            <mat-card-actions class="pt-2">
+                                <button routerLink="/billing/checkout" [queryParams]="{plan:'academic-faculty',type:'academic',cycle:homeBillingCycle()}" matButton="outlined" class="w-100">
+                                    Get Started <mat-icon iconPositionEnd>arrow_forward</mat-icon>
+                                </button>
+                            </mat-card-actions>
+                        </mat-card-content>
+                    </mat-card>
+                </div>
+
+                <!-- Institution (Recommended) -->
+                <div class="col-12 col-md-6 col-lg-3 mb-4">
+                    <mat-card class="home-plan-card home-plan-recommended home-plan-academic h-100">
+                        <div class="hpc-badge hpc-badge-academic"><mat-icon>star</mat-icon> Recommended</div>
+                        <mat-card-content class="d-flex flex-column h-100">
+                            <div class="hpc-header">
+                                <div class="hpc-icon acad-icon"><mat-icon>account_balance</mat-icon></div>
+                                <div>
+                                    <h4 class="mb-0 fw-bold">Institution</h4>
+                                    <p class="text-secondary small mb-0">Whole school</p>
+                                </div>
+                            </div>
+                            <div class="hpc-price">
+                                <span class="hpc-currency">$</span>
+                                <span class="hpc-amount">{{ homeBillingCycle() === 'monthly' ? '99' : '79' }}</span>
+                                <span class="hpc-period">/mo</span>
+                            </div>
+                            <mat-list class="hpc-features flex-grow-1" style="--mat-list-list-item-one-line-container-height:36px">
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>500 students</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>Unlimited professors</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>Bulk CSV import</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>FERPA compliance</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>Priority support</mat-list-item>
+                            </mat-list>
+                            <mat-card-actions class="pt-2">
+                                <button routerLink="/billing/checkout" [queryParams]="{plan:'academic-institution',type:'academic',cycle:homeBillingCycle()}" matButton="filled" class="w-100">
+                                    Get Started <mat-icon iconPositionEnd>arrow_forward</mat-icon>
+                                </button>
+                            </mat-card-actions>
+                        </mat-card-content>
+                    </mat-card>
+                </div>
+
+                <!-- Campus / On Request -->
+                <div class="col-12 col-md-6 col-lg-3 mb-4">
+                    <mat-card class="home-plan-card home-plan-dashed h-100">
+                        <mat-card-content class="d-flex flex-column h-100">
+                            <div class="hpc-header">
+                                <div class="hpc-icon acad-icon"><mat-icon>domain</mat-icon></div>
+                                <div>
+                                    <h4 class="mb-0 fw-bold">Campus</h4>
+                                    <p class="text-secondary small mb-0">University-wide</p>
+                                </div>
+                            </div>
+                            <div class="hpc-price">
+                                <span class="hpc-amount hpc-onrequest">On Request</span>
+                            </div>
+                            <mat-list class="hpc-features flex-grow-1" style="--mat-list-list-item-one-line-container-height:36px">
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>Unlimited students</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>Multi-faculty support</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>SAML / SSO</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>On-premise option</mat-list-item>
+                                <mat-list-item><mat-icon class="hpc-check me-2">check_circle</mat-icon>Custom SLA</mat-list-item>
+                            </mat-list>
+                            <mat-card-actions class="pt-2">
+                                <button routerLink="/web/contact-us" matButton="outlined" class="w-100">
+                                    <mat-icon>mail</mat-icon> Contact Sales
+                                </button>
+                            </mat-card-actions>
+                        </mat-card-content>
+                    </mat-card>
+                </div>
+            </div>
+            }
+
+            <!-- See all plans CTA -->
+            <div class="text-center mt-2 mb-3">
+                <button routerLink="/billing/pricing" matButton class="see-all-plans-btn">
+                    <mat-icon>compare</mat-icon> Compare all plans in detail
+                    <mat-icon iconPositionEnd>arrow_forward</mat-icon>
+                </button>
+            </div>
+
+            <!-- Pricing footer note -->
+            <p class="text-center text-secondary small opacity-75">
+                <mat-icon style="font-size:14px;vertical-align:middle">info</mat-icon>
+                Subscriptions are activated after admin validation (24–48h). Login credentials are sent by email upon activation.
+            </p>
         </div>
 
         <!-- testimonials -->
@@ -647,10 +861,150 @@ register();
             </div>
         </div>
     `,
-    styles: [``],
+    styles: [`
+    /* ── Coupon Popup ── */
+    .coupon-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 9999;
+      display: flex; align-items: center; justify-content: center; padding: 16px;
+      animation: fadeIn .25s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+    .coupon-popup {
+      background: var(--bs-card-bg, #fff); border-radius: 20px;
+      padding: 36px 32px 28px; max-width: 420px; width: 100%;
+      position: relative; text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,.18);
+      animation: slideUp .28s ease;
+    }
+    @keyframes slideUp { from { transform: translateY(30px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+    .coupon-close {
+      position: absolute; top: 12px; right: 12px;
+      background: none; border: none; cursor: pointer; opacity: .5;
+      width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; transition: opacity .2s, background .2s;
+    }
+    .coupon-close:hover { opacity: 1; background: var(--bs-secondary-bg); }
+    .coupon-icon-wrap {
+      width: 64px; height: 64px; border-radius: 18px;
+      background: linear-gradient(135deg, #0d6efd22, #0d6efd11);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px;
+    }
+    .coupon-main-icon { font-size: 32px; width: 32px; height: 32px; color: var(--bs-primary, #0d6efd); }
+    .coupon-title { font-weight: 800; font-size: 1.35rem; margin-bottom: 6px; }
+    .coupon-subtitle { color: var(--bs-secondary-color); font-size: .88rem; margin-bottom: 20px; }
+    .coupon-code-box {
+      background: var(--bs-tertiary-bg, #f8f9fa); border-radius: 14px;
+      padding: 18px 20px; margin-bottom: 22px; border: 1.5px dashed var(--bs-primary, #0d6efd);
+    }
+    .coupon-code-label { font-size: .72rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 1px; color: var(--bs-secondary-color); display: block; margin-bottom: 6px; }
+    .coupon-code-value {
+      font-size: 2rem; font-weight: 900; letter-spacing: 4px;
+      color: var(--bs-primary, #0d6efd); font-family: monospace;
+    }
+    .coupon-discount-info { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 10px; }
+    .coupon-badge-discount {
+      background: var(--bs-primary, #0d6efd); color: #fff;
+      font-size: .78rem; font-weight: 700; padding: 3px 12px;
+      border-radius: 50px; display: inline-block;
+    }
+    .coupon-desc { font-size: .82rem; color: var(--bs-secondary-color); }
+    .coupon-btn-use {
+      width: 100%; background: var(--bs-primary, #0d6efd); color: #fff;
+      border: none; border-radius: 12px; padding: 12px 24px;
+      font-size: .95rem; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: opacity .2s;
+    }
+    .coupon-btn-use:hover { opacity: .88; }
+    .coupon-btn-use mat-icon { font-size: 18px; width: 18px; height: 18px; }
+    /* ── end Coupon Popup ── */
+
+    .badge-outline-theme {
+      border: 1.5px solid var(--bs-primary, #0d6efd); color: var(--bs-primary, #0d6efd);
+      background: transparent; padding: 4px 14px; border-radius: 50px;
+      font-weight: 600; font-size: .78rem; letter-spacing: .5px;
+    }
+    .pricing-tabs { display: inline-flex; background: var(--bs-tertiary-bg); border-radius: 50px; padding: 4px; gap: 4px; }
+    .ptab {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 9px 22px; border-radius: 50px; border: none; cursor: pointer;
+      font-weight: 600; font-size: .88rem; transition: all .22s;
+      background: transparent; color: var(--bs-secondary-color);
+    }
+    .ptab mat-icon { font-size: 17px; width: 17px; height: 17px; }
+    .ptab-active { background: var(--bs-card-bg, #fff); color: var(--bs-primary, #0d6efd); box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+    .home-plan-card {
+      border: 1.5px solid var(--bs-border-color) !important; border-radius: 16px !important;
+      position: relative; overflow: hidden; transition: transform .2s, box-shadow .2s;
+    }
+    .home-plan-card:hover { transform: translateY(-3px); box-shadow: 0 10px 32px rgba(0,0,0,.09) !important; }
+    .home-plan-recommended { border-color: var(--bs-primary, #0d6efd) !important; box-shadow: 0 4px 20px rgba(13,110,253,.14) !important; }
+    .home-plan-academic.home-plan-recommended { border-color: #198754 !important; box-shadow: 0 4px 20px rgba(25,135,84,.14) !important; }
+    .home-plan-dashed { border-style: dashed !important; }
+    .hpc-badge {
+      position: absolute; top: 0; right: 0;
+      background: var(--bs-primary, #0d6efd); color: #fff;
+      font-size: .7rem; font-weight: 700; padding: 5px 12px;
+      border-radius: 0 16px 0 10px; display: flex; align-items: center; gap: 4px;
+    }
+    .hpc-badge mat-icon { font-size: 13px; width: 13px; height: 13px; }
+    .hpc-badge-academic { background: #198754; }
+    .hpc-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding-top: 6px; }
+    .hpc-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+    .ent-icon { background: rgba(13,110,253,.1); color: var(--bs-primary, #0d6efd); }
+    .acad-icon { background: rgba(25,135,84,.1); color: #198754; }
+    .hpc-icon mat-icon { font-size: 22px; }
+    .hpc-price { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--bs-border-color); }
+    .hpc-currency { font-size: 1.1rem; font-weight: 700; vertical-align: top; margin-top: 4px; display: inline-block; }
+    .hpc-amount { font-size: 2.4rem; font-weight: 800; line-height: 1; }
+    .hpc-period { font-size: .78rem; color: var(--bs-secondary-color); margin-left: 3px; }
+    .hpc-onrequest { font-size: 1.5rem !important; }
+    .hpc-features { padding: 0 !important; margin-bottom: 0 !important; }
+    .hpc-check { font-size: 16px !important; width: 16px !important; height: 16px !important; color: #198754 !important; }
+    .see-all-plans-btn { font-weight: 600 !important; }
+  `],
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
-export class WebsiteComponent {
+export class WebsiteComponent implements OnInit {
+    private readonly API = 'http://localhost:8084/api/billing';
+
+    // ─── Coupon popup ─────────────────────────────────────────────────────────
+    showCouponPopup = false;
+    couponClickable = false;
+    firstCoupon: any = null;
+
+    constructor(private http: HttpClient) {}
+
+    ngOnInit() {
+        const seen = localStorage.getItem('coupon_popup_seen');
+        if (!seen) {
+            this.http.get<any[]>(`${this.API}/coupons/active`).subscribe({
+                next: (coupons) => {
+                    if (coupons.length > 0) {
+                        this.firstCoupon = coupons[0];
+                        // Délai pour éviter que le clic de navigation ferme immédiatement le popup
+                        setTimeout(() => {
+                            this.showCouponPopup = true;
+                            setTimeout(() => { this.couponClickable = true; }, 400);
+                        }, 600);
+                    }
+                },
+                error: () => {}
+            });
+        }
+    }
+
+    closeCouponPopup() {
+        this.showCouponPopup = false;
+        this.couponClickable = false;
+        localStorage.setItem('coupon_popup_seen', '1');
+    }
+
+    // ─── Pricing section ─────────────────────────────────────────────────────
+    homePricingTab = signal<'enterprise' | 'academic'>('enterprise');
+    homeBillingCycle = signal<'monthly' | 'annual'>('monthly');
     value = "";
     ngAfterInit() {}
 
@@ -658,5 +1012,9 @@ export class WebsiteComponent {
     hideSingleSelectionIndicator = signal(false);
     toggleSingleSelectionIndicator() {
         this.hideSingleSelectionIndicator.update((value) => !value);
+    }
+
+    scrollToPlans() {
+        document.getElementById('plans-section')?.scrollIntoView({ behavior: 'smooth' });
     }
 }

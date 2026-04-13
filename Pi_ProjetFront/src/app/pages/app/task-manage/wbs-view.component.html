@@ -1,0 +1,161 @@
+<div class="wbs-container">
+  <!-- Header -->
+  <div class="wbs-header">
+    <div class="wbs-title">
+      <span class="wbs-icon">📋</span>
+      <div>
+        <h3>Work Breakdown Structure</h3>
+        <p>{{ milestoneName }}</p>
+      </div>
+    </div>
+
+    <div class="wbs-controls">
+      <button mat-stroked-button (click)="expandAll()" matTooltip="Tout développer">
+        <mat-icon>unfold_more</mat-icon>
+        Développer
+      </button>
+      <button mat-stroked-button (click)="collapseAll()" matTooltip="Tout réduire">
+        <mat-icon>unfold_less</mat-icon>
+        Réduire
+      </button>
+      <button mat-raised-button color="primary" (click)="exportExcel()" matTooltip="Exporter en CSV">
+        <mat-icon>file_download</mat-icon>
+        Exporter
+      </button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="wbs-stats">
+    <div class="stat-card">
+      <span class="stat-value">{{ stats().total }}</span>
+      <span class="stat-label">Tâches totales</span>
+    </div>
+    <div class="stat-card completed">
+      <span class="stat-value">{{ stats().completed }}</span>
+      <span class="stat-label">Terminées</span>
+    </div>
+    <div class="stat-card in-progress">
+      <span class="stat-value">{{ stats().inProgress }}</span>
+      <span class="stat-label">En cours</span>
+    </div>
+    <div class="stat-card todo">
+      <span class="stat-value">{{ stats().todo }}</span>
+      <span class="stat-label">À faire</span>
+    </div>
+    <div class="stat-card avg">
+      <span class="stat-value">{{ stats().avgProgress }}%</span>
+      <span class="stat-label">Progression moyenne</span>
+    </div>
+  </div>
+
+  <!-- WBS Tree View -->
+  <div class="wbs-tree-view" *ngIf="wbsTree().length > 0; else emptyState">
+    <!-- Root Node (Milestone) -->
+    <div class="tree-root">
+      <div class="tree-node root-node">
+        <div class="node-content">
+          <span class="node-icon">🎯</span>
+          <span class="node-title">{{ milestoneName }}</span>
+        </div>
+      </div>
+
+      <!-- Tree Branches -->
+      <div class="tree-branches">
+        <div class="tree-branch" *ngFor="let parent of wbsTree(); let last = last">
+          <!-- Vertical connector from root -->
+          <div class="connector-vertical" *ngIf="wbsTree().length > 1"></div>
+
+          <!-- Horizontal connector to parent -->
+          <div class="connector-horizontal"></div>
+
+          <!-- Parent Node -->
+          <div class="tree-node parent-node" [class.has-children]="parent.children.length > 0">
+            <div class="node-card" [class.expanded]="parent.expanded">
+              <div class="node-header">
+                <button mat-icon-button (click)="toggleNode(parent)" *ngIf="parent.children.length > 0" class="expand-btn">
+                  <mat-icon>{{ parent.expanded ? 'remove' : 'add' }}</mat-icon>
+                </button>
+                <span class="node-type-icon">{{ getTypeIcon(parent.type) }}</span>
+                <span class="node-title" [title]="parent.title">{{ parent.title }}</span>
+              </div>
+              <div class="node-body">
+                <div class="node-status-row">
+                  <span class="status-pill" [style.background-color]="getStatusColor(parent.status)">
+                    {{ getStatusLabel(parent.status) }}
+                  </span>
+                  <span class="priority-pill" [class]="'p-' + parent.priority.toLowerCase()">
+                    {{ getPriorityLabel(parent.priority) }}
+                  </span>
+                </div>
+                <div class="node-assignee">
+                  <mat-icon>person</mat-icon>
+                  <span>{{ parent.assignedTo }}</span>
+                </div>
+                <div class="node-dates">{{ formatDate(parent.startDate) }} - {{ formatDate(parent.dueDate) }}</div>
+                <div class="node-progress">
+                  <div class="progress-track">
+                    <div class="progress-bar" [style.width.%]="parent.progress"></div>
+                  </div>
+                  <span class="progress-value">{{ parent.progress }}%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Children Container -->
+            <div class="children-container" *ngIf="parent.expanded && parent.children.length > 0">
+              <div class="child-connector-vertical"></div>
+
+              <div class="children-row">
+                <div class="child-wrapper" *ngFor="let child of parent.children; let lastChild = last">
+                  <!-- Horizontal connector to child -->
+                  <div class="child-connector-horizontal"></div>
+
+                  <!-- Child Node -->
+                  <div class="tree-node child-node">
+                    <div class="node-card child-card">
+                      <div class="node-header">
+                        <span class="node-type-icon">{{ getTypeIcon(child.type) }}</span>
+                        <span class="node-title" [title]="child.title">{{ child.title }}</span>
+                      </div>
+                      <div class="node-body">
+                        <div class="node-status-row">
+                          <span class="status-pill" [style.background-color]="getStatusColor(child.status)">
+                            {{ getStatusLabel(child.status) }}
+                          </span>
+                          <span class="priority-pill" [class]="'p-' + child.priority.toLowerCase()">
+                            {{ getPriorityLabel(child.priority) }}
+                          </span>
+                        </div>
+                        <div class="node-assignee">
+                          <mat-icon>person</mat-icon>
+                          <span>{{ child.assignedTo }}</span>
+                        </div>
+                        <div class="node-dates">{{ formatDate(child.startDate) }} - {{ formatDate(child.dueDate) }}</div>
+                        <div class="node-progress">
+                          <div class="progress-track">
+                            <div class="progress-bar" [style.width.%]="child.progress"></div>
+                          </div>
+                          <span class="progress-value">{{ child.progress }}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <ng-template #emptyState>
+    <div class="empty-state">
+      <mat-icon>account_tree</mat-icon>
+      <h4>Aucune tâche disponible</h4>
+      <p>Créez des tâches pour voir la structure WBS</p>
+    </div>
+  </ng-template>
+</div>

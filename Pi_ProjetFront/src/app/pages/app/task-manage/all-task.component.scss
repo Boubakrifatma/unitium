@@ -1,0 +1,322 @@
+@use '@angular/material' as mat;
+
+// ====================== All Task Component Styles ======================
+
+:host {
+  display: block;
+}
+
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+// ====================== Header Card ======================
+.header-card {
+  border-radius: 16px;
+  box-shadow: var(--mat-sys-level2, 0 1px 3px rgba(0,0,0,0.1));
+  background-color: var(--mat-card-elevated-container-color, white);
+}
+
+.header-title {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--mat-sys-on-surface);
+  margin: 0;
+}
+
+.breadcrumb-text {
+  color: var(--mat-sys-outline);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  .breadcrumb-link {
+    color: var(--mat-sys-outline);
+    text-decoration: none;
+
+    &:hover {
+      color: var(--mat-sys-primary);
+    }
+  }
+}
+
+// ====================== Search ======================
+.search-section {
+  .mat-mdc-form-field {
+    width: 100%;
+    max-width: 460px;
+  }
+}
+
+// ====================== Tabs ======================
+.tabs {
+  display: flex;
+  background: var(--mat-card-elevated-container-color, white);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: var(--mat-sys-level1);
+  width: fit-content;
+  margin-bottom: 24px;
+  border: 1px solid var(--mat-sys-surface-variant);
+}
+
+.tab {
+  padding: 12px 28px;
+  border: none;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--mat-sys-on-surface-variant);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &.active {
+    background: var(--mat-sys-primary);
+    color: var(--mat-sys-on-primary);
+    box-shadow: 0 4px 6px -1px rgba(14, 165, 233, 0.25);
+  }
+
+  &:hover:not(.active) {
+    background: var(--mat-sys-primary-container);
+    color: var(--mat-sys-on-primary-container);
+  }
+}
+
+// ====================== Stats Row ======================
+.stats-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+
+.stat-card {
+  background: var(--mat-card-elevated-container-color, white);
+  border-radius: 14px;
+  padding: 20px 24px;
+  flex: 1;
+  min-width: 160px;
+  box-shadow: var(--mat-sys-level2);
+  border: 1px solid var(--mat-sys-surface-variant);
+
+  .stat-val {
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--mat-sys-on-surface);
+  }
+
+  .stat-label {
+    font-size: 13px;
+    color: var(--mat-sys-outline);
+    margin-top: 6px;
+    font-weight: 500;
+  }
+}
+
+// ====================== Task Groups ======================
+.task-groups-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.task-group {
+  background: var(--mat-card-elevated-container-color, white);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--mat-sys-level2);
+  border: 1px solid var(--mat-sys-surface-variant);
+  transition: box-shadow 0.3s ease;
+
+  &:hover {
+    box-shadow: var(--mat-sys-level3);
+  }
+}
+
+.group-header {
+  padding: 18px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--mat-sys-surface-container-low);
+  cursor: pointer;
+  transition: background 0.2s ease;
+
+  &:hover {
+    background: var(--mat-sys-primary-container);
+  }
+
+  .parent-badge {
+    background: var(--mat-sys-primary);
+    color: var(--mat-sys-on-primary);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 8px;
+  }
+
+  .parent-title {
+    flex: 1;
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--mat-sys-on-surface);
+  }
+
+  .child-count {
+    font-size: 13px;
+    color: var(--mat-sys-outline);
+    background: var(--mat-sys-surface-container);
+    padding: 4px 12px;
+    border-radius: 9999px;
+  }
+
+  .status-pill {
+    font-size: 13px;
+    padding: 6px 14px;
+    border-radius: 9999px;
+    font-weight: 500;
+    color: white;
+  }
+
+  .chevron {
+    transition: transform 0.3s ease;
+    color: var(--mat-sys-outline);
+
+    &.open {
+      transform: rotate(180deg);
+    }
+  }
+}
+
+.children-list {
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+
+  &.closed {
+    max-height: 0 !important;
+    opacity: 0;
+  }
+
+  .child-row {
+    padding: 16px 24px 16px 64px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-top: 1px solid var(--mat-sys-surface-variant);
+    transition: background 0.2s;
+
+    &:hover {
+      background: var(--mat-sys-surface-container-low);
+    }
+
+    .child-badge {
+      background: var(--mat-sys-primary-container);
+      color: var(--mat-sys-primary);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 6px;
+    }
+
+    .child-title {
+      flex: 1;
+      font-size: 15px;
+      color: var(--mat-sys-on-surface);
+    }
+
+    .child-type {
+      font-size: 13px;
+      color: var(--mat-sys-outline);
+      background: var(--mat-sys-surface-container);
+      padding: 2px 10px;
+      border-radius: 4px;
+    }
+  }
+}
+
+// Status Pills
+.status-pill {
+  &.s-done     { background: #10b981; }
+  &.s-in_progress { background: #f59e0b; }
+  &.s-todo     { background: #6366f1; }
+  &.s-blocked  { background: #ef4444; }
+  &.s-review   { background: #8b5cf6; }
+}
+
+// ====================== Empty State ======================
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--mat-sys-outline);
+
+  .empty-icon {
+    font-size: 48px;
+    color: var(--mat-sys-outline);
+    margin-bottom: 12px;
+  }
+}
+
+// ====================== Responsive ======================
+@media (max-width: 768px) {
+  .stats-row {
+    flex-direction: column;
+  }
+
+  .tabs {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .group-header {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .child-row {
+    padding-left: 24px;
+  }
+}
+/* Task Actions Buttons */
+.task-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  opacity: 0.85;
+
+  button {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+  }
+
+  .mat-icon {
+    font-size: 18px;
+  }
+}
+
+.child-row:hover .task-actions {
+  opacity: 1;
+}
+
+// ====================== Panel Visibility ======================
+.panel {
+  display: none;
+}
+
+.panel.active {
+  display: block;
+}
+
+/* Amélioration du hover sur les lignes */
+.child-row {
+  transition: background 0.2s ease;
+
+  &:hover {
+    background: var(--mat-sys-surface-container-low, #f8fafc);
+  }
+}

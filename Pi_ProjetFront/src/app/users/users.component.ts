@@ -16,6 +16,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { UserService, UserDTO } from './user.service';
 import { UserDialogComponent } from './user-dialog.component';
 import { AuthService } from '../auth/auth.service';
+import { OrgBillingService } from '../billing/services/org-billing.service';
 
 @Component({
   selector: 'app-users',
@@ -246,26 +247,49 @@ export class UsersComponent implements OnInit {
 
   private userService = inject(UserService);
   private authService = inject(AuthService);
+  private orgBilling = inject(OrgBillingService);
   private dialog = inject(MatDialog);
   private snackBar = inject(MatSnackBar);
 
   dataSource = new MatTableDataSource<UserDTO>([]);
   displayedColumns = ['fullName', 'role', 'isActive', 'createdAt', 'actions'];
 
+  currentOrgType: 'enterprise' | 'academic' | null = null;
+
   get activeCount() { return this.dataSource.data.filter(u => u.isActive).length; }
   get adminCount() { return this.dataSource.data.filter(u => u.role === 'ADMIN' || u.role === 'SUPER_ADMIN').length; }
 
-  // Admin cannot assign ADMIN role — only MANAGER, EMPLOYEE, VIEWER
   get availableRoles(): string[] {
     const currentRole = this.authService.currentUser()?.role;
     if (currentRole === 'SUPER_ADMIN') {
-      return ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EMPLOYEE', 'TUTOR', 'VIEWER'];
+      return ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'EMPLOYEE', 'PRODUCT_OWNER', 'VIEWER', 'TUTOR', 'STUDENT'];
     }
-    return ['MANAGER', 'EMPLOYEE', 'TUTOR', 'VIEWER'];
+    if (this.currentOrgType === 'enterprise') {
+      return ['MANAGER', 'EMPLOYEE', 'PRODUCT_OWNER', 'VIEWER'];
+    }
+    if (this.currentOrgType === 'academic') {
+      return ['TUTOR', 'STUDENT'];
+    }
+    return ['MANAGER', 'EMPLOYEE', 'PRODUCT_OWNER', 'VIEWER', 'TUTOR', 'STUDENT'];
   }
 
   ngOnInit() {
-    this.loadUsers();
+    const currentRole = this.authService.currentUser()?.role;
+    if (currentRole === 'SUPER_ADMIN') {
+      // Super admin sees everything — no need to check org type
+      this.loadUsers();
+    } else {
+      // Fetch org type from billing before loading users
+      this.orgBilling.getMyPayment().subscribe({
+        next: (payment) => {
+          if (payment?.orgType) {
+            this.currentOrgType = payment.orgType as 'enterprise' | 'academic';
+          }
+          this.loadUsers();
+        },
+        error: () => this.loadUsers()
+      });
+    }
   }
 
   ngAfterViewInit() {
@@ -277,7 +301,28 @@ export class UsersComponent implements OnInit {
 
   loadUsers() {
     this.userService.getAll().subscribe({
-      next: (data) => this.dataSource.data = data,
+      next: (data) => {
+        const currentRole = this.authService.currentUser()?.role;
+
+        if (currentRole === 'SUPER_ADMIN') {
+          this.dataSource.data = data;
+        } else if (currentRole === 'ADMIN') {
+          this.dataSource.data = data.filter(user => {
+            if (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') {
+              return false;
+            }
+            if (this.currentOrgType === 'enterprise') {
+              return ['MANAGER', 'EMPLOYEE', 'PRODUCT_OWNER', 'VIEWER'].includes(user.role);
+            }
+            if (this.currentOrgType === 'academic') {
+              return ['TUTOR', 'STUDENT'].includes(user.role);
+            }
+            return ['MANAGER', 'EMPLOYEE', 'PRODUCT_OWNER', 'VIEWER', 'TUTOR', 'STUDENT'].includes(user.role);
+          });
+        } else {
+          this.dataSource.data = [];
+        }
+      },
       error: () => this.notify('Failed to load users', true)
     });
   }
@@ -351,7 +396,9 @@ export class UsersComponent implements OnInit {
       ADMIN: 'theme-yellow',
       MANAGER: 'theme-blue',
       EMPLOYEE: 'theme-green',
+      PRODUCT_OWNER: 'theme-orange',
       TUTOR: 'theme-purple',
+      STUDENT: 'theme-indigo',
       VIEWER: 'theme-cyan'
     };
     return map[role] ?? 'theme-cyan';

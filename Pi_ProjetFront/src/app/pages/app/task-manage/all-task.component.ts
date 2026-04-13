@@ -1,558 +1,513 @@
-import { Component, OnInit, CUSTOM_ELEMENTS_SCHEMA, ViewChild, Input, signal, inject, computed } from "@angular/core";
+import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, signal, computed } from "@angular/core";
 import { CommonModule } from "@angular/common";
+import { ActivatedRoute } from "@angular/router";
+import { FormsModule } from "@angular/forms";
+
 import { MatCardModule } from "@angular/material/card";
+import { MatFormFieldModule } from "@angular/material/form-field";
+import { MatInputModule } from "@angular/material/input";
 import { MatIconModule } from "@angular/material/icon";
 import { MatButtonModule } from "@angular/material/button";
-import { MatChipsModule } from "@angular/material/chips";
-import { MatFormField, MatInputModule } from "@angular/material/input";
-import { MatFormFieldModule } from "@angular/material/form-field";
-import { MatSelectModule } from "@angular/material/select";
-import { MatListModule } from "@angular/material/list";
-import { MatTableDataSource, MatTableModule } from "@angular/material/table";
-import { MatPaginator, MatPaginatorModule } from "@angular/material/paginator";
-import { MatSort, MatSortModule } from "@angular/material/sort";
 import { MatDialog } from "@angular/material/dialog";
-import { MatMenuModule } from "@angular/material/menu";
-import { FormControl, FormsModule, ReactiveFormsModule } from "@angular/forms";
-import { MatButtonToggleModule } from "@angular/material/button-toggle";
-import { MatProgressBarModule } from "@angular/material/progress-bar";
-import { RouterLink } from "@angular/router";
-import { CreateEditProjectModal } from "../projects/createeditproject.component";
-import { EffortLogDialogComponent } from "./time-log.component";
-import { CreateEditTaskComponent } from "./create-edit-task.component";
-import Swiper from "swiper";
-import { register } from "swiper/element/bundle";
-register();
+import { MatSnackBar } from "@angular/material/snack-bar";
+import { MatTooltipModule } from "@angular/material/tooltip";
+import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
 
-interface EffortLog {
-    date: string;
-    startTime: string;
-    endTime: string;
-    duration: string;
-}
+import { TaskService, TaskResponseDto } from "../../../services/TaskService/task.service";
+import { TaskDependencyService, TaskDependencyResponseDto } from "../../../services/TaskService/taskDepdendencyService";
+import { MilestoneService, Milestone } from "../../../services/mileStoneService/milestone.service";
+import { ProjectService } from "../../../services/project-service";
+import { UserDTO } from "../../../users/user.service";
+import { CreateEditTaskComponent } from "./create-edit-task.component";
+import { ConfirmDeleteTaskDialogComponent } from "./confirm-delete-task-dialog.component";
+import { GanttViewComponent } from "./gantt-view.component";
+import { CriticalPathComponent } from "./critical-path.component";
+import { WbsViewComponent } from "./wbs-view.component";
+import { AuthService } from "../../../auth/auth.service";
 
 export interface TaskItem {
-    taskId: number;
-    projectId: number;
-    title: string;
-    status: "new" | "ready to test" | "in-progress" | "resolved" | "completed";
-    type: "Development" | "Design" | "Backend" | "Bug" | "Design Bug";
-    assignedTo: string;
-    assignedToimage: string;
-    assignHours: string;
-    loggedHours: string;
-    priority: "High" | "Medium" | "Low";
-    effortLogs: EffortLog[];
+  taskId: number;
+  title: string;
+  status: string;
+  type: string;
+  assignedTo: string;
+  assignedToId: number | null;
+  assignHours: number;
+  loggedHours: number;
+  priority: string;
+  dueDate: string;
+  description: string;
+  startDate: string;
+  completedAt: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  createdByName: string;
+  parentTaskId?: number | null;
+  parentTaskTitle?: string | null;
 }
 
-export interface TableItem {
-    id: number;
-    image: string;
-    name: string;
-    company: string;
-    status: "Active" | "On Hold" | "Completed" | "";
-    priority: "High" | "Medium" | "Low" | "";
-    managerimage: string;
-    manager: string;
-    dueDate: string;
-    progress: number; // Percentage
-    // Added for detail view
-    description: string;
-    budget: number;
-    tasksCompleted: number;
-    totalTasks: number;
-    teamSize: number;
-}
-
-interface Project {
-    id: string;
-    name: string;
-    totalHours: string;
+export interface TaskGroup {
+  parent: TaskItem | null;
+  children: TaskItem[];
 }
 
 @Component({
-    selector: "app-all-task",
-    standalone: true,
-    imports: [CommonModule, RouterLink, MatCardModule, MatIconModule, MatMenuModule, MatProgressBarModule, MatTableModule, MatPaginatorModule, MatSortModule, MatButtonModule, MatButtonToggleModule, MatFormFieldModule, FormsModule, ReactiveFormsModule, MatListModule, MatInputModule, MatSelectModule, MatChipsModule],
-    template: `
-        <div class="container-fluid fade-in mb-3 mb-lg-4">
-            <mat-card class="bg-light-theme shadow-none pt-3 pb-lg-3 px-3">
-                <div class="row gx-3 align-items-center">
-                    <div class="col-12 col-md mb-3 mb-xl-0 py-1">
-                        <h3 class="mb-1">All Tasks</h3>
-                        <p class="small">
-                            <span routerLink="/app/dashboard" class="me-2 text-theme style-none"> <mat-icon class="material-icons-outlined align-middle text-sm">house</mat-icon> Home</span>
-                            <mat-icon class="material-icons-outlined align-middle text-sm me-2">chevron_right</mat-icon>
-                            All Tasks
-                        </p>
-                    </div>
-
-                    <div class="col-12 col-md-4 col-xl-3 mb-3 mb-xl-0 ">
-                        <mat-form-field class="inline-small w-100" appearance="outline">
-                            <mat-select placeholder="Select Project" [formControl]="selectedProjectControl">
-                                @for (project of projectList; track project.id) {
-                                <mat-option [value]="project.id">{{ project.name }}</mat-option>
-                                }
-                            </mat-select>
-                        </mat-form-field>
-                    </div>
-                    <div class="col-auto order-2 mb-3 mb-xl-0">
-                        <button matButton class="ms-1" (click)="openDialog()"><mat-icon class="material-icons-outlined">edit</mat-icon> Edit</button>
-                        <button matButton="filled" class="ms-1" (click)="createTask()"><mat-icon class="material-icons-outlined">add</mat-icon> Task</button>
-                    </div>
-                </div>
-            </mat-card>
-        </div>
-        <!-- page content -->
-        <div class="container fade-in">
-            @if (project()) {
-
-            <mat-card class="mb-3 mb-lg-4">
-                <mat-card-content class="pb-0">
-                    <div class="row gx-3 gx-lg-4">
-                        <div class="col-12 col-lg-12 col-xl-6">
-                            <div class="row gx-3">
-                                <div class="col-auto">
-                                    <div class="avatar avatar-80 coverimg rounded mb-3">
-                                        <img class="d-none" [src]="project().image" alt="Project Image" />
-                                    </div>
-                                </div>
-                                <div class="col mb-3">
-                                    <h3 class="mb-1">{{ project().name }}</h3>
-                                    <p class="text-secondary mb-2">{{ project().company }}</p>
-                                    <span
-                                        class="badge badge-light me-1"
-                                        [ngClass]="{
-                                            'theme-green': project().status === 'Active',
-                                            'theme-orange': project().status === 'On Hold',
-                                            'theme-red': project().status === 'Completed'
-                                        }">
-                                        {{ project().status }}
-                                    </span>
-                                    <span
-                                        class="badge badge-light me-1"
-                                        [ngClass]="{
-                                            'theme-green': project().priority === 'Low',
-                                            'theme-orange': project().priority === 'Medium',
-                                            'theme-violet': project().priority === 'High'
-                                        }">
-                                        {{ project().priority }}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-12 col-md-6 col-xl-3">
-                            <h4 class="mb-3">Progress</h4>
-                            <div class="row gx-3 mb-3">
-                                <div class="col">
-                                    <p>{{ project().progress }} %</p>
-                                </div>
-                                <div class="col-auto">
-                                    <p><span class="text-secondary">Due Date: </span> {{ project().dueDate }}</p>
-                                </div>
-                            </div>
-
-                            <!-- Progress Bar -->
-                            <mat-progress-bar class="mb-3" mode="determinate" value="{{ project().progress }}"></mat-progress-bar>
-                        </div>
-                        <div class="col-12 col-md-6 col-xl-3">
-                            <!-- manager -->
-                            <h4 class="mb-3">Manager</h4>
-                            <div class="mb-3 d-flex align-items-center">
-                                <span class="avatar avatar-40 coverimg rounded-circle align-middle me-2">
-                                    <img class="d-none" [src]="project().managerimage" alt="Team Image" />
-                                </span>
-                                <span class="align-middle d-inline-block flex-grow-1">
-                                    <p class="mb-1">{{ project().manager }}</p>
-                                    <p class="text-secondary small">ESEM, Agile, Level3</p>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </mat-card-content>
-            </mat-card>
-
-            <!-- tasks all -->
-            <mat-card class="mb-3 mb-lg-4">
-                <mat-card-content>
-                    <div class="row gx-3">
-                        <div class="col mb-3">
-                            <h3 class="mb-1">My Tasks</h3>
-                            <p class="text-secondary small">2 Task Added, 4 Task Resolved, 1 Ready to Test</p>
-                        </div>
-                        <div class="col-12 col-lg-5 col-xl-4 mb-3">
-                            <mat-form-field appearance="outline" class="w-100 inline-small">
-                                <input matInput (keyup)="applyFilter($event)" placeholder="E.g., Task, Manager, Status..." #input />
-                                <mat-icon matSuffix>search</mat-icon>
-                            </mat-form-field>
-                        </div>
-                    </div>
-
-                    <table mat-table [dataSource]="dataSource" matSort class="bg-none responsive-table">
-                        <ng-container matColumnDef="taskId">
-                            <th mat-header-cell *matHeaderCellDef mat-sort-header>ID</th>
-                            <td mat-cell *matCellDef="let task">
-                                <p class="fw-bold text-theme" routerLink="/app/task-details">{{ task.taskId }}</p>
-                            </td>
-                        </ng-container>
-
-                        <ng-container matColumnDef="title">
-                            <th mat-header-cell *matHeaderCellDef mat-sort-header>Title</th>
-                            <td mat-cell *matCellDef="let task" (dblclick)="openEffortLogDialog(task)" class="hoverview">
-                                <p>
-                                    <span class="text-truncated d-inline-block align-middle" style="max-width:200px">{{ task.title }}</span>
-                                    <span class="material-symbols-outlined hoverview-icon text-sm align-middle d-inline-block text-theme ms-1"> touch_double </span>
-                                </p>
-                            </td>
-                        </ng-container>
-                        <ng-container matColumnDef="assignedTo">
-                            <th mat-header-cell *matHeaderCellDef mat-sort-header>Assigned To</th>
-                            <td mat-cell *matCellDef="let task">
-                                <div class="row gx-2 align-items-center flex-nowrap">
-                                    <div class="col-auto">
-                                        <div class="avatar avatar-20 rounded-circle coverimg">
-                                            <img [src]="task.assignedToimage" alt="{{ task.assignedTo }}" class="" />
-                                        </div>
-                                    </div>
-                                    <div class="col">
-                                        <p class="mb-0 text-truncated">{{ task.assignedTo }}</p>
-                                    </div>
-                                </div>
-                            </td>
-                        </ng-container>
-
-                        <ng-container matColumnDef="status">
-                            <th mat-header-cell *matHeaderCellDef mat-sort-header>Status</th>
-                            <td mat-cell *matCellDef="let task">
-                                <span
-                                    class="badge"
-                                    [ngClass]="{
-                                        'theme-orange': task.status === 'in-progress',
-                                        'theme-cyan': task.status === 'ready to test',
-                                        'theme-sky': task.status === 'new',
-                                        'theme-violet': task.status === 'resolved',
-                                        'theme-green': task.status === 'completed'
-                                    }">
-                                    {{ task.status | titlecase }}
-                                </span>
-                            </td>
-                        </ng-container>
-
-                        <ng-container matColumnDef="priority">
-                            <th mat-header-cell *matHeaderCellDef mat-sort-header>Priority</th>
-                            <td mat-cell *matCellDef="let task">
-                                <span
-                                    class="badge badge-light text-theme"
-                                    [ngClass]="{
-                                                'theme-red': task.priority === 'High',
-                                                'theme-orange': task.priority === 'Medium',
-                                                'theme-green': task.priority === 'Low',
-                                            }">
-                                    <mat-icon class="text-sm" [class.high-priority]="task.priority === 'High'">
-                                        {{ task.priority === "High" ? "warning" : "flag" }}
-                                    </mat-icon>
-                                    {{ task.priority | titlecase }}
-                                </span>
-                            </td>
-                        </ng-container>
-
-                        <ng-container matColumnDef="assignedHours">
-                            <th mat-header-cell *matHeaderCellDef mat-sort-header>Effort</th>
-                            <td mat-cell *matCellDef="let task">
-                                <p class="text-truncated" style="max-width:200px">
-                                    <span class="fw-bold">{{ task.loggedHours }}</span> <small class="fw-bold text-secondary"> / {{ task.assignHours }} hrs</small>
-                                </p>
-                            </td>
-                        </ng-container>
-
-                        <!-- Actions Column -->
-                        <ng-container matColumnDef="actions">
-                            <th mat-header-cell *matHeaderCellDef>Actions</th>
-                            <td mat-cell *matCellDef="let task">
-                                <!--   <mat-form-field appearance="outline" class="inline-small width-200">
-                                            <input matInput placeholder="Time Log" />
-                                            <mat-icon matPrefix class="material-icons-outlined">alarm</mat-icon>
-                                            <button matIconButton matSuffix>
-                                                <mat-icon class="material-icons-outlined">alarm</mat-icon>
-                                            </button>
-                                        </mat-form-field> -->
-                                <button matIconButton (click)="openEffortLogDialog(task)">
-                                    <span class="material-symbols-outlined"> more_time </span>
-                                </button>
-                                <button matIconButton [matMenuTriggerFor]="actionsMenu" aria-label="Actions" (click)="$event.stopPropagation()">
-                                    <mat-icon class="material-icons-outlined">more_vert</mat-icon>
-                                </button>
-                                <mat-menu #actionsMenu="matMenu">
-                                    <button mat-menu-item (click)="createTask()">
-                                        <mat-icon class="material-icons-outlined">edit</mat-icon>
-                                        <span>Edit</span>
-                                    </button>
-                                    <button mat-menu-item>
-                                        <mat-icon class="material-icons-outlined">delete</mat-icon>
-                                        <span>Delete</span>
-                                    </button>
-                                </mat-menu>
-                            </td>
-                        </ng-container>
-
-                        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-                        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
-                    </table>
-                    <mat-paginator [pageSizeOptions]="[5, 10, 25]" aria-label="Select page of tasks" class="bg-none"></mat-paginator>
-                </mat-card-content>
-            </mat-card>
-            }
-        </div>
-    `,
-    styles: [``],
-    schemas: [CUSTOM_ELEMENTS_SCHEMA],
+  selector: "app-all-task",
+  standalone: true,
+  templateUrl: "./all-task.component.html",
+  imports: [
+    CommonModule,
+    FormsModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatIconModule,
+    MatButtonModule,
+    MatTooltipModule,
+    MatProgressSpinnerModule,
+    GanttViewComponent,
+    CriticalPathComponent,
+    WbsViewComponent,
+  ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  styleUrls: ["./all-task.component.scss"],
 })
-export class AllTaskComponent {
-    lastLoggedDuration = signal<string | null>(null);
+export class AllTaskComponent implements OnInit {
 
-    // dialog
-    readonly dialog = inject(MatDialog);
+  milestoneId = signal<number | null>(null);
+  projectId = signal<string | null>(null);
+  tasks = signal<TaskItem[]>([]);
+  expandedGroupIds = signal<Set<number>>(new Set());
+  expandedTaskIds = signal<Set<number>>(new Set());
 
-    // table
-    @ViewChild(MatPaginator) paginator!: MatPaginator;
-    @ViewChild(MatSort) sort!: MatSort;
+  selectedPanel = signal<'tasks' | 'gantt' | 'wbs' | 'critical'>('tasks');
+  dependencies = signal<TaskDependencyResponseDto[]>([]);
+  searchFilter = signal<string>("");
+  loading = signal<boolean>(true);
 
-    // projects
-    projectList: Project[] = [
-        { id: "1", name: "Mobile App Feature X Development", totalHours: "1200" },
-        { id: "2", name: "Angular Budget Review", totalHours: "1450" },
-        { id: "3", name: "HR System Integration", totalHours: "865" },
-    ];
-    selectedProjectControl = new FormControl<string | null>(null);
+  projectMembers = signal<UserDTO[]>([]);
 
-    // project details
-    project = signal<TableItem>({
-        id: 4,
-        image: "assets/img/product4.jpg",
-        name: "Mobile App Feature X Development",
-        company: "PrivateJet Company",
-        status: "Active",
-        priority: "Medium",
-        managerimage: "assets/img/user-10.jpg",
-        manager: "Dana Scully",
-        dueDate: "2025-12-05",
-        progress: 50,
-        description: "This project focuses on the development and deployment of Feature X for our primary mobile application. This feature includes a new user authentication flow, enhanced map integration, and real-time push notifications. We are currently in the mid-development phase, focusing on backend API stability and front-end state management. Strict adherence to deadlines and quality assurance is critical for a successful Q4 launch.",
-        budget: 45000,
-        tasksCompleted: 15,
-        totalTasks: 30,
-        teamSize: 19,
+  constructor(
+    private route: ActivatedRoute,
+    private taskService: TaskService,
+    private taskDependencyService: TaskDependencyService,
+    private milestoneService: MilestoneService,
+    private projectService: ProjectService,
+    private cdr: ChangeDetectorRef,
+    private dialog: MatDialog,
+    private snackBar: MatSnackBar
+  ) {}
+
+  ngOnInit() {
+    this.route.queryParams.subscribe(params => {
+      if (params["milestoneId"]) {
+        this.milestoneId.set(+params["milestoneId"]);
+        this.loadMilestone();
+      }
+    });
+  }
+
+  loadMilestone() {
+    const mid = this.milestoneId();
+    if (!mid) return;
+
+    this.milestoneService.getById(mid).subscribe({
+      next: (m: Milestone) => {
+        this.projectId.set(m.projectId ?? m.project?.id ?? null);
+        if (this.projectId()) this.loadProjectMembers();
+        this.loadTasks();
+      },
+      error: () => this.loadTasks()
+    });
+  }
+
+  loadProjectMembers() {
+    
+    const pid = this.projectId();
+    if (!pid) return;
+    this.projectService.getMembers(pid).subscribe({
+      next: members => this.projectMembers.set(members),
+      error: () => this.projectMembers.set([])
+    });
+  }
+
+  loadTasks() {
+    this.loading.set(true);
+    const mid = this.milestoneId();
+    if (!mid) {
+      this.loading.set(false);
+      return;
+    }
+
+    this.taskService.getTasksByMilestone(mid).subscribe({
+      next: (data: TaskResponseDto[]) => {
+        const mapped: TaskItem[] = data.map(t => ({
+          taskId: t.id,
+          title: t.title,
+          status: t.status,
+          type: t.taskType,
+          assignedTo: t.assignedToName || "Non assigné",
+          assignedToId: t.assignedToId,
+          assignHours: t.estimatedHours || 0,
+          loggedHours: t.actualHours || 0,
+          priority: t.priority || "Medium",
+          dueDate: t.dueDate || "-",
+          description: t.description || "",
+          startDate: t.startDate || "",
+          completedAt: t.completedAt || null,
+          createdAt: t.createdAt || null,
+          updatedAt: t.updatedAt || null,
+          createdByName: t.createdByName || "Inconnu",
+          parentTaskId: t.parentTaskId,
+          parentTaskTitle: t.parentTaskTitle || null,
+        }));
+
+        this.tasks.set(mapped);
+        this.loading.set(false);
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        console.error("Erreur chargement tâches", err);
+        this.loading.set(false);
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  // ... (filteredTasks, taskGroups, taskStats, getStatusLabel, getTypeIcon restent identiques)
+
+  filteredTasks = computed(() => {
+    const search = this.searchFilter().toLowerCase().trim();
+    if (!search) return this.tasks();
+    return this.tasks().filter(task =>
+      task.title.toLowerCase().includes(search) ||
+      task.status.toLowerCase().includes(search) ||
+      task.assignedTo.toLowerCase().includes(search)
+    );
+  });
+
+  taskGroups = computed((): TaskGroup[] => {
+    const tasksList = this.filteredTasks();
+    const parents = tasksList.filter(t => !t.parentTaskId);
+    const childrenMap = new Map<number, TaskItem[]>();
+
+    tasksList.filter(t => t.parentTaskId).forEach(child => {
+      if (child.parentTaskId) {
+        const list = childrenMap.get(child.parentTaskId) || [];
+        list.push(child);
+        childrenMap.set(child.parentTaskId, list);
+      }
     });
 
-    //tasks
-    tasks: TaskItem[] = [
-        {
-            taskId: 101,
-            projectId: 4,
-            title: "Implement new auth API integration",
-            status: "in-progress",
-            type: "Backend",
-            assignedTo: "Dana Scully",
-            assignedToimage: "assets/img/user-10.jpg",
-            priority: "High",
-            assignHours: "20",
-            loggedHours: "18",
-            effortLogs: [
-                { date: "2026-10-08", startTime: "09:00", endTime: "12:00", duration: "3.0 hrs" },
-                { date: "2026-10-09", startTime: "13:00", endTime: "16:30", duration: "3.5 hrs" },
-                { date: "2026-10-10", startTime: "10:00", endTime: "13:00", duration: "3.0 hrs" },
-            ],
-        },
-        {
-            taskId: 102,
-            projectId: 4,
-            title: "Design review for new map component",
-            status: "ready to test",
-            type: "Design",
-            assignedTo: "Alice Johnson",
-            assignedToimage: "assets/img/user-1.jpg",
-            priority: "Medium",
-            assignHours: "20",
-            loggedHours: "18",
-            effortLogs: [
-                { date: "2026-10-08", startTime: "09:00", endTime: "12:00", duration: "3.0 hrs" },
-                { date: "2026-10-09", startTime: "13:00", endTime: "16:30", duration: "3.5 hrs" },
-                { date: "2026-10-10", startTime: "10:00", endTime: "13:00", duration: "3.0 hrs" },
-            ],
-        },
-        {
-            taskId: 103,
-            projectId: 4,
-            title: "Fix iOS scroll bug in notification view",
-            status: "new",
-            type: "Bug",
-            assignedTo: "Bob Smith",
-            assignedToimage: "assets/img/user-3.jpg",
-            priority: "High",
-            assignHours: "20",
-            loggedHours: "0",
-            effortLogs: [],
-        },
-        {
-            taskId: 104,
-            projectId: 4,
-            title: "Create push notification template",
-            status: "completed",
-            type: "Development",
-            assignedTo: "Charlie Brown",
-            assignedToimage: "assets/img/user-5.jpg",
-            priority: "Low",
-            assignHours: "18",
-            loggedHours: "16",
-            effortLogs: [
-                { date: "2026-10-08", startTime: "09:00", endTime: "12:00", duration: "3.0 hrs" },
-                { date: "2026-10-09", startTime: "13:00", endTime: "16:30", duration: "3.5 hrs" },
-                { date: "2026-10-10", startTime: "10:00", endTime: "13:00", duration: "3.0 hrs" },
-            ],
-        },
-        {
-            taskId: 105,
-            projectId: 4,
-            title: "Initial security audit prep",
-            status: "new",
-            type: "Backend",
-            assignedTo: "Alice Johnson",
-            assignedToimage: "assets/img/user-2.jpg",
-            priority: "High",
-            assignHours: "28",
-            loggedHours: "0",
-            effortLogs: [],
-        },
-        {
-            taskId: 106,
-            projectId: 2,
-            title: "New employee onboarding flow mockups",
-            status: "new",
-            type: "Design",
-            assignedTo: "Jane Smith",
-            assignedToimage: "assets/img/user-4.jpg",
-            priority: "Medium",
-            assignHours: "25",
-            loggedHours: "21",
-            effortLogs: [
-                { date: "2026-10-08", startTime: "09:00", endTime: "12:00", duration: "3.0 hrs" },
-                { date: "2026-10-09", startTime: "13:00", endTime: "16:30", duration: "3.5 hrs" },
-                { date: "2026-10-10", startTime: "10:00", endTime: "13:00", duration: "3.0 hrs" },
-            ],
-        },
-        {
-            taskId: 107,
-            projectId: 2,
-            title: "API Endpoint setup for profiles",
-            status: "in-progress",
-            type: "Backend",
-            assignedTo: "Jane Smith",
-            assignedToimage: "assets/img/user-4.jpg",
-            priority: "Medium",
-            assignHours: "15",
-            loggedHours: "0",
-            effortLogs: [],
-        },
-        {
-            taskId: 108,
-            projectId: 1,
-            title: "Fix checkout CSS bug",
-            status: "resolved",
-            type: "Design Bug",
-            assignedTo: "John Doe",
-            assignedToimage: "assets/img/user-7.jpg",
-            priority: "Low",
-            assignHours: "20",
-            loggedHours: "18",
-            effortLogs: [
-                { date: "2026-10-08", startTime: "09:00", endTime: "12:00", duration: "3.0 hrs" },
-                { date: "2026-10-09", startTime: "13:00", endTime: "16:30", duration: "3.5 hrs" },
-                { date: "2026-10-10", startTime: "10:00", endTime: "13:00", duration: "3.0 hrs" },
-            ],
-        },
-        {
-            taskId: 109,
-            projectId: 3,
-            title: "Aggregate Q3 Facebook data",
-            status: "new",
-            type: "Backend",
-            assignedTo: "Bob Johnson",
-            assignedToimage: "assets/img/user-9.jpg",
-            priority: "Medium",
-            assignHours: "19",
-            loggedHours: "0",
-            effortLogs: [],
-        },
-    ];
+    const groups: TaskGroup[] = parents.map(parent => ({
+      parent,
+      children: childrenMap.get(parent.taskId) || []
+    }));
 
-    projectMembers = [
-        { id: 1, name: "Ava Johnson", avatarUrl: "assets/img/user-1.jpg", title: "Software Engineer" },
-        { id: 2, name: "Ben Smith", avatarUrl: "assets/img/user-3.jpg", title: "Product Manager" },
-        { id: 3, name: "Chloe Lee", avatarUrl: "assets/img/user-2.jpg", title: "UX Designer" },
-        { id: 4, name: "David Chen", avatarUrl: "assets/img/user-5.jpg", title: "Data Analyst" },
-        { id: 5, name: "Ella Garcia", avatarUrl: "assets/img/user-4.jpg", title: "Marketing Specialist" },
-        { id: 6, name: "Finn O'Connell", avatarUrl: "assets/img/user-7.jpg", title: "Sales Director" },
-        { id: 7, name: "Grace Kim", avatarUrl: "assets/img/user-6.jpg", title: "HR Coordinator" },
-        { id: 8, name: "Henry Davis", avatarUrl: "assets/img/user-9.jpg", title: "DevOps Engineer" },
-        { id: 9, name: "Ivy Ross", avatarUrl: "assets/img/user-8.jpg", title: "Financial Controller" },
-        { id: 10, name: "Jack Miller", avatarUrl: "assets/img/user-9.jpg", title: "CTO" },
-    ];
+    const orphanChildren = tasksList.filter(t =>
+      t.parentTaskId && !parents.some(p => p.taskId === t.parentTaskId)
+    );
 
-    dataSource = new MatTableDataSource<TaskItem>(this.tasks);
-    displayedColumns: string[] = ["taskId", "title", "assignedTo", "status", "priority", "assignedHours", "actions"];
+    if (orphanChildren.length > 0) {
+      groups.push({ parent: null, children: orphanChildren });
+    }
 
-    ngOnInit() {
-        if (this.projectList.length > 0) {
-            this.selectedProjectControl.setValue(this.projectList[0].id);
+    return groups;
+  });
+
+  taskStats = computed(() => {
+    const all = this.filteredTasks();
+    return {
+      total: all.length,
+      done: all.filter(t => t.status === 'done').length,
+      inProgress: all.filter(t => t.status === 'in_progress').length,
+      todo: all.filter(t => t.status === 'todo').length,
+      blocked: all.filter(t => t.status === 'blocked').length,
+    };
+  });
+
+  getStatusLabel(status: string): string {
+    const labels: Record<string, string> = {
+      todo: "À faire", in_progress: "En cours", review: "Révision",
+      done: "Terminé", blocked: "Bloqué"
+    };
+    return labels[status] || status;
+  }
+
+  getTypeIcon(type: string): string {
+    const icons: Record<string, string> = {
+      task: "assignment", bug: "bug_report", epic: "flag",
+      story: "description", subtask: "subdirectory_arrow_right"
+    };
+    return icons[type] || "assignment";
+  }
+
+  // ===================== Dialogs - Création & Modification =====================
+  openCreate() {
+    const dialogRef = this.dialog.open(CreateEditTaskComponent, {
+      width: '650px',
+      maxWidth: '95vw',
+      data: {
+        projectId: this.projectId(),
+        milestoneId: this.milestoneId(),
+        members: [
+          { id: null, name: "Non assigné", title: "Non assigné", avatarUrl: null },
+          ...this.projectMembers().map((u: any) => ({
+            id: u.userId ?? u.id ?? u.user?.id ?? null,
+            name: u.user?.fullName ?? u.fullName ?? u.name ?? u.email ?? `User #${u.userId ?? u.id ?? ''}`,
+            title: u.role ?? u.user?.role ?? '',
+            avatarUrl: u.user?.avatarUrl ?? u.avatarUrl ?? null
+          }))
+        ],
+        parentTasks: this.tasks().map(t => ({ taskId: t.taskId, title: t.title })),
+        availableTasks: this.tasks().map(t => ({ taskId: t.taskId, title: t.title }))
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.createTask(result);
+      }
+    });
+  }
+
+  openEdit(task: TaskItem) {
+    const dialogRef = this.dialog.open(CreateEditTaskComponent, {
+      width: '650px',
+      maxWidth: '95vw',
+      data: {
+        projectId: this.projectId(),
+        milestoneId: this.milestoneId(),
+        task: task,   // Mode édition
+        members: [
+          { id: null, name: "Non assigné", title: "Non assigné", avatarUrl: null },
+          ...this.projectMembers().map((u: any) => ({
+            id: u.userId ?? u.id ?? u.user?.id ?? null,
+            name: u.user?.fullName ?? u.fullName ?? u.name ?? u.email ?? `User #${u.userId ?? u.id ?? ''}`,
+            title: u.role ?? u.user?.role ?? '',
+            avatarUrl: u.user?.avatarUrl ?? u.avatarUrl ?? null
+          }))
+        ],
+        parentTasks: this.tasks()
+          .filter(t => t.taskId !== task.taskId)
+          .map(t => ({ taskId: t.taskId, title: t.title })),
+        availableTasks: this.tasks()
+          .filter(t => t.taskId !== task.taskId)
+          .map(t => ({ taskId: t.taskId, title: t.title }))
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.updateTask(task.taskId, result);
+      }
+    });
+  }
+
+  private createTask(formData: any) {
+    if (!this.projectId() || !this.milestoneId()) {
+      this.snackBar.open("Projet ou Milestone manquant", "OK", { duration: 3000 });
+      return;
+    }
+
+    const payload = {
+      title: formData.title,
+      description: formData.description || "",
+      taskType: formData.type || "task",
+      status: "todo",
+      priority: formData.priority || "Medium",
+      estimatedHours: formData.assignHours || 0,
+      actualHours: 0,
+      assignedToId: formData.assignedTo || null,
+      parentTaskId: formData.parentTaskId || null,
+      projectId: this.projectId()!,
+      milestoneId: this.milestoneId()!,
+      startDate: formData.startDate || null,
+      dueDate: formData.dueDate || null,
+    };
+
+    this.taskService.create(payload).subscribe({
+      next: (createdTask) => {
+        // Créer les dépendances si disponibles
+        if (formData.dependencies && formData.dependencies.length > 0) {
+          this.createTaskDependencies(createdTask.id, formData.dependencies);
+        } else {
+          this.snackBar.open("Tâche créée avec succès", "OK", { duration: 3000 });
+          this.loadTasks();
+          this.loadDependencies();
         }
-    }
+      },
+      error: (err) => {
+        console.error(err);
+        this.snackBar.open("Erreur lors de la création de la tâche", "OK", { duration: 4000 });
+      }
+    });
+  }
 
-    ngAfterViewInit() {
-        this.dataSource.paginator = this.paginator;
-        this.dataSource.sort = this.sort;
-    }
+  private createTaskDependencies(taskId: number, dependencies: any[]) {
+    let completed = 0;
+    let errors = 0;
 
-    applyFilter(event: Event) {
-        const filterValue = (event.target as HTMLInputElement).value;
-        this.dataSource.filter = filterValue.trim().toLowerCase();
-
-        // Optional: Reset to the first page if filtering causes issues with the current page
-        if (this.dataSource.paginator) {
-            this.dataSource.paginator.firstPage();
+    const onComplete = () => {
+      completed++;
+      if (completed + errors === dependencies.length) {
+        if (errors === 0) {
+          this.snackBar.open("Tâche et dépendances créées avec succès", "OK", { duration: 3000 });
+        } else {
+          this.snackBar.open(`Tâche créée, ${errors} dépendance(s) non créée(s)`, "OK", { duration: 4000 });
         }
-    }
+        this.loadTasks();
+        this.loadDependencies(); // Recharger les dépendances pour le chemin critique
+      }
+    };
 
-    openDialog() {
-        this.dialog.open(CreateEditProjectModal, {
-            width: "990px",
-            maxWidth: "990px",
-            panelClass: "custom-dialog-container",
-            autoFocus: false,
-            data: this.project(),
-        });
-    }
+    dependencies.forEach(dep => {
+      const dependencyPayload = {
+        taskId: taskId,
+        dependsOnTaskId: dep.taskId,
+        dependencyType: dep.type
+      };
 
-    openEffortLogDialog(tasks: TaskItem): void {
-        this.dialog.open(EffortLogDialogComponent, {
-            width: "500px",
-            maxWidth: "500px",
-            panelClass: "custom-dialog-container",
-            autoFocus: false,
-            data: tasks,
-        });
-    }
+      this.taskDependencyService.create(dependencyPayload).subscribe({
+        next: () => onComplete(),
+        error: () => {
+          errors++;
+          onComplete();
+        }
+      });
+    });
+  }
 
-    createTask() {
-        this.dialog.open(CreateEditTaskComponent, {
-            width: "500px",
-            maxWidth: "500px",
-            panelClass: "custom-dialog-container",
-            autoFocus: false,
-            data: {
-                projectName: this.project().name,
-                projectId: this.project().id,
-                members: this.projectMembers,
-            },
+  private updateTask(taskId: number, formData: any) {
+    const payload = {
+      title: formData.title,
+      description: formData.description || "",
+      taskType: formData.type || "task",
+      status: formData.status || "todo",
+      priority: formData.priority || "Medium",
+      estimatedHours: formData.assignHours || 0,
+      actualHours: formData.actualHours || 0,
+      assignedToId: formData.assignedTo || null,
+      parentTaskId: formData.parentTaskId || null,
+      startDate: formData.startDate || null,
+      dueDate: formData.dueDate || null,
+    };
+
+    this.taskService.update(taskId, payload).subscribe({
+      next: () => {
+        // Créer les nouvelles dépendances si ajoutées
+        if (formData.dependencies && formData.dependencies.length > 0) {
+          this.createTaskDependencies(taskId, formData.dependencies);
+        } else {
+          this.snackBar.open("Tâche mise à jour avec succès", "OK", { duration: 3000 });
+          this.loadTasks();
+          this.loadDependencies();
+        }
+      },
+      error: (err) => {
+        console.error(err);
+        this.snackBar.open("Erreur lors de la mise à jour", "OK", { duration: 4000 });
+      }
+    });
+  }
+
+  confirmDeleteParent(parent: TaskItem, childCount: number) {
+    const title = childCount > 0
+      ? `${parent.title} (+ ${childCount} sous-tâche${childCount > 1 ? 's' : ''} détachée${childCount > 1 ? 's' : ''})`
+      : parent.title;
+    const dialogRef = this.dialog.open(ConfirmDeleteTaskDialogComponent, {
+      width: '420px',
+      data: { taskTitle: title }
+    });
+
+    dialogRef.afterClosed().subscribe(confirmed => {
+      if (confirmed) {
+        this.taskService.delete(parent.taskId).subscribe({
+          next: () => {
+            this.snackBar.open("Tâche parente supprimée avec succès", "OK", { duration: 3000 });
+            this.loadTasks();
+          },
+          error: (err) => {
+            console.error(err);
+            this.snackBar.open("Erreur lors de la suppression", "OK", { duration: 4000 });
+          }
         });
+      }
+    });
+  }
+
+  confirmDelete(task: TaskItem) {
+    const dialogRef = this.dialog.open(ConfirmDeleteTaskDialogComponent, {
+      width: '420px',
+      data: { taskTitle: task.title }
+    });
+
+    dialogRef.afterClosed().subscribe(confirmed => {
+      if (confirmed) {
+        this.taskService.delete(task.taskId).subscribe({
+          next: () => {
+            this.snackBar.open("Tâche supprimée avec succès", "OK", { duration: 3000 });
+            this.loadTasks();
+          },
+          error: (err) => {
+            console.error(err);
+            this.snackBar.open("Erreur lors de la suppression", "OK", { duration: 4000 });
+          }
+        });
+      }
+    });
+  }
+
+  // Méthodes restantes (applyFilter, switchPanel, toggleGroup, etc.)
+  applyFilter(event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    this.searchFilter.set(value);
+  }
+
+  switchPanel(panel: 'tasks' | 'gantt' | 'wbs' | 'critical') {
+    this.selectedPanel.set(panel);
+    if (panel === 'gantt' || panel === 'wbs') {
+      setTimeout(() => this.refreshAdvancedView(panel as 'gantt' | 'wbs'), 80);
     }
+    if (panel === 'critical') {
+      // Small delay to let the panel become visible before Cytoscape renders
+      setTimeout(() => this.loadDependencies(), 80);
+    }
+  }
+
+  loadDependencies() {
+    const taskIds = this.tasks().map(t => t.taskId);
+    if (taskIds.length === 0) return;
+
+    this.taskDependencyService.getAll().subscribe({
+      next: (deps) => {
+        const filtered = deps.filter(
+          d => taskIds.includes(d.taskId) && taskIds.includes(d.dependsOnTaskId)
+        );
+        this.dependencies.set(filtered);
+        this.cdr.markForCheck();
+      },
+      error: () => this.dependencies.set([])
+    });
+  }
+
+  private refreshAdvancedView(panel: 'gantt' | 'wbs') {
+    if (panel === 'gantt') this.renderGantt();
+    if (panel === 'wbs') this.renderWBS();
+  }
+
+  toggleGroup(parentId: number) {
+    const current = new Set(this.expandedGroupIds());
+    current.has(parentId) ? current.delete(parentId) : current.add(parentId);
+    this.expandedGroupIds.set(current);
+  }
+
+  toggleDetails(taskId: number) {
+    const current = new Set(this.expandedTaskIds());
+    current.has(taskId) ? current.delete(taskId) : current.add(taskId);
+    this.expandedTaskIds.set(current);
+  }
+
+  renderGantt() { console.log("%c📊 Gantt activated", "color:#0ea5e9"); }
+  renderWBS() { console.log("%c📋 WBS activated", "color:#0ea5e9"); }
 }

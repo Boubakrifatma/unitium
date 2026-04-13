@@ -4,12 +4,20 @@ import com.example.pi_projet.annotation.Authorized;
 import com.example.pi_projet.dto.CreateUserRequest;
 import com.example.pi_projet.dto.UpdateUserRequest;
 import com.example.pi_projet.dto.UserDTO;
+import com.example.pi_projet.entity.User;
+import com.example.pi_projet.service.OrganizationMemberService;
+import com.example.pi_projet.service.OrganizationService;
 import com.example.pi_projet.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
@@ -22,6 +30,8 @@ import java.util.Map;
 public class UserController {
 
     private final UserService userService;
+    private final OrganizationService organizationService;
+    private final OrganizationMemberService memberService;
 
     @Operation(summary = "Create a new user")
     @PostMapping
@@ -29,10 +39,20 @@ public class UserController {
         return ResponseEntity.status(201).body(userService.createUser(body));
     }
 
-    @Operation(summary = "List all users")
+    @Operation(summary = "List users — SUPER_ADMIN sees all, ADMIN sees only their org members")
     @GetMapping
-    public ResponseEntity<List<UserDTO>> getAllUsers() {
-        return ResponseEntity.ok(userService.getAllUsers());
+    public ResponseEntity<List<UserDTO>> getAllUsers(HttpServletRequest request) {
+        User currentUser = (User) request.getAttribute("currentUser");
+        if (currentUser.getRole() == User.RoleName.SUPER_ADMIN) {
+            return ResponseEntity.ok(userService.getAllUsers());
+        }
+        // ADMIN: only members of their organization
+        try {
+            var org = organizationService.getByOwnerId(currentUser.getId());
+            return ResponseEntity.ok(memberService.getMemberUsers(org.id()));
+        } catch (Exception e) {
+            return ResponseEntity.ok(List.of());
+        }
     }
 
     @Operation(summary = "Get a user by ID")
@@ -54,6 +74,12 @@ public class UserController {
         return ResponseEntity.ok(Map.of("message", "User deleted successfully."));
     }
 
+    @Operation(summary = "Search users by name or email")
+    @GetMapping("/search")
+    public ResponseEntity<List<UserDTO>> searchUsers(@RequestParam String q) {
+        return ResponseEntity.ok(userService.searchUsers(q));
+    }
+
     @Operation(summary = "Change user role (ADMIN, MANAGER, EMPLOYEE...)")
     @PatchMapping("/{id}/role")
     public ResponseEntity<UserDTO> changeRole(@PathVariable Long id, @RequestBody Map<String, String> body) {
@@ -70,5 +96,29 @@ public class UserController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<UserDTO> changeStatus(@PathVariable Long id, @RequestBody Map<String, Boolean> body) {
         return ResponseEntity.ok(userService.changeStatus(id, body.get("isActive")));
+    }
+
+    /**
+     * PATCH /api/users/{id}/password
+     * Allows an org admin to change their default password after first login.
+     * Body: { "oldPassword": "...", "newPassword": "..." }
+     */
+    @Operation(summary = "Change user password (self-service — used after first login)")
+    @PatchMapping("/{id}/password")
+    public ResponseEntity<?> changePassword(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        try {
+            userService.changePassword(id, body.get("oldPassword"), body.get("newPassword"));
+            return ResponseEntity.ok(Map.of("message", "Password changed successfully."));
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode())
+                    .body(Map.of("message", e.getReason() != null ? e.getReason() : "Password change failed."));
+        }
+    }
+
+    @Operation(summary = "Upload avatar photo for a user")
+    @PostMapping(value = "/{id}/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<UserDTO> uploadAvatar(@PathVariable Long id,
+                                                @RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(userService.uploadAvatar(id, file));
     }
 }

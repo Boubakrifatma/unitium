@@ -78,6 +78,9 @@ public class Invoice {
     private LocalDateTime paidAt;
 
 
+    @Column(name = "integrity_hash", length = 64)
+    private String integrityHash;
+
     @Column(name = "pdf_url", columnDefinition = "text")
     private String pdfUrl;
 

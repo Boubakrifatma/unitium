@@ -5,6 +5,7 @@ import { FullLayoutComponent } from "./layouts/full-layout/full-layout.component
 import { WebsiteLayoutComponent } from "./layouts/website-layout/websitelayout.component";
 import { authGuard } from "./auth/auth.guard";
 import { roleGuard } from "./auth/role.guard";
+import { m2AdminGuard } from "./pages/app/m2-admin/m2-admin.guard";
 
 export const routes: Routes = [
     {
@@ -45,6 +46,18 @@ export const routes: Routes = [
                 path: "signup-success",
                 loadComponent: () => import("./pages/auth/signup-success/signup-success.component").then((c) => c.SignupSuccessComponent),
             },
+            {
+                path: "oauth2-callback",
+                loadComponent: () => import("./pages/auth/oauth2-callback/oauth2-callback.component").then((c) => c.OAuth2CallbackComponent),
+            },
+            {
+                path: "magic-callback",
+                loadComponent: () => import("./pages/auth/magic-callback/magic-callback.component").then((c) => c.MagicCallbackComponent),
+            },
+            {
+                path: "invitation",
+                loadComponent: () => import("./pages/auth/invitation/invitation-response.component").then((c) => c.InvitationResponseComponent),
+            },
         ],
     },
     {
@@ -62,6 +75,22 @@ export const routes: Routes = [
                 loadComponent: () => import("./pages/app/dashboard/dashboard.component").then((c) => c.DashboardComponent),
             },
             {
+                path: "workspaces",
+                loadComponent: () => import("./pages/app/m2-workspaces/m2-workspaces.component").then((c) => c.M2WorkspacesComponent),
+            },
+            {
+                path: "workspaces/:workspaceId",
+                loadComponent: () => import("./pages/app/m2-workspaces/m2-workspace-details.component").then((c) => c.M2WorkspaceDetailsComponent),
+            },
+            {
+                path: "workspaces/:workspaceId/war-room",
+                loadComponent: () => import("./pages/app/m2-workspaces/war-room/war-room.component").then((c) => c.WarRoomComponent),
+            },
+            {
+                path: "workspace-details/:workspaceId",
+                redirectTo: "workspaces/:workspaceId",
+            },
+            {
                 path: "projects",
                 loadComponent: () => import("./pages/app/projects/projects.component").then((c) => c.ProjectsComponent),
             },
@@ -70,13 +99,34 @@ export const routes: Routes = [
                 loadComponent: () => import("./pages/app/projects/project-details.component").then((c) => c.ProjectDetailsComponent),
             },
             {
+                path: "real-projects",
+                loadComponent: () => import("./pages/app/m2-projects/real-projects.component").then((c) => c.RealProjectsComponent),
+            },
+            {
+                path: "real-projects/:workspaceId/:projectId",
+                loadComponent: () => import("./pages/app/m2-projects/real-project-details.component").then((c) => c.ProjectDetailsComponent),
+            },
+            {
+                path: "templates",
+                loadComponent: () => import("./pages/app/m2-templates/m2-templates.component").then((c) => c.M2TemplatesComponent),
+            },
+            {
+                path: "templates/:templateId",
+                loadComponent: () => import("./pages/app/m2-templates/m2-template-details.component").then((c) => c.M2TemplateDetailsComponent),
+            },
+            {
+                path: "m2-projects",
+                loadComponent: () => import("./pages/app/m2-projects/projects.component").then((c) => c.ProjectsComponent),
+            },
+            {
+                path: "m2-projects/:workspaceId/:projectId",
+                loadComponent: () => import("./pages/app/m2-projects/project-details.component").then((c) => c.ProjectDetailsComponent),
+            },
+            {
                 path: "employee",
                 loadComponent: () => import("./pages/app/employee/employee.component").then((c) => c.EmployeeComponent),
             },
-            {
-                path: "time-tracking",
-                loadComponent: () => import("./pages/app/task-manage/time-tracking.component").then((c) => c.TimeTrackingComponent),
-            },
+           
             {
                 path: "task-details",
                 loadComponent: () => import("./pages/app/task-manage/task-details.component").then((c) => c.TaskDetailsComponent),
@@ -85,13 +135,14 @@ export const routes: Routes = [
                 path: "kanban",
                 loadComponent: () => import("./pages/app/task-manage/kanban.component").then((c) => c.KanbanComponent),
             },
-            {
-                path: "gantt-chart",
-                loadComponent: () => import("./pages/app/task-manage/gantt-chart.component").then((c) => c.GanttChartComponent),
-            },
+            
             {
                 path: "all-tasks",
                 loadComponent: () => import("./pages/app/task-manage/all-task.component").then((c) => c.AllTaskComponent),
+            },
+            {
+                path: "milestones",
+                loadComponent: () => import("./pages/app/milestone-manage/all-milestone.component").then((c) => c.AllMilestoneComponent),
             },
             {
                 path: "orders",
@@ -180,8 +231,49 @@ export const routes: Routes = [
                 loadComponent: () => import("./pages/app/super-admin/super-admin.component").then((c) => c.SuperAdminComponent),
             },
             {
+                path: "super-admin-billing",
+                loadComponent: () => import("./pages/app/super-admin/super-admin-billing.component").then((c) => c.SuperAdminBillingComponent),
+            },
+            {
+                path: "churn-dashboard",
+                loadComponent: () => import("./ml/pages/churn-dashboard/churn-dashboard.component").then((c) => c.ChurnDashboardComponent),
+            },
+            {
+                path: "org-billing",
+                loadComponent: () => import("./pages/app/org-billing/org-billing.component").then((c) => c.OrgBillingComponent),
+            },
+            {
+                path: "upgrade-confirmation",
+                loadComponent: () => import("./billing/pages/confirmation/payment-confirmation.component").then((c) => c.PaymentConfirmationComponent),
+            },
+            {
+                path: "m2-admin",
+                canActivate: [m2AdminGuard],
+                loadComponent: () => import("./pages/app/m2-admin/m2-admin.component").then((c) => c.M2AdminComponent),
+            },
+            {
+                path: "organizations",
+                loadComponent: () => import("./organizations/organizations.component").then((c) => c.OrganizationsComponent),
+            },
+            {
+                path: "organizations/:id",
+                loadComponent: () => import("./organizations/organization-detail.component").then((c) => c.OrganizationDetailComponent),
+            },
+            {
+                path: "audit-logs",
+                loadComponent: () => import("./organizations/audit-log.component").then((c) => c.AuditLogComponent),
+            },
+            {
+                path: "my-organization",
+                loadComponent: () => import("./organizations/my-organization.component").then((c) => c.MyOrganizationComponent),
+            },
+            {
                 path: "po",
                 loadComponent: () => import("./pages/app/po/po-dashboard.component").then((c) => c.PoDashboardComponent),
+            },
+            {
+                path: "activity-stats",
+                loadComponent: () => import("./pages/app/activity-stats/activity-stats.component").then((c) => c.ActivityStatsComponent),
             },
         ],
     },

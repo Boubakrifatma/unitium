@@ -10,6 +10,8 @@ export interface UserDTO {
   isActive: boolean;
   avatarUrl: string | null;
   createdAt: string;
+  faceRegisteredAt?: string | null;
+  orgType?: 'enterprise' | 'academic';
 }
 
 @Injectable({ providedIn: 'root' })
@@ -43,5 +45,15 @@ export class UserService {
 
   changeStatus(id: number, isActive: boolean): Observable<UserDTO> {
     return this.http.patch<UserDTO>(`${this.base}/${id}/status`, { isActive });
+  }
+
+  changePassword(id: number, oldPassword: string, newPassword: string): Observable<any> {
+    return this.http.patch(`${this.base}/${id}/password`, { oldPassword, newPassword });
+  }
+
+  uploadAvatar(id: number, file: File): Observable<UserDTO> {
+    const fd = new FormData();
+    fd.append('file', file);
+    return this.http.post<UserDTO>(`${this.base}/${id}/avatar`, fd);
   }
 }

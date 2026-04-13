@@ -148,6 +148,8 @@ export class AppSidebarComponent {
     get isSuperAdmin(): boolean { return this.role === 'SUPER_ADMIN'; }
     get isAdmin(): boolean      { return this.role === 'ADMIN' || this.isSuperAdmin; }
     get isManager(): boolean    { return this.role === 'MANAGER' || this.isAdmin; }
+    get isTutor(): boolean      { return this.role === 'TUTOR'; }
+    get canManageWorkspaces(): boolean { return this.isManager || this.isTutor; }
 
     get navItems(): NavItem[] {
         const all: NavItem[] = [];
@@ -156,39 +158,56 @@ export class AppSidebarComponent {
         if (this.isSuperAdmin) {
             all.push({ name: "Platform Overview", route: "/app/super-admin", icon: "admin_panel_settings" });
             all.push({ name: "All Users", route: "/app/users", icon: "manage_accounts" });
+
+            all.push({ name: "Organizations", route: "/app/organizations", icon: "corporate_fare" });
+            all.push({ name: "Audit Log", route: "/app/audit-logs", icon: "history" });
+            all.push({ name: "Platform Dashboard", route: "/app/activity-stats", icon: "bar_chart" });
+            all.push({ name: "Churn ML", route: "/app/churn-dashboard", icon: "psychology" });
         }
 
-        // ADMIN + SUPER_ADMIN
-        if (this.isAdmin) {
+        // ADMIN only (not SUPER_ADMIN)
+        if (this.isAdmin && !this.isSuperAdmin) {
             all.push({ name: "Dashboard", route: "/app/dashboard", icon: "house" });
-            if (!this.isSuperAdmin) {
-                all.push({ name: "Users", route: "/app/users", icon: "manage_accounts" });
-            }
+            all.push({ name: "My Organization", route: "/app/my-organization", icon: "corporate_fare" });
             all.push({ name: "Employees", route: "/app/employee", icon: "person" });
+            all.push({ name: "Admin Dashboard", route: "/app/m2-admin", icon: "admin_panel_settings" });
         }
 
-        // MANAGER + above
-        if (this.isManager) {
-            all.push({
-                name: "Projects",
-                icon: "dashboard",
-                children: [
-                    { name: "Projects", route: "/app/projects", icon: "assignment" },
-                    { name: "Project Details", route: "/app/project-details", icon: "subject" },
-                    { name: "All Task", route: "/app/all-tasks", icon: "checklist" },
-                    { name: "Tasks Details", route: "/app/task-details", icon: "task" },
-                    { name: "Task Kanban", route: "/app/kanban", icon: "view_kanban" },
-                    { name: "Task Gantt Chart", route: "/app/gantt-chart", icon: "event" },
-                    { name: "Time Tracking", route: "/app/time-tracking", icon: "alarm" },
-                ],
-            });
+        // All authenticated roles can access Workspaces list and their projects.
+        const projectChildren: NavItem[] = [
+            { name: "Workspaces", route: "/app/workspaces", icon: "workspaces" },
+            { name: "My Projects", route: "/app/real-projects", icon: "folder_special" },
+        ];
+        if (this.canManageWorkspaces) {
+            projectChildren.push({ name: "Templates Hub", route: "/app/templates", icon: "layers" });
         }
+
+        // Manager/Admin/Tutor roles can access broader project/task workspace management views.
+        if (this.canManageWorkspaces) {
+            projectChildren.push(
+                { name: "Projects (Template)", route: "/app/projects", icon: "assignment" },
+                { name: "Project Details (Template)", route: "/app/project-details", icon: "subject" },
+                { name: "All Task", route: "/app/all-tasks", icon: "checklist" },
+                { name: "Milestones", route: "/app/milestones", icon: "flag" },
+                { name: "Tasks Details", route: "/app/task-details", icon: "task" },
+                { name: "Task Kanban", route: "/app/kanban", icon: "view_kanban" },
+                { name: "Task Gantt Chart", route: "/app/gantt-chart", icon: "event" },
+                { name: "Time Tracking", route: "/app/time-tracking", icon: "alarm" },
+            );
+        }
+
+        all.push({
+            name: "Projects",
+            icon: "dashboard",
+            children: projectChildren,
+        });
 
         // EMPLOYEE + above
         all.push({
             name: "Applications",
             icon: "apps",
             children: [
+                { name: "Task Kanban", route: "/app/kanban", icon: "view_kanban" },
                 { name: "Explorer", route: "/app/explorer", icon: "folder_zip" },
                 { name: "Calendar", route: "/app/calendar", icon: "event" },
                 { name: "Chat", route: "/app/chat", icon: "chat" },
@@ -227,6 +246,7 @@ export class AppSidebarComponent {
             name: "Projects",
             icon: "dashboard",
             children: [
+                { name: "Workspaces", route: "/app/workspaces", icon: "workspaces" },
                 { name: "Projects", route: "/app/projects", icon: "assignment" },
                 { name: "Project Details", route: "/app/project-details", icon: "subject" },
                 { name: "All Task", route: "/app/all-tasks", icon: "checklist" },
