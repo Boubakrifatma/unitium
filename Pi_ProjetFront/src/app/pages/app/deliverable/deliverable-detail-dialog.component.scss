@@ -193,6 +193,125 @@
   }
 }
 
+// ── Manager Feedback Section ────────────────────────────────────────────────
+.manager-feedback-section {
+  margin: 20px 0 0;
+
+  .info-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: #64748b;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 12px;
+  }
+}
+
+.review-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.review-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+  background: #f8fafc;
+  border-radius: 12px;
+  color: #94a3b8;
+  font-size: 0.85rem;
+
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+}
+
+.review-card {
+  border: 2px solid;
+  border-radius: 14px;
+  padding: 16px;
+  background: #fafafa;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.review-score-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+
+  .score-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  .tier-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+}
+
+.score-bar-bg {
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  overflow: hidden;
+
+  .score-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+}
+
+.review-feedback {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+
+  .feedback-icon {
+    color: #94a3b8;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+
+  .feedback-text {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #334155;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+}
+
+.review-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+  color: #94a3b8;
+
+  span {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+}
+
 // Responsive
 @media (max-width: 600px) {
   .detail-dialog {

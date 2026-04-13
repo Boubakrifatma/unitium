@@ -12,6 +12,14 @@ import { MatTableDataSource, MatTableModule } from "@angular/material/table";
 import { MatPaginator, MatPaginatorModule } from "@angular/material/paginator";
 import { MatSort, MatSortModule } from "@angular/material/sort";
 import { MatDialog } from "@angular/material/dialog";
+import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
+import { MatDividerModule } from "@angular/material/divider";
+import { MatTooltipModule } from "@angular/material/tooltip";
+import { forkJoin, of } from "rxjs";
+import { map, catchError } from "rxjs/operators";
+import { ProjectService, Project } from "../../../services/project-service";
+import { DeliverableService, MilestoneDeliverableGroup } from "../../../services/Deliverable.service";
+import { ReviewService, DeliverableReviewDto } from "../../../services/review.service";
 import Swiper from "swiper";
 import { register } from "swiper/element/bundle";
 register();
@@ -85,7 +93,7 @@ interface Activity {
 @Component({
     selector: "app-project-details",
     standalone: true,
-    imports: [CommonModule, RouterLink, MatCardModule, MatIconModule, MatTabsModule, MatMenuModule, MatProgressBarModule, MatTableModule, MatPaginatorModule, MatSortModule, MatButtonModule, MatButtonToggleModule, MatFormFieldModule, FormsModule, MatListModule, MatInputModule, MatSelectModule, MatChipsModule, CircleProgressBlueComponent],
+    imports: [CommonModule, RouterLink, MatCardModule, MatIconModule, MatTabsModule, MatMenuModule, MatProgressBarModule, MatTableModule, MatPaginatorModule, MatSortModule, MatButtonModule, MatButtonToggleModule, MatFormFieldModule, FormsModule, MatListModule, MatInputModule, MatSelectModule, MatChipsModule, CircleProgressBlueComponent, MatProgressSpinnerModule, MatDividerModule, MatTooltipModule],
     template: `
         <div class="container-fluid fade-in mb-3 mb-lg-4">
             <mat-card class="bg-light-theme shadow-none pt-3 pb-lg-3 px-3">
@@ -674,6 +682,228 @@ interface Activity {
                     </mat-card>
                 </div>
             </div>
+
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- KPI LIVRABLES                                                   -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <div class="row gx-3 gx-lg-4 mt-2">
+              <div class="col-12">
+                <mat-card class="mb-3 mb-lg-4">
+                  <mat-card-content>
+
+                    <!-- Header + project selector -->
+                    <div class="row gx-3 align-items-center mb-3">
+                      <div class="col">
+                        <h3 class="mb-1">
+                          <mat-icon class="align-middle me-1" style="color:#6366f1">insights</mat-icon>
+                          KPI Livrables
+                        </h3>
+                        <p class="small text-secondary">Scores et livrables par milestone et par employé</p>
+                      </div>
+                      <div class="col-auto">
+                        <mat-form-field appearance="outline" style="min-width:220px;margin-bottom:-1.25em">
+                          <mat-label><mat-icon>folder_open</mat-icon> Projet</mat-label>
+                          <mat-select [ngModel]="selectedKpiProjectId()" (ngModelChange)="loadKpiData($event)">
+                            @for (p of kpiProjects(); track p.id) {
+                              <mat-option [value]="p.id">{{ p.name }}</mat-option>
+                            }
+                          </mat-select>
+                        </mat-form-field>
+                      </div>
+                    </div>
+
+                    <!-- Loading -->
+                    @if (kpiLoading()) {
+                      <div class="text-center py-5">
+                        <mat-progress-spinner diameter="44" mode="indeterminate" style="margin:auto"></mat-progress-spinner>
+                        <p class="text-secondary mt-3 small">Chargement des KPIs...</p>
+                      </div>
+
+                    } @else if (!selectedKpiProjectId()) {
+                      <p class="text-center text-secondary py-4">Sélectionnez un projet pour afficher les KPIs.</p>
+
+                    } @else if (kpiStats().totalDeliverables === 0) {
+                      <p class="text-center text-secondary py-4">Aucun livrable trouvé pour ce projet.</p>
+
+                    } @else {
+
+                      <!-- ── Summary cards ──────────────────────────── -->
+                      <div class="row gx-3 mb-4">
+                        <div class="col-6 col-md-3">
+                          <div style="background:#f0f9ff;border-radius:14px;padding:16px 14px;text-align:center">
+                            <mat-icon style="color:#0284c7;font-size:28px;width:28px;height:28px">description</mat-icon>
+                            <h2 style="margin:6px 0 2px;color:#0284c7">{{ kpiStats().totalDeliverables }}</h2>
+                            <p class="small text-secondary mb-0">Livrables au total</p>
+                          </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                          <div style="border-radius:14px;padding:16px 14px;text-align:center"
+                               [style.background]="kpiStats().projectAvg == null ? '#f8fafc' : kpiStats().projectAvg! === 10 ? '#dcfce7' : kpiStats().projectAvg! >= 7 ? '#fef3c7' : '#fee2e2'">
+                            <mat-icon [style.color]="getScoreColor(kpiStats().projectAvg)" style="font-size:28px;width:28px;height:28px">stars</mat-icon>
+                            <h2 style="margin:6px 0 2px" [style.color]="getScoreColor(kpiStats().projectAvg)">
+                              {{ kpiStats().projectAvg != null ? (kpiStats().projectAvg! | number:'1.1-1') + '/10' : '—' }}
+                            </h2>
+                            <p class="small text-secondary mb-0">Score moyen projet</p>
+                          </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                          <div style="background:#faf5ff;border-radius:14px;padding:16px 14px;text-align:center">
+                            <mat-icon style="color:#7c3aed;font-size:28px;width:28px;height:28px">flag</mat-icon>
+                            <h2 style="margin:6px 0 2px;color:#7c3aed">{{ kpiStats().milestoneStats.length }}</h2>
+                            <p class="small text-secondary mb-0">Milestones</p>
+                          </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                          <div style="background:#f0fdf4;border-radius:14px;padding:16px 14px;text-align:center">
+                            <mat-icon style="color:#16a34a;font-size:28px;width:28px;height:28px">group</mat-icon>
+                            <h2 style="margin:6px 0 2px;color:#16a34a">{{ kpiStats().employeeRanking.length }}</h2>
+                            <p class="small text-secondary mb-0">Employés évalués</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <mat-divider class="mb-4"></mat-divider>
+
+                      <div class="row gx-3 gx-lg-4">
+
+                        <!-- ── Per-milestone table ─────────────────── -->
+                        <div class="col-12 col-lg-6 mb-4">
+                          <h5 class="mb-3" style="font-weight:700;color:#374151">
+                            <mat-icon class="align-middle me-1" style="color:#7c3aed;font-size:18px">flag</mat-icon>
+                            Livrables & scores par milestone
+                          </h5>
+                          <div style="display:flex;flex-direction:column;gap:10px">
+                            @for (ms of kpiStats().milestoneStats; track ms.milestoneName) {
+                              <div style="background:#f8fafc;border-radius:12px;padding:14px 16px">
+                                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+                                  <div style="display:flex;align-items:center;gap:8px">
+                                    <mat-icon style="font-size:16px;width:16px;height:16px;color:#7c3aed">flag</mat-icon>
+                                    <span style="font-weight:600;font-size:0.88rem;color:#1f2937">{{ ms.milestoneName }}</span>
+                                    @if (ms.milestoneStatus) {
+                                      <span style="font-size:0.7rem;padding:2px 8px;border-radius:10px;background:#ede9fe;color:#6d28d9">
+                                        {{ getMilestoneStatusLabel(ms.milestoneStatus) }}
+                                      </span>
+                                    }
+                                  </div>
+                                  <div style="display:flex;align-items:center;gap:12px">
+                                    <span style="font-size:0.8rem;color:#6b7280">
+                                      <mat-icon style="font-size:13px;width:13px;height:13px;vertical-align:middle">description</mat-icon>
+                                      {{ ms.deliverableCount }} livrable(s)
+                                    </span>
+                                    <span style="font-weight:700;font-size:0.95rem;padding:3px 10px;border-radius:10px"
+                                          [style.background]="getScoreColor(ms.avgScore) + '20'"
+                                          [style.color]="getScoreColor(ms.avgScore)">
+                                      {{ ms.avgScore != null ? (ms.avgScore | number:'1.1-1') + '/10' : '—' }}
+                                    </span>
+                                  </div>
+                                </div>
+                                <!-- score bar -->
+                                <div style="height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden">
+                                  <div style="height:100%;border-radius:3px;transition:width .4s"
+                                       [style.width.%]="ms.avgScore != null ? ms.avgScore * 10 : 0"
+                                       [style.background]="getScoreColor(ms.avgScore)">
+                                  </div>
+                                </div>
+                                @if (ms.reviewedCount === 0) {
+                                  <p style="font-size:0.75rem;color:#94a3b8;margin:6px 0 0">Aucune review enregistrée</p>
+                                } @else {
+                                  <p style="font-size:0.75rem;color:#94a3b8;margin:6px 0 0">{{ ms.reviewedCount }} review(s) prise(s) en compte</p>
+                                }
+                              </div>
+                            }
+                          </div>
+                        </div>
+
+                        <!-- ── Employee ranking ───────────────────────── -->
+                        <div class="col-12 col-lg-6 mb-4">
+                          <h5 class="mb-3" style="font-weight:700;color:#374151">
+                            <mat-icon class="align-middle me-1" style="color:#0284c7;font-size:18px">leaderboard</mat-icon>
+                            Classement des employés
+                          </h5>
+                          <div style="display:flex;flex-direction:column;gap:8px">
+                            @for (emp of kpiStats().employeeRanking; track emp.name; let i = $index) {
+                              <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:#f8fafc">
+                                <!-- rank badge -->
+                                <div style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;flex-shrink:0"
+                                     [style.background]="i === 0 ? '#fef3c7' : i === 1 ? '#f3f4f6' : i === 2 ? '#fef3c7' : '#f8fafc'"
+                                     [style.color]="i === 0 ? '#d97706' : i === 1 ? '#6b7280' : '#92400e'">
+                                  {{ i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1 }}
+                                </div>
+                                <!-- name + bar -->
+                                <div style="flex:1;min-width:0">
+                                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                                    <span style="font-weight:600;font-size:0.88rem;color:#1f2937;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%">{{ emp.name }}</span>
+                                    <span style="font-size:0.75rem;color:#6b7280">{{ emp.deliverableCount }} livrable(s)</span>
+                                  </div>
+                                  <div style="height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden">
+                                    <div style="height:100%;border-radius:3px;transition:width .4s"
+                                         [style.width.%]="emp.avgScore != null ? emp.avgScore * 10 : 0"
+                                         [style.background]="getScoreColor(emp.avgScore)">
+                                    </div>
+                                  </div>
+                                </div>
+                                <!-- score -->
+                                <span style="font-weight:700;font-size:1rem;min-width:48px;text-align:right"
+                                      [style.color]="getScoreColor(emp.avgScore)">
+                                  {{ emp.avgScore != null ? (emp.avgScore | number:'1.1-1') : '—' }}
+                                </span>
+                              </div>
+                            }
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- ── Employee × Milestone matrix ──────────────── -->
+                      @if (kpiStats().milestoneNames.length > 0 && kpiStats().employeeMilestoneMatrix.length > 0) {
+                        <mat-divider class="mb-4"></mat-divider>
+                        <h5 class="mb-3" style="font-weight:700;color:#374151">
+                          <mat-icon class="align-middle me-1" style="color:#0891b2;font-size:18px">grid_on</mat-icon>
+                          Score par employé × milestone
+                        </h5>
+                        <div style="overflow-x:auto">
+                          <table style="width:100%;border-collapse:collapse;font-size:0.83rem">
+                            <thead>
+                              <tr>
+                                <th style="text-align:left;padding:8px 12px;background:#f1f5f9;border-radius:8px 0 0 0;color:#374151;font-weight:600;white-space:nowrap">Employé</th>
+                                @for (mn of kpiStats().milestoneNames; track mn) {
+                                  <th style="text-align:center;padding:8px 10px;background:#f1f5f9;color:#374151;font-weight:600;white-space:nowrap;max-width:120px">
+                                    <span style="display:block;overflow:hidden;text-overflow:ellipsis;max-width:120px" [matTooltip]="mn">
+                                      {{ mn.length > 14 ? (mn | slice:0:14) + '…' : mn }}
+                                    </span>
+                                  </th>
+                                }
+                              </tr>
+                            </thead>
+                            <tbody>
+                              @for (row of kpiStats().employeeMilestoneMatrix; track row.name) {
+                                <tr style="border-bottom:1px solid #f1f5f9">
+                                  <td style="padding:8px 12px;font-weight:600;color:#1f2937;white-space:nowrap">{{ row.name }}</td>
+                                  @for (cell of row.milestoneScores; track cell.milestoneName) {
+                                    <td style="text-align:center;padding:8px 6px">
+                                      @if (cell.avgScore != null) {
+                                        <span style="display:inline-block;padding:3px 10px;border-radius:8px;font-weight:700"
+                                              [style.background]="getScoreColor(cell.avgScore) + '20'"
+                                              [style.color]="getScoreColor(cell.avgScore)">
+                                          {{ cell.avgScore | number:'1.1-1' }}
+                                        </span>
+                                      } @else {
+                                        <span style="color:#cbd5e1">—</span>
+                                      }
+                                    </td>
+                                  }
+                                </tr>
+                              }
+                            </tbody>
+                          </table>
+                        </div>
+                      }
+
+                    }
+                  </mat-card-content>
+                </mat-card>
+              </div>
+            </div>
+
             }
         </div>
     `,
@@ -682,7 +912,87 @@ interface Activity {
 })
 export class ProjectDetailsComponent implements OnInit {
     // dialog
-    readonly dialog = inject(MatDialog);
+    readonly dialog      = inject(MatDialog);
+    private projectSvc   = inject(ProjectService);
+    private delivSvc     = inject(DeliverableService);
+    private reviewSvc    = inject(ReviewService);
+
+    // ── KPI signals ────────────────────────────────────────────────────────────
+    kpiProjects          = signal<Project[]>([]);
+    selectedKpiProjectId = signal<string | null>(null);
+    kpiGroups            = signal<MilestoneDeliverableGroup[]>([]);
+    kpiReviews           = signal<Map<number, DeliverableReviewDto[]>>(new Map());
+    kpiLoading           = signal(false);
+
+    kpiStats = computed(() => {
+        const groups  = this.kpiGroups();
+        const reviews = this.kpiReviews();
+        const avg = (scores: number[]) =>
+            scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
+
+        // ── Flatten all deliverables with context ──────────────────────────
+        type DFlat = { deliverableId: number; milestoneId: number | null; milestoneName: string; employeeName: string; scores: number[] };
+        const flat: DFlat[] = [];
+        groups.forEach(mg => mg.tasks.forEach(t => t.deliverables.forEach(d => {
+            const scores = (reviews.get(d.deliverableId) ?? []).map(r => r.score).filter((s): s is number => s != null);
+            flat.push({ deliverableId: d.deliverableId, milestoneId: mg.milestoneId, milestoneName: mg.milestoneName, employeeName: d.employeeName, scores });
+        })));
+
+        const totalDeliverables = flat.length;
+        const allScores = flat.flatMap(d => d.scores);
+        const projectAvg = avg(allScores);
+
+        // ── Per-milestone ──────────────────────────────────────────────────
+        const msMap = new Map<string, { milestoneName: string; count: number; scores: number[]; status: string | null }>();
+        groups.forEach(mg => {
+            const key = String(mg.milestoneId ?? 'none');
+            if (!msMap.has(key)) msMap.set(key, { milestoneName: mg.milestoneName, count: 0, scores: [], status: mg.milestoneStatus });
+            const entry = msMap.get(key)!;
+            mg.tasks.forEach(t => {
+                entry.count += t.deliverables.length;
+                t.deliverables.forEach(d => {
+                    const sc = (reviews.get(d.deliverableId) ?? []).map(r => r.score).filter((s): s is number => s != null);
+                    entry.scores.push(...sc);
+                });
+            });
+        });
+        const milestoneStats = Array.from(msMap.values()).map(m => ({
+            milestoneName: m.milestoneName,
+            milestoneStatus: m.status,
+            deliverableCount: m.count,
+            avgScore: avg(m.scores),
+            reviewedCount: m.scores.length,
+        }));
+
+        // ── Per-employee (ranking) ─────────────────────────────────────────
+        const empMap = new Map<string, { scores: number[]; deliverableCount: number }>();
+        flat.forEach(d => {
+            if (!empMap.has(d.employeeName)) empMap.set(d.employeeName, { scores: [], deliverableCount: 0 });
+            const e = empMap.get(d.employeeName)!;
+            e.deliverableCount++;
+            e.scores.push(...d.scores);
+        });
+        const employeeRanking = Array.from(empMap.entries())
+            .map(([name, data]) => ({ name, avgScore: avg(data.scores), deliverableCount: data.deliverableCount, reviewedCount: data.scores.length }))
+            .sort((a, b) => (b.avgScore ?? -1) - (a.avgScore ?? -1));
+
+        // ── Per-employee per-milestone (score table) ───────────────────────
+        // Build map: employeeName → milestoneName → scores[]
+        const empMsMap = new Map<string, Map<string, number[]>>();
+        flat.forEach(d => {
+            if (!empMsMap.has(d.employeeName)) empMsMap.set(d.employeeName, new Map());
+            const msInner = empMsMap.get(d.employeeName)!;
+            if (!msInner.has(d.milestoneName)) msInner.set(d.milestoneName, []);
+            msInner.get(d.milestoneName)!.push(...d.scores);
+        });
+        const milestoneNames = milestoneStats.map(m => m.milestoneName);
+        const employeeMilestoneMatrix = Array.from(empMsMap.entries()).map(([name, msInner]) => ({
+            name,
+            milestoneScores: milestoneNames.map(mn => ({ milestoneName: mn, avgScore: avg(msInner.get(mn) ?? []) })),
+        }));
+
+        return { totalDeliverables, projectAvg, milestoneStats, employeeRanking, milestoneNames, employeeMilestoneMatrix };
+    });
 
     // table
     @ViewChild(MatPaginator) paginator!: MatPaginator;
@@ -926,7 +1236,69 @@ export class ProjectDetailsComponent implements OnInit {
         return [...this.activityLog()].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
     });
 
-    ngOnInit() {}
+    ngOnInit() {
+        this.loadKpiProjects();
+    }
+
+    // ── KPI Methods ────────────────────────────────────────────────────────────
+    loadKpiProjects(): void {
+        this.projectSvc.getAll().subscribe({
+            next: (projects) => {
+                this.kpiProjects.set(projects);
+                if (projects.length > 0) {
+                    this.loadKpiData(projects[0].id);
+                }
+            }
+        });
+    }
+
+    loadKpiData(projectId: string): void {
+        this.selectedKpiProjectId.set(projectId);
+        this.kpiLoading.set(true);
+        this.kpiGroups.set([]);
+        this.kpiReviews.set(new Map());
+
+        this.delivSvc.getManagerView(projectId).subscribe({
+            next: (groups) => {
+                this.kpiGroups.set(groups);
+                this.kpiLoading.set(false);
+                this.loadKpiReviews(groups);
+            },
+            error: () => this.kpiLoading.set(false)
+        });
+    }
+
+    private loadKpiReviews(groups: MilestoneDeliverableGroup[]): void {
+        const ids: number[] = [];
+        groups.forEach(mg => mg.tasks.forEach(t => t.deliverables.forEach(d => ids.push(d.deliverableId))));
+        if (!ids.length) return;
+
+        const requests = ids.map(id =>
+            this.reviewSvc.getDeliverableReviews(id).pipe(
+                map((reviews: DeliverableReviewDto[]) => ({ id, reviews })),
+                catchError(() => of({ id, reviews: [] as DeliverableReviewDto[] }))
+            )
+        );
+
+        forkJoin(requests).subscribe(results => {
+            const m = new Map<number, DeliverableReviewDto[]>();
+            results.forEach(r => m.set(r.id, r.reviews));
+            this.kpiReviews.set(m);
+        });
+    }
+
+    getScoreColor(score: number | null): string {
+        if (score == null) return '#94a3b8';
+        if (score === 10) return '#16a34a';
+        if (score >= 7)   return '#d97706';
+        return '#dc2626';
+    }
+
+    getMilestoneStatusLabel(status: string | null): string {
+        const map: Record<string, string> = { pending: 'En attente', in_progress: 'En cours', at_risk: 'À risque', completed: 'Terminé', missed: 'Manqué' };
+        return map[status ?? ''] ?? (status ?? '—');
+    }
+
     ngAfterViewInit() {
         this.dataSource.paginator = this.paginator;
         this.dataSource.sort = this.sort;

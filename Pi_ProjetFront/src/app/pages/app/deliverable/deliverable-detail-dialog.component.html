@@ -51,19 +51,79 @@
           <span class="detail-label">Version</span>
           <span class="detail-value">{{ data.currentVersion }}</span>
         </div>
-        <div class="detail-item" *ngIf="data.updatedAt">
-          <span class="detail-label">Mis à jour le</span>
-          <span class="detail-value">{{ deliverableService.formatDate(data.updatedAt) }}</span>
-        </div>
+        @if (data.updatedAt) {
+          <div class="detail-item">
+            <span class="detail-label">Mis à jour le</span>
+            <span class="detail-value">{{ deliverableService.formatDate(data.updatedAt) }}</span>
+          </div>
+        }
       </div>
     </div>
 
     <!-- Lien de téléchargement -->
-    <div class="download-section" *ngIf="data.fileUrl">
-      <a mat-flat-button color="primary" [href]="data.fileUrl" target="_blank" class="download-btn">
-        <mat-icon>download</mat-icon>
-        Télécharger le fichier
-      </a>
+    @if (data.fileUrl) {
+      <div class="download-section">
+        <a mat-flat-button color="primary" [href]="data.fileUrl" target="_blank" class="download-btn">
+          <mat-icon>download</mat-icon>
+          Télécharger le fichier
+        </a>
+      </div>
+    }
+
+    <mat-divider></mat-divider>
+
+    <!-- ── Feedback du Manager ── -->
+    <div class="manager-feedback-section">
+      <span class="info-label">FEEDBACK DU MANAGER</span>
+
+      @if (loadingReview()) {
+        <div class="review-loading">
+          <mat-progress-spinner diameter="24" mode="indeterminate"></mat-progress-spinner>
+          <span>Chargement du feedback...</span>
+        </div>
+      } @else if (managerReview()) {
+        <div class="review-card" [style.borderColor]="getScoreTierColor(managerReview()!.score)">
+          <!-- Score row -->
+          <div class="review-score-row">
+            <div class="score-pill"
+                 [style.background]="getScoreTierBg(managerReview()!.score)"
+                 [style.color]="getScoreTierColor(managerReview()!.score)">
+              <mat-icon style="font-size:16px;width:16px;height:16px">
+                {{ managerReview()!.score === 10 ? 'verified' : managerReview()!.score >= 7 ? 'thumb_up' : 'rate_review' }}
+              </mat-icon>
+              <strong>{{ managerReview()!.score }}/10</strong>
+            </div>
+            <span class="tier-label" [style.color]="getScoreTierColor(managerReview()!.score)">
+              {{ getScoreTierLabel(managerReview()!.score) }}
+            </span>
+          </div>
+
+          <!-- Score bar -->
+          <div class="score-bar-bg">
+            <div class="score-bar-fill"
+                 [style.width.%]="managerReview()!.score * 10"
+                 [style.background]="getScoreTierColor(managerReview()!.score)">
+            </div>
+          </div>
+
+          <!-- Feedback text -->
+          <div class="review-feedback">
+            <mat-icon class="feedback-icon">comment</mat-icon>
+            <p class="feedback-text">{{ managerReview()!.feedbackText }}</p>
+          </div>
+
+          <!-- Reviewer + date -->
+          <div class="review-meta">
+            <span><mat-icon style="font-size:13px;width:13px;height:13px">person</mat-icon> {{ managerReview()!.reviewerName }}</span>
+            <span><mat-icon style="font-size:13px;width:13px;height:13px">schedule</mat-icon> {{ deliverableService.formatDate(managerReview()!.reviewedAt) }}</span>
+          </div>
+        </div>
+      } @else {
+        <div class="review-empty">
+          <mat-icon>hourglass_empty</mat-icon>
+          <span>Aucun feedback reçu pour le moment.</span>
+        </div>
+      }
     </div>
   </div>
 

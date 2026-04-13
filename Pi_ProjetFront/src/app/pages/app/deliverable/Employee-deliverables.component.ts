@@ -5,6 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Subject, takeUntil, interval } from 'rxjs';
 
 import { DeliverableService, Deliverable } from '../../../services/Deliverable.service';
@@ -28,6 +29,7 @@ const STATUS_CHANGE_EVENTS = new Set([
     MatBadgeModule,
     MatIconModule,
     MatDialogModule,
+    MatSnackBarModule,
   ],
   templateUrl: './employee-deliverables.component.html',
   styleUrls: ['./employee-deliverables.component.scss']
@@ -75,7 +77,8 @@ export class EmployeeDeliverablesComponent implements OnInit, OnDestroy {
 
   constructor(
     public deliverableService: DeliverableService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private snackBar: MatSnackBar
   ) {}
 
   ngOnInit(): void {
@@ -87,6 +90,27 @@ export class EmployeeDeliverablesComponent implements OnInit, OnDestroy {
       .subscribe(notif => {
         if (STATUS_CHANGE_EVENTS.has(notif.eventType)) {
           this.loadDeliverables();
+
+          const isRevision = notif.eventType === 'REVISION_REQUIRED_BY_MANAGER';
+          const isAccepted = notif.eventType === 'ACCEPTED_BY_MANAGER';
+
+          let message = notif.message || notif.title || 'Votre livrable a été évalué par le manager.';
+          let panelClass = 'snack-info';
+
+          if (isAccepted) {
+            message = '✓ ' + message;
+            panelClass = 'snack-success';
+          } else if (isRevision) {
+            message = '↩ ' + message;
+            panelClass = 'snack-warning';
+          }
+
+          this.snackBar.open(message, 'Voir mes livrables', {
+            duration: 7000,
+            panelClass,
+            verticalPosition: 'top',
+            horizontalPosition: 'right',
+          });
         }
       });
 

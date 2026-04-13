@@ -154,6 +154,16 @@
             <span>v{{ deliverable.currentVersion }}</span>
           </div>
 
+          <!-- Feedback indicator -->
+          @if (deliverable.status === 'revision_required' || deliverable.status === 'accepted_by_manager' || deliverable.status === 'validated') {
+            <div class="feedback-indicator"
+                 [style.background]="deliverable.status === 'validated' ? '#dcfce7' : deliverable.status === 'accepted_by_manager' ? '#dcfce7' : '#fef3c7'"
+                 [style.color]="deliverable.status === 'validated' ? '#16a34a' : deliverable.status === 'accepted_by_manager' ? '#16a34a' : '#d97706'">
+              <mat-icon style="font-size:13px;width:13px;height:13px">rate_review</mat-icon>
+              Feedback manager disponible
+            </div>
+          }
+
           <!-- Card Content -->
           <div class="card-header">
             <mat-card-title class="card-title">{{ deliverable.title }}</mat-card-title>

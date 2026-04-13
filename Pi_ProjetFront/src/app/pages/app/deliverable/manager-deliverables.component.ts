@@ -13,7 +13,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { Subscription, interval } from 'rxjs';
+import { Subscription, interval, forkJoin, of } from 'rxjs';
+import { map, catchError } from 'rxjs/operators';
 
 import {
   DeliverableService,
@@ -21,7 +22,7 @@ import {
   DeliverableWithVersions,
 } from '../../../services/Deliverable.service';
 import { ProjectService, Project } from '../../../services/project-service';
-import { ReviewService } from '../../../services/review.service';
+import { ReviewService, DeliverableReviewDto } from '../../../services/review.service';
 import { NotificationService } from '../../../services/notification.service';
 import { AuthService } from '../../../auth/auth.service';
 import {
@@ -73,10 +74,56 @@ export class ManagerDeliverablesComponent implements OnInit, OnDestroy {
   // Track which deliverable's versions panel is open
   expandedVersions = signal<Set<number>>(new Set());
 
+  // Reviews fetched per deliverable for the performance dashboard
+  deliverableReviews = signal<Map<number, DeliverableReviewDto[]>>(new Map());
+
   totalDeliverables = computed(() =>
     this.milestoneGroups().reduce((sum, mg) =>
       sum + mg.tasks.reduce((s, t) => s + t.deliverables.length, 0), 0)
   );
+
+  // ── Performance dashboard stats ────────────────────────────────────────────
+  performanceStats = computed(() => {
+    const reviews = this.deliverableReviews();
+    const groups  = this.milestoneGroups();
+    const avg = (scores: number[]) =>
+      scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
+
+    // Collect per-deliverable info
+    type DInfo = { deliverableId: number; taskId: number; taskTitle: string; employeeName: string; scores: number[] };
+    const infos: DInfo[] = [];
+    groups.forEach(mg => mg.tasks.forEach(t => t.deliverables.forEach(d => {
+      const scores = (reviews.get(d.deliverableId) ?? []).map(r => r.score).filter(s => s != null);
+      infos.push({ deliverableId: d.deliverableId, taskId: t.taskId, taskTitle: t.taskTitle, employeeName: d.employeeName, scores });
+    })));
+
+    const allScores = infos.flatMap(d => d.scores);
+    if (!allScores.length) return { hasData: false, projectAvg: null, taskStats: [] as any[], employeeRanking: [] as any[] };
+
+    // Per-task averages
+    const taskMap = new Map<number, { taskTitle: string; scores: number[] }>();
+    infos.forEach(d => {
+      if (!taskMap.has(d.taskId)) taskMap.set(d.taskId, { taskTitle: d.taskTitle, scores: [] });
+      taskMap.get(d.taskId)!.scores.push(...d.scores);
+    });
+    const taskStats = Array.from(taskMap.values())
+      .map(t => ({ taskTitle: t.taskTitle, avgScore: avg(t.scores)!, reviewCount: t.scores.length }))
+      .filter(t => t.avgScore != null)
+      .sort((a, b) => b.avgScore - a.avgScore);
+
+    // Per-employee averages
+    const empMap = new Map<string, number[]>();
+    infos.forEach(d => {
+      if (!empMap.has(d.employeeName)) empMap.set(d.employeeName, []);
+      empMap.get(d.employeeName)!.push(...d.scores);
+    });
+    const employeeRanking = Array.from(empMap.entries())
+      .map(([name, scores]) => ({ name, avgScore: avg(scores)!, reviewCount: scores.length }))
+      .filter(e => e.avgScore != null)
+      .sort((a, b) => b.avgScore - a.avgScore);
+
+    return { hasData: true, projectAvg: avg(allScores)!, taskStats, employeeRanking };
+  });
 
   constructor(
     public deliverableService: DeliverableService,
@@ -125,12 +172,36 @@ export class ManagerDeliverablesComponent implements OnInit, OnDestroy {
       next: (data) => {
         this.milestoneGroups.set(data);
         this.loading.set(false);
+        this.loadReviewStats();
       },
       error: (err) => {
         console.error('Erreur chargement vue manager:', err);
         this.error.set('Erreur lors du chargement des livrables. Veuillez réessayer.');
         this.loading.set(false);
       }
+    });
+  }
+
+  // ── Load review scores for the performance dashboard ──────────────────────
+
+  private loadReviewStats(): void {
+    const allDeliverables: number[] = [];
+    this.milestoneGroups().forEach(mg =>
+      mg.tasks.forEach(t => t.deliverables.forEach(d => allDeliverables.push(d.deliverableId)))
+    );
+    if (!allDeliverables.length) return;
+
+    const requests = allDeliverables.map(id =>
+      this.reviewService.getDeliverableReviews(id).pipe(
+        map(reviews => ({ id, reviews })),
+        catchError(() => of({ id, reviews: [] as DeliverableReviewDto[] }))
+      )
+    );
+
+    forkJoin(requests).subscribe(results => {
+      const map = new Map<number, DeliverableReviewDto[]>();
+      results.forEach(r => map.set(r.id, r.reviews));
+      this.deliverableReviews.set(map);
     });
   }
 

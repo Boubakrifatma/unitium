@@ -1,13 +1,15 @@
-import { Component, Inject } from '@angular/core';
+import { Component, Inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
 import { MatDividerModule } from '@angular/material/divider';
-import { MatBadgeModule } from '@angular/material/badge';   // ← AJOUT OBLIGATOIRE
+import { MatBadgeModule } from '@angular/material/badge';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { DeliverableService, Deliverable } from '../../../services/Deliverable.service';
+import { ReviewService, DeliverableReviewDto } from '../../../services/review.service';
 
 @Component({
   selector: 'app-deliverable-detail-dialog',
@@ -19,18 +21,55 @@ import { DeliverableService, Deliverable } from '../../../services/Deliverable.s
     MatIconModule,
     MatCardModule,
     MatDividerModule,
-    MatBadgeModule          
+    MatBadgeModule,
+    MatProgressSpinnerModule,
   ],
   templateUrl: './deliverable-detail-dialog.component.html',
   styleUrls: ['./deliverable-detail-dialog.component.scss']
 })
-export class DeliverableDetailDialogComponent {
+export class DeliverableDetailDialogComponent implements OnInit {
+
+  managerReview = signal<DeliverableReviewDto | null>(null);
+  loadingReview = signal(true);
 
   constructor(
     public dialogRef: MatDialogRef<DeliverableDetailDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: Deliverable,
-    public deliverableService: DeliverableService
+    public deliverableService: DeliverableService,
+    private reviewService: ReviewService
   ) {}
+
+  ngOnInit(): void {
+    this.reviewService.getDeliverableReviews(this.data.id).subscribe({
+      next: (reviews) => {
+        // Prendre la dernière review du manager (celle avec un score)
+        const withScore = reviews.filter(r => r.score != null).sort(
+          (a, b) => new Date(b.reviewedAt).getTime() - new Date(a.reviewedAt).getTime()
+        );
+        this.managerReview.set(withScore[0] ?? null);
+        this.loadingReview.set(false);
+      },
+      error: () => this.loadingReview.set(false)
+    });
+  }
+
+  getScoreTierLabel(score: number): string {
+    if (score === 10) return 'Livrable validé ✓';
+    if (score >= 7)   return 'Révision avec encouragement';
+    return 'Révision requise';
+  }
+
+  getScoreTierColor(score: number): string {
+    if (score === 10) return '#16a34a';
+    if (score >= 7)   return '#d97706';
+    return '#dc2626';
+  }
+
+  getScoreTierBg(score: number): string {
+    if (score === 10) return '#dcfce7';
+    if (score >= 7)   return '#fef3c7';
+    return '#fee2e2';
+  }
 
   close(): void {
     this.dialogRef.close();

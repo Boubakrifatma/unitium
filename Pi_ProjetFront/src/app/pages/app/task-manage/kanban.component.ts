@@ -328,10 +328,6 @@ export class KanbanComponent implements OnInit {
       next: ({ users, projects }) => {
         this.dialogLoading.set(false);
 
-        // Use completed tasks from current filtered tasks
-        const completedTasks = this.tasks()
-          .filter(t => t.status === 'completed' && t.projectId === task.projectId);
-        
         const activeUsers = users.filter(u => u.isActive !== false);
 
         // Find user ID from assignedTo email
@@ -352,16 +348,17 @@ export class KanbanComponent implements OnInit {
           data: {
             mode: dialogMode,
             deliverable: null,
-            tasks: completedTasks.map(t => ({
-              id: t.taskId,
-              title: t.title,
-              projectName: t.projectName
-            })),
+            tasks: [{
+              id: task.taskId,
+              title: task.title,
+              taskType: task.type,
+              projectName: task.projectName
+            }],
             users: activeUsers,
             projects: projects,
             currentUserId: userId,
             currentProjectId: task.projectId,
-            deliverableId: deliverableId,  // ✅ Pass deliverableId for version creation
+            deliverableId: deliverableId,
             hasExistingDeliverable: hasExistingDeliverable,
           } satisfies DeliverableFormData,
         });

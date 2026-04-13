@@ -80,16 +80,16 @@ export interface ReviewDialogData {
         <div class="score-section">
           <div class="score-header">
             <label class="field-label">Note <span class="required">*</span></label>
-            <div class="score-display" [class.score-high]="score >= 7" [class.score-low]="score < 7">
+            <div class="score-display" [class.score-perfect]="score === 10" [class.score-medium]="score >= 7 && score < 10" [class.score-low]="score < 7">
               <span class="score-number">{{ score }}</span>
               <span class="score-max">/10</span>
             </div>
           </div>
 
           <div class="score-hint-row">
-            <span class="score-hint" [class.accepted]="score >= 7" [class.revision]="score < 7">
-              <mat-icon>{{ score >= 7 ? 'check_circle' : 'rate_review' }}</mat-icon>
-              {{ score >= 7 ? 'Score ≥ 7 → Accepté automatiquement' : 'Score < 7 → Révision requise' }}
+            <span class="score-hint" [class.perfect]="score === 10" [class.medium]="score >= 7 && score < 10" [class.revision]="score < 7">
+              <mat-icon>{{ score === 10 ? 'verified' : score >= 7 ? 'thumb_up' : 'rate_review' }}</mat-icon>
+              {{ score === 10 ? 'Score parfait → Livrable validé ✓' : score >= 7 ? 'Score 7–9 → Révision avec encouragement' : 'Score ≤ 6 → Révision requise' }}
             </span>
           </div>
 
@@ -112,7 +112,8 @@ export interface ReviewDialogData {
               <button
                 class="quick-chip"
                 [class.selected]="score === s"
-                [class.high]="s >= 7"
+                [class.perfect]="s === 10"
+                [class.medium]="s >= 7 && s < 10"
                 [class.low]="s < 7"
                 (click)="score = s">
                 {{ s }}
@@ -173,7 +174,7 @@ export interface ReviewDialogData {
               matInput
               [(ngModel)]="feedbackText"
               rows="4"
-              placeholder="Décrivez votre évaluation du livrable, les points forts et les axes d'amélioration..."
+              [placeholder]="feedbackPlaceholder"
               [class.invalid]="feedbackText.length > 0 && feedbackText.length < 10">
             </textarea>
             <mat-hint>
@@ -199,13 +200,13 @@ export interface ReviewDialogData {
         </button>
         <button
           mat-flat-button
-          [color]="score >= 7 ? 'primary' : 'warn'"
+          [color]="score === 10 ? 'primary' : 'warn'"
           (click)="submit()"
           [disabled]="!isValid() || submitting()">
           @if (submitting()) {
             <mat-progress-spinner mode="indeterminate" diameter="20"></mat-progress-spinner>
           } @else {
-            {{ score >= 7 ? 'Accepter' : 'Demander révision' }}
+            {{ score === 10 ? 'Valider' : score >= 7 ? 'Révision (encourager)' : 'Demander révision' }}
           }
         </button>
       </mat-dialog-actions>
@@ -312,16 +313,15 @@ export interface ReviewDialogData {
       border-radius: 24px;
       transition: all 0.3s;
 
-      &.score-high { background: #dcfce7; }
-      &.score-low  { background: #fff3cd; }
+      &.score-perfect { background: #dcfce7; .score-number { color: #16a34a; } }
+      &.score-medium  { background: #fef3c7; .score-number { color: #d97706; } }
+      &.score-low     { background: #fee2e2; .score-number { color: #dc2626; } }
 
       .score-number {
         font-size: 1.6rem;
         font-weight: 800;
         line-height: 1;
       }
-      .score-high .score-number { color: #16a34a; }
-      .score-low  .score-number { color: #d97706; }
       .score-max { font-size: 0.85rem; color: #9ca3af; }
     }
 
@@ -332,8 +332,9 @@ export interface ReviewDialogData {
         font-size: 0.8rem; font-weight: 600;
         padding: 5px 12px; border-radius: 20px;
         mat-icon { font-size: 15px; width: 15px; height: 15px; }
-        &.accepted { background: #dcfce7; color: #16a34a; }
-        &.revision { background: #fff3cd; color: #d97706; }
+        &.perfect  { background: #dcfce7; color: #16a34a; }
+        &.medium   { background: #fef3c7; color: #d97706; }
+        &.revision { background: #fee2e2; color: #dc2626; }
       }
     }
 
@@ -376,11 +377,13 @@ export interface ReviewDialogData {
       font-size: 0.82rem; font-weight: 700;
       cursor: pointer; transition: all 0.15s;
 
-      &.high { border-color: #86efac; color: #16a34a; }
-      &.low  { border-color: #fde68a; color: #d97706; }
+      &.perfect { border-color: #86efac; color: #16a34a; }
+      &.medium  { border-color: #fde68a; color: #d97706; }
+      &.low     { border-color: #fca5a5; color: #dc2626; }
       &.selected { transform: scale(1.1); }
-      &.selected.high { background: #dcfce7; border-color: #16a34a; }
-      &.selected.low  { background: #fff3cd; border-color: #d97706; }
+      &.selected.perfect { background: #dcfce7; border-color: #16a34a; }
+      &.selected.medium  { background: #fef3c7; border-color: #d97706; }
+      &.selected.low     { background: #fee2e2; border-color: #dc2626; }
 
       &:hover { transform: scale(1.05); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
     }
@@ -512,6 +515,12 @@ export class ManagerReviewDialogComponent {
     private reviewService: ReviewService,
     private authService: AuthService
   ) {}
+
+  get feedbackPlaceholder(): string {
+    if (this.score === 10) return 'Ce livrable est excellent. Décrivez les points forts observés...';
+    if (this.score >= 7) return 'Encouragez le collaborateur et précisez les améliorations souhaitées...';
+    return 'Décrivez les défauts identifiés et les corrections attendues...';
+  }
 
   isValid(): boolean {
     return this.feedbackText.trim().length >= 10 && this.score >= 0 && this.score <= 10;
