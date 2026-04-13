@@ -35,7 +35,7 @@ public class ProjectMemberService {
     private final ProjectAuthorizationService projectAuthorizationService;
     private final ProjectRoleMapper projectRoleMapper;
 
-    public List<ProjectMember> getAll(UUID projectId, Long requesterId) {
+    public List<Map<String, Object>> getAll(UUID projectId, Long requesterId) {
         var project = projectRepo.findById(projectId)
             .orElseThrow(() -> new Module2Exception(NOT_FOUND, "Project not found"));
         var requester = userRepo.findById(requesterId)
@@ -45,7 +45,26 @@ public class ProjectMemberService {
             throw new Module2Exception(FORBIDDEN, "Requester lacks permission to view project members");
         }
 
-        return memberRepo.findAllByProjectId(projectId);
+        List<ProjectMember> members = memberRepo.findAllByProjectId(projectId);
+        if (members.isEmpty()) return List.of();
+
+        Map<Long, User> usersById = userRepo.findAllById(
+                members.stream().map(ProjectMember::getUserId).distinct().toList()
+            ).stream().collect(Collectors.toMap(User::getId, u -> u));
+
+        return members.stream().map(m -> {
+            User u = usersById.get(m.getUserId());
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", m.getId());
+            row.put("userId", m.getUserId());
+            row.put("fullName", u != null ? u.getFullName() : null);
+            row.put("email", u != null ? u.getEmail() : null);
+            row.put("avatarUrl", u != null ? u.getAvatarUrl() : null);
+            row.put("role", m.getRole() != null ? m.getRole().name() : null);
+            row.put("assignedAt", m.getAssignedAt() != null ? m.getAssignedAt().toString() : null);
+            return row;
+        }).sorted(Comparator.comparing(row -> String.valueOf(row.getOrDefault("fullName", "")), String.CASE_INSENSITIVE_ORDER))
+        .toList();
     }
 
     @Transactional

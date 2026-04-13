@@ -210,7 +210,7 @@ public class ProjectController {
     // ── Project Members ───────────────────────────────────────
 
     @GetMapping("/{projectId}/members")
-    public List<ProjectMember> getMembers(@PathVariable UUID workspaceId,
+    public List<Map<String, Object>> getMembers(@PathVariable UUID workspaceId,
                                           @PathVariable UUID projectId,
                                           HttpServletRequest request) {
         User currentUser = requireCurrentUser(request);

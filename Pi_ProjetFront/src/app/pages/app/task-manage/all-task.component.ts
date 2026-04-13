@@ -251,8 +251,13 @@ export class AllTaskComponent implements OnInit {
         projectId: this.projectId(),
         milestoneId: this.milestoneId(),
         members: [
-          { name: "Non assigné", id: null },
-          ...this.projectMembers().map(u => ({ name: u.fullName, id: u.id }))
+          { id: null, name: "Non assigné", title: "Non assigné", avatarUrl: null },
+          ...this.projectMembers().map((u: any) => ({
+            id: u.userId ?? u.id ?? u.user?.id ?? null,
+            name: u.user?.fullName ?? u.fullName ?? u.name ?? u.email ?? `User #${u.userId ?? u.id ?? ''}`,
+            title: u.role ?? u.user?.role ?? '',
+            avatarUrl: u.user?.avatarUrl ?? u.avatarUrl ?? null
+          }))
         ],
         parentTasks: this.tasks().map(t => ({ taskId: t.taskId, title: t.title })),
         availableTasks: this.tasks().map(t => ({ taskId: t.taskId, title: t.title }))
@@ -275,8 +280,13 @@ export class AllTaskComponent implements OnInit {
         milestoneId: this.milestoneId(),
         task: task,   // Mode édition
         members: [
-          { name: "Non assigné", id: null },
-          ...this.projectMembers().map(u => ({ name: u.fullName, id: u.id }))
+          { id: null, name: "Non assigné", title: "Non assigné", avatarUrl: null },
+          ...this.projectMembers().map((u: any) => ({
+            id: u.userId ?? u.id ?? u.user?.id ?? null,
+            name: u.user?.fullName ?? u.fullName ?? u.name ?? u.email ?? `User #${u.userId ?? u.id ?? ''}`,
+            title: u.role ?? u.user?.role ?? '',
+            avatarUrl: u.user?.avatarUrl ?? u.avatarUrl ?? null
+          }))
         ],
         parentTasks: this.tasks()
           .filter(t => t.taskId !== task.taskId)
