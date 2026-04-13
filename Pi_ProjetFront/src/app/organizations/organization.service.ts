@@ -22,7 +22,8 @@ export interface OrgMemberDTO {
   userId: number;
   userFullName: string | null;
   userEmail: string | null;
-  role: string;
+  role: string;         // org-level: OWNER | ADMIN | MEMBER
+  platformRole: string | null; // user's real role: MANAGER | TUTOR | EMPLOYEE | etc.
   joinedAt: string;
 }
 

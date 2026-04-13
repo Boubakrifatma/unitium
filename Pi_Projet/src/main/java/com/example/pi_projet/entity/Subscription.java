@@ -28,7 +28,7 @@ public class Subscription {
 
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "org_id", nullable = false)
+    @JoinColumn(name = "organization_id", nullable = false)
     private Organization organization;
 
     @ManyToOne(fetch = FetchType.LAZY)

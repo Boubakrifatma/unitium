@@ -12,6 +12,7 @@ public record OrgMemberDTO(
         String userFullName,
         String userEmail,
         String role,
+        String platformRole,
         Instant joinedAt
 ) {
     /** Used when the orgId is already known — avoids lazy-loading the organization proxy. */
@@ -23,6 +24,7 @@ public record OrgMemberDTO(
                 m.getUser() != null ? m.getUser().getFullName() : null,
                 m.getUser() != null ? m.getUser().getEmail()    : null,
                 m.getRole().name(),
+                m.getUser() != null ? m.getUser().getRole().name() : null,
                 m.getJoinedAt()
         );
     }

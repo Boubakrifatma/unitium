@@ -357,7 +357,7 @@ public class BillingService {
             .studentCount(req.getStudentCount())
             .amountCents(amountCents)
             .currency("USD")
-            .tempPassword(isNewUser ? tempPassword : null)
+            .tempPassword(isNewUser ? tempPassword : "")
             .cardLast4(cardLast4)
             .cardHolder(req.getCardHolder())
             .status(PendingPayment.PaymentStatus.CONFIRMED)
@@ -376,26 +376,30 @@ public class BillingService {
         double totalUsd    = totalCents / 100.0;
 
         // Generate PDF and save to disk
-        byte[] pdfBytes = new byte[0];
-        try {
-            // Load line items explicitly (avoids Hibernate first-level cache issue)
-            var lineItems = invoiceLineItemRepository.findByInvoiceOrderByPeriodStart(invoice);
-            invoice.setLineItems(lineItems);
-            pdfBytes = invoicePdfService.generateInvoicePdf(invoice, req.getAdminEmail(), req.getAdminName());
+        // JPA calls are OUTSIDE the try-catch to avoid marking the transaction rollback-only
+        var lineItems = invoiceLineItemRepository.findByInvoiceOrderByPeriodStart(invoice);
+        invoice.setLineItems(lineItems);
 
+        byte[] pdfBytes = new byte[0];
+        String generatedPdfUrl = null;
+        try {
+            pdfBytes = invoicePdfService.generateInvoicePdf(invoice, req.getAdminEmail(), req.getAdminName());
             if (pdfBytes.length > 0) {
                 String filename = invoice.getInvoiceNumber() + ".pdf";
                 Path dir = Paths.get(uploadDir);
                 Files.createDirectories(dir);
                 Files.write(dir.resolve(filename), pdfBytes);
-                String pdfUrl = "http://localhost:8084/uploads/invoices/" + filename;
-                invoice.setPdfUrl(pdfUrl);
-                invoice.setPdfSentAt(LocalDateTime.now());
-                invoiceRepository.save(invoice);
-                log.info("PDF auto-generated and saved for invoice {}", invoice.getInvoiceNumber());
+                generatedPdfUrl = "http://localhost:8084/uploads/invoices/" + filename;
             }
         } catch (Exception pdfEx) {
             log.warn("PDF generation failed for {} — payment still confirmed: {}", invoice.getInvoiceNumber(), pdfEx.getMessage());
+        }
+
+        if (generatedPdfUrl != null) {
+            invoice.setPdfUrl(generatedPdfUrl);
+            invoice.setPdfSentAt(LocalDateTime.now());
+            invoiceRepository.save(invoice);
+            log.info("PDF auto-generated and saved for invoice {}", invoice.getInvoiceNumber());
         }
 
         // Send email with PDF attachment
@@ -428,7 +432,7 @@ public class BillingService {
             .currency("USD")
             .createdAt(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
             .estimatedValidationDate(LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy")))
-            .tempPassword(isNewUser ? tempPassword : null)
+            .tempPassword(isNewUser ? tempPassword : "")
             .adminEmail(req.getAdminEmail())
             .build();
     }
@@ -725,6 +729,7 @@ public class BillingService {
             .amountCents(amountCents)
             .currency("USD")
             .status(PendingPayment.PaymentStatus.REJECTED)
+            .tempPassword("")
             .rejectionReason(failureCode + ": " + failureMsg)
             .rejectedAt(LocalDateTime.now())
             .build();

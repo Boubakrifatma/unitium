@@ -651,6 +651,7 @@ export class LoginComponent implements OnInit {
         this.authService.login({ email, password }).subscribe({
             next: (res) => {
                 this.loading = false;
+                this.cdr.detectChanges();
 
                 if (res.mfaRequired) {
                     this.pendingUserId = res.userId;
@@ -676,6 +677,7 @@ export class LoginComponent implements OnInit {
             error: (err) => {
                 this.errorMessage = err.error?.message ?? 'Invalid email or password.';
                 this.loading = false;
+                this.cdr.detectChanges();
             }
         });
     }

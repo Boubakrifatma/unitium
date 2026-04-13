@@ -93,9 +93,16 @@ public class InvitationService {
             return "declined";
         }
 
-        // Accept → find or create user, add to org
-        User user = userRepository.findByEmail(inv.getEmail()).orElseGet(() -> {
-            String tempPwd = generateTempPassword();
+        // Accept → find or create user, always reset temp password and send credentials
+        String tempPwd = generateTempPassword();
+        User user = userRepository.findByEmail(inv.getEmail()).map(existing -> {
+            // User already exists — reset their password so they can log in
+            existing.setPasswordHash(passwordEncoder.encode(tempPwd));
+            existing.setMustChangePassword(true);
+            existing.setIsActive(true);
+            existing.setRole(User.RoleName.valueOf(inv.getPlatformRole().toUpperCase()));
+            return userRepository.save(existing);
+        }).orElseGet(() -> {
             User newUser = User.builder()
                     .email(inv.getEmail())
                     .fullName(inv.getFullName())
@@ -105,12 +112,11 @@ public class InvitationService {
                     .isVerified(true)
                     .mustChangePassword(true)
                     .build();
-            User saved = userRepository.save(newUser);
-            // Send credentials email
-            emailService.sendMemberInviteEmail(inv.getEmail(), inv.getFullName(),
-                    inv.getOrgName(), inv.getPlatformRole(), tempPwd);
-            return saved;
+            return userRepository.save(newUser);
         });
+        // Always send credentials email
+        emailService.sendMemberInviteEmail(inv.getEmail(), inv.getFullName(),
+                inv.getOrgName(), inv.getPlatformRole(), tempPwd);
 
         Organization org = organizationRepository.findById(inv.getOrgId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Organization not found."));

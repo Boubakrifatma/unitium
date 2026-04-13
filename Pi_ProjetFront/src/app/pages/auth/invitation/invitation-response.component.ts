@@ -15,10 +15,23 @@ import { CommonModule } from '@angular/common';
           <div style="width:64px;height:64px;background:#f0fdf4;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
             <span style="font-size:32px">✅</span>
           </div>
-          <h2 style="font-size:20px;font-weight:700;color:#111827;margin:0 0 10px">Invitation Accepted!</h2>
-          <p style="color:#6b7280;font-size:14px;margin:0 0 28px">{{ message }}</p>
+          <h2 style="font-size:20px;font-weight:700;color:#111827;margin:0 0 8px">Invitation Accepted!</h2>
+          <p style="color:#6b7280;font-size:14px;margin:0 0 20px">Your account has been created and is ready to use.</p>
+
+          <!-- Credentials notice -->
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:16px 20px;margin-bottom:24px;text-align:left">
+            <p style="margin:0 0 6px;font-weight:700;color:#1d4ed8;font-size:14px">📧 Check your email inbox</p>
+            <p style="margin:0;color:#1e40af;font-size:13px;line-height:1.6">
+              We sent you an email with your <strong>login email</strong> and <strong>temporary password</strong>.<br>
+              Use them to sign in — you will be asked to set a new password immediately.
+            </p>
+            <p style="margin:8px 0 0;color:#3b82f6;font-size:12px">
+              💡 Don't see it? Check your <strong>spam / junk</strong> folder.
+            </p>
+          </div>
+
           <a href="/auth/login" style="display:inline-block;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;padding:12px 28px;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none">
-            Sign In to Unitum
+            Sign In to Unitum →
           </a>
         </ng-container>
 

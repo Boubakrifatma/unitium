@@ -31,12 +31,6 @@ import { OrgDialogComponent } from './org-dialog.component';
             <h3 class="mb-1">Organizations</h3>
             <p class="small opacity-50">Manage organizations and their members</p>
           </div>
-          <div class="col-auto mb-3 mb-xl-0">
-            <button mat-flat-button color="primary" (click)="openAdd()">
-              <mat-icon class="material-icons-outlined">add_business</mat-icon>
-              New Organization
-            </button>
-          </div>
         </div>
       </mat-card>
     </div>

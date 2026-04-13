@@ -102,7 +102,9 @@ import { AddMemberDialogComponent } from './add-member-dialog.component';
           <ng-container matColumnDef="role">
             <th mat-header-cell *matHeaderCellDef>Role</th>
             <td mat-cell *matCellDef="let m">
-              <span class="badge badge-light d-inline-block" [ngClass]="getRoleBadge(m.role)">{{ m.role }}</span>
+              <span class="badge badge-light d-inline-block" [ngClass]="getPlatformRoleBadge(m.platformRole ?? m.role)">
+                {{ roleLabel(m.platformRole ?? m.role) }}
+              </span>
             </td>
           </ng-container>
           <ng-container matColumnDef="joinedAt">
@@ -253,8 +255,24 @@ export class OrganizationDetailComponent implements OnInit {
     this.svc.removeMember(this.orgId, m.id).subscribe({ next: () => { this.members = this.members.filter(x => x.id !== m.id); this.notify('Member removed'); }, error: () => this.notify('Failed to remove', true) });
   }
 
-  getRoleBadge(role: string): string {
-    return ({ OWNER: 'theme-red', ADMIN: 'theme-blue', MEMBER: 'theme-green' } as any)[role] ?? 'theme-cyan';
+  roleLabel(role: string): string {
+    const labels: Record<string, string> = {
+      SUPER_ADMIN: 'Super Admin', ADMIN: 'Admin', MANAGER: 'Manager',
+      EMPLOYEE: 'Employee', PRODUCT_OWNER: 'Product Owner',
+      TUTOR: 'Tutor', STUDENT: 'Student', VIEWER: 'Viewer',
+      OWNER: 'Owner', MEMBER: 'Member',
+    };
+    return labels[role] ?? role;
+  }
+
+  getPlatformRoleBadge(role: string): string {
+    const classes: Record<string, string> = {
+      SUPER_ADMIN: 'theme-red', ADMIN: 'theme-orange', OWNER: 'theme-red',
+      MANAGER: 'theme-blue', EMPLOYEE: 'theme-cyan', PRODUCT_OWNER: 'theme-purple',
+      TUTOR: 'theme-yellow', STUDENT: 'theme-green', VIEWER: 'theme-gray',
+      MEMBER: 'theme-green',
+    };
+    return classes[role] ?? '';
   }
 
   private notify(msg: string, err = false) { this.snackBar.open(msg, 'Close', { duration: 3000, panelClass: err ? ['snack-error'] : ['snack-success'] }); }

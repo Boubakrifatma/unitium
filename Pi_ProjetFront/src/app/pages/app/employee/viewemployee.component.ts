@@ -41,19 +41,11 @@ import { MatToolbarModule } from "@angular/material/toolbar";
                     </div>
                 </div>
                 <br />
-                <h4 class="mb-3">Location Info</h4>
+                <h4 class="mb-3">Role</h4>
                 <div class="row gx-3 mb-2">
-                    <div class="col-5"><p class="text-secondary">City</p></div>
+                    <div class="col-5"><p class="text-secondary">Role</p></div>
                     <div class="col-7">
-                        <p>{{ employee.city }}</p>
-                    </div>
-                </div>
-                <div class="row gx-3 mb-2">
-                    <div class="col-5">
-                        <p class="text-secondary">Country</p>
-                    </div>
-                    <div class="col-7">
-                        <p>{{ employee.country }}</p>
+                        <p>{{ employee.role }}</p>
                     </div>
                 </div>
                 <br />

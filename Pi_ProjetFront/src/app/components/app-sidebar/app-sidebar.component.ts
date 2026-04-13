@@ -163,12 +163,10 @@ export class AppSidebarComponent {
             all.push({ name: "Churn ML", route: "/app/churn-dashboard", icon: "psychology" });
         }
 
-        // ADMIN + SUPER_ADMIN
-        if (this.isAdmin) {
+        // ADMIN only (not SUPER_ADMIN)
+        if (this.isAdmin && !this.isSuperAdmin) {
             all.push({ name: "Dashboard", route: "/app/dashboard", icon: "house" });
-            if (!this.isSuperAdmin) {
-                all.push({ name: "My Organization", route: "/app/my-organization", icon: "corporate_fare" });
-            }
+            all.push({ name: "My Organization", route: "/app/my-organization", icon: "corporate_fare" });
             all.push({ name: "Employees", route: "/app/employee", icon: "person" });
         }
 
