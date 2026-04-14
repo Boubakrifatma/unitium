@@ -11,7 +11,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatChipsModule } from '@angular/material/chips';
 
 import { ReviewService, SubmitReviewRequest } from '../../../services/review.service';
-import { DeliverableWithVersions } from '../../../services/Deliverable.service';
+import { DeliverableWithVersions, DeliverableService } from '../../../services/Deliverable.service';
 import { AuthService } from '../../../auth/auth.service';
 
 export interface ReviewDialogData {
@@ -67,7 +67,7 @@ export interface ReviewDialogData {
         @if (data.deliverable.fileUrl) {
           <div class="summary-row">
             <span class="summary-label"><mat-icon>insert_drive_file</mat-icon> Fichier</span>
-            <a [href]="data.deliverable.fileUrl" target="_blank" class="file-link">
+            <a [href]="deliverableService.getDownloadUrl(data.deliverable.fileUrl)" target="_blank" class="file-link">
               <mat-icon>download</mat-icon> Consulter le fichier
             </a>
           </div>
@@ -513,7 +513,8 @@ export class ManagerReviewDialogComponent {
     public dialogRef: MatDialogRef<ManagerReviewDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: ReviewDialogData,
     private reviewService: ReviewService,
-    private authService: AuthService
+    private authService: AuthService,
+    public deliverableService: DeliverableService
   ) {}
 
   get feedbackPlaceholder(): string {

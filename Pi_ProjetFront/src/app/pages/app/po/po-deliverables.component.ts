@@ -142,7 +142,7 @@ import { PoReviewDialogComponent, PoReviewDialogData } from './po-review-dialog.
                 <!-- Actions -->
                 <div class="card-actions">
                   @if (d.fileUrl) {
-                    <a mat-stroked-button [href]="d.fileUrl" target="_blank">
+                    <a mat-stroked-button [href]="deliverableService.getDownloadUrl(d.fileUrl)" target="_blank">
                       <mat-icon>open_in_new</mat-icon> Consulter
                     </a>
                   }

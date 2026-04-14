@@ -206,7 +206,7 @@ import { DeliverableService, Deliverable } from '../../../services/Deliverable.s
                   <th mat-header-cell *matHeaderCellDef></th>
                   <td mat-cell *matCellDef="let row">
                     @if (row.fileUrl) {
-                      <a mat-icon-button [href]="row.fileUrl" target="_blank" matTooltip="Télécharger">
+                      <a mat-icon-button [href]="deliverableService.getDownloadUrl(row.fileUrl)" target="_blank" matTooltip="Télécharger">
                         <mat-icon>download</mat-icon>
                       </a>
                     }

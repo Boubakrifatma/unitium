@@ -19,6 +19,9 @@ import { Subject } from "rxjs";
 import { takeUntil } from "rxjs/operators";
 import { AuthService } from "../../auth/auth.service";
 import { UserService } from "../../users/user.service";
+import { NotificationService } from "../../services/notification.service";
+import { MatSnackBar } from "@angular/material/snack-bar";
+import { NotificationToastComponent } from "../../components/notification-toast/notification-toast.component";
 
 type SidenavView = "theme" | "settings" | null;
 
@@ -121,6 +124,8 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
         @Inject(DOCUMENT) private document: Document,
         private authService: AuthService,
         private userService: UserService,
+        private notificationService: NotificationService,
+        private snackBar: MatSnackBar,
     ) {}
 
     ngOnInit(): void {
@@ -137,6 +142,23 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
                 });
             });
         }
+
+        // Start deliverable notifications (SSE + 10s polling)
+        this.notificationService.connect();
+
+        // Show a 10s toast for each new unread notification
+        this.notificationService.newNotification$
+            .pipe(takeUntil(this.destroy$))
+            .subscribe(notif => {
+                if (notif.isRead) return;
+                this.snackBar.openFromComponent(NotificationToastComponent, {
+                    data: notif,
+                    duration: 10000,
+                    horizontalPosition: 'right',
+                    verticalPosition: 'top',
+                    panelClass: 'deliverable-notif-toast',
+                });
+            });
 
         // mobile view detect to add is-mobile class on body
         this.breakpointObserver
@@ -215,6 +237,7 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
 
     // responsive is mobile
     ngOnDestroy(): void {
+        this.notificationService.disconnect();
         if (this.resizeObserver) {
             this.resizeObserver.disconnect();
             this.resizeObserver = null;

@@ -49,6 +49,8 @@ public class WebConfig implements WebMvcConfigurer {
                     "/api/billing/plans",                 // liste plans publique
                     "/api/billing/coupons/validate/*",   // validation coupon publique
                     "/api/billing/coupons/active",       // coupons actifs pour home page (public)
+                    "/api/files/**",                     // deliverable file download (public by URL)
+                    "/api/deliverable-notifications/stream", // SSE — EventSource cannot send JWT header
                     "/swagger-ui/**",
                     "/v3/api-docs/**"
                 );

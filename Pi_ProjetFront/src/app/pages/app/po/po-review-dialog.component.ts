@@ -44,7 +44,7 @@ export interface PoReviewDialogData {
         <div class="pill"><mat-icon>assignment</mat-icon> {{ data.deliverable.taskTitle ?? 'N/A' }}</div>
         <div class="pill version"><mat-icon>tag</mat-icon> v{{ data.deliverable.currentVersion }}</div>
         @if (data.deliverable.fileUrl) {
-          <a class="pill link" [href]="data.deliverable.fileUrl" target="_blank">
+          <a class="pill link" [href]="deliverableService.getDownloadUrl(data.deliverable.fileUrl)" target="_blank">
             <mat-icon>open_in_new</mat-icon> Consulter
           </a>
         }

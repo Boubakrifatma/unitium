@@ -50,7 +50,7 @@ public class DeliverableController {
     ) throws IOException {
         if (file.isEmpty()) return ResponseEntity.badRequest().build();
 
-        String storedName = fileStorageService.store(file);
+        String storedName = fileStorageService.store1(file);
         String fileUrl = "/api/files/deliverables/" + storedName;
 
         DeliverableCreateDto dto = new DeliverableCreateDto();

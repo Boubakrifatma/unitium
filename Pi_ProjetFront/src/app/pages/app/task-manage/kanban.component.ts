@@ -330,9 +330,12 @@ export class KanbanComponent implements OnInit {
 
         const activeUsers = users.filter(u => u.isActive !== false);
 
-        // Find user ID from assignedTo email
-        const assignedUser = activeUsers.find(u => u.email === task.assignedToEmail);
-        const userId = assignedUser?.id || 1; // Fallback to 1 if not found
+        // The submitter is the currently logged-in user (the one performing the action)
+        const userId = this.authService.getUserId() ?? this.authService.currentUser()?.id;
+        if (!userId) {
+          this.error.set('Utilisateur non authentifié. Veuillez vous reconnecter.');
+          return;
+        }
 
         // Determine mode based on whether task has deliverable
         const hasExistingDeliverable = this.hasDeliverable(task.taskId);

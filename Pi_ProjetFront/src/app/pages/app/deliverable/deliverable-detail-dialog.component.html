@@ -63,7 +63,7 @@
     <!-- Lien de téléchargement -->
     @if (data.fileUrl) {
       <div class="download-section">
-        <a mat-flat-button color="primary" [href]="data.fileUrl" target="_blank" class="download-btn">
+        <a mat-flat-button color="primary" [href]="deliverableService.getDownloadUrl(data.fileUrl)" target="_blank" class="download-btn">
           <mat-icon>download</mat-icon>
           Télécharger le fichier
         </a>

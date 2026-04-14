@@ -125,10 +125,18 @@ public class FileStorageService {
         }
         Path file = uploadDir1.resolve(filename).normalize();
         Resource resource = new UrlResource(file.toUri());
-        if (!resource.exists() || !resource.isReadable()) {
-            throw new RuntimeException("File not found: " + filename);
+        if (resource.exists() && resource.isReadable()) {
+            return resource;
         }
-        return resource;
+        // Legacy fallback: files uploaded before the store1() fix live in uploadDir (uploads/chat).
+        if (uploadPath != null) {
+            Path legacy = uploadPath.resolve(filename).normalize();
+            Resource legacyResource = new UrlResource(legacy.toUri());
+            if (legacyResource.exists() && legacyResource.isReadable()) {
+                return legacyResource;
+            }
+        }
+        throw new RuntimeException("File not found: " + filename);
     }
 
     /**

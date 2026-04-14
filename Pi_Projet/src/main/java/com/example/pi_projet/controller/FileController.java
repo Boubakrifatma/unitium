@@ -43,7 +43,7 @@ public class FileController {
             return ResponseEntity.badRequest().build();
         }
 
-        String storedName = fileStorageService.store(file);
+        String storedName = fileStorageService.store1(file);
         String fileUrl = "/api/files/deliverables/" + storedName;
         long sizeKb = Math.max(1L, file.getSize() / 1024);
 

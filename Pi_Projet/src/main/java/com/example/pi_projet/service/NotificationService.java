@@ -5,8 +5,10 @@ import com.example.pi_projet.entity.PoDecisionAndDelivrable.Deliverable;
 import com.example.pi_projet.entity.PoDecisionAndDelivrable.DeliverableNotification;
 import com.example.pi_projet.entity.PoDecisionAndDelivrable.DeliverableNotification.DeliverableEventType;
 import com.example.pi_projet.entity.User;
+import com.example.pi_projet.entity.ProjectMember;
 import com.example.pi_projet.repository.DeliverableNotificationRepository;
 import com.example.pi_projet.repository.DeliverableRepository;
+import com.example.pi_projet.repository.ProjectMemberRepository;
 import com.example.pi_projet.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +28,7 @@ public class NotificationService {
     private final DeliverableNotificationRepository notifRepository;
     private final DeliverableRepository deliverableRepository;
     private final UserRepository userRepository;
+    private final ProjectMemberRepository projectMemberRepository;
     private final JavaMailSender mailSender;
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -69,10 +72,15 @@ public class NotificationService {
      * 2. Manager accepte (score ≥ 7) → notifier tous les Product Owners + l'Employé
      */
     public void notifyPOsOnManagerAccepted(Deliverable deliverable, User manager) {
-        // Notifier les POs
-        List<User> pos = userRepository.findByRole(User.RoleName.PRODUCT_OWNER);
+        // Notifier uniquement les POs qui sont OBSERVERS de ce projet
+        List<User> pos = projectMemberRepository
+                .findUsersByProjectIdAndRole(deliverable.getProject().getId(), ProjectMember.ProjectRole.OBSERVER)
+                .stream()
+                .filter(u -> u.getRole() == User.RoleName.PRODUCT_OWNER)
+                .toList();
         if (pos.isEmpty()) {
-            log.warn("Aucun PO trouvé pour notifier l'acceptation manager du livrable #{}", deliverable.getId());
+            log.warn("Aucun PO (OBSERVER) trouvé pour le projet {} — livrable #{}",
+                    deliverable.getProject().getId(), deliverable.getId());
         } else {
             String titlePO = "Livrable prêt pour validation PO";
             String messagePO = "Le manager " + manager.getFullName()

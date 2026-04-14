@@ -1,5 +1,6 @@
 package com.example.pi_projet.repository;
 
+import com.example.pi_projet.entity.Project;
 import com.example.pi_projet.entity.ProjectMember;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -18,6 +19,20 @@ public interface ProjectMemberRepository extends JpaRepository<ProjectMember, UU
     boolean existsByProjectIdAndUserId(UUID projectId, Long userId);
     List<ProjectMember> findAllByProjectId(UUID projectId);
     List<ProjectMember> findAllByUserId(Long userId);
+
+    /** Projects where the given user is a member with the given role (non-deleted, non-deleted project). */
+    @Query("SELECT pm.project FROM ProjectMember pm " +
+           "WHERE pm.userId = :userId AND pm.role = :role " +
+           "AND pm.deletedAt IS NULL AND pm.project.deletedAt IS NULL")
+    List<Project> findProjectsByUserIdAndRole(@Param("userId") Long userId,
+                                              @Param("role") ProjectMember.ProjectRole role);
+
+    /** Users who are members of the given project with the given role. */
+    @Query("SELECT pm.user FROM ProjectMember pm " +
+           "WHERE pm.project.id = :projectId AND pm.role = :role " +
+           "AND pm.deletedAt IS NULL")
+    List<com.example.pi_projet.entity.User> findUsersByProjectIdAndRole(@Param("projectId") UUID projectId,
+                                                                       @Param("role") ProjectMember.ProjectRole role);
 
     /** Bypasses @SQLRestriction to count soft-deleted records for a given (project, user) pair. */
     @Query(value = "SELECT COUNT(*) FROM project_members WHERE project_id = :projectId AND user_id = :userId AND deleted_at IS NOT NULL", nativeQuery = true)

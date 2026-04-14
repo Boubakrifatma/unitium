@@ -150,6 +150,8 @@ export class AppSidebarComponent {
     get isManager(): boolean    { return this.role === 'MANAGER' || this.isAdmin; }
     get isTutor(): boolean      { return this.role === 'TUTOR'; }
     get canManageWorkspaces(): boolean { return this.isManager || this.isTutor; }
+    get isProductOwner(): boolean { return this.role === 'PRODUCT_OWNER'}
+
 
     get navItems(): NavItem[] {
         const all: NavItem[] = [];
@@ -193,7 +195,8 @@ export class AppSidebarComponent {
                 { name: "Task Kanban", route: "/app/kanban", icon: "view_kanban" },
                 { name: "Task Gantt Chart", route: "/app/gantt-chart", icon: "event" },
                 { name: "Time Tracking", route: "/app/time-tracking", icon: "alarm" },
-                { name: "Manager Delivrable", route: "/app/manager_delivrables", icon: "assigment_turned_in" },
+                { name: "Manager Delivrable", route: "/app/manager-deliverables", icon: "assignment_turned_in" },
+                { name: "Notifications", route: "/app/notifications", icon: "notifications" },
 
             );
         }
@@ -225,7 +228,16 @@ export class AppSidebarComponent {
                 { name: "Settings", route: "/app/settings", icon: "settings" },
             ],
         });
-
+ if(this.isProductOwner){
+           all.push({
+                name: "Validation PO",
+                icon: "verified",
+                children: [
+                    { name: "Livrables à valider", route: "/app/po-deliverables", icon: "fact_check" },
+                    { name: "Notifications", route: "/app/notifications", icon: "notifications" },
+                ],
+            });
+           }
         // ADMIN + above — billing
         if (this.isAdmin) {
             all.push({

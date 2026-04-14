@@ -161,6 +161,10 @@ export const routes: Routes = [
                 loadComponent: () => import("./pages/app/deliverable/employee-files.component").then((m) => m.EmployeeFilesComponent),
             },
             {
+                path: "notifications",
+                loadComponent: () => import("./pages/app/notifications/notifications.component").then((m) => m.NotificationsComponent),
+            },
+            {
                 path: "milestones",
                 loadComponent: () => import("./pages/app/milestone-manage/all-milestone.component").then((c) => c.AllMilestoneComponent),
             },

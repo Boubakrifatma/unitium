@@ -49,7 +49,7 @@ public class DeliverableVersionController {
     ) throws IOException {
         if (file.isEmpty()) return ResponseEntity.badRequest().build();
 
-        String storedName = fileStorageService.store(file);
+        String storedName = fileStorageService.store1(file);
         String fileUrl = "/api/files/deliverables/" + storedName;
 
         CreateDeliverableVersionRequest request = CreateDeliverableVersionRequest.builder()
