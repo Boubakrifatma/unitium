@@ -199,6 +199,33 @@
                         </span>
                       </div>
 
+                      <!-- Add Deliverable Button for completed tasks -->
+                      @if (task.status === 'completed') {
+                        <div class="mt-2">
+                          @if (hasDeliverable(task.taskId)) {
+                            <!-- Task has deliverable: Show indicator + Add Version button -->
+                            <div class="d-flex align-items-center gap-2">
+                              <span class="badge badge-success" matTooltip="Livrable existe pour cette tâche">
+                                <mat-icon class="material-icons-outlined me-1" style="font-size:14px">check_circle</mat-icon>
+                                Livrable existe
+                              </span>
+                              <button mat-stroked-button color="accent" size="small"
+                                (click)="openDeliverableDialog(task)" matTooltip="Ajouter une nouvelle version">
+                                <mat-icon class="material-icons-outlined me-1">add_circle</mat-icon>
+                                Version
+                              </button>
+                            </div>
+                          } @else {
+                            <!-- No deliverable: Show Add Deliverable button -->
+                            <button mat-stroked-button color="primary" size="small"
+                              (click)="openDeliverableDialog(task)" matTooltip="Ajouter un livrable">
+                              <mat-icon class="material-icons-outlined me-1">upload_file</mat-icon>
+                              Livrable
+                            </button>
+                          }
+                        </div>
+                      }
+
                     </mat-card-content>
 
                     <!-- Handle drag -->

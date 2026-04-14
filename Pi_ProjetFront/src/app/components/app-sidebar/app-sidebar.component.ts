@@ -193,6 +193,8 @@ export class AppSidebarComponent {
                 { name: "Task Kanban", route: "/app/kanban", icon: "view_kanban" },
                 { name: "Task Gantt Chart", route: "/app/gantt-chart", icon: "event" },
                 { name: "Time Tracking", route: "/app/time-tracking", icon: "alarm" },
+                { name: "Manager Delivrable", route: "/app/manager_delivrables", icon: "assigment_turned_in" },
+
             );
         }
 
@@ -208,9 +210,11 @@ export class AppSidebarComponent {
             icon: "apps",
             children: [
                 { name: "Task Kanban", route: "/app/kanban", icon: "view_kanban" },
+                { name: "Deliverables", route: "/app/deliverables", icon: "upload_file" },
                 { name: "Explorer", route: "/app/explorer", icon: "folder_zip" },
                 { name: "Calendar", route: "/app/calendar", icon: "event" },
                 { name: "Chat", route: "/app/chat", icon: "chat" },
+
             ],
         });
         all.push({

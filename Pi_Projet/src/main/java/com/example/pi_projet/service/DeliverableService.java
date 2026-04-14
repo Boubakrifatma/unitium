@@ -115,13 +115,13 @@ public class DeliverableService {
 
     @Transactional(readOnly = true)
     public List<DeliverableResponseDto> getBySubmittedBy(Long userId) {
-        return deliverableRepository.findBySubmittedById(userId)
+        return deliverableRepository.findBySubmittedByIdOrderBySubmittedAtDesc(userId)
                 .stream().map(this::mapToDto).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<DeliverableResponseDto> getEmployeeDeliverables(Long employeeId) {
-        return deliverableRepository.findBySubmittedById(employeeId)
+        return deliverableRepository.findBySubmittedByIdOrderBySubmittedAtDesc(employeeId)
                 .stream().map(this::mapToDto).collect(Collectors.toList());
     }
 
@@ -334,7 +334,7 @@ public class DeliverableService {
                 // Task
                 .taskId(d.getTask() != null ? d.getTask().getId() : null)
                 .taskTitle(d.getTask() != null ? d.getTask().getTitle() : null)
-                .taskStatus(d.getTask() != null ? d.getTask().getStatus().name() : null)
+                .taskStatus(d.getTask() != null && d.getTask().getStatus() != null ? d.getTask().getStatus().name() : null)
                 // Project
                 .projectId(d.getProject() != null ? d.getProject().getId().toString() : null)
                 .projectName(d.getProject() != null ? d.getProject().getName() : null)

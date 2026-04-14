@@ -12,25 +12,21 @@ import java.util.UUID;
 
 public interface DeliverableRepository extends JpaRepository<Deliverable, Long> {
 
-    @EntityGraph(attributePaths = {"task", "project", "submittedBy"})
-    @Query("SELECT d FROM Deliverable d WHERE d.id = :id")
+    @Query("SELECT d FROM Deliverable d LEFT JOIN FETCH d.task LEFT JOIN FETCH d.project LEFT JOIN FETCH d.submittedBy WHERE d.id = :id")
     Optional<Deliverable> findByIdWithDetails(@Param("id") Long id);
 
-    @EntityGraph(attributePaths = {"task", "project", "submittedBy"})
-    @Query("SELECT d FROM Deliverable d WHERE d.task.id = :taskId")
+    @Query("SELECT d FROM Deliverable d LEFT JOIN FETCH d.task LEFT JOIN FETCH d.project LEFT JOIN FETCH d.submittedBy WHERE d.task.id = :taskId")
     List<Deliverable> findByTaskId(@Param("taskId") Long taskId);
 
-    @EntityGraph(attributePaths = {"task", "project", "submittedBy"})
-    @Query("SELECT d FROM Deliverable d WHERE d.project.id = :projectId")
+    @Query("SELECT d FROM Deliverable d LEFT JOIN FETCH d.task LEFT JOIN FETCH d.project LEFT JOIN FETCH d.submittedBy WHERE d.project.id = :projectId")
     List<Deliverable> findByProjectId(@Param("projectId") UUID projectId);
 
-    @EntityGraph(attributePaths = {"task", "task.milestone", "task.assignedTo", "project", "submittedBy"})
-    @Query("SELECT d FROM Deliverable d WHERE d.project.id = :projectId ORDER BY d.submittedAt DESC")
+    @Query("SELECT d FROM Deliverable d LEFT JOIN FETCH d.task t LEFT JOIN FETCH t.milestone LEFT JOIN FETCH t.assignedTo LEFT JOIN FETCH d.project LEFT JOIN FETCH d.submittedBy WHERE d.project.id = :projectId ORDER BY d.submittedAt DESC")
     List<Deliverable> findByProjectIdWithMilestone(@Param("projectId") UUID projectId);
 
+    // Derived query (no @Query) + @EntityGraph avoids the double-join issue
     @EntityGraph(attributePaths = {"task", "project", "submittedBy"})
-    @Query("SELECT d FROM Deliverable d WHERE d.submittedBy.id = :userId")
-    List<Deliverable> findBySubmittedById(@Param("userId") Long userId);
+    List<Deliverable> findBySubmittedByIdOrderBySubmittedAtDesc(Long submittedById);
 
     // ✅ Corrigé : Arrays → List<Deliverable>
     @EntityGraph(attributePaths = {"task", "project", "submittedBy"})

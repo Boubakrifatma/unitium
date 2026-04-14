@@ -165,21 +165,33 @@ export class EmployeeDeliverablesComponent implements OnInit, OnDestroy {
           return;
         }
 
-        const firstTask = doneTasks[0];
+        // Use the first task that has a projectId to ensure projectId is not empty
+        const firstTaskWithProject = doneTasks.find(t => t.projectId) ?? doneTasks[0];
+
+        const availableProjects = doneTasks
+          .filter(t => t.projectId)
+          .map(t => ({ id: t.projectId, name: t.projectName }))
+          .filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
+
+        if (availableProjects.length === 0) {
+          this.snackBar.open(
+            'Impossible de soumettre : aucune tâche terminée n\'est associée à un projet.',
+            'OK', { duration: 6000, verticalPosition: 'top' }
+          );
+          return;
+        }
+
         const ref = this.dialog.open(DeliverableDialogComponent, {
           width: '680px',
           maxWidth: '95vw',
           data: {
             mode: 'create',
             deliverable: null,
-            tasks: doneTasks,
+            tasks: doneTasks.filter(t => t.projectId), // only tasks with a project
             users: [currentUser],
-            projects: doneTasks
-              .filter(t => t.projectId)
-              .map(t => ({ id: t.projectId, name: t.projectName }))
-              .filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i),
+            projects: availableProjects,
             currentUserId: currentUser.id,
-            currentProjectId: firstTask.projectId ?? '',
+            currentProjectId: firstTaskWithProject.projectId ?? '',
           }
         });
 

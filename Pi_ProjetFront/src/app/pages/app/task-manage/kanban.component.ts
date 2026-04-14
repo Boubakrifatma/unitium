@@ -20,11 +20,18 @@ import { MatButtonToggleModule } from "@angular/material/button-toggle";
 import { MatProgressBarModule } from "@angular/material/progress-bar";
 import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
 import { RouterLink } from "@angular/router";
+import { MatTooltipModule } from "@angular/material/tooltip";
 import {
   DragDropModule, CdkDragDrop,
   moveItemInArray, transferArrayItem
 } from "@angular/cdk/drag-drop";
+import { forkJoin } from "rxjs";
 import { TaskService, TaskResponseDto } from "../../../services/TaskService/task.service";
+import { DeliverableService } from "../../../services/Deliverable.service";
+import { UserService, UserDTO } from "../../../users/user.service";
+import { ProjectService, Project } from "../../../services/project-service";
+import { DeliverableDialogComponent, DeliverableFormData } from "../deliverable/deliverable-dialog.component";
+import { AuthService } from "../../../auth/auth.service";
 
 export type TaskStatus   = "new" | "in-progress" | "ready to test" | "completed" | "resolved";
 export type TaskType     = "task" | "bug" | "epic" | "story" | "subtask";
@@ -44,6 +51,8 @@ export interface TaskItem {
   assignHours:     string;
   loggedHours:     string;
   dueDate:         string;
+  hasDeliverable?: boolean;  // ✅ Indique si la tâche a un livrable
+  deliverableId?:  number;   // ✅ ID du livrable associé
 }
 
 @Component({
@@ -55,7 +64,7 @@ export interface TaskItem {
     MatProgressBarModule, MatProgressSpinnerModule, MatTableModule,
     MatPaginatorModule, MatSortModule, MatButtonModule, MatButtonToggleModule,
     MatFormFieldModule, FormsModule, MatListModule, MatInputModule,
-    MatSelectModule, MatChipsModule, DragDropModule
+    MatSelectModule, MatChipsModule, DragDropModule, MatTooltipModule
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
@@ -63,12 +72,18 @@ export class KanbanComponent implements OnInit {
 
   readonly dialog     = inject(MatDialog);
   private taskService = inject(TaskService);
+  private deliverableService = inject(DeliverableService);
+  private userService = inject(UserService);
+  private projectService = inject(ProjectService);
+  private authService = inject(AuthService);
 
   // ── State (tous signals pour réactivité) ───────────────────────
   tasks                = signal<TaskItem[]>([]);
   loading              = signal(true);
   error                = signal('');
-  selectedProjectId    = signal<string>('all');  // ✅ signal (pas une string simple)
+  selectedProjectId    = signal<string>('all');
+  dialogLoading        = signal(false);
+  taskDeliverables     = signal<Map<number, { hasDeliverable: boolean; deliverableId?: number }>>(new Map());
 
   // ── Projets distincts extraits des tâches ──────────────────────
   projectList = computed(() => {
@@ -123,7 +138,12 @@ export class KanbanComponent implements OnInit {
     this.error.set('');
     this.taskService.getMyTasks().subscribe({
       next: (data: TaskResponseDto[]) => {
-        this.tasks.set(data.map(t => this.mapToTaskItem(t)));
+        const mappedTasks = data.map(t => this.mapToTaskItem(t));
+        this.tasks.set(mappedTasks);
+        
+        // ✅ Charger les livrables pour chaque tâche
+        this.loadTaskDeliverables(mappedTasks);
+        
         // ✅ Sélectionner automatiquement le premier projet
         const first = this.projectList()[0];
         if (first) this.selectedProjectId.set(first.id);
@@ -137,6 +157,32 @@ export class KanbanComponent implements OnInit {
     });
   }
 
+  // ── Charger les livrables pour chaque tâche ────────────────────
+  private loadTaskDeliverables(tasks: TaskItem[]) {
+    const deliverableMap = new Map<number, { hasDeliverable: boolean; deliverableId?: number }>();
+    
+    tasks.forEach(task => {
+      this.deliverableService.getByTaskId(task.taskId).subscribe({
+        next: (deliverables) => {
+          if (deliverables && deliverables.length > 0) {
+            deliverableMap.set(task.taskId, {
+              hasDeliverable: true,
+              deliverableId: deliverables[0].id
+            });
+          } else {
+            deliverableMap.set(task.taskId, { hasDeliverable: false });
+          }
+          this.taskDeliverables.set(new Map(deliverableMap));
+        },
+        error: (err) => {
+          console.error(`Error loading deliverables for task ${task.taskId}:`, err);
+          deliverableMap.set(task.taskId, { hasDeliverable: false });
+          this.taskDeliverables.set(new Map(deliverableMap));
+        }
+      });
+    });
+  }
+
   // ── Changer de projet ──────────────────────────────────────────
   selectProject(projectId: string) {
     this.selectedProjectId.set(projectId);
@@ -144,6 +190,7 @@ export class KanbanComponent implements OnInit {
 
   // ── Mapping backend → frontend ─────────────────────────────────
   private mapToTaskItem(t: TaskResponseDto): TaskItem {
+    const deliverableInfo = this.taskDeliverables().get(t.id);
     return {
       taskId:          t.id,
       projectId:       t.projectId ?? '',
@@ -158,7 +205,23 @@ export class KanbanComponent implements OnInit {
       assignHours:     t.estimatedHours != null ? `${t.estimatedHours}h` : '0h',
       loggedHours:     t.actualHours    != null ? `${t.actualHours}h`    : '0h',
       dueDate:         t.dueDate ?? '',
+      hasDeliverable:  deliverableInfo?.hasDeliverable ?? false,
+      deliverableId:   deliverableInfo?.deliverableId,
     };
+  }
+
+  /**
+   * Vérifie si une tâche a un livrable
+   */
+  hasDeliverable(taskId: number): boolean {
+    return this.taskDeliverables().get(taskId)?.hasDeliverable ?? false;
+  }
+
+  /**
+   * Récupère l'ID du livrable d'une tâche
+   */
+  getDeliverableId(taskId: number): number | undefined {
+    return this.taskDeliverables().get(taskId)?.deliverableId;
   }
 
   private mapStatus(status: string): TaskStatus {
@@ -244,6 +307,74 @@ export class KanbanComponent implements OnInit {
       error: (err) => {
         console.error('Erreur mise à jour statut:', err);
         this.loadMyTasks();
+      }
+    });
+
+    // ✅ Auto-open deliverable dialog if task is completed
+    if (newStatus === 'completed') {
+      this.openDeliverableDialog(movedTask);
+    }
+  }
+
+  // ── Open Deliverable Dialog ────────────────────────────────────
+  openDeliverableDialog(task: TaskItem, mode: 'create' | 'add-version' = 'create') {
+    this.dialogLoading.set(true);
+
+    // Load only users and projects (we already have tasks from current view)
+    forkJoin({
+      users: this.userService.getAll(),
+      projects: this.projectService.getAll(),
+    }).subscribe({
+      next: ({ users, projects }) => {
+        this.dialogLoading.set(false);
+
+        const activeUsers = users.filter(u => u.isActive !== false);
+
+        // Find user ID from assignedTo email
+        const assignedUser = activeUsers.find(u => u.email === task.assignedToEmail);
+        const userId = assignedUser?.id || 1; // Fallback to 1 if not found
+
+        // Determine mode based on whether task has deliverable
+        const hasExistingDeliverable = this.hasDeliverable(task.taskId);
+        const dialogMode = hasExistingDeliverable ? 'add-version' : 'create';
+        const deliverableId = this.getDeliverableId(task.taskId);
+
+        // Open dialog with appropriate mode
+        const dialogRef = this.dialog.open(DeliverableDialogComponent, {
+          width: '600px',
+          maxWidth: '95vw',
+          autoFocus: false,
+          panelClass: 'custom-dialog-container',
+          data: {
+            mode: dialogMode,
+            deliverable: null,
+            tasks: [{
+              id: task.taskId,
+              title: task.title,
+              taskType: task.type,
+              projectName: task.projectName
+            }],
+            users: activeUsers,
+            projects: projects,
+            currentUserId: userId,
+            currentProjectId: task.projectId,
+            deliverableId: deliverableId,
+            hasExistingDeliverable: hasExistingDeliverable,
+          } satisfies DeliverableFormData,
+        });
+
+        dialogRef.afterClosed().subscribe(saved => {
+          if (saved) {
+            console.log('Deliverable action completed successfully');
+            // Refresh deliverables info
+            this.loadTaskDeliverables(this.tasks());
+          }
+        });
+      },
+      error: (err) => {
+        this.dialogLoading.set(false);
+        this.error.set('Erreur lors du chargement des utilisateurs et projets.');
+        console.error('Error loading deliverable dialog data:', err);
       }
     });
   }

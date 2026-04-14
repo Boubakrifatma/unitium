@@ -83,4 +83,61 @@ public class FileStorageService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found: " + storedName);
         }
     }
+    private final Path uploadDir1;
+
+    public FileStorageService(@Value("${file.upload.dir:uploads/deliverables}") String uploadDir1) throws IOException {
+        this.uploadDir1 = Paths.get(uploadDir1).toAbsolutePath().normalize();
+        Files.createDirectories(this.uploadDir1);
+    }
+
+    /**
+     * Persists the uploaded file to disk and returns the stored filename (UUID-based).
+     * The returned name is used to build the download URL stored in fileUrl.
+     */
+    public String store1(MultipartFile file) throws IOException {
+        String original = file.getOriginalFilename();
+        String extension = "";
+        if (original != null && original.contains(".")) {
+            extension = original.substring(original.lastIndexOf('.'));
+        }
+        // Sanitize extension: only alphanumeric + dot
+        extension = extension.replaceAll("[^a-zA-Z0-9.]", "");
+
+        String storedName = UUID.randomUUID() + extension;
+        Path target = uploadDir1.resolve(storedName).normalize();
+
+        // Safety: prevent path traversal
+        if (!target.startsWith(uploadDir1)) {
+            throw new SecurityException("Path traversal attempt detected");
+        }
+
+        Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
+        return storedName;
+    }
+
+    /**
+     * Loads a stored file as a Spring Resource for streaming in the download endpoint.
+     */
+    public Resource load(String filename) throws MalformedURLException {
+        // Reject any path-traversal attempt in the filename
+        if (filename.contains("..") || filename.contains("/") || filename.contains("\\")) {
+            throw new SecurityException("Invalid filename: " + filename);
+        }
+        Path file = uploadDir1.resolve(filename).normalize();
+        Resource resource = new UrlResource(file.toUri());
+        if (!resource.exists() || !resource.isReadable()) {
+            throw new RuntimeException("File not found: " + filename);
+        }
+        return resource;
+    }
+
+    /**
+     * Deletes a stored file. Silent if the file does not exist.
+     */
+    public void delete(String filename) throws IOException {
+        if (filename == null || filename.isBlank()) return;
+        if (filename.contains("..") || filename.contains("/") || filename.contains("\\")) return;
+        Path file = uploadDir1.resolve(filename).normalize();
+        Files.deleteIfExists(file);
+    }
 }
