@@ -1,4 +1,3 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -6,20 +5,37 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatRippleModule } from '@angular/material/core';
 import { RouterModule, Router } from '@angular/router';
+import { Component, OnInit, inject, ChangeDetectorRef, signal } from '@angular/core';
 import { forkJoin, of, switchMap, map, catchError } from 'rxjs';
 import {
   OrgBillingService, SubscriptionDTO, InvoiceDTO, PlanDTO,
   MyPaymentDTO, PaymentAttemptDTO, UsageQuotaDTO
 } from '../../../billing/services/org-billing.service';
 import { CheckoutStateService } from '../../../billing/services/checkout-state.service';
+import { BillingService } from '../../../billing/services/billing.service';
+import { Plan } from '../../../billing/models/billing.models';
+
+interface FePlan {
+  name: string;
+  subtitle: string;
+  icon: string;
+  recommended?: boolean;
+  onRequest?: boolean;
+  academic?: boolean;
+  limits: { users: string; workspaces: string; projects: string; storage: string; };
+  features: string[];
+  priceMonthly: number;
+  priceYearly: number;
+}
 
 @Component({
   selector: 'app-org-billing',
   standalone: true,
-  imports: [
+    imports: [
     CommonModule, MatCardModule, MatIconModule, MatButtonModule,
-    MatTableModule, MatTabsModule, MatTooltipModule, RouterModule
+    MatTableModule, MatTabsModule, MatTooltipModule, MatRippleModule, RouterModule
   ],
   template: `
     <div class="container-fluid fade-in mb-3 mb-lg-4">
@@ -482,39 +498,96 @@ import { CheckoutStateService } from '../../../billing/services/checkout-state.s
               </div>
             </mat-tab>
 
-            <!-- TAB 4 : PLANS (READ) -->
+            <!-- TAB 4 : PLANS -->
             <mat-tab>
               <ng-template mat-tab-label>
                 <mat-icon class="material-icons-outlined tab-icon">inventory_2</mat-icon>Plans
               </ng-template>
               <div class="tab-content">
-                <div class="tab-header">
-                  <div><h4 class="mb-1">Available Plans</h4><p class="text-secondary small mb-0">Compare and upgrade</p></div>
+                <div class="tab-header mb-3">
+                  <div><h4 class="mb-1">Available Plans</h4><p class="text-secondary small mb-0">Compare and upgrade your plan</p></div>
+                  <!-- Billing cycle toggle -->
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="small fw-medium" [class.text-secondary]="plansCycle() === 'annual'">Monthly</span>
+                    <div class="ptoggle" (click)="togglePlansCycle()">
+                      <div class="ptoggle-track" [class.annual]="plansCycle() === 'annual'">
+                        <div class="ptoggle-thumb"></div>
+                      </div>
+                    </div>
+                    <span class="small fw-medium" [class.text-secondary]="plansCycle() === 'monthly'">
+                      Annual <span class="badge text-bg-success ms-1" style="font-size:10px">-20%</span>
+                    </span>
+                  </div>
                 </div>
-                <div class="row gx-3 gx-lg-4 mt-3">
-                  <div class="col-12 col-md-6 col-xl-4" *ngFor="let p of filteredPlans">
-                    <mat-card class="plan-card mb-3" [class.current-plan]="isCurrentPlan(p)">
-                      <mat-card-content>
-                        <div class="plan-head">
-                          <div><h4 class="mb-0">{{ p.displayName }}</h4><code class="text-secondary" style="font-size:11px">{{ p.name }}</code></div>
-                          <span class="pill pill-green" *ngIf="isCurrentPlan(p)">Current</span>
+
+                <div class="row gx-3 gx-lg-4 align-items-stretch">
+                  <div class="col-12 col-md-6 col-xl-3 mb-4" *ngFor="let p of visiblePlans">
+                    <div class="pcard h-100"
+                         [class.pcard-recommended]="p.recommended"
+                         [class.pcard-current]="isCurrentPlanFe(p)"
+                         [class.pcard-on-request]="p.onRequest"
+                         matRipple>
+
+                      <div class="pcard-badge-recommended" *ngIf="p.recommended">
+                        <mat-icon>star</mat-icon> Recommended
+                      </div>
+                      <div class="pcard-badge-current" *ngIf="isCurrentPlanFe(p)">
+                        <mat-icon>check_circle</mat-icon> Current
+                      </div>
+
+                      <div class="pcard-header">
+                        <div class="pcard-icon" [class.icon-academic]="isAcademicOrg">
+                          <mat-icon>{{ p.icon }}</mat-icon>
                         </div>
-                        <div class="price-row">
-                          <div class="price-box"><span class="price-lbl">Monthly</span><span class="price-val">\${{ p.priceMonthly }}</span></div>
-                          <div class="price-box"><span class="price-lbl">Annual/mo</span><span class="price-val">\${{ p.priceYearly }}</span></div>
+                        <div>
+                          <h5 class="mb-0">{{ p.name }}</h5>
+                          <p class="text-secondary small mb-0">{{ p.subtitle }}</p>
                         </div>
-                        <div class="plan-meta">
-                          <div class="meta-row"><mat-icon class="material-icons-outlined">storage</mat-icon>{{ (p.storageMb/1024)|number:'1.0-0' }} GB</div>
-                          <div class="meta-row"><mat-icon class="material-icons-outlined">psychology</mat-icon>ML: {{ p.mlTier }}</div>
-                          <div class="meta-row"><mat-icon class="material-icons-outlined">support_agent</mat-icon>{{ p.supportTier }}</div>
-                          <div class="meta-row"><mat-icon class="material-icons-outlined">lock_open</mat-icon>API: {{ p.apiAccess?'Yes':'No' }} · SSO: {{ p.ssoEnabled?'Yes':'No' }}</div>
-                        </div>
-                        <button mat-flat-button color="primary" class="w-100" *ngIf="!isCurrentPlan(p)" (click)="goUpgrade(p)">
-                          Upgrade to {{ p.displayName }}
-                        </button>
-                        <button mat-stroked-button class="w-100" *ngIf="isCurrentPlan(p)" disabled>✓ Your Current Plan</button>
-                      </mat-card-content>
-                    </mat-card>
+                      </div>
+
+                      <div class="pcard-price">
+                        <ng-container *ngIf="p.onRequest; else priceBlock">
+                          <span class="pcard-price-amount" style="font-size:1.8rem">On Request</span>
+                          <p class="text-secondary small mb-0">Custom pricing</p>
+                        </ng-container>
+                        <ng-template #priceBlock>
+                          <span class="pcard-price-currency">$</span>
+                          <span class="pcard-price-amount">{{ getPlanPrice(p) }}</span>
+                          <span class="pcard-price-period">/ {{ plansCycle() === 'monthly' ? 'mo' : 'mo · billed annually' }}</span>
+                        </ng-template>
+                      </div>
+
+                      <div class="pcard-limits">
+                        <span class="plimit"><mat-icon>people</mat-icon>{{ p.limits.users }} users</span>
+                        <span class="plimit"><mat-icon>workspaces</mat-icon>{{ p.limits.workspaces }} ws</span>
+                        <span class="plimit"><mat-icon>folder</mat-icon>{{ p.limits.projects }} proj</span>
+                        <span class="plimit"><mat-icon>storage</mat-icon>{{ p.limits.storage }}</span>
+                      </div>
+
+                      <ul class="pcard-features">
+                        <li *ngFor="let f of p.features">
+                          <mat-icon class="pfeature-check">check_circle</mat-icon>{{ f }}
+                        </li>
+                      </ul>
+
+                      <div class="pcard-cta mt-auto pt-3">
+                        <ng-container *ngIf="isCurrentPlanFe(p); else upgradeBtn">
+                          <button mat-stroked-button class="w-100" disabled>✓ Your Current Plan</button>
+                        </ng-container>
+                        <ng-template #upgradeBtn>
+                          <ng-container *ngIf="p.onRequest; else regularBtn">
+                            <button mat-stroked-button class="w-100" (click)="goUpgrade()">
+                              <mat-icon>mail</mat-icon> Contact Sales
+                            </button>
+                          </ng-container>
+                          <ng-template #regularBtn>
+                            <button mat-flat-button color="primary" class="w-100 pcard-btn" (click)="choosePlanFe(p)">
+                              Get Started <mat-icon iconPositionEnd>arrow_forward</mat-icon>
+                            </button>
+                          </ng-template>
+                        </ng-template>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -580,7 +653,7 @@ import { CheckoutStateService } from '../../../billing/services/checkout-state.s
     .li-table .total-row td { border-bottom:1px solid #e2e8f0; }
     .li-table .grand-total td { font-size:14px; padding-top:10px; border-bottom:none; }
 
-    /* Plan cards */
+    /* Plan cards (legacy kept for fallback) */
     .plan-card { border:1px solid #e5e7eb; }
     .plan-card.current-plan { border-color:#6366f1; box-shadow:0 0 0 2px rgba(99,102,241,.2); }
     .plan-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
@@ -591,6 +664,41 @@ import { CheckoutStateService } from '../../../billing/services/checkout-state.s
     .plan-meta { display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
     .meta-row { display:flex; align-items:center; gap:6px; font-size:12px; color:#64748b; }
     .meta-row mat-icon { font-size:15px; width:15px; height:15px; }
+
+    /* New plan cards (Tab 4) */
+    .pcard { position:relative; border:1px solid #e5e7eb; border-radius:16px; padding:24px; display:flex; flex-direction:column; background:#fff; transition:box-shadow .2s, border-color .2s; overflow:hidden; }
+    .pcard:hover { box-shadow:0 8px 24px rgba(0,0,0,.08); }
+    .pcard-recommended { border-color:#6366f1; box-shadow:0 0 0 2px rgba(99,102,241,.15); }
+    .pcard-current { border-color:#22c55e; box-shadow:0 0 0 2px rgba(34,197,94,.15); }
+    .pcard-on-request { border-color:#f59e0b; }
+    .pcard-badge-recommended, .pcard-badge-current { position:absolute; top:12px; right:12px; display:flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; }
+    .pcard-badge-recommended { background:#ede9fe; color:#7c3aed; }
+    .pcard-badge-recommended mat-icon, .pcard-badge-current mat-icon { font-size:13px; width:13px; height:13px; }
+    .pcard-badge-current { background:#dcfce7; color:#15803d; }
+    .pcard-header { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
+    .pcard-icon { width:44px; height:44px; border-radius:12px; background:linear-gradient(135deg,#6366f1,#4f46e5); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .pcard-icon.icon-academic { background:linear-gradient(135deg,#0ea5e9,#0284c7); }
+    .pcard-icon mat-icon { color:#fff; font-size:22px; }
+    .pcard-header h5 { font-weight:700; }
+    .pcard-price { display:flex; align-items:baseline; gap:2px; margin-bottom:16px; }
+    .pcard-price-currency { font-size:1rem; font-weight:700; color:#64748b; }
+    .pcard-price-amount { font-size:2.4rem; font-weight:800; color:#1e293b; line-height:1; }
+    .pcard-price-period { font-size:12px; color:#94a3b8; margin-left:4px; }
+    .pcard-limits { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px; }
+    .plimit { display:flex; align-items:center; gap:4px; font-size:11px; color:#64748b; background:#f8fafc; border-radius:8px; padding:4px 8px; font-weight:600; }
+    .plimit mat-icon { font-size:13px; width:13px; height:13px; color:#6366f1; }
+    .pcard-features { list-style:none; padding:0; margin:0 0 8px; display:flex; flex-direction:column; gap:8px; }
+    .pcard-features li { display:flex; align-items:flex-start; gap:8px; font-size:13px; color:#374151; }
+    .pfeature-check { font-size:16px; width:16px; height:16px; color:#22c55e; flex-shrink:0; margin-top:1px; }
+    .pcard-cta button { border-radius:10px; }
+    .pcard-btn { background:linear-gradient(135deg,#6366f1,#4f46e5) !important; }
+
+    /* Billing cycle toggle */
+    .ptoggle { cursor:pointer; }
+    .ptoggle-track { width:44px; height:24px; background:#e5e7eb; border-radius:12px; position:relative; transition:background .3s; }
+    .ptoggle-track.annual { background:#6366f1; }
+    .ptoggle-thumb { position:absolute; top:3px; left:3px; width:18px; height:18px; background:#fff; border-radius:50%; transition:left .3s; box-shadow:0 1px 4px rgba(0,0,0,.2); }
+    .ptoggle-track.annual .ptoggle-thumb { left:23px; }
 
     .empty-state { text-align:center; padding:40px 20px; color:#94a3b8; }
     .empty-state mat-icon { font-size:48px; width:48px; height:48px; display:block; margin:0 auto 12px; }
@@ -603,6 +711,70 @@ export class OrgBillingComponent implements OnInit {
   private cdr = inject(ChangeDetectorRef);
   private router = inject(Router);
   private checkoutState = inject(CheckoutStateService);
+
+  // ── Frontend plan catalogue ──────────────────────────────────────────────
+  readonly fePlans: FePlan[] = [
+    {
+      name: 'Starter', subtitle: 'Small teams', icon: 'rocket_launch',
+      limits: { users: '5', workspaces: '3', projects: '10', storage: '5 GB' },
+      features: ['5 team members', '3 workspaces', '10 projects', '5 GB storage', 'Basic ML insights'],
+      priceMonthly: 49, priceYearly: 39
+    },
+    {
+      name: 'Pro', subtitle: 'Growing orgs', icon: 'workspace_premium', recommended: true,
+      limits: { users: '25', workspaces: '10', projects: 'Unlimited', storage: '100 GB' },
+      features: ['25 team members', '10 workspaces', 'Unlimited projects', 'Full ML suite', 'Priority support'],
+      priceMonthly: 149, priceYearly: 119
+    },
+    {
+      name: 'Business', subtitle: 'Large enterprises', icon: 'business',
+      limits: { users: '100', workspaces: 'Unlimited', projects: 'Unlimited', storage: '500 GB' },
+      features: ['100 team members', 'Unlimited workspaces', 'Advanced ML models', 'SSO / SAML', 'SLA 99.9%'],
+      priceMonthly: 349, priceYearly: 279
+    },
+    {
+      name: 'Enterprise', subtitle: 'Custom scale', icon: 'domain', onRequest: true,
+      limits: { users: 'Unlimited', workspaces: 'Unlimited', projects: 'Unlimited', storage: 'Custom' },
+      features: ['Unlimited members', 'On-premise deploy', 'Custom ML pipelines', 'White-labeling', 'Custom SLA'],
+      priceMonthly: 0, priceYearly: 0
+    },
+    {
+      name: 'Academic', subtitle: 'Universities & research', icon: 'school', academic: true,
+      limits: { users: '50', workspaces: '15', projects: '100', storage: '200 GB' },
+      features: ['50 team members', '15 workspaces', '100 projects', 'Research ML tools', 'Priority support'],
+      priceMonthly: 79, priceYearly: 63
+    },
+  ];
+
+  plansCycle = signal<'monthly' | 'annual'>('monthly');
+  togglePlansCycle() {
+    this.plansCycle.update(c => c === 'monthly' ? 'annual' : 'monthly');
+  }
+
+  get visiblePlans(): FePlan[] {
+    return this.fePlans.filter(p => this.isAcademicOrg ? p.academic : !p.academic);
+  }
+
+  isCurrentPlanFe(p: FePlan): boolean {
+    const cur = (this.subscription?.planDisplayName ?? this.myPayment?.planName ?? '').toLowerCase();
+    return cur !== '' && p.name.toLowerCase() === cur;
+  }
+
+  getPlanPrice(p: FePlan): number {
+    return this.plansCycle() === 'monthly' ? p.priceMonthly : p.priceYearly;
+  }
+
+  choosePlanFe(p: FePlan): void {
+    this.checkoutState.setUpgradeMode();
+    this.router.navigate(['/billing/checkout'], {
+      queryParams: {
+        plan: p.name.toLowerCase(),
+        type: this.isAcademicOrg ? 'academic' : 'enterprise',
+        cycle: this.plansCycle()
+      }
+    });
+  }
+  // ────────────────────────────────────────────────────────────────────────
 
   goUpgrade(plan?: PlanDTO): void {
     this.checkoutState.setUpgradeMode();
@@ -782,6 +954,11 @@ export class OrgBillingComponent implements OnInit {
       </table>
       <table class="totals">
         <tr><td>Subtotal</td><td style="text-align:right">${fmtUsd(inv.subtotal)}</td></tr>
+        ${inv.couponCode && inv.discountAmount ? `
+        <tr style="color:#16a34a">
+          <td>Coupon <strong>${inv.couponCode}</strong></td>
+          <td style="text-align:right">− ${fmtUsd(inv.discountAmount)}</td>
+        </tr>` : ''}
         <tr><td>Tax (19%)</td><td style="text-align:right">${fmtUsd(inv.taxAmount)}</td></tr>
         <tr class="grand"><td>Total</td><td style="text-align:right">${fmtUsd(inv.total)} ${inv.currency}</td></tr>
       </table>

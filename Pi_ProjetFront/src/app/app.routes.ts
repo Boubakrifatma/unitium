@@ -10,7 +10,7 @@ import { m2AdminGuard } from "./pages/app/m2-admin/m2-admin.guard";
 export const routes: Routes = [
     {
         path: "",
-        redirectTo: "/billing/pricing",
+        redirectTo: "web/website",
         pathMatch: "full",
     },
     {
@@ -61,6 +61,10 @@ export const routes: Routes = [
             {
                 path: "invitation",
                 loadComponent: () => import("./pages/auth/invitation/invitation-response.component").then((c) => c.InvitationResponseComponent),
+            },
+            {
+                path: "first-login",
+                loadComponent: () => import("./pages/auth/first-login/first-login.component").then((c) => c.FirstLoginComponent),
             },
         ],
     },
@@ -264,7 +268,7 @@ export const routes: Routes = [
             },
             {
                 path: "org-billing",
-                loadComponent: () => import("./pages/app/org-billing/org-billing.component").then((c) => c.OrgBillingComponent),
+                loadComponent: () => import("./pages/app/super-admin/super-admin-billing.component").then((c) => c.SuperAdminBillingComponent),
             },
             {
                 path: "upgrade-confirmation",

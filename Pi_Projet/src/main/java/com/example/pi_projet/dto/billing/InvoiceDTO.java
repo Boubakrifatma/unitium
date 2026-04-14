@@ -24,6 +24,8 @@ public class InvoiceDTO {
     private String  planName;
     private String  orgName;
     private String  createdAt;
+    private String  couponCode;
+    private Double  discountAmount;
     private List<InvoiceLineItemDTO> lineItems;
 
     public static InvoiceDTO from(Invoice inv) {
@@ -44,6 +46,8 @@ public class InvoiceDTO {
                 ? inv.getSubscription().getPlan().getDisplayName() : null)
             .createdAt(inv.getCreatedAt() != null ? inv.getCreatedAt().toString() : null)
             .orgName(inv.getOrganization() != null ? inv.getOrganization().getName() : null)
+            .couponCode(inv.getCouponCode())
+            .discountAmount(inv.getDiscountAmountCents() != null ? inv.getDiscountAmountCents() / 100.0 : null)
             .lineItems(inv.getLineItems() != null
                 ? inv.getLineItems().stream().map(InvoiceLineItemDTO::from).collect(Collectors.toList())
                 : null)

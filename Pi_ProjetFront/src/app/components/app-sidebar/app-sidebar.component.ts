@@ -244,9 +244,9 @@ export class AppSidebarComponent {
                 name: "Billing",
                 icon: "receipt_long",
                 children: [
-                    { name: "Subscription", route: "/app/subscription", icon: "workspace_premium" },
-                    { name: "Plans", route: "/app/plans", icon: "star" },
-                    { name: "Invoice", route: "/app/invoice", icon: "receipt" },
+                    { name: "My Subscription", route: "/app/org-billing", icon: "workspace_premium" },
+                    { name: "My Invoices", route: "/app/org-billing", icon: "receipt" },
+                    { name: "Available Plans", route: "/app/org-billing", icon: "star" },
                 ],
             });
         }

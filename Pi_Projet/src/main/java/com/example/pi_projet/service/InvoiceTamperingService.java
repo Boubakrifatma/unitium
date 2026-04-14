@@ -44,7 +44,9 @@ public class InvoiceTamperingService {
             String.valueOf(invoice.getTaxAmountCents()),
             String.valueOf(invoice.getTotalCents()),
             invoice.getCurrency(),
-            invoice.getStatus().name()
+            invoice.getStatus().name(),
+            invoice.getCouponCode()          != null ? invoice.getCouponCode()                              : "",
+            invoice.getDiscountAmountCents() != null ? String.valueOf(invoice.getDiscountAmountCents())     : "0"
         );
         return hmacSha256(data, secret);
     }
@@ -67,9 +69,25 @@ public class InvoiceTamperingService {
             .collect(Collectors.toList());
     }
 
-    // ── Scheduled Job — every day at 02:00 AM ────────────────────────────────
+    // ── Re-sign all invoices (use after hash algorithm change) ───────────────
 
-    @Scheduled(cron = "0 0 2 * * *")
+    @Transactional
+    public int resignAllInvoices() {
+        List<Invoice> invoices = invoiceRepository.findAllWithAssociations();
+        int count = 0;
+        for (Invoice invoice : invoices) {
+            String newHash = generateHash(invoice);
+            invoice.setIntegrityHash(newHash);
+            invoiceRepository.save(invoice);
+            count++;
+        }
+        log.info("Re-signed {} invoices with updated hash algorithm.", count);
+        return count;
+    }
+
+    // ── Scheduled Job ─────────────────────────────────────────────────────────
+
+    @Scheduled(cron = "0 0 * * * *")
     public void scheduledIntegrityCheck() {
         log.info("Starting scheduled invoice integrity check...");
         List<TamperingCheckDTO> results = verifyAllInvoices();

@@ -225,20 +225,37 @@ public class BillingService {
             .billingPeriodEnd(periodEnd.toLocalDate())
             .dueDate(LocalDate.now())
             .paidAt(LocalDateTime.now())
+            .couponCode(appliedCouponCode)
+            .discountAmountCents(couponDiscountCents > 0 ? couponDiscountCents : null)
             .build());
 
         // ── 6. Invoice Line Items (détail de la facture) ──────────────────────
-        // Line 1 : abonnement principal
+        // Line 1 : abonnement principal (prix original avant remise)
+        int originalAmountCents = amountCents + couponDiscountCents;
         InvoiceLineItem lineItemSub = invoiceLineItemRepository.save(InvoiceLineItem.builder()
             .invoice(invoice)
             .description(planName + " Plan – " + (cycle == Subscription.BillingCycle.ANNUAL ? "Annual" : "Monthly") + " Subscription")
             .quantity(1)
-            .unitPriceCents(amountCents)
-            .totalPriceCents(amountCents)
+            .unitPriceCents(originalAmountCents)
+            .totalPriceCents(originalAmountCents)
             .taxRate(0.0)
             .periodStart(periodStart.toLocalDate())
             .periodEnd(periodEnd.toLocalDate())
             .build());
+
+        // Line 2 : remise coupon (si applicable)
+        if (couponDiscountCents > 0 && appliedCouponCode != null) {
+            invoiceLineItemRepository.save(InvoiceLineItem.builder()
+                .invoice(invoice)
+                .description("Coupon discount – " + appliedCouponCode)
+                .quantity(1)
+                .unitPriceCents(-couponDiscountCents)
+                .totalPriceCents(-couponDiscountCents)
+                .taxRate(0.0)
+                .periodStart(periodStart.toLocalDate())
+                .periodEnd(periodEnd.toLocalDate())
+                .build());
+        }
 
         // Line 2 : TVA
         InvoiceLineItem lineItemTax = invoiceLineItemRepository.save(InvoiceLineItem.builder()

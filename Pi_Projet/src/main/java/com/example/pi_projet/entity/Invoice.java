@@ -78,6 +78,12 @@ public class Invoice {
     private LocalDateTime paidAt;
 
 
+    @Column(name = "coupon_code", length = 50)
+    private String couponCode;
+
+    @Column(name = "discount_amount_cents")
+    private Integer discountAmountCents;
+
     @Column(name = "integrity_hash", length = 64)
     private String integrityHash;
 

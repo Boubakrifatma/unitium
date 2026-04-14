@@ -211,26 +211,27 @@ export class BillingService {
             };
           };
 
+          const matchPlan = (defaultPlan: Plan, p: any): boolean => {
+            const pName = (p.name ?? '').toLowerCase();
+            const pDisplay = (p.displayName ?? '').toLowerCase();
+            const dId = (defaultPlan.id ?? '').toLowerCase();
+            const dName = (defaultPlan.name ?? '').toLowerCase();
+            return pName === dId || pDisplay === dName || pName === dName || pDisplay === dId;
+          };
+
           const mergedEnterprise = this.defaultEnterprisePlans.map(defaultPlan => {
-            const apiMatch = apiPlans.find((p: any) => p.name === defaultPlan.id || p.displayName === defaultPlan.name);
+            const apiMatch = apiPlans.find((p: any) => matchPlan(defaultPlan, p));
             return apiMatch ? mergePlan(defaultPlan, apiMatch) : defaultPlan;
           });
           const mergedAcademic = this.defaultAcademicPlans.map(defaultPlan => {
-            const apiMatch = apiPlans.find((p: any) => p.name === defaultPlan.id || p.displayName === defaultPlan.name);
+            const apiMatch = apiPlans.find((p: any) => matchPlan(defaultPlan, p));
             return apiMatch ? mergePlan(defaultPlan, apiMatch) : defaultPlan;
           });
 
           // Find plans added via admin that are not in the hardcoded defaults
-          const knownIds = [
-            ...this.defaultEnterprisePlans.map(p => p.id),
-            ...this.defaultAcademicPlans.map(p => p.id),
-          ];
-          const knownNames = [
-            ...this.defaultEnterprisePlans.map(p => p.name.toLowerCase()),
-            ...this.defaultAcademicPlans.map(p => p.name.toLowerCase()),
-          ];
+          const allDefaults = [...this.defaultEnterprisePlans, ...this.defaultAcademicPlans];
           const extraPlans: Plan[] = apiPlans
-            .filter((p: any) => !knownIds.includes(p.name) && !knownNames.includes((p.displayName ?? '').toLowerCase()))
+            .filter((p: any) => !allDefaults.some(d => matchPlan(d, p)))
             .map((p: any) => this.mapApiPlanToFrontend(p));
 
           // Insert extra plans before the on-request (custom) plans
