@@ -39,6 +39,18 @@ export class ProjectService {
     );
   }
 
+  /** Projects where the current user is actually a ProjectMember (no PUBLIC projects). */
+  getMyProjects(): Observable<Project[]> {
+    return this.http.get<any[]>('http://localhost:8084/api/projects').pipe(
+      map(list => (list ?? []).map(p => ({
+        id: p.id,
+        name: p.name,
+        status: p.status ?? '',
+        visibility: p.visibility ?? ''
+      }) as Project))
+    );
+  }
+
   getMembers(projectId: string): Observable<any[]> {
     return this.resolveWorkspaceId$().pipe(
       switchMap((workspaceId) => {

@@ -1,6 +1,6 @@
 import { Component, Inject, OnInit, signal, inject } from "@angular/core";
 import { CommonModule } from "@angular/common";
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule, FormControl } from "@angular/forms";
+import { AbstractControl, FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule, FormControl, ValidationErrors, ValidatorFn } from "@angular/forms";
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from "@angular/material/dialog";
 import { MatButtonModule } from "@angular/material/button";
 import { MatFormFieldModule } from "@angular/material/form-field";
@@ -59,8 +59,8 @@ export class CreateEditTaskComponent implements OnInit {
 
   constructor() {
     this.taskForm = this.fb.group({
-      title: ["", [Validators.required, Validators.minLength(3)]],
-      description: [""],
+      title: ["", [Validators.required, Validators.minLength(3), CreateEditTaskComponent.minWordsValidator(3)]],
+      description: ["", [Validators.required, Validators.minLength(10)]],
       type: ["task", Validators.required],
       priority: ["Medium", Validators.required],
       status: ["todo"],
@@ -71,7 +71,39 @@ export class CreateEditTaskComponent implements OnInit {
       assignHours: [8, [Validators.required, Validators.min(0)]],
       actualHours: [0, Validators.min(0)],
       dependsOnTaskId: [null]
-    });
+    }, { validators: [CreateEditTaskComponent.descriptionRelatedToTitle()] });
+  }
+
+  static minWordsValidator(min: number): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      const value = (control.value ?? "").toString().trim();
+      if (!value) return null;
+      const words = value.split(/\s+/).filter((w: string) => w.length > 0);
+      return words.length < min ? { minWords: { required: min, actual: words.length } } : null;
+    };
+  }
+
+  static descriptionRelatedToTitle(): ValidatorFn {
+    return (group: AbstractControl): ValidationErrors | null => {
+      const title = (group.get("title")?.value ?? "").toString().toLowerCase();
+      const description = (group.get("description")?.value ?? "").toString().toLowerCase();
+      if (!title || !description) return null;
+
+      const stopWords = new Set([
+        "the","a","an","and","or","but","de","du","des","la","le","les","un","une",
+        "of","to","for","in","on","with","by","is","are","be","at","as","et","ou",
+        "dans","pour","avec","sur","par","son","sa","ses","ce","cet","cette"
+      ]);
+      const titleWords = title
+        .split(/[^a-zà-ÿ0-9]+/i)
+        .filter((w: string) => w.length >= 4 && !stopWords.has(w));
+
+      if (titleWords.length === 0) return null;
+
+      const descText = description;
+      const hasMatch = titleWords.some((w: string) => descText.includes(w));
+      return hasMatch ? null : { descriptionUnrelated: true };
+    };
   }
 
   ngOnInit() {

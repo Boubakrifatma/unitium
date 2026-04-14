@@ -20,6 +20,8 @@ import { ProjectService } from "../../../services/project-service";
 import { UserDTO } from "../../../users/user.service";
 import { CreateEditTaskComponent } from "./create-edit-task.component";
 import { ConfirmDeleteTaskDialogComponent } from "./confirm-delete-task-dialog.component";
+import { SuggestTasksDialogComponent } from "./suggest-tasks-dialog.component";
+import { forkJoin } from "rxjs";
 import { GanttViewComponent } from "./gantt-view.component";
 import { CriticalPathComponent } from "./critical-path.component";
 import { WbsViewComponent } from "./wbs-view.component";
@@ -75,6 +77,7 @@ export interface TaskGroup {
 export class AllTaskComponent implements OnInit {
 
   milestoneId = signal<number | null>(null);
+  milestoneName = signal<string>("");
   projectId = signal<string | null>(null);
   tasks = signal<TaskItem[]>([]);
   expandedGroupIds = signal<Set<number>>(new Set());
@@ -114,6 +117,7 @@ export class AllTaskComponent implements OnInit {
     this.milestoneService.getById(mid).subscribe({
       next: (m: Milestone) => {
         this.projectId.set(m.projectId ?? m.project?.id ?? null);
+        this.milestoneName.set(m.name ?? "");
         if (this.projectId()) this.loadProjectMembers();
         this.loadTasks();
       },
@@ -267,6 +271,62 @@ export class AllTaskComponent implements OnInit {
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
         this.createTask(result);
+      }
+    });
+  }
+
+  openSuggestTasks() {
+    if (!this.milestoneId() || !this.projectId()) {
+      this.snackBar.open("Milestone ou projet manquant", "OK", { duration: 3000 });
+      return;
+    }
+    if (!this.milestoneName()) {
+      this.snackBar.open("Nom du jalon introuvable", "OK", { duration: 3000 });
+      return;
+    }
+
+    const dialogRef = this.dialog.open(SuggestTasksDialogComponent, {
+      width: '640px',
+      maxWidth: '95vw',
+      data: { milestoneName: this.milestoneName() }
+    });
+
+    dialogRef.afterClosed().subscribe((picked: { title: string; description: string }[] | undefined) => {
+      if (!picked || picked.length === 0) return;
+      this.bulkCreateSuggestedTasks(picked);
+    });
+  }
+
+  private bulkCreateSuggestedTasks(items: { title: string; description: string }[]) {
+    const pid = this.projectId()!;
+    const mid = this.milestoneId()!;
+
+    const calls = items.map(item => this.taskService.create({
+      title: item.title,
+      description: item.description || "",
+      taskType: "task",
+      status: "todo",
+      priority: "Medium",
+      estimatedHours: 0,
+      actualHours: 0,
+      assignedToId: undefined,
+      parentTaskId: undefined,
+      projectId: pid,
+      milestoneId: mid,
+      startDate: undefined,
+      dueDate: undefined,
+    }));
+
+    forkJoin(calls).subscribe({
+      next: () => {
+        this.snackBar.open(`${items.length} tâche(s) créée(s) avec succès`, "OK", { duration: 3000 });
+        this.loadTasks();
+        this.loadDependencies();
+      },
+      error: (err) => {
+        console.error(err);
+        this.snackBar.open("Erreur lors de la création des tâches suggérées", "OK", { duration: 4000 });
+        this.loadTasks();
       }
     });
   }

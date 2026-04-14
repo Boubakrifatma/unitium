@@ -33,8 +33,10 @@ public class ProjectDropdownController {
         if (currentUser == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not authenticated");
         }
-        if (currentUser.getRole() != User.RoleName.MANAGER && currentUser.getRole() != User.RoleName.TUTOR) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only MANAGER or TUTOR can access this endpoint.");
+        if (currentUser.getRole() != User.RoleName.MANAGER
+                && currentUser.getRole() != User.RoleName.TUTOR
+                && currentUser.getRole() != User.RoleName.PRODUCT_OWNER) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only MANAGER, TUTOR or PRODUCT_OWNER can access this endpoint.");
         }
         List<ProjectDTO> projects = projectRepository.findAllByMemberUserId(currentUser.getId())
                 .stream()

@@ -71,10 +71,13 @@ import { ProjectService, Project } from "../../../services/project-service";
                             <div class="form-group">
                                 <mat-form-field appearance="outline" class="form-field-large">
                                     <mat-label>Milestone Name</mat-label>
-                                    <input matInput formControlName="name" placeholder="e.g., MVP Launch, Beta Testing Phase">
-                                    <mat-hint>Give your milestone a descriptive name</mat-hint>
-                                    <mat-error *ngIf="milestoneForm.get('name')?.invalid && milestoneForm.get('name')?.touched">
+                                    <input matInput formControlName="name" placeholder="e.g., Phase (1) : MVP Launch">
+                                    <mat-hint>Format required: Phase (number) : description</mat-hint>
+                                    <mat-error *ngIf="milestoneForm.get('name')?.hasError('required') && milestoneForm.get('name')?.touched">
                                         <mat-icon>error</mat-icon> Name is required
+                                    </mat-error>
+                                    <mat-error *ngIf="milestoneForm.get('name')?.hasError('pattern') && milestoneForm.get('name')?.touched">
+                                        <mat-icon>error</mat-icon> Format must be "Phase (number) : description" (e.g. "Phase (1) : Kickoff")
                                     </mat-error>
                                 </mat-form-field>
                             </div>
@@ -85,6 +88,18 @@ import { ProjectService, Project } from "../../../services/project-service";
                                     <textarea matInput formControlName="description" placeholder="Add details about this milestone..." rows="4"></textarea>
                                     <mat-hint>{{ milestoneForm.get('description')?.value?.length || 0 }} / 500 characters</mat-hint>
                                 </mat-form-field>
+                                <div class="suggest-bar">
+                                    <button type="button" mat-stroked-button color="primary"
+                                        (click)="suggestDescription()"
+                                        [disabled]="isSuggesting || !milestoneForm.get('name')?.value">
+                                        <mat-icon *ngIf="!isSuggesting">auto_awesome</mat-icon>
+                                        <mat-icon *ngIf="isSuggesting" class="spinning">autorenew</mat-icon>
+                                        {{ isSuggesting ? 'Génération...' : 'Suggérer une description (IA)' }}
+                                    </button>
+                                    <span class="suggest-hint" *ngIf="!milestoneForm.get('name')?.value">
+                                        Saisissez d'abord un titre
+                                    </span>
+                                </div>
                             </div>
                         </div>
 
@@ -98,10 +113,14 @@ import { ProjectService, Project } from "../../../services/project-service";
                                 <div class="form-group flex-1">
                                     <mat-form-field appearance="outline" class="form-field">
                                         <mat-label>Due Date</mat-label>
-                                        <input matInput [matDatepicker]="picker" formControlName="dueDate" readonly>
+                                        <input matInput [matDatepicker]="picker" [min]="minDate" formControlName="dueDate" placeholder="MM/DD/YYYY">
                                         <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
-                                        <mat-error *ngIf="milestoneForm.hasError('dueDatePast') && milestoneForm.get('dueDate')?.touched">
-                                            <mat-icon>error</mat-icon> Date must be today or later
+                                        <mat-hint>Click to pick a date after today</mat-hint>
+                                        <mat-error *ngIf="milestoneForm.get('dueDate')?.hasError('required') && milestoneForm.get('dueDate')?.touched">
+                                            <mat-icon>error</mat-icon> Due date is required
+                                        </mat-error>
+                                        <mat-error *ngIf="(milestoneForm.hasError('dueDatePast') || milestoneForm.get('dueDate')?.hasError('matDatepickerMin')) && milestoneForm.get('dueDate')?.touched">
+                                            <mat-icon>error</mat-icon> Date must be after today
                                         </mat-error>
                                         <mat-datepicker #picker [dateFilter]="dateFilter"></mat-datepicker>
                                     </mat-form-field>
@@ -382,6 +401,22 @@ import { ProjectService, Project } from "../../../services/project-service";
 
         .form-group {
             margin-bottom: 20px;
+        }
+
+        .suggest-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: -8px;
+        }
+
+        .suggest-bar button mat-icon {
+            margin-right: 6px;
+        }
+
+        .suggest-hint {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
         }
 
         .form-row {
@@ -777,15 +812,21 @@ export class CreateEditMilestoneComponent implements OnInit {
     isEdit = false;
     milestone: Milestone | null = null;
     isSubmitting = false;
+    isSuggesting = false;
     private today: Date = new Date();
+
+    minDate: Date = (() => {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() + 1);
+        return d;
+    })();
 
     dateFilter = (date: Date | null): boolean => {
         if (!date) return false;
         const d = new Date(date);
         d.setHours(0, 0, 0, 0);
-        const t = new Date(this.today);
-        t.setHours(0, 0, 0, 0);
-        return d >= t;
+        return d >= this.minDate;
     };
 
     constructor(
@@ -801,9 +842,9 @@ export class CreateEditMilestoneComponent implements OnInit {
 
         this.milestoneForm = this.fb.group(
             {
-                name: ['', Validators.required],
+                name: ['', [Validators.required, Validators.pattern(/^\s*Phase\s*\(\s*\d+\s*\)\s*:\s*\S.*$/i)]],
                 description: [''],
-                dueDate: [''],
+                dueDate: ['', Validators.required],
                 status: ['pending', Validators.required],
                 completionPct: [0, [Validators.min(0), Validators.max(100)]],
                 projectId: ['', Validators.required]
@@ -819,10 +860,8 @@ export class CreateEditMilestoneComponent implements OnInit {
 
             const d = new Date(due);
             d.setHours(0, 0, 0, 0);
-            const t = new Date(this.today);
-            t.setHours(0, 0, 0, 0);
 
-            if (d < t) return { dueDatePast: true };
+            if (d < this.minDate) return { dueDatePast: true };
             return null;
         };
     }
@@ -836,18 +875,26 @@ export class CreateEditMilestoneComponent implements OnInit {
         if (this.data?.milestone) {
             this.isEdit = true;
             this.milestone = this.data.milestone;
+
+            // Relax strict validators in edit mode so legacy milestones
+            // (non-matching name pattern, past due date) remain editable.
+            this.milestoneForm.get('name')?.setValidators([Validators.required]);
+            this.milestoneForm.get('name')?.updateValueAndValidity({ emitEvent: false });
+            this.milestoneForm.clearValidators();
+            this.milestoneForm.updateValueAndValidity({ emitEvent: false });
+
             this.milestoneForm.patchValue({
                 name: this.milestone.name,
                 description: this.milestone.description,
-                dueDate: this.milestone.dueDate ? new Date(this.milestone.dueDate) : today,
+                dueDate: this.milestone.dueDate ? new Date(this.milestone.dueDate) : null,
                 status: this.milestone.status || 'pending',
                 completionPct: this.milestone.completionPct,
                 projectId: this.milestone.projectId ?? this.milestone.project?.id ?? ""
             });
         } else {
-            // For new milestones, set pending as default status
+            // For new milestones: start date is auto-managed by backend (createdAt).
+            // Due date is left empty and must be typed by the user.
             this.milestoneForm.patchValue({
-                dueDate: today,
                 status: 'pending'
             });
         }
@@ -910,6 +957,33 @@ export class CreateEditMilestoneComponent implements OnInit {
 
     onCancel() {
         this.dialogRef.close();
+    }
+
+    suggestDescription() {
+        const title = (this.milestoneForm.get('name')?.value || '').trim();
+        if (!title || this.isSuggesting) return;
+
+        this.isSuggesting = true;
+        this.cdr.markForCheck();
+
+        this.milestoneService.suggestDescription(title).subscribe({
+            next: (res) => {
+                const suggestion = (res?.suggestion || '').trim();
+                if (suggestion) {
+                    this.milestoneForm.patchValue({ description: suggestion });
+                    this.showSnackBar('Description suggérée', 'success');
+                } else {
+                    this.showSnackBar('Aucune suggestion renvoyée', 'info');
+                }
+                this.isSuggesting = false;
+                this.cdr.markForCheck();
+            },
+            error: () => {
+                this.isSuggesting = false;
+                this.cdr.markForCheck();
+                this.showSnackBar('Échec de la suggestion IA', 'error');
+            }
+        });
     }
 
     private showSnackBar(message: string, type: 'success' | 'error' | 'info' = 'info') {

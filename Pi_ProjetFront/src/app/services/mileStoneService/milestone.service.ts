@@ -43,4 +43,18 @@ export class MilestoneService {
   delete(id: number): Observable<any> {
     return this.http.delete(`${this.apiUrl}/${id}`);
   }
+
+  suggestDescription(title: string): Observable<{ suggestion: string }> {
+    return this.http.post<{ suggestion: string }>(
+      'http://localhost:8084/api/ai/milestone-description-suggestion',
+      { title }
+    );
+  }
+
+  suggestTasks(title: string): Observable<{ suggestions: { title: string; description: string }[] }> {
+    return this.http.post<{ suggestions: { title: string; description: string }[] }>(
+      'http://localhost:8084/api/ai/milestone-task-suggestions',
+      { title }
+    );
+  }
 }

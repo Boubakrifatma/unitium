@@ -12,7 +12,11 @@
           <span>Milestone #{{ milestoneId() ?? "?" }}</span>
         </p>
       </div>
-      <div class="col-auto">
+      <div class="col-auto d-flex gap-2">
+        <button mat-stroked-button color="accent" (click)="openSuggestTasks()" [disabled]="!milestoneId() || !milestoneName()">
+          <mat-icon>auto_awesome</mat-icon>
+          Suggérer (IA)
+        </button>
         <button mat-raised-button color="primary" (click)="openCreate()" [disabled]="!milestoneId()">
           <mat-icon>add</mat-icon>
           Ajouter Task

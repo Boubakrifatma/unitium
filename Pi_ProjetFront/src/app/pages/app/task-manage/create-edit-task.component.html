@@ -10,12 +10,29 @@
     <mat-form-field appearance="outline" class="full-width">
       <mat-label>Titre de la tâche *</mat-label>
       <input matInput formControlName="title" placeholder="Ex: Conception des maquettes UI">
+      <mat-hint>Minimum 3 mots</mat-hint>
+      <mat-error *ngIf="taskForm.get('title')?.hasError('required')">
+        Le titre est obligatoire
+      </mat-error>
+      <mat-error *ngIf="taskForm.get('title')?.hasError('minWords')">
+        Le titre doit contenir au moins 3 mots
+      </mat-error>
     </mat-form-field>
 
     <!-- Description -->
     <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Description</mat-label>
+      <mat-label>Description *</mat-label>
       <textarea matInput formControlName="description" rows="4" placeholder="Détails de la tâche..."></textarea>
+      <mat-hint>Doit être en relation avec le titre</mat-hint>
+      <mat-error *ngIf="taskForm.get('description')?.hasError('required')">
+        La description est obligatoire
+      </mat-error>
+      <mat-error *ngIf="taskForm.get('description')?.hasError('minlength')">
+        La description doit contenir au moins 10 caractères
+      </mat-error>
+      <mat-error *ngIf="taskForm.hasError('descriptionUnrelated') && taskForm.get('description')?.touched && !taskForm.get('description')?.hasError('required') && !taskForm.get('description')?.hasError('minlength')">
+        La description doit être en relation avec le titre de la tâche
+      </mat-error>
     </mat-form-field>
 
     <div class="form-grid">

@@ -27,4 +27,30 @@ public class AiRecommendationController {
         String recommendations = aiService.generateRecommendations(request);
         return ResponseEntity.ok(Map.of("recommendations", recommendations));
     }
+
+    /**
+     * POST /api/ai/milestone-description-suggestion
+     * Body: { title: "..." }
+     * Returns: { suggestion: "..." }
+     */
+    @PostMapping("/milestone-description-suggestion")
+    public ResponseEntity<Map<String, String>> suggestMilestoneDescription(
+            @RequestBody Map<String, String> body) {
+        String title = body.getOrDefault("title", "");
+        String suggestion = aiService.suggestMilestoneDescription(title);
+        return ResponseEntity.ok(Map.of("suggestion", suggestion));
+    }
+
+    /**
+     * POST /api/ai/milestone-task-suggestions
+     * Body: { title: "..." }
+     * Returns: { suggestions: [{ title, description }, ...] }
+     */
+    @PostMapping("/milestone-task-suggestions")
+    public ResponseEntity<Map<String, Object>> suggestMilestoneTasks(
+            @RequestBody Map<String, String> body) {
+        String title = body.getOrDefault("title", "");
+        var suggestions = aiService.suggestMilestoneTasks(title);
+        return ResponseEntity.ok(Map.of("suggestions", suggestions));
+    }
 }

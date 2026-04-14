@@ -287,7 +287,7 @@ export class PoDeliverablesComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.projectService.getAll().subscribe({
+    this.projectService.getMyProjects().subscribe({
       next: (projects) => {
         this.projects.set(projects);
         if (projects.length === 1) {
