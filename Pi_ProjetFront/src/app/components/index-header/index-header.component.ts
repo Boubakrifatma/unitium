@@ -69,7 +69,7 @@ export class IndexHeaderComponent {
     }
 
     goToAuth() {
-        this.router.navigate(["/"]);
+        this.router.navigate(["/auth/login"]);
     }
     goToSignup() {
         this.router.navigate(["/auth/signup"]);
