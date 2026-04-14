@@ -6,11 +6,15 @@ import { MatBadgeModule } from '@angular/material/badge';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Subject, takeUntil, interval } from 'rxjs';
 
 import { DeliverableService, Deliverable } from '../../../services/Deliverable.service';
 import { DeliverableDetailDialogComponent } from './deliverable-detail-dialog.component';
+import { DeliverableDialogComponent } from './deliverable-dialog.component';
 import { NotificationService } from '../../../services/notification.service';
+import { TaskService } from '../../../services/TaskService/task.service';
+import { AuthService } from '../../../auth/auth.service';
 
 const STATUS_CHANGE_EVENTS = new Set([
   'ACCEPTED_BY_MANAGER',
@@ -30,6 +34,7 @@ const STATUS_CHANGE_EVENTS = new Set([
     MatIconModule,
     MatDialogModule,
     MatSnackBarModule,
+    MatProgressSpinnerModule,
   ],
   templateUrl: './employee-deliverables.component.html',
   styleUrls: ['./employee-deliverables.component.scss']
@@ -75,10 +80,14 @@ export class EmployeeDeliverablesComponent implements OnInit, OnDestroy {
     return all.filter(d => d.status === status);
   });
 
+  openingDialog = signal(false);
+
   constructor(
     public deliverableService: DeliverableService,
     private notificationService: NotificationService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private taskService: TaskService,
+    private authService: AuthService
   ) {}
 
   ngOnInit(): void {
@@ -131,6 +140,56 @@ export class EmployeeDeliverablesComponent implements OnInit, OnDestroy {
         if (changed || data.length !== current.length) {
           this.deliverables.set(data);
         }
+      }
+    });
+  }
+
+  openSubmitDialog(): void {
+    this.openingDialog.set(true);
+    const currentUser = this.authService.currentUser();
+    if (!currentUser) {
+      this.openingDialog.set(false);
+      return;
+    }
+
+    this.taskService.getMyTasks().subscribe({
+      next: (tasks) => {
+        this.openingDialog.set(false);
+        const doneTasks = tasks.filter(t => t.status === 'done');
+
+        if (doneTasks.length === 0) {
+          this.snackBar.open(
+            'Aucune tâche terminée (done) trouvée. Terminez une tâche avant de soumettre un livrable.',
+            'OK', { duration: 5000, verticalPosition: 'top' }
+          );
+          return;
+        }
+
+        const firstTask = doneTasks[0];
+        const ref = this.dialog.open(DeliverableDialogComponent, {
+          width: '680px',
+          maxWidth: '95vw',
+          data: {
+            mode: 'create',
+            deliverable: null,
+            tasks: doneTasks,
+            users: [currentUser],
+            projects: doneTasks
+              .filter(t => t.projectId)
+              .map(t => ({ id: t.projectId, name: t.projectName }))
+              .filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i),
+            currentUserId: currentUser.id,
+            currentProjectId: firstTask.projectId ?? '',
+          }
+        });
+
+        ref.afterClosed().subscribe(result => {
+          if (result) this.loadDeliverables();
+        });
+      },
+      error: () => {
+        this.openingDialog.set(false);
+        this.snackBar.open('Erreur lors du chargement des tâches.', 'OK', { duration: 4000 });
       }
     });
   }

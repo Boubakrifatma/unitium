@@ -19,6 +19,14 @@
         <button mat-icon-button class="refresh-btn" (click)="loadDeliverables()" matTooltip="Actualiser">
           <mat-icon>refresh</mat-icon>
         </button>
+        <button mat-flat-button color="primary" (click)="openSubmitDialog()" [disabled]="openingDialog()">
+          @if (openingDialog()) {
+            <mat-progress-spinner diameter="18" mode="indeterminate" style="display:inline-block; margin-right:6px;"></mat-progress-spinner>
+          } @else {
+            <mat-icon>upload_file</mat-icon>
+          }
+          Soumettre un livrable
+        </button>
       </div>
     </div>
 
