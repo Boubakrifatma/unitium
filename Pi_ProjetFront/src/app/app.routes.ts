@@ -43,6 +43,10 @@ export const routes: Routes = [
                 loadComponent: () => import("./pages/auth/change-password/change-password.component").then((c) => c.ChangePasswordComponent),
             },
             {
+                path: "first-login",
+                loadComponent: () => import("./pages/auth/first-login/first-login.component").then((c) => c.FirstLoginComponent),
+            },
+            {
                 path: "signup-success",
                 loadComponent: () => import("./pages/auth/signup-success/signup-success.component").then((c) => c.SignupSuccessComponent),
             },
@@ -139,6 +143,22 @@ export const routes: Routes = [
             {
                 path: "all-tasks",
                 loadComponent: () => import("./pages/app/task-manage/all-task.component").then((c) => c.AllTaskComponent),
+            },
+            {
+                path: "gantt-chart",
+                loadComponent: () => import("./pages/app/task-manage/gantt-chart.component").then((c) => c.GanttChartComponent),
+            },
+            {
+                path: "deliverables",
+                loadComponent: () => import("./pages/app/deliverable/Employee-deliverables.component").then((m) => m.EmployeeDeliverablesComponent),
+            },
+            {
+                path: "manager-deliverables",
+                loadComponent: () => import("./pages/app/deliverable/manager-deliverables.component").then((m) => m.ManagerDeliverablesComponent),
+            },
+            {
+                path: "mes-fichiers",
+                loadComponent: () => import("./pages/app/deliverable/employee-files.component").then((m) => m.EmployeeFilesComponent),
             },
             {
                 path: "milestones",
@@ -270,6 +290,10 @@ export const routes: Routes = [
             {
                 path: "po",
                 loadComponent: () => import("./pages/app/po/po-dashboard.component").then((c) => c.PoDashboardComponent),
+            },
+            {
+                path: "po-deliverables",
+                loadComponent: () => import("./pages/app/po/po-deliverables.component").then((c) => c.PoDeliverablesComponent),
             },
             {
                 path: "activity-stats",
