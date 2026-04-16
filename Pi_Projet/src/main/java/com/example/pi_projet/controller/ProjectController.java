@@ -10,6 +10,7 @@ import com.example.pi_projet.exception.Module2Exception;
 import com.example.pi_projet.service.ProjectIntelligenceService;
 import com.example.pi_projet.service.ProjectMemberService;
 import com.example.pi_projet.service.ProjectService;
+import com.example.pi_projet.service.TemplateStructureService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,7 @@ public class ProjectController {
     private final ProjectService projectService;
     private final ProjectMemberService projectMemberService;
     private final ProjectIntelligenceService projectIntelligenceService;
+    private final TemplateStructureService templateStructureService;
 
     @GetMapping
     public Page<Project> getAll(@PathVariable UUID workspaceId,
@@ -78,7 +80,40 @@ public class ProjectController {
         LocalDate startDate = parseOptionalDate(body.get("startDate"), "startDate");
         LocalDate endDate = parseOptionalDate(body.get("endDate"), "endDate");
         validateDateRange(startDate, endDate);
-        return projectService.createProjectFromTemplate(workspaceId, templateId, nameOverride, startDate, endDate, currentUser.getId());
+
+        String phasesOverrideJson = pickFirstJson(body,
+            "phases",
+            "phasesJson",
+            "selectedPhases",
+            "selectedPhasesJson",
+            "defaultPhasesJson"
+        );
+        String milestonesOverrideJson = pickFirstJson(body,
+            "milestones",
+            "milestonesJson",
+            "selectedMilestones",
+            "selectedMilestonesJson",
+            "defaultMilestonesJson"
+        );
+        String tasksOverrideJson = pickFirstJson(body,
+            "tasks",
+            "tasksJson",
+            "selectedTasks",
+            "selectedTasksJson",
+            "defaultTasksJson"
+        );
+
+        return projectService.createProjectFromTemplate(
+            workspaceId,
+            templateId,
+            nameOverride,
+            startDate,
+            endDate,
+            currentUser.getId(),
+            phasesOverrideJson,
+            milestonesOverrideJson,
+            tasksOverrideJson
+        );
     }
 
     @PostMapping("/pib/bootstrap")
@@ -314,5 +349,14 @@ public class ProjectController {
             throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION,
                     "Invalid visibility value. Use PUBLIC or PRIVATE.");
         }
+    }
+
+    private String pickFirstJson(Map<String, Object> body, String... candidateKeys) {
+        for (String key : candidateKeys) {
+            if (!body.containsKey(key)) continue;
+            String json = templateStructureService.toOptionalJson(body.get(key), key);
+            if (json != null) return json;
+        }
+        return null;
     }
 }

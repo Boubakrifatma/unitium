@@ -38,6 +38,12 @@ public class WorkspaceController {
         return workspaceService.getVisibleForUser(requireCurrentUser(request));
     }
 
+    @GetMapping("/overview")
+    public Map<String, Object> getWorkspacesOverview(HttpServletRequest request) {
+        User currentUser = requireCurrentUser(request);
+        return workspaceService.getWorkspacesOverview(currentUser.getId());
+    }
+
     @GetMapping("/{id}")
     public Workspace getById(@PathVariable UUID id, HttpServletRequest request) {
         User currentUser = requireCurrentUser(request);

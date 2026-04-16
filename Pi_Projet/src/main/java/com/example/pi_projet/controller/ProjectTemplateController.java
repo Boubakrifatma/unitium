@@ -6,6 +6,7 @@ import com.example.pi_projet.entity.User;
 import com.example.pi_projet.exception.M2ValidationUtils;
 import com.example.pi_projet.exception.Module2Exception;
 import com.example.pi_projet.service.ProjectTemplateService;
+import com.example.pi_projet.service.TemplateStructureService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -27,6 +28,7 @@ import static com.example.pi_projet.exception.Module2Exception.ErrorCode.VALIDAT
 public class ProjectTemplateController {
 
     private final ProjectTemplateService projectTemplateService;
+    private final TemplateStructureService templateStructureService;
 
     /* ── Read ──────────────────────────────────────────────────── */
 
@@ -115,12 +117,19 @@ public class ProjectTemplateController {
         String descRaw      = body.get("useCaseDescription") != null ? body.get("useCaseDescription").toString() : null;
         String tagsRaw      = body.get("tags") != null ? body.get("tags").toString() : null;
         String previewUrl   = body.get("previewImageUrl") != null ? body.get("previewImageUrl").toString() : null;
-        String phasesJson   = M2ValidationUtils.validateJsonIfPresent(
-                body.get("defaultPhasesJson") != null ? body.get("defaultPhasesJson").toString() : null, "Phases JSON");
+        String phasesJsonRaw = templateStructureService.toOptionalJson(body.get("defaultPhasesJson"), "defaultPhasesJson");
+        String milestonesJsonRaw = templateStructureService.toOptionalJson(body.get("defaultMilestonesJson"), "defaultMilestonesJson");
+        String tasksJsonRaw = templateStructureService.toOptionalJson(body.get("defaultTasksJson"), "defaultTasksJson");
+        TemplateStructureService.NormalizedTemplateStructure normalizedStructure =
+            templateStructureService.normalizeTemplateStructure(phasesJsonRaw, milestonesJsonRaw, tasksJsonRaw, "Template structure");
+
+        String phasesJson = normalizedStructure.phasesJson();
+        String milestonesJson = normalizedStructure.milestonesJson();
+        String tasksJson = normalizedStructure.tasksJson();
         String rolesJson    = M2ValidationUtils.validateJsonIfPresent(
-                body.get("defaultRolesJson") != null ? body.get("defaultRolesJson").toString() : null, "Roles JSON");
+            templateStructureService.toOptionalJson(body.get("defaultRolesJson"), "defaultRolesJson"), "Roles JSON");
         String configJson   = M2ValidationUtils.validateJsonIfPresent(
-                body.get("defaultProjectConfigJson") != null ? body.get("defaultProjectConfigJson").toString() : null, "Config JSON");
+            templateStructureService.toOptionalJson(body.get("defaultProjectConfigJson"), "defaultProjectConfigJson"), "Config JSON");
 
         Integer durationDays = null;
         if (body.get("estimatedDurationDays") != null) {
@@ -156,6 +165,8 @@ public class ProjectTemplateController {
         if (previewUrl != null)   template.setPreviewImageUrl(previewUrl.trim());
         if (durationDays != null) template.setEstimatedDurationDays(durationDays);
         if (phasesJson != null)   template.setDefaultPhasesJson(phasesJson);
+        if (milestonesJson != null) template.setDefaultMilestonesJson(milestonesJson);
+        if (tasksJson != null)      template.setDefaultTasksJson(tasksJson);
         if (rolesJson != null)    template.setDefaultRolesJson(rolesJson);
         if (configJson != null)   template.setDefaultProjectConfigJson(configJson);
 
@@ -167,15 +178,40 @@ public class ProjectTemplateController {
                                    @RequestBody Map<String, Object> body,
                                    HttpServletRequest request) {
         requireCurrentUser(request);
+        ProjectTemplate existing = projectTemplateService.getById(id)
+            .orElseThrow(() -> new Module2Exception(Module2Exception.ErrorCode.NOT_FOUND, "Template not found"));
 
         String name = M2ValidationUtils.requireTemplateName((String) body.get("name"));
 
-        String phasesJson = M2ValidationUtils.validateJsonIfPresent(
-                body.get("defaultPhasesJson") != null ? body.get("defaultPhasesJson").toString() : null, "Phases JSON");
+        boolean phasesProvided = body.containsKey("defaultPhasesJson");
+        boolean milestonesProvided = body.containsKey("defaultMilestonesJson");
+        boolean tasksProvided = body.containsKey("defaultTasksJson");
+
+        String phasesCandidate = phasesProvided
+            ? templateStructureService.toOptionalJson(body.get("defaultPhasesJson"), "defaultPhasesJson")
+            : existing.getDefaultPhasesJson();
+        String milestonesCandidate = milestonesProvided
+            ? templateStructureService.toOptionalJson(body.get("defaultMilestonesJson"), "defaultMilestonesJson")
+            : existing.getDefaultMilestonesJson();
+        String tasksCandidate = tasksProvided
+            ? templateStructureService.toOptionalJson(body.get("defaultTasksJson"), "defaultTasksJson")
+            : existing.getDefaultTasksJson();
+
+        TemplateStructureService.NormalizedTemplateStructure normalizedStructure =
+            templateStructureService.normalizeTemplateStructure(
+                phasesCandidate,
+                milestonesCandidate,
+                tasksCandidate,
+                "Template structure"
+            );
+
+        String phasesJson = phasesProvided ? normalizedStructure.phasesJson() : null;
+        String milestonesJson = milestonesProvided ? normalizedStructure.milestonesJson() : null;
+        String tasksJson = tasksProvided ? normalizedStructure.tasksJson() : null;
         String rolesJson  = M2ValidationUtils.validateJsonIfPresent(
-                body.get("defaultRolesJson") != null ? body.get("defaultRolesJson").toString() : null, "Roles JSON");
+                templateStructureService.toOptionalJson(body.get("defaultRolesJson"), "defaultRolesJson"), "Roles JSON");
         String configJson = M2ValidationUtils.validateJsonIfPresent(
-                body.get("defaultProjectConfigJson") != null ? body.get("defaultProjectConfigJson").toString() : null, "Config JSON");
+                templateStructureService.toOptionalJson(body.get("defaultProjectConfigJson"), "defaultProjectConfigJson"), "Config JSON");
 
         Integer durationDays = null;
         if (body.get("estimatedDurationDays") != null) {
@@ -211,6 +247,8 @@ public class ProjectTemplateController {
         }
         if (durationDays != null) patch.setEstimatedDurationDays(durationDays);
         if (phasesJson != null)   patch.setDefaultPhasesJson(phasesJson);
+        if (milestonesJson != null) patch.setDefaultMilestonesJson(milestonesJson);
+        if (tasksJson != null)      patch.setDefaultTasksJson(tasksJson);
         if (rolesJson != null)    patch.setDefaultRolesJson(rolesJson);
         if (configJson != null)   patch.setDefaultProjectConfigJson(configJson);
 

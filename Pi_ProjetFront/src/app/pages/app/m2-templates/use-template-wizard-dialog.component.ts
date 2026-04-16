@@ -43,6 +43,17 @@ interface ParsedPhase {
     enabled: boolean;
 }
 
+interface ParsedMilestone {
+    id: string;
+    name: string;
+    description?: string;
+    phaseKey?: string;
+    offsetDays: number;
+    status: string;
+    completionPct: number;
+    enabled: boolean;
+}
+
 interface RoleSlot { userId: number | null; userName?: string; }
 
 interface ParsedRole {
@@ -61,9 +72,16 @@ interface ParsedTask {
     id: string;
     title: string;
     description?: string;
+    phaseKey?: string;
+    milestoneKey?: string;
     phase?: string;
+    taskType: string;
+    status: string;
     priority: string;
     estimatedHours?: number;
+    startOffsetDays?: number;
+    dueOffsetDays?: number;
+    parentTaskKey?: string;
     selected: boolean;
 }
 
@@ -714,6 +732,7 @@ export class UseTemplateWizardDialogComponent implements OnInit {
     // ── Template data ──
     readonly template = signal<M2TemplateSummary | null>(null);
     readonly parsedPhases = signal<ParsedPhase[]>([]);
+    readonly parsedMilestones = signal<ParsedMilestone[]>([]);
     readonly parsedRoles = signal<ParsedRole[]>([]);
     readonly parsedTasks = signal<ParsedTask[]>([]);
 
@@ -743,13 +762,19 @@ export class UseTemplateWizardDialogComponent implements OnInit {
     // ── Computed helpers ──
     readonly enabledPhaseCount = computed(() => this.parsedPhases().filter(p => p.enabled).length);
     readonly totalDays = computed(() => this.parsedPhases().filter(p => p.enabled).reduce((s, p) => s + p.durationDays, 0));
-    readonly selectedTaskCount = computed(() => this.parsedTasks().filter(t => t.selected).length);
+    readonly selectedMilestoneCount = computed(() => this.selectedMilestonesForLaunch().length);
+    readonly selectedTaskCount = computed(() => this.selectedTasksForLaunch().length);
     readonly filledSlots = computed(() => this.parsedRoles().flatMap(r => r.slots).filter(s => s.userId !== null).length);
     readonly totalSlots = computed(() => this.parsedRoles().reduce((s, r) => s + r.slots.length, 0));
     readonly taskGroups = computed(() => {
+        const visibleTasks = this.visibleTasksForSelection();
+        const milestonesById = new Map(this.parsedMilestones().map(m => [m.id, m.name]));
+        const phasesById = new Map(this.parsedPhases().map(p => [p.id, p.name]));
         const groups = new Map<string, ParsedTask[]>();
-        for (const task of this.parsedTasks()) {
-            const g = task.phase || "General";
+        for (const task of visibleTasks) {
+            const g = task.milestoneKey
+                ? (milestonesById.get(task.milestoneKey) || task.phase || "General")
+                : (task.phaseKey ? (phasesById.get(task.phaseKey) || task.phase || "General") : (task.phase || "General"));
             if (!groups.has(g)) groups.set(g, []);
             groups.get(g)!.push(task);
         }
@@ -817,13 +842,43 @@ export class UseTemplateWizardDialogComponent implements OnInit {
         // Parse phases
         const rawPhases = safeParse(t.defaultPhasesJson) as Array<Record<string, unknown>>;
         const phases: ParsedPhase[] = rawPhases.map((p, i) => ({
-            id: String(i),
+            id: String(p["key"] || `phase-${i + 1}`),
             name: String(p["name"] || `Phase ${i + 1}`),
             description: p["description"] ? String(p["description"]) : undefined,
             durationDays: Number(p["durationDays"] || p["duration"] || 14),
-            order: i,
-            enabled: true,
+            order: Number(p["order"] ?? (i + 1)),
+            enabled: p["enabled"] !== false,
         }));
+
+        const phaseOffsets = new Map<string, number>();
+        let runningOffset = 0;
+        [...phases]
+            .sort((a, b) => a.order - b.order)
+            .forEach((phase) => {
+                phaseOffsets.set(phase.id, runningOffset);
+                if (phase.enabled) {
+                    runningOffset += Math.max(phase.durationDays, 0);
+                }
+            });
+
+        // Parse milestones
+        const rawMilestones = safeParse(t.defaultMilestonesJson) as Array<Record<string, unknown>>;
+        const milestones: ParsedMilestone[] = rawMilestones.map((m, i) => {
+            const phaseKey = m["phaseKey"] ? String(m["phaseKey"]) : (m["phase"] ? String(m["phase"]) : undefined);
+            const fallbackOffset = phaseKey ? (phaseOffsets.get(phaseKey) ?? 0) : 0;
+            return {
+                id: String(m["key"] || `milestone-${i + 1}`),
+                name: String(m["name"] || m["title"] || `Milestone ${i + 1}`),
+                description: m["description"] ? String(m["description"]) : undefined,
+                phaseKey,
+                offsetDays: Number(m["offsetDays"] ?? fallbackOffset),
+                status: String(m["status"] || "pending").toLowerCase(),
+                completionPct: Number(m["completionPct"] ?? 0),
+                enabled: m["enabled"] !== false,
+            };
+        });
+
+        const milestoneById = new Map(milestones.map(m => [m.id, m]));
 
         // Parse roles
         const rawRoles = safeParse(t.defaultRolesJson) as Array<Record<string, unknown>>;
@@ -846,16 +901,34 @@ export class UseTemplateWizardDialogComponent implements OnInit {
         // Parse tasks
         const rawTasks = safeParse(t.defaultTasksJson) as Array<Record<string, unknown>>;
         const tasks: ParsedTask[] = rawTasks.map((task, i) => ({
-            id: String(i),
+            id: String(task["key"] || `task-${i + 1}`),
             title: String(task["title"] || task["name"] || `Task ${i + 1}`),
             description: task["description"] ? String(task["description"]) : undefined,
+            phaseKey: task["phaseKey"] ? String(task["phaseKey"]) : (task["phase"] ? String(task["phase"]) : undefined),
+            milestoneKey: task["milestoneKey"] ? String(task["milestoneKey"]) : (task["milestone"] ? String(task["milestone"]) : undefined),
             phase: task["phase"] ? String(task["phase"]) : undefined,
+            taskType: String(task["taskType"] || task["type"] || "task").toLowerCase(),
+            status: String(task["status"] || "todo").toLowerCase(),
             priority: String(task["priority"] || "MEDIUM").toUpperCase(),
             estimatedHours: task["estimatedHours"] ? Number(task["estimatedHours"]) : undefined,
+            startOffsetDays: task["startOffsetDays"] !== undefined ? Number(task["startOffsetDays"]) : undefined,
+            dueOffsetDays: task["dueOffsetDays"] !== undefined ? Number(task["dueOffsetDays"]) : undefined,
+            parentTaskKey: task["parentTaskKey"] ? String(task["parentTaskKey"]) : undefined,
             selected: true,
         }));
 
+        // Backfill task phase from milestone if needed so grouping/filtering remains consistent.
+        tasks.forEach((task) => {
+            if (!task.phaseKey && task.milestoneKey) {
+                const milestone = milestoneById.get(task.milestoneKey);
+                if (milestone?.phaseKey) {
+                    task.phaseKey = milestone.phaseKey;
+                }
+            }
+        });
+
         this.parsedPhases.set(phases);
+        this.parsedMilestones.set(milestones);
         this.parsedRoles.set(roles);
         this.parsedTasks.set(tasks);
 
@@ -992,23 +1065,27 @@ export class UseTemplateWizardDialogComponent implements OnInit {
     togglePhase(phase: ParsedPhase): void {
         phase.enabled = !phase.enabled;
         this.parsedPhases.set([...this.parsedPhases()]);
+        this.recalcEndDate();
     }
 
     addPhase(): void {
         const phases = this.parsedPhases();
+        const nextOrder = phases.length > 0 ? Math.max(...phases.map(p => p.order)) + 1 : 1;
         const next: ParsedPhase = {
             id: String(Date.now()),
             name: `Phase ${phases.length + 1}`,
             durationDays: 14,
-            order: phases.length,
+            order: nextOrder,
             enabled: true,
         };
         this.parsedPhases.set([...phases, next]);
+        this.recalcEndDate();
     }
 
     removePhase(index: number): void {
         const phases = this.parsedPhases().filter((_, i) => i !== index);
         this.parsedPhases.set(phases);
+        this.recalcEndDate();
     }
 
     phaseStart(index: number): Date {
@@ -1032,19 +1109,111 @@ export class UseTemplateWizardDialogComponent implements OnInit {
 
     recalcEndDate(): void {
         const t = this.template();
-        if (!this.startDateObj || !t?.estimatedDurationDays) return;
+        if (!this.startDateObj) return;
+
+        const selectedDurationDays = this.totalDays();
+        const fallbackDurationDays = Number(t?.estimatedDurationDays || 0);
+        const effectiveDuration = selectedDurationDays > 0 ? selectedDurationDays : fallbackDurationDays;
+        if (!effectiveDuration) return;
+
         const d = new Date(this.startDateObj);
-        d.setDate(d.getDate() + t.estimatedDurationDays);
+        d.setDate(d.getDate() + effectiveDuration);
         this.endDateObj = d;
     }
 
     // ── Task helpers ─────────────────────────────────────────────────────────
 
+    private visibleTasksForSelection(): ParsedTask[] {
+        const activePhaseKeys = new Set(this.parsedPhases().filter(p => p.enabled).map(p => p.id));
+        const activeMilestoneKeys = new Set(
+            this.parsedMilestones()
+                .filter(m => m.enabled && (!m.phaseKey || activePhaseKeys.has(m.phaseKey)))
+                .map(m => m.id)
+        );
+
+        return this.parsedTasks().filter(task => {
+            if (task.milestoneKey) return activeMilestoneKeys.has(task.milestoneKey);
+            if (task.phaseKey) return activePhaseKeys.has(task.phaseKey);
+            return true;
+        });
+    }
+
+    private selectedPhasesForLaunch(): Array<Record<string, unknown>> {
+        return [...this.parsedPhases()]
+            .filter(phase => phase.enabled)
+            .sort((a, b) => a.order - b.order)
+            .map((phase) => ({
+                key: phase.id,
+                name: phase.name,
+                durationDays: Math.max(0, phase.durationDays),
+                order: phase.order,
+                enabled: true,
+            }));
+    }
+
+    private selectedMilestonesForLaunch(selectedPhases?: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
+        const phases = selectedPhases ?? this.selectedPhasesForLaunch();
+        const activePhaseKeys = new Set(phases.map(p => String(p["key"])));
+
+        return this.parsedMilestones()
+            .filter(milestone => milestone.enabled)
+            .filter(milestone => !milestone.phaseKey || activePhaseKeys.has(milestone.phaseKey))
+            .map(milestone => ({
+                key: milestone.id,
+                name: milestone.name,
+                description: milestone.description || undefined,
+                phaseKey: milestone.phaseKey || undefined,
+                offsetDays: Math.max(0, milestone.offsetDays),
+                status: milestone.status.toLowerCase(),
+                completionPct: Math.max(0, Math.min(100, milestone.completionPct)),
+                enabled: true,
+            }));
+    }
+
+    private selectedTasksForLaunch(selectedPhases?: Array<Record<string, unknown>>,
+                                   selectedMilestones?: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
+        const phases = selectedPhases ?? this.selectedPhasesForLaunch();
+        const milestones = selectedMilestones ?? this.selectedMilestonesForLaunch(phases);
+
+        const activePhaseKeys = new Set(phases.map(p => String(p["key"])));
+        const activeMilestoneKeys = new Set(milestones.map(m => String(m["key"])));
+
+        return this.parsedTasks()
+            .filter(task => task.selected)
+            .filter(task => {
+                if (task.milestoneKey) return activeMilestoneKeys.has(task.milestoneKey);
+                if (task.phaseKey) return activePhaseKeys.has(task.phaseKey);
+                return true;
+            })
+            .map(task => ({
+                key: task.id,
+                title: task.title,
+                description: task.description || undefined,
+                phaseKey: task.phaseKey || undefined,
+                milestoneKey: task.milestoneKey || undefined,
+                taskType: task.taskType.toLowerCase(),
+                status: task.status.toLowerCase(),
+                priority: task.priority.toLowerCase(),
+                estimatedHours: task.estimatedHours ?? undefined,
+                startOffsetDays: task.startOffsetDays ?? undefined,
+                dueOffsetDays: task.dueOffsetDays ?? undefined,
+                parentTaskKey: task.parentTaskKey || undefined,
+                enabled: true,
+            }));
+    }
+
     priorityDot(priority: string): string { return priorityColor(priority); }
 
     toggleAllTasks(): void {
-        const allSelected = this.selectedTaskCount() === this.parsedTasks().length;
-        this.parsedTasks.set(this.parsedTasks().map(t => ({ ...t, selected: !allSelected })));
+        const visibleIds = new Set(this.visibleTasksForSelection().map(t => t.id));
+        if (visibleIds.size === 0) return;
+
+        const visibleSelectedCount = this.visibleTasksForSelection().filter(t => t.selected).length;
+        const allVisibleSelected = visibleSelectedCount === visibleIds.size;
+
+        this.parsedTasks.set(this.parsedTasks().map(task =>
+            visibleIds.has(task.id) ? { ...task, selected: !allVisibleSelected } : task
+        ));
     }
 
     toggleGroup(group: { name: string; tasks: ParsedTask[] }): void {
@@ -1059,7 +1228,7 @@ export class UseTemplateWizardDialogComponent implements OnInit {
     }
 
     taskCountByPriority(p: string): number {
-        return this.parsedTasks().filter(t => t.selected && t.priority === p).length;
+        return this.selectedTasksForLaunch().filter(t => String(t["priority"]).toUpperCase() === p).length;
     }
 
     // ── Type color helper ────────────────────────────────────────────────────
@@ -1087,11 +1256,22 @@ export class UseTemplateWizardDialogComponent implements OnInit {
         this.launching.set(true);
         this.errorMsg.set("");
 
+        const phases = this.selectedPhasesForLaunch();
+        const milestones = this.selectedMilestonesForLaunch(phases);
+        const tasks = this.selectedTasksForLaunch(phases, milestones);
+
         // Step 1: Create project from template
         const toIso = (d: Date | null) => d
             ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
             : undefined;
-        this.templateService.createProjectFromTemplate(wsId, tId, name, toIso(this.startDateObj), toIso(this.endDateObj))
+        this.templateService.createProjectFromTemplate(
+            wsId,
+            tId,
+            name,
+            toIso(this.startDateObj),
+            toIso(this.endDateObj),
+            { phases, milestones, tasks }
+        )
             .pipe(
                 // Step 2: Assign members (chain sequentially)
                 concatMap((project) => {

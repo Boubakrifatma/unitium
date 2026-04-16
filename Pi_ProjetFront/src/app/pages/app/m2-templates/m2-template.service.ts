@@ -58,6 +58,12 @@ export interface M2TemplateLineageNode {
     children: M2TemplateLineageNode[];
 }
 
+export interface TemplateLaunchOverrides {
+    phases?: Array<Record<string, unknown>> | string;
+    milestones?: Array<Record<string, unknown>> | string;
+    tasks?: Array<Record<string, unknown>> | string;
+}
+
 @Injectable({ providedIn: "root" })
 export class M2TemplateService {
     private readonly http = inject(HttpClient);
@@ -155,11 +161,30 @@ export class M2TemplateService {
         return this.http.get<{ favorited: boolean; favoriteCount: number }>(`${this.base}/${id}/favorite/status`);
     }
 
-    createProjectFromTemplate(workspaceId: string, templateId: string, name?: string, startDate?: string, endDate?: string): Observable<Record<string, unknown>> {
+    createProjectFromTemplate(
+        workspaceId: string,
+        templateId: string,
+        name?: string,
+        startDate?: string,
+        endDate?: string,
+        overrides?: TemplateLaunchOverrides
+    ): Observable<Record<string, unknown>> {
         const body: Record<string, unknown> = {};
+
+        const hasValue = (value: unknown): boolean => {
+            if (value === null || value === undefined) return false;
+            if (Array.isArray(value)) return value.length > 0;
+            if (typeof value === "string") return value.trim().length > 0;
+            return true;
+        };
+
         if (name) body["name"] = name;
         if (startDate) body["startDate"] = startDate;
         if (endDate) body["endDate"] = endDate;
+        if (hasValue(overrides?.phases)) body["phases"] = overrides?.phases as unknown;
+        if (hasValue(overrides?.milestones)) body["milestones"] = overrides?.milestones as unknown;
+        if (hasValue(overrides?.tasks)) body["tasks"] = overrides?.tasks as unknown;
+
         return this.http.post<Record<string, unknown>>(
             `${this.workspaceBase}/${workspaceId}/projects/from-template/${templateId}`,
             body

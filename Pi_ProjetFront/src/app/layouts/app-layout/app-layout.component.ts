@@ -132,14 +132,20 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
         // Hydrate user (avatar) on page refresh
         const userId = this.authService.getUserId();
         if (userId && !this.authService.currentUser()) {
-            this.userService.getById(userId).subscribe(u => {
-                this.authService.currentUser.set({
-                    id: u.id,
-                    email: u.email,
-                    fullName: u.fullName,
-                    role: u.role as any,
-                    avatarUrl: u.avatarUrl
-                });
+            this.userService.getById(userId).subscribe({
+                next: (u) => {
+                    this.authService.currentUser.set({
+                        id: u.id,
+                        email: u.email,
+                        fullName: u.fullName,
+                        role: u.role as any,
+                        avatarUrl: u.avatarUrl
+                    });
+                },
+                error: () => {
+                    // If hydration fails (expired/invalid session), clear stale local cache.
+                    this.authService.clearSession();
+                },
             });
         }
 

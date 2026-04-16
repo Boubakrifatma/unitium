@@ -98,8 +98,52 @@ export interface M2WorkspaceProjectCapacity {
     currentActiveProjects: number;
     maxActiveProjects: number;
     remainingActiveProjects: number;
+    quotaScope?: "ORGANIZATION" | "WORKSPACE" | string;
+    currentWorkspaceQuotaProjects?: number;
+    currentWorkspaceActiveProjects?: number;
     planName: string;
     orgType: string;
+}
+
+export interface M2WorkspaceOverviewWorkspaceMetrics {
+    workspaceId: string;
+    projectCount: number;
+    activeProjects: number;
+    completedProjects: number;
+    memberCount: number;
+}
+
+export interface M2WorkspaceOverview {
+    organizationId?: string | null;
+    organizationName?: string | null;
+    orgType?: string | null;
+    planName?: string | null;
+    quotaScope?: "ORGANIZATION" | "MIXED" | string;
+    workspaces: {
+        visible: number;
+        current?: number | null;
+        max?: number | null;
+        remaining?: number | null;
+    };
+    projects: {
+        visibleTotal: number;
+        visibleActive: number;
+        visibleCompleted: number;
+        visibleOnHold: number;
+        visibleOther: number;
+        visiblePublic: number;
+        visiblePrivate: number;
+        currentActiveOrg?: number | null;
+        maxActiveOrg?: number | null;
+        remainingActiveOrg?: number | null;
+    };
+    members: {
+        visibleAssignments: number;
+        visibleUnique: number;
+        organizationMembers?: number | null;
+        maxPerWorkspace?: number | null;
+    };
+    byWorkspace: M2WorkspaceOverviewWorkspaceMetrics[];
 }
 
 export interface M2CreateWorkspaceRequest {
@@ -122,6 +166,10 @@ export class M2WorkspaceService {
 
     getWorkspaces(): Observable<M2Workspace[]> {
         return this.http.get<M2Workspace[]>(this.base);
+    }
+
+    getWorkspaceOverview(): Observable<M2WorkspaceOverview> {
+        return this.http.get<M2WorkspaceOverview>(`${this.base}/overview`);
     }
 
     createWorkspace(body: M2CreateWorkspaceRequest): Observable<M2Workspace> {

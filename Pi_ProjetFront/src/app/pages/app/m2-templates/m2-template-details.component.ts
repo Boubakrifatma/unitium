@@ -507,6 +507,18 @@ export class RejectTemplateDialogComponent {
                                         @if (editRolesError) { <mat-error>{{ editRolesError }}</mat-error> }
                                         <mat-hint>Optional — must be valid JSON array if provided</mat-hint>
                                     </mat-form-field>
+                                    <mat-form-field appearance="outline" class="w-100 mb-2">
+                                        <mat-label>Milestones JSON</mat-label>
+                                        <textarea matInput [(ngModel)]="editMilestones" rows="4" placeholder='[{"key":"milestone-1","name":"Kickoff","phaseKey":"phase-1","offsetDays":0}]' (ngModelChange)="editMilestonesError=''"></textarea>
+                                        @if (editMilestonesError) { <mat-error>{{ editMilestonesError }}</mat-error> }
+                                        <mat-hint>Optional — must be valid JSON array if provided</mat-hint>
+                                    </mat-form-field>
+                                    <mat-form-field appearance="outline" class="w-100 mb-2">
+                                        <mat-label>Tasks JSON</mat-label>
+                                        <textarea matInput [(ngModel)]="editTasks" rows="5" placeholder='[{"key":"task-1","title":"Plan sprint","phaseKey":"phase-1","priority":"medium"}]' (ngModelChange)="editTasksError=''"></textarea>
+                                        @if (editTasksError) { <mat-error>{{ editTasksError }}</mat-error> }
+                                        <mat-hint>Optional — must be valid JSON array if provided</mat-hint>
+                                    </mat-form-field>
                                 } @else {
                                     <!-- Phases — visual timeline -->
                                     <div class="mb-3">
@@ -629,6 +641,8 @@ export class M2TemplateDetailsComponent implements OnInit {
     editNameError = "";
     editPhasesError = "";
     editRolesError = "";
+    editMilestonesError = "";
+    editTasksError = "";
     editConfigError = "";
 
     // edit fields
@@ -642,6 +656,8 @@ export class M2TemplateDetailsComponent implements OnInit {
     editDefaultConfig = "";
     editPhases = "";
     editRoles = "";
+    editMilestones = "";
+    editTasks = "";
 
     readonly isOwner = computed(() => this.template()?.createdBy === this.authService.currentUser()?.id);
     readonly isAdmin = computed(() => {
@@ -795,6 +811,8 @@ export class M2TemplateDetailsComponent implements OnInit {
         this.editDefaultConfig = t.defaultProjectConfigJson || "";
         this.editPhases = t.defaultPhasesJson || "";
         this.editRoles = t.defaultRolesJson || "";
+        this.editMilestones = t.defaultMilestonesJson || "";
+        this.editTasks = t.defaultTasksJson || "";
         this.editMode.set(true);
     }
 
@@ -809,6 +827,8 @@ export class M2TemplateDetailsComponent implements OnInit {
         this.editNameError = "";
         this.editPhasesError = "";
         this.editRolesError = "";
+        this.editMilestonesError = "";
+        this.editTasksError = "";
         this.editConfigError = "";
 
         // Validate name
@@ -824,14 +844,28 @@ export class M2TemplateDetailsComponent implements OnInit {
         }
 
         // Validate JSON fields
-        const jsonValidations: { value: string; label: string; setErr: (e: string) => void }[] = [
-            { value: this.editDefaultConfig.trim(), label: "Project Config JSON", setErr: (e) => { this.editConfigError = e; } },
-            { value: this.editPhases.trim(), label: "Phases JSON", setErr: (e) => { this.editPhasesError = e; } },
-            { value: this.editRoles.trim(), label: "Roles JSON", setErr: (e) => { this.editRolesError = e; } },
+        const jsonValidations: { value: string; label: string; setErr: (e: string) => void; expected: "object" | "array" }[] = [
+            { value: this.editDefaultConfig.trim(), label: "Project Config JSON", setErr: (e) => { this.editConfigError = e; }, expected: "object" },
+            { value: this.editPhases.trim(), label: "Phases JSON", setErr: (e) => { this.editPhasesError = e; }, expected: "array" },
+            { value: this.editRoles.trim(), label: "Roles JSON", setErr: (e) => { this.editRolesError = e; }, expected: "array" },
+            { value: this.editMilestones.trim(), label: "Milestones JSON", setErr: (e) => { this.editMilestonesError = e; }, expected: "array" },
+            { value: this.editTasks.trim(), label: "Tasks JSON", setErr: (e) => { this.editTasksError = e; }, expected: "array" },
         ];
         for (const v of jsonValidations) {
             if (v.value) {
-                try { JSON.parse(v.value); } catch {
+                try {
+                    const parsed = JSON.parse(v.value);
+                    if (v.expected === "array" && !Array.isArray(parsed)) {
+                        v.setErr(`${v.label} must be a JSON array.`);
+                        this.snackBar.open(`${v.label} must be a JSON array.`, "Close", { duration: 4500 });
+                        return;
+                    }
+                    if (v.expected === "object" && (Array.isArray(parsed) || parsed === null || typeof parsed !== "object")) {
+                        v.setErr(`${v.label} must be a JSON object.`);
+                        this.snackBar.open(`${v.label} must be a JSON object.`, "Close", { duration: 4500 });
+                        return;
+                    }
+                } catch {
                     v.setErr(`${v.label} is not valid JSON.`);
                     this.snackBar.open(`${v.label} is not valid JSON — check the format.`, "Close", { duration: 4500 });
                     return;
@@ -851,6 +885,8 @@ export class M2TemplateDetailsComponent implements OnInit {
         if (this.editDescription.trim()) body["useCaseDescription"] = this.editDescription.trim();
         if (this.editDefaultConfig.trim()) body["defaultProjectConfigJson"] = this.editDefaultConfig.trim();
         if (this.editPhases.trim()) body["defaultPhasesJson"] = this.editPhases.trim();
+        if (this.editMilestones.trim()) body["defaultMilestonesJson"] = this.editMilestones.trim();
+        if (this.editTasks.trim()) body["defaultTasksJson"] = this.editTasks.trim();
         if (this.editRoles.trim()) body["defaultRolesJson"] = this.editRoles.trim();
 
         this.templateService.update(this.templateId(), body).subscribe({

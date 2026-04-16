@@ -6,6 +6,8 @@ import com.example.pi_projet.entity.Project.Visibility;
 import com.example.pi_projet.entity.ProjectMember;
 import com.example.pi_projet.entity.ProjectMember.ProjectRole;
 import com.example.pi_projet.entity.ProjectTemplate;
+import com.example.pi_projet.entity.TimeLineAndDeadLine.Milestone;
+import com.example.pi_projet.entity.TimeLineAndDeadLine.Task;
 import com.example.pi_projet.entity.Workspace;
 import com.example.pi_projet.entity.WorkspaceMember;
 import com.example.pi_projet.entity.User;
@@ -13,8 +15,10 @@ import com.example.pi_projet.exception.Module2Exception;
 import static com.example.pi_projet.exception.Module2Exception.ErrorCode.*;
 import com.example.pi_projet.service.ProjectTemplateService;
 import com.example.pi_projet.service.ProjectMemberService;
+import com.example.pi_projet.repository.MilestoneRepository;
 import com.example.pi_projet.repository.ProjectMemberRepository;
 import com.example.pi_projet.repository.ProjectRepository;
+import com.example.pi_projet.repository.TaskRepository;
 import com.example.pi_projet.repository.WorkspaceMemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -24,7 +28,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -53,11 +60,13 @@ public class ProjectService {
     private final WorkspaceService workspaceService;
     private final ProjectTemplateService templateService;
     private final com.example.pi_projet.repository.UserRepository userRepo;
-    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
     private final WorkspaceQuotaHelper quotaHelper;
     private final ProjectAuthorizationService projectAuthorizationService;
     private final ProjectRoleMapper projectRoleMapper;
     private final WorkspaceMemberRepository workspaceMemberRepository;
+    private final MilestoneRepository milestoneRepository;
+    private final TaskRepository taskRepository;
+    private final TemplateStructureService templateStructureService;
     private final M2AuditLogService auditLogService;
 
     public Page<Project> getVisible(UUID workspaceId, Long userId, Pageable pageable) {
@@ -108,12 +117,9 @@ public class ProjectService {
             throw new Module2Exception(CONFLICT, "A project named '" + name.trim() + "' already exists in this workspace");
         }
 
-        // Quota check at org level
         java.util.UUID orgId = ws.getOrganization().getId();
-        long current = quotaHelper.countActiveProjectsByOrg(orgId);
-        int maxAllowed = quotaHelper.getMaxProjectsStub(orgId);
-        if (current >= maxAllowed) {
-            throw new Module2Exception(PAYMENT_REQUIRED, String.format("Project quota exceeded: %d/%d", current, maxAllowed));
+        if (consumesProjectQuota(ProjectStatus.PLANNING)) {
+            enforceProjectQuota(orgId);
         }
 
         Project p = Project.builder()
@@ -140,7 +146,35 @@ public class ProjectService {
     }
 
     @Transactional
-    public Project createProjectFromTemplate(UUID workspaceId, UUID templateId, String nameOverride, LocalDate startDate, LocalDate endDate, Long requesterId) {
+    public Project createProjectFromTemplate(UUID workspaceId,
+                                             UUID templateId,
+                                             String nameOverride,
+                                             LocalDate startDate,
+                                             LocalDate endDate,
+                                             Long requesterId) {
+        return createProjectFromTemplate(
+            workspaceId,
+            templateId,
+            nameOverride,
+            startDate,
+            endDate,
+            requesterId,
+            null,
+            null,
+            null
+        );
+    }
+
+    @Transactional
+    public Project createProjectFromTemplate(UUID workspaceId,
+                                             UUID templateId,
+                                             String nameOverride,
+                                             LocalDate startDate,
+                                             LocalDate endDate,
+                                             Long requesterId,
+                                             String phasesOverrideJson,
+                                             String milestonesOverrideJson,
+                                             String tasksOverrideJson) {
         ProjectTemplate template = templateService.getById(templateId)
             .orElseThrow(() -> new Module2Exception(NOT_FOUND, "Template not found"));
         boolean isOwner = template.getCreatedBy() != null && template.getCreatedBy().equals(requesterId);
@@ -148,16 +182,35 @@ public class ProjectService {
             throw new Module2Exception(FORBIDDEN, "Template must be APPROVED before use");
         }
         if (!userRepo.existsById(requesterId)) throw new Module2Exception(NOT_FOUND, "Creator user not found");
+
         Workspace ws = workspaceService.getById(workspaceId);
         User requester = userRepo.findById(requesterId)
             .orElseThrow(() -> new Module2Exception(NOT_FOUND, "Creator user not found"));
         if (!projectAuthorizationService.canCreateProject(requester, ws)) {
             throw new Module2Exception(FORBIDDEN, "Only org owner/admin, manager, or tutor can create projects.");
         }
-        String resolvedName = nameOverride != null ? nameOverride.trim() : template.getName();
+
+        String resolvedName = hasText(nameOverride) ? nameOverride.trim() : template.getName();
         if (projectRepo.existsByNameIgnoreCaseAndWorkspaceId(resolvedName, workspaceId)) {
             throw new Module2Exception(CONFLICT, "A project named '" + resolvedName + "' already exists in this workspace");
         }
+
+        if (consumesProjectQuota(ProjectStatus.PLANNING)) {
+            enforceProjectQuota(ws.getOrganization().getId());
+        }
+
+        String effectivePhasesJson = hasText(phasesOverrideJson) ? phasesOverrideJson : template.getDefaultPhasesJson();
+        String effectiveMilestonesJson = hasText(milestonesOverrideJson) ? milestonesOverrideJson : template.getDefaultMilestonesJson();
+        String effectiveTasksJson = hasText(tasksOverrideJson) ? tasksOverrideJson : template.getDefaultTasksJson();
+
+        TemplateStructureService.NormalizedTemplateStructure structure =
+            templateStructureService.normalizeTemplateStructure(
+                effectivePhasesJson,
+                effectiveMilestonesJson,
+                effectiveTasksJson,
+                "Project template structure"
+            );
+
         Project p = Project.builder()
             .workspace(ws)
             .templateId(template.getId())
@@ -167,12 +220,19 @@ public class ProjectService {
             .visibility(template.getDefaultVisibility() == ProjectTemplate.DefaultVisibility.PUBLIC ? Visibility.PUBLIC : Visibility.PRIVATE)
             .startDate(startDate)
             .endDate(endDate)
-            .phasesJson(template.getDefaultPhasesJson())
+            .phasesJson(structure.phasesJson())
             .build();
         p = projectRepo.save(p);
+
         String orgType = resolveWorkspaceOrgType(ws);
         projectMemberRepo.save(ProjectMember.builder()
-            .project(p).userId(requesterId).role(orgType.equals("academic") ? ProjectRole.PROFESSOR : ProjectRole.PROJECT_MANAGER).build());
+            .project(p)
+            .userId(requesterId)
+            .role(orgType.equals("academic") ? ProjectRole.PROFESSOR : ProjectRole.PROJECT_MANAGER)
+            .build());
+
+        provisionProjectTimelineFromTemplate(p, requester, startDate, structure);
+
         // atomic usage increment — avoids race condition under concurrent requests
         templateService.incrementUsageCount(templateId);
         return p;
@@ -234,6 +294,110 @@ public class ProjectService {
         return projectRepo.save(p);
     }
 
+    private void provisionProjectTimelineFromTemplate(Project project,
+                                                      User creator,
+                                                      LocalDate projectStartDate,
+                                                      TemplateStructureService.NormalizedTemplateStructure structure) {
+        if (structure.milestones().isEmpty() && structure.tasks().isEmpty()) {
+            return;
+        }
+
+        Map<String, Milestone> milestonesByKey = new LinkedHashMap<>();
+        Map<String, Integer> milestoneOffsetByKey = new LinkedHashMap<>();
+
+        for (TemplateStructureService.MilestoneSpec spec : structure.milestones()) {
+            if (!spec.enabled()) continue;
+
+            Milestone milestone = new Milestone();
+            milestone.setProject(project);
+            milestone.setName(spec.name());
+            milestone.setDescription(spec.description());
+            milestone.setStatus(Milestone.MilestoneStatus.valueOf(spec.status().toLowerCase(Locale.ROOT)));
+            milestone.setCompletionPct(spec.completionPct());
+            milestone.setCreatedBy(creator);
+            milestone.setDueDate(resolveDateFromOffset(projectStartDate, spec.offsetDays()));
+
+            Milestone saved = milestoneRepository.save(milestone);
+            milestonesByKey.put(spec.key(), saved);
+            milestoneOffsetByKey.put(spec.key(), spec.offsetDays());
+        }
+
+        Map<String, Task> tasksByKey = new LinkedHashMap<>();
+        Map<String, String> parentReferences = new LinkedHashMap<>();
+
+        for (TemplateStructureService.TaskSpec spec : structure.tasks()) {
+            if (!spec.enabled()) continue;
+            if (spec.milestoneKey() != null && !milestonesByKey.containsKey(spec.milestoneKey())) continue;
+
+            Task task = Task.builder()
+                .project(project)
+                .milestone(spec.milestoneKey() != null ? milestonesByKey.get(spec.milestoneKey()) : null)
+                .title(spec.title())
+                .description(spec.description())
+                .taskType(Task.TaskType.valueOf(spec.taskType().toLowerCase(Locale.ROOT)))
+                .status(Task.TaskStatus.valueOf(spec.status().toLowerCase(Locale.ROOT)))
+                .priority(Task.TaskPriority.valueOf(spec.priority().toLowerCase(Locale.ROOT)))
+                .estimatedHours(spec.estimatedHours())
+                .createdBy(creator)
+                .startDate(resolveTaskStartDate(projectStartDate, spec, milestoneOffsetByKey))
+                .dueDate(resolveTaskDueDate(projectStartDate, spec, milestoneOffsetByKey))
+                .build();
+
+            Task saved = taskRepository.save(task);
+            tasksByKey.put(spec.key(), saved);
+
+            if (spec.parentTaskKey() != null && !spec.parentTaskKey().isBlank()) {
+                parentReferences.put(spec.key(), spec.parentTaskKey());
+            }
+        }
+
+        for (Map.Entry<String, String> parentRef : parentReferences.entrySet()) {
+            Task child = tasksByKey.get(parentRef.getKey());
+            Task parent = tasksByKey.get(parentRef.getValue());
+            if (child == null || parent == null || child.getId().equals(parent.getId())) continue;
+
+            child.setParentTask(parent);
+            taskRepository.save(child);
+        }
+    }
+
+    private LocalDate resolveTaskStartDate(LocalDate projectStartDate,
+                                           TemplateStructureService.TaskSpec spec,
+                                           Map<String, Integer> milestoneOffsetByKey) {
+        Integer startOffset = spec.startOffsetDays();
+        if (startOffset == null && spec.milestoneKey() != null) {
+            startOffset = milestoneOffsetByKey.get(spec.milestoneKey());
+        }
+        return resolveDateFromOffset(projectStartDate, startOffset);
+    }
+
+    private LocalDate resolveTaskDueDate(LocalDate projectStartDate,
+                                         TemplateStructureService.TaskSpec spec,
+                                         Map<String, Integer> milestoneOffsetByKey) {
+        Integer dueOffset = spec.dueOffsetDays();
+        Integer inferredStartOffset = spec.startOffsetDays();
+
+        if (inferredStartOffset == null && spec.milestoneKey() != null) {
+            inferredStartOffset = milestoneOffsetByKey.get(spec.milestoneKey());
+        }
+
+        if (dueOffset == null && inferredStartOffset != null && spec.estimatedHours() != null && spec.estimatedHours() > 0f) {
+            int estimatedDays = Math.max(1, (int) Math.ceil(spec.estimatedHours() / 8.0));
+            dueOffset = inferredStartOffset + estimatedDays;
+        }
+
+        if (dueOffset == null) {
+            dueOffset = inferredStartOffset;
+        }
+
+        return resolveDateFromOffset(projectStartDate, dueOffset);
+    }
+
+    private LocalDate resolveDateFromOffset(LocalDate projectStartDate, Integer offsetDays) {
+        if (projectStartDate == null || offsetDays == null) return null;
+        return projectStartDate.plusDays(Math.max(0, offsetDays));
+    }
+
     private void validateJson(String json, String fieldName) {
         if (json == null || json.isBlank()) return;
         try {
@@ -276,6 +440,8 @@ public class ProjectService {
                 p.getStatus(), status, allowedTo));
         }
 
+        enforceQuotaForTransition(p, status);
+
         p.setStatus(status);
         return projectRepo.save(p);
     }
@@ -285,6 +451,11 @@ public class ProjectService {
                                            ProjectStatus newStatus, Long requesterId) {
         User requester = userRepo.findById(requesterId)
             .orElseThrow(() -> new Module2Exception(NOT_FOUND, "Requester user not found"));
+
+        UUID orgId = workspaceService.getById(workspaceId).getOrganization().getId();
+        long currentQuotaProjects = quotaHelper.countActiveProjectsByOrg(orgId);
+        int maxAllowed = quotaHelper.getMaxProjectsStub(orgId);
+
         List<Project> updated = new ArrayList<>();
         for (UUID pid : projectIds) {
             try {
@@ -293,6 +464,18 @@ public class ProjectService {
                 if (!projectAuthorizationService.canManageProject(requester, p)) continue;
                 var allowedTo = VALID_TRANSITIONS.getOrDefault(p.getStatus(), java.util.List.of());
                 if (!allowedTo.contains(newStatus)) continue;
+
+                boolean currentlyConsumes = consumesProjectQuota(p.getStatus());
+                boolean willConsume = consumesProjectQuota(newStatus);
+                if (!currentlyConsumes && willConsume) {
+                    if (currentQuotaProjects >= maxAllowed) {
+                        continue;
+                    }
+                    currentQuotaProjects++;
+                } else if (currentlyConsumes && !willConsume) {
+                    currentQuotaProjects = Math.max(0L, currentQuotaProjects - 1L);
+                }
+
                 p.setStatus(newStatus);
                 updated.add(projectRepo.save(p));
             } catch (Exception ignored) {}
@@ -337,6 +520,28 @@ public class ProjectService {
     private boolean isGlobalAdminRole(User.RoleName role) {
         return role == User.RoleName.SUPER_ADMIN
             || role == User.RoleName.ADMIN;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
+    }
+
+    private void enforceProjectQuota(UUID orgId) {
+        long current = quotaHelper.countActiveProjectsByOrg(orgId);
+        int maxAllowed = quotaHelper.getMaxProjectsStub(orgId);
+        if (current >= maxAllowed) {
+            throw new Module2Exception(PAYMENT_REQUIRED, String.format("Active project quota exceeded: %d/%d", current, maxAllowed));
+        }
+    }
+
+    private void enforceQuotaForTransition(Project project, ProjectStatus newStatus) {
+        if (consumesProjectQuota(newStatus) && !consumesProjectQuota(project.getStatus())) {
+            enforceProjectQuota(project.getWorkspace().getOrganization().getId());
+        }
+    }
+
+    private boolean consumesProjectQuota(ProjectStatus status) {
+        return status == ProjectStatus.ACTIVE;
     }
 
     private String resolveWorkspaceOrgType(Workspace workspace) {

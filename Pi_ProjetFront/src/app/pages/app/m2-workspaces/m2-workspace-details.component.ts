@@ -354,11 +354,11 @@ interface WorkspaceActivity {
                                                 <mat-card class="h-100 ov-cap-card">
                                                     <mat-card-content class="p-3">
                                                         <div class="ov-cap-header mb-3">
-                                                            <span class="ov-cap-title">Active Projects Capacity</span>
+                                                            <span class="ov-cap-title">Active Project Capacity (Org)</span>
                                                             <span class="ov-status-pill" [class]="ovCapClass(projectCapacityPercentage())">{{ ovCapLabel(projectCapacityPercentage()) }}</span>
                                                         </div>
                                                         <div class="d-flex align-items-center gap-3">
-                                                            <div class="ov-ring-wrap" matTooltip="{{ projectCapacityPercentage() }}% of active project slots used" matTooltipPosition="above">
+                                                            <div class="ov-ring-wrap" matTooltip="{{ projectCapacityPercentage() }}% of organization ACTIVE project slots used" matTooltipPosition="above">
                                                                 <svg viewBox="0 0 80 80" width="76" height="76">
                                                                     <circle cx="40" cy="40" r="30" fill="none" stroke="var(--surface-border,#e2e8f0)" stroke-width="9"/>
                                                                     <circle cx="40" cy="40" r="30" fill="none"
@@ -383,7 +383,10 @@ interface WorkspaceActivity {
                                                                     <span class="ov-cap-pct" [style.color]="ovCapColor(projectCapacityPercentage())">{{ projectCapacityPercentage() }}%</span>
                                                                 </div>
                                                                 <div class="ov-cap-detail">
-                                                                    <span>{{ projectCapacity()?.currentActiveProjects ?? 0 }} used · {{ (projectCapacity()?.maxActiveProjects ?? 0) - (projectCapacity()?.currentActiveProjects ?? 0) }} free</span>
+                                                                    <span>{{ projectCapacity()?.currentActiveProjects ?? 0 }} ACTIVE across org · {{ projectCapacity()?.remainingActiveProjects ?? 0 }} free</span>
+                                                                    @if (projectCapacity()?.currentWorkspaceActiveProjects !== undefined) {
+                                                                        <span>{{ projectCapacity()?.currentWorkspaceActiveProjects }} ACTIVE in this workspace</span>
+                                                                    }
                                                                     <span class="ov-plan-badge">{{ projectCapacity()?.planName ?? 'Plan' }}</span>
                                                                 </div>
                                                             </div>
@@ -826,7 +829,7 @@ interface WorkspaceActivity {
                                             @if (projectCapacity()) {
                                                 <div class="proj-capacity-card">
                                                     <div class="proj-cap-header">
-                                                        <span class="proj-cap-title">Active Project Capacity</span>
+                                                        <span class="proj-cap-title">Active Project Capacity (Org)</span>
                                                         <span class="ov-status-pill" [class]="ovCapClass(projectCapacityPercentage())">{{ ovCapLabel(projectCapacityPercentage()) }}</span>
                                                     </div>
                                                     <div class="proj-cap-bar-wrap">
@@ -839,7 +842,7 @@ interface WorkspaceActivity {
                                                             {{ projectCapacity()!.currentActiveProjects }}/{{ projectCapacity()!.maxActiveProjects }}
                                                         </span>
                                                     </div>
-                                                    <p class="proj-cap-detail">{{ projectCapacity()!.remainingActiveProjects }} slot{{ projectCapacity()!.remainingActiveProjects !== 1 ? 's' : '' }} available</p>
+                                                    <p class="proj-cap-detail">{{ projectCapacity()!.remainingActiveProjects }} active slot{{ projectCapacity()!.remainingActiveProjects !== 1 ? 's' : '' }} available · {{ projectCapacity()!.currentWorkspaceActiveProjects ?? activeProjects() }} active in this workspace</p>
                                                 </div>
                                             }
                                         </div>
@@ -3254,10 +3257,11 @@ export class M2WorkspaceDetailsComponent implements OnInit {
                 },
                 error: (error: HttpErrorResponse) => {
                     const msg = (error?.error?.message || error?.error?.error || error.message || "").toLowerCase();
-                    const isQuota = error.status === 403 && (msg.includes("limit") || msg.includes("quota") || msg.includes("plan"));
+                    const isQuota = (error.status === 402 || error.status === 403)
+                        && (msg.includes("limit") || msg.includes("quota") || msg.includes("plan"));
                     this.snackBar.open(
                         isQuota
-                            ? `⚠ Project limit reached — your plan does not allow more projects in this workspace.`
+                            ? `⚠ Active project limit reached — your plan does not allow more ACTIVE projects across your organization.`
                             : `Failed to create project: ${error?.error?.message || "Unexpected error"}`,
                         "Close",
                         { duration: 5500 }
