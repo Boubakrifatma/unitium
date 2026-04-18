@@ -238,8 +238,19 @@ export class AppSidebarComponent {
                 ],
             });
            }
-        // ADMIN + above — billing
-        if (this.isAdmin) {
+        // SUPER_ADMIN — platform billing management
+        if (this.isSuperAdmin) {
+            all.push({
+                name: "Billing",
+                icon: "receipt_long",
+                children: [
+                    { name: "Billing Management", route: "/app/super-admin-billing", icon: "workspace_premium" },
+                ],
+            });
+        }
+
+        // ADMIN only (not SUPER_ADMIN) — org billing
+        if (this.isAdmin && !this.isSuperAdmin) {
             all.push({
                 name: "Billing",
                 icon: "receipt_long",

@@ -504,9 +504,97 @@ interface FePlan {
                 <mat-icon class="material-icons-outlined tab-icon">inventory_2</mat-icon>Plans
               </ng-template>
               <div class="tab-content">
-                <div class="tab-header mb-3">
-                  <div><h4 class="mb-1">Available Plans</h4><p class="text-secondary small mb-0">Compare and upgrade your plan</p></div>
-                  <!-- Billing cycle toggle -->
+
+                <!-- ── CURRENT PLAN + INVOICES ── -->
+                <div class="section-title mb-2">
+                  <h4 class="mb-0">Your Current Plan</h4>
+                  <span class="pill pill-blue">ACTIVE</span>
+                </div>
+
+                <ng-container *ngIf="subscription || myPayment; else noPlan">
+                  <div class="plan-invoice-block mb-4">
+
+                    <!-- Plan summary row -->
+                    <div class="pi-plan-row">
+                      <div class="pi-icon"><mat-icon class="material-icons-outlined">workspace_premium</mat-icon></div>
+                      <div class="pi-info">
+                        <h5 class="mb-0">{{ subscription?.planDisplayName ?? myPayment?.planName ?? '—' }}</h5>
+                        <p class="text-secondary small mb-0">
+                          {{ subscription?.billingCycle ?? myPayment?.billingCycle ?? '' }} billing ·
+                          <span class="pill" [class]="getSubStatusClass(subscription?.status ?? myPayment?.status)">
+                            {{ subscription?.status ?? myPayment?.status ?? '—' }}
+                          </span>
+                        </p>
+                      </div>
+                      <div class="pi-price ms-auto text-end">
+                        <span class="pi-amount">\${{ (subscription?.planPriceMonthly ?? myPayment?.amount ?? 0) | number:'1.2-2' }}</span>
+                        <span class="pi-period text-secondary small d-block">/ month</span>
+                      </div>
+                      <button mat-flat-button color="primary" class="ms-3" (click)="goUpgrade()">
+                        <mat-icon class="material-icons-outlined">upgrade</mat-icon> Upgrade
+                      </button>
+                    </div>
+
+                    <!-- Invoices linked to this plan -->
+                    <div class="pi-invoices-section" *ngIf="invoices.length > 0">
+                      <p class="pi-inv-title">
+                        <mat-icon class="material-icons-outlined">receipt_long</mat-icon>
+                        Plan Invoices
+                        <span class="tab-badge">{{ invoices.length }}</span>
+                      </p>
+                      <div class="pi-inv-list">
+                        <div class="pi-inv-row" *ngFor="let inv of invoices">
+                          <div class="pi-inv-left">
+                            <span class="pi-inv-num">{{ inv.invoiceNumber }}</span>
+                            <span class="text-secondary small ms-2">{{ inv.createdAt | date:'dd MMM yyyy' }}</span>
+                            <span class="pill ms-2" [class]="getInvClass(inv.status)">{{ inv.status }}</span>
+                          </div>
+                          <div class="pi-inv-right">
+                            <strong>\${{ inv.total | number:'1.2-2' }} {{ inv.currency }}</strong>
+                            <button mat-icon-button matTooltip="Download PDF" (click)="dl(inv)" class="ms-1">
+                              <mat-icon class="material-icons-outlined" style="color:#dc2626;font-size:18px">picture_as_pdf</mat-icon>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Fallback invoice from payment -->
+                    <div class="pi-invoices-section" *ngIf="invoices.length === 0 && myPayment">
+                      <p class="pi-inv-title">
+                        <mat-icon class="material-icons-outlined">receipt_long</mat-icon> Plan Invoices
+                      </p>
+                      <div class="pi-inv-list">
+                        <div class="pi-inv-row">
+                          <div class="pi-inv-left">
+                            <span class="pi-inv-num">INV-{{ myPayment.paymentId }}</span>
+                            <span class="text-secondary small ms-2">{{ myPayment.createdAt | date:'dd MMM yyyy' }}</span>
+                            <span class="pill pill-green ms-2">PAID</span>
+                          </div>
+                          <div class="pi-inv-right">
+                            <strong>\${{ myPayment.amount | number:'1.2-2' }} {{ myPayment.currency }}</strong>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="pi-no-inv" *ngIf="invoices.length === 0 && !myPayment && !loading">
+                      <mat-icon class="material-icons-outlined">receipt_long</mat-icon>
+                      <span>No invoices yet for this plan.</span>
+                    </div>
+                  </div>
+                </ng-container>
+
+                <ng-template #noPlan>
+                  <div class="empty-state mb-4" *ngIf="!loading">
+                    <mat-icon class="material-icons-outlined">workspace_premium</mat-icon>
+                    <p>No active plan. <a routerLink="/billing/pricing">Choose a plan →</a></p>
+                  </div>
+                </ng-template>
+
+                <!-- ── UPGRADE OPTIONS ── -->
+                <div class="section-title mb-3 mt-2">
+                  <h4 class="mb-0">Upgrade Your Plan</h4>
                   <div class="d-flex align-items-center gap-2">
                     <span class="small fw-medium" [class.text-secondary]="plansCycle() === 'annual'">Monthly</span>
                     <div class="ptoggle" (click)="togglePlansCycle()">
@@ -590,6 +678,7 @@ interface FePlan {
                     </div>
                   </div>
                 </div>
+
               </div>
             </mat-tab>
 
@@ -616,6 +705,25 @@ interface FePlan {
     .tab-content { padding:24px; }
     .tab-header { display:flex; justify-content:space-between; align-items:flex-start; }
     .section-title { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+
+    /* Plan + Invoice block (TAB 4) */
+    .plan-invoice-block { border:1px solid #e5e7eb; border-radius:16px; overflow:hidden; }
+    .pi-plan-row { display:flex; align-items:center; gap:16px; background:linear-gradient(135deg,#6366f1,#4f46e5); padding:20px 24px; }
+    .pi-icon { width:44px; height:44px; background:rgba(255,255,255,.2); border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .pi-icon mat-icon { color:#fff; font-size:22px; }
+    .pi-info h5, .pi-info p { color:#fff; }
+    .pi-amount { font-size:22px; font-weight:800; color:#fff; }
+    .pi-period { color:rgba(255,255,255,.7); font-size:12px; }
+    .pi-invoices-section { padding:16px 24px; border-top:1px solid #f1f5f9; }
+    .pi-inv-title { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:10px; }
+    .pi-inv-title mat-icon { font-size:16px; width:16px; height:16px; color:#6366f1; }
+    .pi-inv-list { display:flex; flex-direction:column; gap:8px; }
+    .pi-inv-row { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#f8fafc; border-radius:8px; border:1px solid #f1f5f9; }
+    .pi-inv-left { display:flex; align-items:center; flex-wrap:wrap; gap:4px; }
+    .pi-inv-right { display:flex; align-items:center; gap:4px; white-space:nowrap; }
+    .pi-inv-num { font-size:13px; font-weight:700; color:#1e293b; }
+    .pi-no-inv { display:flex; align-items:center; gap:8px; padding:16px 24px; color:#94a3b8; font-size:13px; border-top:1px solid #f1f5f9; }
+    .pi-no-inv mat-icon { font-size:18px; width:18px; height:18px; }
 
     /* Subscription */
     .sub-card { border:1px solid #e5e7eb; border-radius:16px; overflow:hidden; }

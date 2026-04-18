@@ -1027,20 +1027,10 @@ export class SuperAdminBillingComponent implements OnInit {
   plansCycle = signal<'monthly' | 'annual'>('monthly');
   togglePlansCycle() { this.plansCycle.update(c => c === 'monthly' ? 'annual' : 'monthly'); }
 
-  // Home-page canonical plan names (id or displayName)
-  private readonly HOME_PLAN_NAMES = new Set([
-    'starter', 'pro', 'business', 'enterprise',
-    'academic-starter', 'academic-faculty', 'academic-institution', 'academic-campus',
-    'Starter', 'Pro', 'Business', 'Enterprise',
-    'Academic Starter', 'Faculty', 'Institution', 'Campus',
-  ]);
-
   plans: PlanDTO[] = [];
 
   get visiblePlans(): PlanDTO[] {
-    return this.plans.filter(p =>
-      this.HOME_PLAN_NAMES.has(p.name) || this.HOME_PLAN_NAMES.has(p.displayName)
-    );
+    return this.plans;
   }
   allInvoices: InvoiceDTO[] = [];
   invoicesDS = new MatTableDataSource<InvoiceDTO>([]);

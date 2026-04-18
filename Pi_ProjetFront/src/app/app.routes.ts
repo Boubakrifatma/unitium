@@ -268,7 +268,7 @@ export const routes: Routes = [
             },
             {
                 path: "org-billing",
-                loadComponent: () => import("./pages/app/super-admin/super-admin-billing.component").then((c) => c.SuperAdminBillingComponent),
+                loadComponent: () => import("./pages/app/org-billing/org-billing.component").then((c) => c.OrgBillingComponent),
             },
             {
                 path: "upgrade-confirmation",

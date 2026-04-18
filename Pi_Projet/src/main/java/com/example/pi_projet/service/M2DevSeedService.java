@@ -82,14 +82,14 @@ public class M2DevSeedService {
         User po        = requireUser("po@test.com");
 
         // ── 2. Plans ─────────────────────────────────────────────────────────
-        Plan enterprisePro  = ensurePlan("enterprise_pro",  "Enterprise Pro",  10,  50,  9900, 99000,
-                Plan.MlTier.FULL,  Plan.SupportTier.PRIORITY, Plan.CustomIntegrations.FULL,   102400L, true,  false, false);
-        Plan startupFree    = ensurePlan("startup_free",    "Startup Free",     1,   3,     0,     0,
-                Plan.MlTier.NONE,  Plan.SupportTier.COMMUNITY, Plan.CustomIntegrations.NONE,   1024L, false, false, false);
-        Plan academicFull   = ensurePlan("academic_full",   "Academic Full",   20, 100,  4900, 49000,
-                Plan.MlTier.BASIC, Plan.SupportTier.ACADEMIC,  Plan.CustomIntegrations.LIMITED, 51200L, true, true,  true);
-        Plan academicBasic  = ensurePlan("academic_basic",  "Academic Basic",   1,   3,     0,     0,
-                Plan.MlTier.NONE,  Plan.SupportTier.COMMUNITY, Plan.CustomIntegrations.NONE,   2048L, false, false, false);
+        Plan enterprisePro  = planRepository.findByName("pro")
+                .orElseThrow(() -> new IllegalStateException("Plan 'pro' not found — ensure DataInitializer runs first"));
+        Plan startupFree    = planRepository.findByName("starter")
+                .orElseThrow(() -> new IllegalStateException("Plan 'starter' not found — ensure DataInitializer runs first"));
+        Plan academicFull   = planRepository.findByName("academic-institution")
+                .orElseThrow(() -> new IllegalStateException("Plan 'academic-institution' not found — ensure DataInitializer runs first"));
+        Plan academicBasic  = planRepository.findByName("academic-starter")
+                .orElseThrow(() -> new IllegalStateException("Plan 'academic-starter' not found — ensure DataInitializer runs first"));
 
         // ── 3. Organizations ─────────────────────────────────────────────────
         Organization nexusCorp  = ensureOrg("nexus-corp",  "NexusCorp",  Organization.OrgType.ENTERPRISE, manager,  enterprisePro);

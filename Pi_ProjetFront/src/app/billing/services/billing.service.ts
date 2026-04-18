@@ -189,67 +189,21 @@ export class BillingService {
     this.loadPlansFromAPI();
   }
 
-  // Load plans from API, merge with defaults, and append any new admin-created plans
+  // Load plans directly from API — same source as super-admin
   loadPlansFromAPI(): void {
     this.http.get<any[]>(`${this.API}/plans`).subscribe({
       next: (apiPlans) => {
         if (apiPlans && apiPlans.length > 0) {
-          // Merge API prices into default plans (keep visual/feature data from defaults)
-          const mergePlan = (defaultPlan: Plan, apiMatch: any): Plan => {
-            const storageMb: number = apiMatch.storageMb ?? 10240;
-            const storageLabel = storageMb >= 1024 ? `${Math.round(storageMb / 1024)} GB` : `${storageMb} MB`;
-            return {
-              ...defaultPlan,
-              monthlyPrice: apiMatch.priceMonthly ?? defaultPlan.monthlyPrice,
-              annualPrice:  apiMatch.priceYearly  ?? defaultPlan.annualPrice,
-              limits: {
-                users:      apiMatch.maxMembersPerWs   ?? defaultPlan.limits?.users,
-                workspaces: apiMatch.maxWorkspaces     ?? defaultPlan.limits?.workspaces,
-                projects:   apiMatch.maxActiveProjects ?? defaultPlan.limits?.projects,
-                storage:    storageLabel,
-              },
-            };
+          const planOrder: Record<string, number> = {
+            'starter': 1, 'pro': 2, 'business': 3, 'enterprise': 4,
+            'academic-starter': 1, 'academic-faculty': 2, 'faculty': 2,
+            'academic-institution': 3, 'institution': 3, 'campus': 4,
           };
-
-          const matchPlan = (defaultPlan: Plan, p: any): boolean => {
-            const pName = (p.name ?? '').toLowerCase();
-            const pDisplay = (p.displayName ?? '').toLowerCase();
-            const dId = (defaultPlan.id ?? '').toLowerCase();
-            const dName = (defaultPlan.name ?? '').toLowerCase();
-            return pName === dId || pDisplay === dName || pName === dName || pDisplay === dId;
-          };
-
-          const mergedEnterprise = this.defaultEnterprisePlans.map(defaultPlan => {
-            const apiMatch = apiPlans.find((p: any) => matchPlan(defaultPlan, p));
-            return apiMatch ? mergePlan(defaultPlan, apiMatch) : defaultPlan;
-          });
-          const mergedAcademic = this.defaultAcademicPlans.map(defaultPlan => {
-            const apiMatch = apiPlans.find((p: any) => matchPlan(defaultPlan, p));
-            return apiMatch ? mergePlan(defaultPlan, apiMatch) : defaultPlan;
-          });
-
-          // Find plans added via admin that are not in the hardcoded defaults
-          const allDefaults = [...this.defaultEnterprisePlans, ...this.defaultAcademicPlans];
-          const extraPlans: Plan[] = apiPlans
-            .filter((p: any) => !allDefaults.some(d => matchPlan(d, p)))
-            .map((p: any) => this.mapApiPlanToFrontend(p));
-
-          // Insert extra plans before the on-request (custom) plans
-          const enterpriseOnRequest = mergedEnterprise.filter(p => p.onRequest);
-          const enterpriseRegular   = mergedEnterprise.filter(p => !p.onRequest);
-          const academicOnRequest   = mergedAcademic.filter(p => p.onRequest);
-          const academicRegular     = mergedAcademic.filter(p => !p.onRequest);
-
-          this.enterprisePlans.set([
-            ...enterpriseRegular,
-            ...extraPlans.filter(p => p.orgType === 'enterprise'),
-            ...enterpriseOnRequest,
-          ]);
-          this.academicPlans.set([
-            ...academicRegular,
-            ...extraPlans.filter(p => p.orgType === 'academic'),
-            ...academicOnRequest,
-          ]);
+          const sort = (plans: any[]) =>
+            plans.sort((a, b) => (planOrder[a.id] ?? 99) - (planOrder[b.id] ?? 99));
+          const allPlans = apiPlans.map((p: any) => this.mapApiPlanToFrontend(p));
+          this.enterprisePlans.set(sort(allPlans.filter(p => p.orgType === 'enterprise')));
+          this.academicPlans.set(sort(allPlans.filter(p => p.orgType === 'academic')));
           console.log('Plans loaded from API:', { enterprise: this.enterprisePlans().length, academic: this.academicPlans().length });
         } else {
           this.useFallbackPlans();
@@ -272,29 +226,57 @@ export class BillingService {
     const isAcademic = p.orgType === 'academic' || (p.name ?? '').includes('academic') || (p.displayName ?? '').toLowerCase().includes('academic');
     const storageMb: number = p.storageMb ?? 10240;
     const storageLabel = storageMb >= 1024 ? `${Math.round(storageMb / 1024)} GB` : `${storageMb} MB`;
+    const nameLower = (p.name ?? '').toLowerCase();
+
+    const iconMap: Record<string, string> = {
+      starter: 'rocket_launch', pro: 'workspace_premium', business: 'corporate_fare',
+      enterprise: 'apartment', 'academic-starter': 'school', 'academic-faculty': 'menu_book',
+      faculty: 'menu_book', 'academic-institution': 'account_balance', institution: 'account_balance',
+      campus: 'domain',
+    };
+    const subtitleMap: Record<string, string> = {
+      starter: 'Perfect for small teams', pro: 'For growing organizations',
+      business: 'For large enterprises', enterprise: 'Custom scale & compliance',
+      'academic-starter': 'For small classes & labs', 'academic-faculty': 'Departments & labs',
+      faculty: 'Departments & labs', 'academic-institution': 'For the whole school',
+      institution: 'For the whole school', campus: 'University-wide license',
+    };
+    const icon = iconMap[nameLower] ?? (isAcademic ? 'school' : 'workspace_premium');
+    const subtitle = subtitleMap[nameLower] ?? (isAcademic ? 'Academic plan' : 'Enterprise plan');
+
+    const recommended = ['pro', 'academic-institution', 'institution'].includes(nameLower);
+    const onRequest   = ['enterprise', 'campus'].includes(nameLower) || (p.priceMonthly === 0 && !recommended);
 
     const features: string[] = [];
     if (p.maxMembersPerWs) features.push(`${p.maxMembersPerWs} team members`);
     if (p.maxWorkspaces)   features.push(`${p.maxWorkspaces} workspaces`);
-    if (p.maxActiveProjects) features.push(`${p.maxActiveProjects} projects`);
+    if (p.maxActiveProjects) features.push(`${p.maxActiveProjects} active projects`);
     features.push(`${storageLabel} storage`);
-    if (p.mlTier && p.mlTier !== 'NONE')   features.push(`ML: ${p.mlTier}`);
-    if (p.supportTier && p.supportTier !== 'COMMUNITY') features.push(`${p.supportTier} support`);
-    if (p.apiAccess)  features.push('API access');
-    if (p.ssoEnabled) features.push('SSO / SAML');
+    if (p.mlTier === 'FULL' || p.mlTier === 'FULL_API') features.push('Full ML suite (churn, risk)');
+    else if (p.mlTier === 'BASIC') features.push('Basic ML insights');
+    if (p.supportTier === 'PRIORITY') features.push('Priority support');
+    else if (p.supportTier === 'DEDICATED') features.push('Dedicated CSM');
+    else if (p.supportTier === 'ACADEMIC') features.push('Academic support');
+    else if (p.supportTier === 'EMAIL') features.push('Email support');
+    if (p.apiAccess)       features.push('API access');
+    if (p.ssoEnabled)      features.push('SSO / SAML');
+    if (p.lmsIntegration)  features.push('LMS integration');
+    if (p.gradeExport)     features.push('Grade export');
 
     return {
       id: p.name ?? String(p.id),
       name: p.displayName ?? p.name,
-      subtitle: '',
-      icon: isAcademic ? 'school' : 'workspace_premium',
+      subtitle,
+      icon,
       monthlyPrice: p.priceMonthly ?? null,
       annualPrice:  p.priceYearly  ?? null,
       orgType: isAcademic ? 'academic' : 'enterprise',
+      recommended,
+      onRequest,
       features,
       limits: {
-        users:      p.maxMembersPerWs   ?? 'Custom',
-        workspaces: p.maxWorkspaces     ?? 'Custom',
+        users:      p.maxMembersPerWs   ?? 'Unlimited',
+        workspaces: p.maxWorkspaces     ?? 'Unlimited',
         projects:   p.maxActiveProjects ?? 'Unlimited',
         storage:    storageLabel,
       },
