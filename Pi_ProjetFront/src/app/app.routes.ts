@@ -111,6 +111,10 @@ export const routes: Routes = [
                 loadComponent: () => import("./pages/app/m2-projects/real-projects.component").then((c) => c.RealProjectsComponent),
             },
             {
+                path: "real-projects/:workspaceId/:projectId/readme-preview",
+                loadComponent: () => import("./pages/app/m2-projects/project-readme-preview.component").then((c) => c.ProjectReadmePreviewComponent),
+            },
+            {
                 path: "real-projects/:workspaceId/:projectId",
                 loadComponent: () => import("./pages/app/m2-projects/real-project-details.component").then((c) => c.ProjectDetailsComponent),
             },

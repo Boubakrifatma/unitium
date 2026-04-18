@@ -1,5 +1,5 @@
 import { Injectable, inject } from "@angular/core";
-import { HttpClient } from "@angular/common/http";
+import { HttpClient, HttpParams, HttpResponse } from "@angular/common/http";
 import { Observable } from "rxjs";
 
 export interface M2ProjectSummary {
@@ -311,5 +311,37 @@ export class M2ProjectService {
 
     confirmProjectIntelligence(workspaceId: string, body: M2PibConfirmRequest): Observable<M2ProjectSummary> {
         return this.http.post<M2ProjectSummary>(`${this.workspaceBase}/${workspaceId}/projects/pib/confirm`, body);
+    }
+
+    viewProjectReadme(
+        workspaceId: string,
+        projectId: string,
+        mode: "fast" | "enhanced" = "fast"
+    ): Observable<HttpResponse<string>> {
+        const params = new HttpParams()
+            .set("mode", mode)
+            .set("download", "false");
+
+        return this.http.get(`${this.workspaceBase}/${workspaceId}/projects/${projectId}/readme`, {
+            params,
+            observe: "response",
+            responseType: "text",
+        });
+    }
+
+    downloadProjectReadme(
+        workspaceId: string,
+        projectId: string,
+        mode: "fast" | "enhanced" = "fast"
+    ): Observable<HttpResponse<Blob>> {
+        const params = new HttpParams()
+            .set("mode", mode)
+            .set("download", "true");
+
+        return this.http.get(`${this.workspaceBase}/${workspaceId}/projects/${projectId}/readme`, {
+            params,
+            observe: "response",
+            responseType: "blob",
+        });
     }
 }

@@ -5,6 +5,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.pi_projet.entity.*;
 import com.example.pi_projet.entity.ProjectTemplate.*;
+import com.example.pi_projet.entity.TimeLineAndDeadLine.Milestone;
+import com.example.pi_projet.entity.TimeLineAndDeadLine.Task;
+import com.example.pi_projet.exception.Module2Exception;
 import com.example.pi_projet.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +18,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -43,6 +47,8 @@ public class M2DevSeedService {
 
     private record SeedTemplateStructure(String phasesJson, String milestonesJson, String tasksJson) {}
 
+    private record SeedProjectTimelineSpec(Project project, User owner, ProjectTemplate template) {}
+
     // ── Repositories ────────────────────────────────────────────────────────
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
     private final UserRepository userRepository;
@@ -52,6 +58,8 @@ public class M2DevSeedService {
     private final ProjectTemplateRepository projectTemplateRepository;
     private final ProjectRepository projectRepository;
     private final ProjectMemberRepository projectMemberRepository;
+    private final MilestoneRepository milestoneRepository;
+    private final TaskRepository taskRepository;
     private final PlanRepository planRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final TemplateFavoriteRepository templateFavoriteRepository;
@@ -60,6 +68,7 @@ public class M2DevSeedService {
     // ── Services ─────────────────────────────────────────────────────────────
     private final M2OrganizationProvisioningService organizationProvisioningService;
     private final ProjectTemplateService projectTemplateService;
+    private final TemplateStructureService templateStructureService;
 
     // ─────────────────────────────────────────────────────────────────────────
     //  ENTRY POINT
@@ -506,6 +515,33 @@ public class M2DevSeedService {
         ensureProjMember(pIntro, tutor2.getId(),   ProjectMember.ProjectRole.PROFESSOR, null);
         ensureProjMember(pIntro, student3.getId(), ProjectMember.ProjectRole.DEVELOPER, tutor2);
         ensureProjMember(pIntro, po.getId(),       ProjectMember.ProjectRole.DEVELOPER, tutor2);
+
+        // ── 9.5. Project timeline seed (milestones + tasks for richer README output) ──
+        ensureSeedProjectTimelines(List.of(
+            new SeedProjectTimelineSpec(pPlatform, manager, tplSdlc),
+            new SeedProjectTimelineSpec(pApiGw, manager, tplAgile),
+            new SeedProjectTimelineSpec(pSecAudit, manager, null),
+            new SeedProjectTimelineSpec(pDevOps, manager, tplKanban),
+            new SeedProjectTimelineSpec(pLegacy, manager, null),
+            new SeedProjectTimelineSpec(pQ4, manager, null),
+            new SeedProjectTimelineSpec(pBrand, manager, tplWaterfall),
+            new SeedProjectTimelineSpec(pMobile, manager, tplAgile),
+            new SeedProjectTimelineSpec(pAi, manager, tplMl),
+            new SeedProjectTimelineSpec(pPython, manager, null),
+            new SeedProjectTimelineSpec(pChronosCore, manager, tplAgile),
+            new SeedProjectTimelineSpec(pLegacySunset, manager, tplWaterfall),
+            new SeedProjectTimelineSpec(pPortalReboot, manager, tplKanban),
+            new SeedProjectTimelineSpec(pGrowthAnalytics, manager, tplMl),
+            new SeedProjectTimelineSpec(pMvp, manager2, tplStartup),
+            new SeedProjectTimelineSpec(pWebDev, tutor, tplCourse),
+            new SeedProjectTimelineSpec(pAlgo, tutor, tplResearch),
+            new SeedProjectTimelineSpec(pOs, tutor, null),
+            new SeedProjectTimelineSpec(pMlFund, tutor, tplMl),
+            new SeedProjectTimelineSpec(pCapstone, tutor, tplCapstone),
+            new SeedProjectTimelineSpec(pNlp, tutor, tplResearch),
+            new SeedProjectTimelineSpec(pBlockchain, tutor, null),
+            new SeedProjectTimelineSpec(pIntro, tutor2, tplCourse)
+        ));
 
         // ── 10. Template Favorites ───────────────────────────────────────────
         ensureFavorite(manager,  tplAgile);
@@ -1197,6 +1233,436 @@ public class M2DevSeedService {
         );
     }
 
+    private void ensureSeedProjectTimelines(List<SeedProjectTimelineSpec> specs) {
+        for (SeedProjectTimelineSpec spec : specs) {
+            if (spec == null || spec.project() == null || spec.owner() == null) {
+                continue;
+            }
+
+            try {
+                ensureProjectTimelineSeed(spec.project(), spec.owner(), spec.template());
+            } catch (Exception ex) {
+                log.warn(
+                    "[M2DevSeedService] Timeline seed skipped for project '{}': {}",
+                    spec.project().getName(),
+                    ex.getMessage()
+                );
+            }
+        }
+    }
+
+    private void ensureProjectTimelineSeed(Project project, User owner, ProjectTemplate template) {
+        List<Milestone> existingMilestones = milestoneRepository.findByProject_Id(project.getId());
+        List<Task> existingTasks = taskRepository.findByProject_Id(project.getId());
+
+        if (!existingMilestones.isEmpty() && !existingTasks.isEmpty()) {
+            return;
+        }
+
+        TemplateStructureService.NormalizedTemplateStructure structure = resolveTimelineStructure(project, template);
+        LocalDate projectStartDate = resolveProjectStartDate(project);
+
+        Map<String, Milestone> milestonesByKey = new LinkedHashMap<>();
+        List<Milestone> milestonePool = new ArrayList<>(existingMilestones);
+
+        if (existingMilestones.isEmpty()) {
+            milestonesByKey = createSeedMilestones(project, owner, structure, projectStartDate);
+            milestonePool = new ArrayList<>(milestonesByKey.values());
+        } else {
+            milestonePool.sort(
+                Comparator.comparing(Milestone::getDueDate, Comparator.nullsLast(Comparator.naturalOrder()))
+                    .thenComparing(Milestone::getId)
+            );
+        }
+
+        if (existingTasks.isEmpty()) {
+            createSeedTasks(project, owner, structure, projectStartDate, milestonePool, milestonesByKey);
+        }
+    }
+
+    private TemplateStructureService.NormalizedTemplateStructure resolveTimelineStructure(Project project,
+                                                                                          ProjectTemplate template) {
+        String phasesJson = firstNonBlank(
+            project.getPhasesJson(),
+            template != null ? template.getDefaultPhasesJson() : null
+        );
+        String milestonesJson = template != null ? template.getDefaultMilestonesJson() : null;
+        String tasksJson = template != null ? template.getDefaultTasksJson() : null;
+
+        SeedTemplateStructure generated = buildTemplateStructureDefaults(phasesJson, project.getName());
+
+        String normalizedPhasesJson = hasText(phasesJson) ? phasesJson : generated.phasesJson();
+        String normalizedMilestonesJson = hasNonEmptyJsonArray(milestonesJson)
+            ? milestonesJson
+            : generated.milestonesJson();
+        String normalizedTasksJson = hasNonEmptyJsonArray(tasksJson)
+            ? tasksJson
+            : generated.tasksJson();
+
+        try {
+            return templateStructureService.normalizeTemplateStructure(
+                normalizedPhasesJson,
+                normalizedMilestonesJson,
+                normalizedTasksJson,
+                "M2 seed timeline"
+            );
+        } catch (Module2Exception ex) {
+            return templateStructureService.normalizeTemplateStructure(
+                generated.phasesJson(),
+                generated.milestonesJson(),
+                generated.tasksJson(),
+                "M2 seed timeline fallback"
+            );
+        }
+    }
+
+    private Map<String, Milestone> createSeedMilestones(Project project,
+                                                        User owner,
+                                                        TemplateStructureService.NormalizedTemplateStructure structure,
+                                                        LocalDate projectStartDate) {
+        List<TemplateStructureService.MilestoneSpec> specs = structure.milestones().stream()
+            .filter(TemplateStructureService.MilestoneSpec::enabled)
+            .sorted(Comparator.comparingInt(TemplateStructureService.MilestoneSpec::offsetDays))
+            .limit(18)
+            .toList();
+
+        Map<String, Milestone> created = new LinkedHashMap<>();
+
+        if (specs.isEmpty()) {
+            List<String> fallbackNames = List.of("Kickoff", "Execution Checkpoint", "Release");
+            for (int i = 0; i < fallbackNames.size(); i++) {
+                Milestone.MilestoneStatus status = resolveSeedMilestoneStatus(
+                    project.getStatus(),
+                    i,
+                    fallbackNames.size(),
+                    "pending"
+                );
+
+                Milestone milestone = milestoneRepository.save(Milestone.builder()
+                    .project(project)
+                    .name(project.getName() + " " + fallbackNames.get(i))
+                    .description("Seeded milestone for README coverage.")
+                    .dueDate(projectStartDate.plusDays((long) i * 14L))
+                    .status(status)
+                    .completionPct(resolveSeedMilestoneCompletion(status, 0f))
+                    .createdBy(owner)
+                    .build());
+                created.put("fallback-ms-" + (i + 1), milestone);
+            }
+            return created;
+        }
+
+        for (int i = 0; i < specs.size(); i++) {
+            TemplateStructureService.MilestoneSpec spec = specs.get(i);
+            Milestone.MilestoneStatus status = resolveSeedMilestoneStatus(
+                project.getStatus(),
+                i,
+                specs.size(),
+                spec.status()
+            );
+
+            Milestone milestone = milestoneRepository.save(Milestone.builder()
+                .project(project)
+                .name(spec.name())
+                .description(spec.description())
+                .dueDate(resolveSeedDateFromOffset(projectStartDate, spec.offsetDays()))
+                .status(status)
+                .completionPct(resolveSeedMilestoneCompletion(status, spec.completionPct()))
+                .createdBy(owner)
+                .build());
+
+            created.put(spec.key(), milestone);
+        }
+
+        return created;
+    }
+
+    private void createSeedTasks(Project project,
+                                 User owner,
+                                 TemplateStructureService.NormalizedTemplateStructure structure,
+                                 LocalDate projectStartDate,
+                                 List<Milestone> milestonePool,
+                                 Map<String, Milestone> milestonesByKey) {
+        List<User> assignableUsers = resolveAssignableProjectUsers(project, owner);
+
+        Map<String, Integer> milestoneOffsetByKey = new LinkedHashMap<>();
+        for (TemplateStructureService.MilestoneSpec milestoneSpec : structure.milestones()) {
+            milestoneOffsetByKey.put(milestoneSpec.key(), milestoneSpec.offsetDays());
+        }
+
+        List<TemplateStructureService.TaskSpec> specs = structure.tasks().stream()
+            .filter(TemplateStructureService.TaskSpec::enabled)
+            .limit(36)
+            .toList();
+
+        Map<String, Task> tasksByKey = new LinkedHashMap<>();
+        Map<String, String> parentReferences = new LinkedHashMap<>();
+
+        if (specs.isEmpty()) {
+            int fallbackCount = Math.max(3, milestonePool.isEmpty() ? 3 : Math.min(6, milestonePool.size() * 2));
+            for (int i = 0; i < fallbackCount; i++) {
+                Milestone milestone = milestonePool.isEmpty() ? null : milestonePool.get(i % milestonePool.size());
+                User assignedTo = assignableUsers.isEmpty() ? null : assignableUsers.get(i % assignableUsers.size());
+                Task.TaskStatus status = resolveSeedTaskStatus(project.getStatus(), i, fallbackCount, "todo");
+
+                LocalDate startDate = projectStartDate.plusDays((long) i * 5L);
+                LocalDate dueDate = startDate.plusDays(4L);
+
+                taskRepository.save(Task.builder()
+                    .project(project)
+                    .milestone(milestone)
+                    .title((milestone != null ? milestone.getName() : project.getName()) + " Task " + (i + 1))
+                    .description("Seeded delivery task for README timeline coverage.")
+                    .taskType(Task.TaskType.task)
+                    .status(status)
+                    .priority(i == fallbackCount - 1 ? Task.TaskPriority.high : Task.TaskPriority.medium)
+                    .estimatedHours(6f + i)
+                    .createdBy(owner)
+                    .assignedTo(assignedTo)
+                    .startDate(startDate)
+                    .dueDate(dueDate)
+                    .build());
+            }
+            return;
+        }
+
+        for (int i = 0; i < specs.size(); i++) {
+            TemplateStructureService.TaskSpec spec = specs.get(i);
+
+            Milestone milestone = spec.milestoneKey() != null ? milestonesByKey.get(spec.milestoneKey()) : null;
+            if (milestone == null && !milestonePool.isEmpty()) {
+                milestone = milestonePool.get(i % milestonePool.size());
+            }
+
+            User assignedTo = assignableUsers.isEmpty() ? null : assignableUsers.get(i % assignableUsers.size());
+            Task.TaskStatus status = resolveSeedTaskStatus(project.getStatus(), i, specs.size(), spec.status());
+
+            Task task = Task.builder()
+                .project(project)
+                .milestone(milestone)
+                .title(spec.title())
+                .description(spec.description())
+                .taskType(parseTaskType(spec.taskType(), Task.TaskType.task))
+                .status(status)
+                .priority(parseTaskPriority(spec.priority(), Task.TaskPriority.medium))
+                .estimatedHours(spec.estimatedHours() != null ? spec.estimatedHours() : (6f + (i % 6)))
+                .createdBy(owner)
+                .assignedTo(assignedTo)
+                .startDate(resolveSeedTaskStartDate(projectStartDate, spec, milestoneOffsetByKey))
+                .dueDate(resolveSeedTaskDueDate(projectStartDate, spec, milestoneOffsetByKey))
+                .build();
+
+            Task saved = taskRepository.save(task);
+            tasksByKey.put(spec.key(), saved);
+
+            if (hasText(spec.parentTaskKey())) {
+                parentReferences.put(spec.key(), spec.parentTaskKey());
+            }
+        }
+
+        for (Map.Entry<String, String> parentRef : parentReferences.entrySet()) {
+            Task child = tasksByKey.get(parentRef.getKey());
+            Task parent = tasksByKey.get(parentRef.getValue());
+            if (child == null || parent == null || Objects.equals(child.getId(), parent.getId())) {
+                continue;
+            }
+
+            child.setParentTask(parent);
+            taskRepository.save(child);
+        }
+    }
+
+    private List<User> resolveAssignableProjectUsers(Project project, User owner) {
+        LinkedHashSet<Long> userIds = new LinkedHashSet<>();
+        for (ProjectMember member : projectMemberRepository.findAllByProjectId(project.getId())) {
+            userIds.add(member.getUserId());
+        }
+        if (owner != null && owner.getId() != null) {
+            userIds.add(owner.getId());
+        }
+
+        if (userIds.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, User> usersById = new LinkedHashMap<>();
+        userRepository.findAllById(userIds).forEach(user -> usersById.put(user.getId(), user));
+
+        List<User> users = new ArrayList<>();
+        for (Long userId : userIds) {
+            User user = usersById.get(userId);
+            if (user != null) {
+                users.add(user);
+            }
+        }
+
+        return users;
+    }
+
+    private LocalDate resolveProjectStartDate(Project project) {
+        if (project.getStartDate() != null) {
+            return project.getStartDate();
+        }
+        if (project.getCreatedAt() != null) {
+            return project.getCreatedAt().atZone(ZoneId.systemDefault()).toLocalDate();
+        }
+        return LocalDate.now();
+    }
+
+    private LocalDate resolveSeedDateFromOffset(LocalDate projectStartDate, Integer offsetDays) {
+        if (projectStartDate == null || offsetDays == null) {
+            return null;
+        }
+        return projectStartDate.plusDays(Math.max(0, offsetDays));
+    }
+
+    private LocalDate resolveSeedTaskStartDate(LocalDate projectStartDate,
+                                               TemplateStructureService.TaskSpec spec,
+                                               Map<String, Integer> milestoneOffsetByKey) {
+        Integer startOffset = spec.startOffsetDays();
+        if (startOffset == null && spec.milestoneKey() != null) {
+            startOffset = milestoneOffsetByKey.get(spec.milestoneKey());
+        }
+        return resolveSeedDateFromOffset(projectStartDate, startOffset);
+    }
+
+    private LocalDate resolveSeedTaskDueDate(LocalDate projectStartDate,
+                                             TemplateStructureService.TaskSpec spec,
+                                             Map<String, Integer> milestoneOffsetByKey) {
+        Integer dueOffset = spec.dueOffsetDays();
+        Integer inferredStartOffset = spec.startOffsetDays();
+
+        if (inferredStartOffset == null && spec.milestoneKey() != null) {
+            inferredStartOffset = milestoneOffsetByKey.get(spec.milestoneKey());
+        }
+
+        if (dueOffset == null && inferredStartOffset != null && spec.estimatedHours() != null && spec.estimatedHours() > 0f) {
+            int estimatedDays = Math.max(1, (int) Math.ceil(spec.estimatedHours() / 8.0));
+            dueOffset = inferredStartOffset + estimatedDays;
+        }
+
+        if (dueOffset == null) {
+            dueOffset = inferredStartOffset;
+        }
+
+        return resolveSeedDateFromOffset(projectStartDate, dueOffset);
+    }
+
+    private Milestone.MilestoneStatus resolveSeedMilestoneStatus(Project.ProjectStatus projectStatus,
+                                                                 int index,
+                                                                 int total,
+                                                                 String fallbackStatus) {
+        Milestone.MilestoneStatus fallback = parseMilestoneStatus(fallbackStatus, Milestone.MilestoneStatus.pending);
+        if (projectStatus == null) {
+            return fallback;
+        }
+
+        return switch (projectStatus) {
+            case COMPLETED, ARCHIVED -> Milestone.MilestoneStatus.completed;
+            case ACTIVE -> index < Math.max(1, total / 2)
+                ? Milestone.MilestoneStatus.completed
+                : Milestone.MilestoneStatus.in_progress;
+            case ON_HOLD -> index == 0
+                ? Milestone.MilestoneStatus.completed
+                : Milestone.MilestoneStatus.at_risk;
+            case CANCELLED -> index == 0
+                ? Milestone.MilestoneStatus.completed
+                : Milestone.MilestoneStatus.missed;
+            case PLANNING -> fallback;
+        };
+    }
+
+    private float resolveSeedMilestoneCompletion(Milestone.MilestoneStatus status, float fallbackCompletion) {
+        return switch (status) {
+            case completed -> 100f;
+            case in_progress -> Math.max(40f, Math.min(95f, fallbackCompletion > 0f ? fallbackCompletion : 65f));
+            case at_risk -> Math.max(20f, Math.min(80f, fallbackCompletion > 0f ? fallbackCompletion : 45f));
+            case missed -> Math.max(5f, Math.min(60f, fallbackCompletion > 0f ? fallbackCompletion : 20f));
+            case pending -> Math.max(0f, Math.min(35f, fallbackCompletion));
+        };
+    }
+
+    private Task.TaskStatus resolveSeedTaskStatus(Project.ProjectStatus projectStatus,
+                                                  int index,
+                                                  int total,
+                                                  String fallbackStatus) {
+        Task.TaskStatus fallback = parseTaskStatus(fallbackStatus, Task.TaskStatus.todo);
+        if (projectStatus == null) {
+            return fallback;
+        }
+
+        return switch (projectStatus) {
+            case COMPLETED, ARCHIVED -> Task.TaskStatus.done;
+            case ACTIVE -> {
+                int doneThreshold = Math.max(1, total / 3);
+                int progressThreshold = Math.max(doneThreshold + 1, (total * 2) / 3);
+                if (index < doneThreshold) {
+                    yield Task.TaskStatus.done;
+                }
+                if (index < progressThreshold) {
+                    yield Task.TaskStatus.in_progress;
+                }
+                yield fallback;
+            }
+            case ON_HOLD -> {
+                if (index == 0) {
+                    yield Task.TaskStatus.done;
+                }
+                if (index == 1) {
+                    yield Task.TaskStatus.blocked;
+                }
+                yield fallback;
+            }
+            case CANCELLED -> Task.TaskStatus.blocked;
+            case PLANNING -> fallback;
+        };
+    }
+
+    private Milestone.MilestoneStatus parseMilestoneStatus(String rawStatus,
+                                                           Milestone.MilestoneStatus fallback) {
+        if (!hasText(rawStatus)) {
+            return fallback;
+        }
+        try {
+            return Milestone.MilestoneStatus.valueOf(rawStatus.trim().toLowerCase(Locale.ROOT));
+        } catch (Exception ex) {
+            return fallback;
+        }
+    }
+
+    private Task.TaskType parseTaskType(String rawType, Task.TaskType fallback) {
+        if (!hasText(rawType)) {
+            return fallback;
+        }
+        try {
+            return Task.TaskType.valueOf(rawType.trim().toLowerCase(Locale.ROOT));
+        } catch (Exception ex) {
+            return fallback;
+        }
+    }
+
+    private Task.TaskStatus parseTaskStatus(String rawStatus, Task.TaskStatus fallback) {
+        if (!hasText(rawStatus)) {
+            return fallback;
+        }
+        try {
+            return Task.TaskStatus.valueOf(rawStatus.trim().toLowerCase(Locale.ROOT));
+        } catch (Exception ex) {
+            return fallback;
+        }
+    }
+
+    private Task.TaskPriority parseTaskPriority(String rawPriority, Task.TaskPriority fallback) {
+        if (!hasText(rawPriority)) {
+            return fallback;
+        }
+        try {
+            return Task.TaskPriority.valueOf(rawPriority.trim().toLowerCase(Locale.ROOT));
+        } catch (Exception ex) {
+            return fallback;
+        }
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     //  FAVORITES  &  RATINGS
     // ─────────────────────────────────────────────────────────────────────────
@@ -1520,6 +1986,10 @@ public class M2DevSeedService {
         } catch (Exception ex) {
             return false;
         }
+    }
+
+    private String firstNonBlank(String primary, String fallback) {
+        return hasText(primary) ? primary : fallback;
     }
 
     private boolean hasText(String value) {

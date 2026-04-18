@@ -2,6 +2,7 @@ import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from "@angular/common/http";
 import { Component, OnInit, computed, inject, signal } from "@angular/core";
 import { FormsModule, NgForm } from "@angular/forms";
+import { DomSanitizer, SafeResourceUrl } from "@angular/platform-browser";
 import { MatButtonModule } from "@angular/material/button";
 import { MatCardModule } from "@angular/material/card";
 import { MatDividerModule } from "@angular/material/divider";
@@ -89,6 +90,18 @@ interface ProjectMilestoneSnapshot {
                     <div class="col-auto order-2 order-lg-5 mb-3 mb-xl-0">
                         <button matButton (click)="backToRealProjects()"><mat-icon class="material-icons-outlined">arrow_back</mat-icon> Back</button>
                         <button matButton class="ms-1" (click)="refresh()"><mat-icon class="material-icons-outlined">refresh</mat-icon> Refresh</button>
+                        <button matButton class="ms-1" [disabled]="!canManageProjects() || readmeGenerating() !== null || isLoading()" (click)="generateReadme('fast')">
+                            <mat-icon class="material-icons-outlined">description</mat-icon>
+                            README
+                        </button>
+                        <button matButton class="ms-1" [disabled]="!canManageProjects() || readmeGenerating() !== null || isLoading()" (click)="generateReadme('enhanced')">
+                            <mat-icon class="material-icons-outlined">auto_awesome</mat-icon>
+                            README+
+                        </button>
+                        <button matButton class="ms-1" [disabled]="isLoading()" (click)="openReadmePreview()">
+                            <mat-icon class="material-icons-outlined">preview</mat-icon>
+                            README View
+                        </button>
                         <button matButton="filled" class="ms-1" [disabled]="!canManageProjects()" (click)="startEdit()">
                             <mat-icon class="material-icons-outlined">edit</mat-icon>
                             Edit Project
@@ -661,7 +674,7 @@ interface ProjectMilestoneSnapshot {
                         <div class="col-8 col-md-4">
                             <mat-form-field appearance="outline" class="w-100 inline-small" style="margin:0;">
                                 <mat-label>Country</mat-label>
-                                <input matInput [(ngModel)]="projectHolidayCountry" maxlength="2" placeholder="TN" />
+                                <input matInput [(ngModel)]="projectHolidayCountry" (ngModelChange)="onProjectHolidayCountryChanged($event)" maxlength="2" placeholder="TN" />
                             </mat-form-field>
                         </div>
                         <div class="col-4 col-md-2 d-flex align-items-center">
@@ -674,6 +687,53 @@ interface ProjectMilestoneSnapshot {
                             <span class="badge badge-light">{{ projectDurationHolidays().length }} holidays in range</span>
                             <span class="badge badge-light">{{ projectDurationUpcomingCount() }} upcoming</span>
                         </div>
+                    </div>
+
+                    <div class="mb-2" style="border:1px solid rgba(15,23,42,0.1);border-radius:10px;padding:9px;background:#fff;">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1">
+                            <div>
+                                <p class="mb-0" style="font-size:12px;font-weight:600;color:#0f172a;">Detected Location (Auto)</p>
+                                @if (detectedHolidayLocationLabel()) {
+                                    <p class="mb-0" style="font-size:11px;color:#475569;">{{ detectedHolidayLocationLabel() }}</p>
+                                } @else {
+                                    <p class="mb-0" style="font-size:11px;color:#64748b;">No location detected yet.</p>
+                                }
+                            </div>
+                            <div class="d-flex align-items-center gap-1">
+                                @if (projectHolidayCountryDetected()) {
+                                    <span class="badge badge-light" style="font-size:10px;">Used for holidays: {{ projectHolidayCountryDetected() }}</span>
+                                }
+                                <button matButton class="text-theme" style="padding:2px 8px;min-height:28px;line-height:1.1;" (click)="detectHolidayLocation(true)" [disabled]="detectHolidayLocationLoading()">
+                                    <mat-icon class="material-icons-outlined" style="font-size:14px;width:14px;height:14px;">my_location</mat-icon>
+                                    Detect
+                                </button>
+                            </div>
+                        </div>
+
+                        @if (detectHolidayLocationLoading()) {
+                            <div class="d-flex align-items-center gap-2 text-secondary" style="font-size:11px;">
+                                <mat-icon class="material-icons-outlined" style="font-size:14px;width:14px;height:14px;animation:spin 1s linear infinite;">cached</mat-icon>
+                                Detecting location from browser GPS/locale...
+                            </div>
+                        }
+
+                        @if (detectHolidayLocationError()) {
+                            <p class="mb-0" style="font-size:11px;color:#b91c1c;">{{ detectHolidayLocationError() }}</p>
+                        }
+
+                        @if (detectedHolidayMapEmbedUrl()) {
+                            <div class="mt-2" style="border:1px solid rgba(15,23,42,0.08);border-radius:8px;overflow:hidden;background:#f8fafc;">
+                                <iframe
+                                    [src]="detectedHolidayMapEmbedUrl()"
+                                    title="Detected location map"
+                                    width="100%"
+                                    height="150"
+                                    style="border:0;display:block;"
+                                    loading="lazy"
+                                    referrerpolicy="no-referrer-when-downgrade">
+                                </iframe>
+                            </div>
+                        }
                     </div>
 
                     @if (!project()?.startDate || !project()?.endDate) {
@@ -1011,6 +1071,7 @@ interface ProjectMilestoneSnapshot {
 export class ProjectDetailsComponent implements OnInit {
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
+    private readonly sanitizer = inject(DomSanitizer);
     private readonly dialog = inject(MatDialog);
     private readonly snackBar = inject(MatSnackBar);
     private readonly projectService = inject(M2ProjectService);
@@ -1023,6 +1084,7 @@ export class ProjectDetailsComponent implements OnInit {
     readonly isLoading = signal(true);
     readonly error = signal<string | null>(null);
     readonly editMode = signal(false);
+    readonly readmeGenerating = signal<"fast" | "enhanced" | null>(null);
 
     readonly workspaceId = signal("");
     readonly projectId = signal("");
@@ -1055,6 +1117,14 @@ export class ProjectDetailsComponent implements OnInit {
     readonly projectDurationHolidays = signal<M2WorkspaceHoliday[]>([]);
     readonly projectDurationHolidaysLoading = signal(false);
     readonly projectDurationHolidaysError = signal<string | null>(null);
+    readonly detectHolidayLocationLoading = signal(false);
+    readonly detectHolidayLocationError = signal<string | null>(null);
+    readonly projectHolidayCountryDetected = signal<string | null>(null);
+    readonly projectHolidayLocationCity = signal<string | null>(null);
+    readonly projectHolidayLocationCountryName = signal<string | null>(null);
+    readonly projectHolidayLocationLat = signal<number | null>(null);
+    readonly projectHolidayLocationLon = signal<number | null>(null);
+    readonly detectedHolidayMapEmbedUrl = signal<SafeResourceUrl | null>(null);
 
     projectHolidayCountry = "TN";
 
@@ -1153,6 +1223,16 @@ export class ProjectDetailsComponent implements OnInit {
     readonly nextProjectDurationHoliday = computed(() =>
         this.projectDurationHolidays().find((holiday) => this.projectHolidayRelativeDays(holiday) >= 0) ?? null
     );
+
+    readonly detectedHolidayLocationLabel = computed(() => {
+        const city = this.projectHolidayLocationCity();
+        const countryName = this.projectHolidayLocationCountryName();
+        const countryCode = this.projectHolidayCountryDetected();
+        if (city && countryName) return `${city}, ${countryName}`;
+        if (countryName) return countryCode ? `${countryName} (${countryCode})` : countryName;
+        if (countryCode) return `Country code ${countryCode}`;
+        return null;
+    });
 
     readonly parsedProjectPhases = computed((): Array<{ name?: string; durationDays?: number }> => {
         const json = this.project()?.phasesJson;
@@ -1264,6 +1344,206 @@ export class ProjectDetailsComponent implements OnInit {
         this.loadProjectDurationHolidays(this.workspaceId(), this.project());
     }
 
+    detectHolidayLocation(refreshAfterDetect: boolean): void {
+        this.detectHolidayLocationLoading.set(true);
+        this.detectHolidayLocationError.set(null);
+
+        const localeCountry = this.detectCountryFromBrowserLocale();
+        const timezoneCountry = this.detectCountryFromTimezone();
+        const detectedCountry = localeCountry || timezoneCountry;
+        const cityFromTimezone = this.detectCityFromTimezone();
+
+        const sourceFromFallback = localeCountry ? "locale" : timezoneCountry ? "timezone" : "default";
+
+        const applyWithCoordinates = (lat: number | null, lon: number | null) => {
+            const countryCode = (detectedCountry || this.projectHolidayCountry || "TN").trim().toUpperCase().slice(0, 2) || "TN";
+            const countryName = this.countryNameFromCode(countryCode);
+            this.applyDetectedLocation(
+                {
+                    countryCode,
+                    city: cityFromTimezone,
+                    countryName,
+                    lat,
+                    lon,
+                },
+                refreshAfterDetect,
+                sourceFromFallback
+            );
+        };
+
+        if (!("geolocation" in navigator)) {
+            if (detectedCountry) {
+                applyWithCoordinates(null, null);
+                return;
+            }
+            this.detectHolidayLocationLoading.set(false);
+            this.detectHolidayLocationError.set("Automatic location is unavailable in this browser.");
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+                const reverse = await this.reverseGeocodeCountry(lat, lon);
+                const countryCode = (reverse?.countryCode || detectedCountry || this.projectHolidayCountry || "TN").trim().toUpperCase().slice(0, 2) || "TN";
+                const countryName = reverse?.countryName || this.countryNameFromCode(countryCode);
+
+                this.applyDetectedLocation(
+                    {
+                        countryCode,
+                        city: reverse?.city || cityFromTimezone,
+                        countryName,
+                        lat,
+                        lon,
+                    },
+                    refreshAfterDetect,
+                    reverse?.countryCode ? "gps-reverse" : sourceFromFallback
+                );
+            },
+            () => {
+                if (detectedCountry) {
+                    applyWithCoordinates(null, null);
+                    return;
+                }
+                this.detectHolidayLocationLoading.set(false);
+                this.detectHolidayLocationError.set("Allow browser location to auto-detect your country.");
+            },
+            {
+                enableHighAccuracy: false,
+                timeout: 6000,
+                maximumAge: 10 * 60 * 1000,
+            }
+        );
+    }
+
+    onProjectHolidayCountryChanged(value: string): void {
+        const normalized = String(value || "").trim().toUpperCase().slice(0, 2);
+        if (normalized.length === 2) {
+            this.projectHolidayCountry = normalized;
+            this.projectHolidayCountryDetected.set(normalized);
+        }
+    }
+
+    private async reverseGeocodeCountry(lat: number, lon: number): Promise<{ countryCode: string; countryName: string | null; city: string | null } | null> {
+        try {
+            const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${encodeURIComponent(String(lat))}&longitude=${encodeURIComponent(String(lon))}&localityLanguage=en`;
+            const res = await fetch(url);
+            if (!res.ok) return null;
+            const data = await res.json();
+            const countryCode = String(data?.countryCode || "").trim().toUpperCase();
+            if (!countryCode || countryCode.length !== 2) return null;
+            const countryName = String(data?.countryName || "").trim() || null;
+            const city = String(data?.city || data?.locality || data?.principalSubdivision || "").trim() || null;
+            return { countryCode, countryName, city };
+        } catch {
+            return null;
+        }
+    }
+
+    private detectCountryFromBrowserLocale(): string | null {
+        const localeCandidates = [navigator.language, ...(navigator.languages || [])].filter(Boolean);
+
+        for (const locale of localeCandidates) {
+            const normalized = String(locale).trim();
+            if (!normalized) continue;
+
+            try {
+                const region = new Intl.Locale(normalized).region;
+                if (region && /^[A-Za-z]{2}$/.test(region)) {
+                    return region.toUpperCase();
+                }
+            } catch {
+                // Ignore invalid locale strings and continue.
+            }
+
+            const parts = normalized.replace("_", "-").split("-");
+            const regionCandidate = parts.find((p) => /^[A-Za-z]{2}$/.test(p));
+            if (regionCandidate) {
+                return regionCandidate.toUpperCase();
+            }
+        }
+
+        return null;
+    }
+
+    private detectCountryFromTimezone(): string | null {
+        const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+        const map: Record<string, string> = {
+            "Africa/Tunis": "TN",
+            "Africa/Algiers": "DZ",
+            "Africa/Casablanca": "MA",
+            "Africa/Cairo": "EG",
+            "Europe/Paris": "FR",
+            "Europe/London": "GB",
+            "Europe/Berlin": "DE",
+            "Europe/Rome": "IT",
+            "Europe/Madrid": "ES",
+            "Europe/Istanbul": "TR",
+            "Europe/Moscow": "RU",
+            "America/New_York": "US",
+            "America/Chicago": "US",
+            "America/Denver": "US",
+            "America/Los_Angeles": "US",
+            "America/Toronto": "CA",
+            "America/Montreal": "CA",
+            "America/Sao_Paulo": "BR",
+            "America/Buenos_Aires": "AR",
+            "Asia/Dubai": "AE",
+            "Asia/Riyadh": "SA",
+            "Asia/Tokyo": "JP",
+            "Asia/Seoul": "KR",
+            "Asia/Shanghai": "CN",
+            "Asia/Hong_Kong": "HK",
+            "Asia/Singapore": "SG",
+            "Australia/Sydney": "AU",
+            "Australia/Melbourne": "AU",
+            "Pacific/Auckland": "NZ",
+        };
+
+        return map[timeZone] || null;
+    }
+
+    private detectCityFromTimezone(): string | null {
+        const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+        const cityToken = timeZone.split("/").pop();
+        if (!cityToken) return null;
+        return cityToken.replace(/_/g, " ");
+    }
+
+    private countryNameFromCode(countryCode: string): string | null {
+        if (!countryCode || countryCode.length !== 2) return null;
+        try {
+            const display = new Intl.DisplayNames([navigator.language || "en"], { type: "region" }).of(countryCode);
+            return display ? String(display) : null;
+        } catch {
+            return null;
+        }
+    }
+
+    private applyDetectedLocation(
+        detected: { countryCode: string; city: string | null; countryName: string | null; lat: number | null; lon: number | null },
+        refreshAfterDetect: boolean,
+        source: string
+    ): void {
+        this.projectHolidayCountry = detected.countryCode;
+        this.projectHolidayCountryDetected.set(detected.countryCode);
+        this.projectHolidayLocationCity.set(detected.city);
+        this.projectHolidayLocationCountryName.set(detected.countryName);
+        this.projectHolidayLocationLat.set(detected.lat);
+        this.projectHolidayLocationLon.set(detected.lon);
+        this.detectedHolidayMapEmbedUrl.set(this.buildHolidayMapEmbedUrl(detected.lat, detected.lon));
+        this.detectHolidayLocationLoading.set(false);
+
+        if (source === "default") {
+            this.detectHolidayLocationError.set("Country estimated from your browser settings. You can adjust manually.");
+        }
+
+        if (refreshAfterDetect) {
+            this.refreshProjectDurationHolidays();
+        }
+    }
+
     projectHolidayRelativeDays(holiday: M2WorkspaceHoliday): number {
         const holidayDate = this.parseIsoDate(holiday.date);
         if (!holidayDate) return 0;
@@ -1299,6 +1579,7 @@ export class ProjectDetailsComponent implements OnInit {
         const rangeEnd = new Date(Math.max(startDate.getTime(), endDate.getTime()));
         const country = (this.projectHolidayCountry || "TN").trim().toUpperCase().slice(0, 2) || "TN";
         this.projectHolidayCountry = country;
+        this.projectHolidayCountryDetected.set(country);
 
         const startYear = rangeStart.getFullYear();
         const endYear = rangeEnd.getFullYear();
@@ -1448,6 +1729,64 @@ export class ProjectDetailsComponent implements OnInit {
 
     refresh(): void {
         this.loadData();
+    }
+
+    openReadmePreview(mode: "fast" | "enhanced" = "fast"): void {
+        const workspaceId = this.workspaceId();
+        const projectId = this.projectId();
+        if (!workspaceId || !projectId) {
+            return;
+        }
+
+        this.router.navigate([
+            "/app/real-projects",
+            workspaceId,
+            projectId,
+            "readme-preview",
+        ], {
+            queryParams: {
+                mode,
+                ...this.historicalQueryParams(),
+            },
+        });
+    }
+
+    generateReadme(mode: "fast" | "enhanced" = "fast"): void {
+        if (!this.canManageProjects() || this.readmeGenerating() !== null) {
+            return;
+        }
+
+        const workspaceId = this.workspaceId();
+        const projectId = this.projectId();
+        if (!workspaceId || !projectId) {
+            return;
+        }
+
+        this.readmeGenerating.set(mode);
+
+        this.projectService.downloadProjectReadme(workspaceId, projectId, mode).subscribe({
+            next: (response) => {
+                const blob = response.body ?? new Blob([""], { type: "text/markdown;charset=utf-8" });
+                const fileName = this.extractReadmeFilename(response.headers.get("content-disposition"))
+                    || this.defaultReadmeFilename(mode);
+
+                this.downloadBlob(blob, fileName);
+                this.snackBar.open(
+                    mode === "enhanced"
+                        ? "Enhanced README generated and downloaded."
+                        : "README generated and downloaded.",
+                    "Close",
+                    { duration: 3200 }
+                );
+            },
+            error: (error: HttpErrorResponse) => {
+                this.readmeGenerating.set(null);
+                this.snackBar.open(`Failed to generate README: ${this.errorMessage(error)}`, "Close", { duration: 4500 });
+            },
+            complete: () => {
+                this.readmeGenerating.set(null);
+            },
+        });
     }
 
     backToRealProjects(): void {
@@ -1745,6 +2084,9 @@ this.editStartDate = p.startDate || "";
 
                 this.members.set(this.mapProjectMembers(payload.projectMembers, payload.workspaceMembers));
                 this.loadMilestoneSnapshot(payload.project.id);
+                if (!this.projectHolidayCountryDetected()) {
+                    this.detectHolidayLocation(true);
+                }
                 this.loadProjectDurationHolidays(workspaceId, payload.project);
                 this.loadProjectRepoInsights(workspaceId, projectId);
                 this.projectHealth.set(payload.health);
@@ -1850,6 +2192,45 @@ this.editStartDate = p.startDate || "";
         });
     }
 
+    private extractReadmeFilename(contentDisposition: string | null): string | null {
+        if (!contentDisposition) {
+            return null;
+        }
+
+        const utfMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+        if (utfMatch?.[1]) {
+            try {
+                return decodeURIComponent(utfMatch[1].trim());
+            } catch {
+                return utfMatch[1].trim();
+            }
+        }
+
+        const asciiMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+        return asciiMatch?.[1]?.trim() || null;
+    }
+
+    private defaultReadmeFilename(mode: "fast" | "enhanced"): string {
+        const projectName = (this.project()?.name || "project")
+            .toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, "")
+            .trim()
+            .replace(/\s+/g, "-");
+        const date = new Date().toISOString().slice(0, 10);
+        return `${projectName || "project"}-readme-${mode}-${date}.md`;
+    }
+
+    private downloadBlob(blob: Blob, fileName: string): void {
+        const objectUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = objectUrl;
+        anchor.download = fileName;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        URL.revokeObjectURL(objectUrl);
+    }
+
     private isManageRole(role: string): boolean {
         const normalized = (role || "").toUpperCase();
         return normalized === "PROJECT_MANAGER" || normalized === "PROFESSOR";
@@ -1883,5 +2264,20 @@ this.editStartDate = p.startDate || "";
             return null;
         }
         return new Date(year, month - 1, day);
+    }
+
+    private buildHolidayMapEmbedUrl(lat: number | null, lon: number | null): SafeResourceUrl | null {
+        if (lat === null || lon === null) {
+            return null;
+        }
+
+        const delta = 6;
+        const minLon = Math.max(-180, lon - delta);
+        const maxLon = Math.min(180, lon + delta);
+        const minLat = Math.max(-85, lat - delta);
+        const maxLat = Math.min(85, lat + delta);
+
+        const url = `https://www.openstreetmap.org/export/embed.html?bbox=${minLon},${minLat},${maxLon},${maxLat}&layer=mapnik&marker=${lat},${lon}`;
+        return this.sanitizer.bypassSecurityTrustResourceUrl(url);
     }
 }
