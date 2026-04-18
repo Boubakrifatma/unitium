@@ -137,6 +137,28 @@ export interface M2TemplateCoverSuggestionsResponse {
     items: M2TemplateCoverSuggestion[];
 }
 
+export interface M2AcademicSourceItem {
+    id?: string;
+    title?: string;
+    publicationYear?: number | null;
+    citedByCount?: number | null;
+    openAccessUrl?: string | null;
+    landingPageUrl?: string | null;
+    firstAuthor?: string | null;
+}
+
+export interface M2AcademicSourcesResponse {
+    provider: string;
+    providerUrl: string;
+    query: string;
+    generatedAt: string;
+    providerStatus: "live" | "fallback";
+    warning?: string;
+    pageSize: number;
+    count: number;
+    items: M2AcademicSourceItem[];
+}
+
 export interface TemplateLaunchOverrides {
     phases?: Array<Record<string, unknown>> | string;
     milestones?: Array<Record<string, unknown>> | string;
@@ -251,6 +273,14 @@ export class M2TemplateService {
         p.set("q", query);
         p.set("pageSize", String(pageSize));
         return this.http.get<M2TemplateCoverSuggestionsResponse>(`${this.base}/cover-suggestions?${p.toString()}`);
+    }
+
+    getAcademicSources(query: string, options: { perPage?: number; workspaceId?: string } = {}): Observable<M2AcademicSourcesResponse> {
+        const p = new URLSearchParams();
+        p.set("q", query);
+        p.set("perPage", String(options.perPage ?? 8));
+        if (options.workspaceId) p.set("workspaceId", options.workspaceId);
+        return this.http.get<M2AcademicSourcesResponse>(`${this.base}/academic-sources?${p.toString()}`);
     }
 
     toggleFavorite(id: string): Observable<{ favorited: boolean; favoriteCount: number }> {

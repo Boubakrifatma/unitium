@@ -1644,17 +1644,14 @@ export class ProjectDetailsComponent implements OnInit {
         this.milestonesError.set(null);
         this.milestoneSnapshot.set([]);
 
-        this.milestoneService.getAll().pipe(
+        this.milestoneService.getByProjectId(projectId).pipe(
             catchError(() => {
                 this.milestonesError.set("Unable to load milestones for this project.");
                 this.milestonesLoading.set(false);
                 return of([] as Milestone[]);
             })
         ).subscribe((milestones) => {
-            const related = (milestones || []).filter((milestone) => {
-                const milestoneProjectId = milestone.projectId ?? milestone.project?.id;
-                return milestoneProjectId === projectId && milestone.id !== undefined && milestone.id !== null;
-            });
+            const related = (milestones || []).filter((milestone) => milestone.id !== undefined && milestone.id !== null);
 
             if (related.length === 0) {
                 this.milestoneSnapshot.set([]);

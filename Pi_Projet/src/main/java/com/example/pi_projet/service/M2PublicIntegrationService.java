@@ -49,6 +49,12 @@ public class M2PublicIntegrationService {
     @Value("${integrations.public.openverse.base-url:https://api.openverse.engineering/v1}")
     private String openverseBaseUrl;
 
+    @Value("${integrations.public.openalex.base-url:https://api.openalex.org}")
+    private String openAlexBaseUrl;
+
+    @Value("${integrations.public.openalex.contact-email:}")
+    private String openAlexContactEmail;
+
     public Map<String, Object> getPublicHolidays(String countryCode, int year) {
         String safeCountry = normalizeCountryCode(countryCode);
         int safeYear = Math.max(2000, Math.min(2100, year));
@@ -349,6 +355,98 @@ public class M2PublicIntegrationService {
         }
     }
 
+    public Map<String, Object> getAcademicSources(String query, int perPage) {
+        if (!StringUtils.hasText(query)) {
+            throw new Module2Exception(VALIDATION, "q is required");
+        }
+
+        int safePerPage = Math.max(1, Math.min(perPage, 20));
+        String encodedQuery = UriUtils.encodeQueryParam(query.trim(), StandardCharsets.UTF_8);
+        String url = trimTrailingSlash(openAlexBaseUrl)
+            + "/works?search=" + encodedQuery
+            + "&per-page=" + safePerPage;
+
+        if (StringUtils.hasText(openAlexContactEmail)) {
+            url += "&mailto=" + UriUtils.encodeQueryParam(openAlexContactEmail.trim(), StandardCharsets.UTF_8);
+        }
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("provider", "OpenAlex");
+        payload.put("providerUrl", trimTrailingSlash(openAlexBaseUrl));
+        payload.put("query", query.trim());
+        payload.put("pageSize", safePerPage);
+        payload.put("generatedAt", Instant.now());
+
+        try {
+            ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
+            Map<?, ?> body = response.getBody() == null ? Map.of() : response.getBody();
+            List<Map<String, Object>> items = new ArrayList<>();
+
+            Object rawResults = body.get("results");
+            if (rawResults instanceof List<?> results) {
+                for (Object raw : results) {
+                    if (!(raw instanceof Map<?, ?> row)) continue;
+
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("id", row.get("id"));
+                    item.put("title", row.get("title"));
+                    item.put("publicationYear", toNullableLong(row.get("publication_year")));
+                    item.put("citedByCount", toNullableLong(row.get("cited_by_count")));
+
+                    String openAccessUrl = null;
+                    Object openAccessRaw = row.get("open_access");
+                    if (openAccessRaw instanceof Map<?, ?> openAccess) {
+                        Object oaUrl = openAccess.get("oa_url");
+                        if (oaUrl != null) {
+                            openAccessUrl = String.valueOf(oaUrl);
+                        }
+                    }
+                    item.put("openAccessUrl", openAccessUrl);
+
+                    String landingPageUrl = null;
+                    Object primaryLocationRaw = row.get("primary_location");
+                    if (primaryLocationRaw instanceof Map<?, ?> primaryLocation) {
+                        Object landingUrl = primaryLocation.get("landing_page_url");
+                        if (landingUrl != null) {
+                            landingPageUrl = String.valueOf(landingUrl);
+                        }
+                    }
+                    item.put("landingPageUrl", landingPageUrl);
+
+                    String firstAuthor = null;
+                    Object authorshipsRaw = row.get("authorships");
+                    if (authorshipsRaw instanceof List<?> authorships && !authorships.isEmpty()) {
+                        Object firstAuthorshipRaw = authorships.get(0);
+                        if (firstAuthorshipRaw instanceof Map<?, ?> firstAuthorship) {
+                            Object authorRaw = firstAuthorship.get("author");
+                            if (authorRaw instanceof Map<?, ?> authorMap) {
+                                Object displayName = authorMap.get("display_name");
+                                if (displayName != null) {
+                                    firstAuthor = String.valueOf(displayName);
+                                }
+                            }
+                        }
+                    }
+                    item.put("firstAuthor", firstAuthor);
+
+                    items.add(item);
+                }
+            }
+
+            payload.put("providerStatus", "live");
+            payload.put("count", items.size());
+            payload.put("items", items);
+            return payload;
+        } catch (RestClientException ex) {
+            log.warn("OpenAlex unavailable: {}", ex.getMessage());
+            payload.put("providerStatus", "fallback");
+            payload.put("warning", "Academic source provider is temporarily unavailable. Showing empty list.");
+            payload.put("count", 0);
+            payload.put("items", List.of());
+            return payload;
+        }
+    }
+
     private String normalizeCountryCode(String countryCode) {
         if (!StringUtils.hasText(countryCode)) {
             return "TN";
@@ -374,6 +472,18 @@ public class M2PublicIntegrationService {
             return Long.parseLong(raw.toString());
         } catch (Exception ignored) {
             return 0L;
+        }
+    }
+
+    private Long toNullableLong(Object raw) {
+        if (raw == null) return null;
+        if (raw instanceof Number number) {
+            return number.longValue();
+        }
+        try {
+            return Long.parseLong(raw.toString());
+        } catch (Exception ignored) {
+            return null;
         }
     }
 }

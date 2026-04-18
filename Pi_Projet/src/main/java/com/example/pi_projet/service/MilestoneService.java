@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -15,6 +16,10 @@ public class MilestoneService {
 
     public List<Milestone> getAll() {
         return repository.findAll();
+    }
+
+    public List<Milestone> getByProjectId(UUID projectId) {
+        return repository.findByProject_Id(projectId);
     }
 
     public Milestone getById(Long id) {

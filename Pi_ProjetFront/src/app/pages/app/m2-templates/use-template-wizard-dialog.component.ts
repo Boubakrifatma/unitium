@@ -15,7 +15,7 @@ import { provideNativeDateAdapter } from "@angular/material/core";
 import { Router } from "@angular/router";
 import { forkJoin, of, from } from "rxjs";
 import { catchError, concatMap, toArray } from "rxjs/operators";
-import { M2TemplateService, M2TemplateSummary } from "./m2-template.service";
+import { M2AcademicSourceItem, M2TemplateService, M2TemplateSummary } from "./m2-template.service";
 import { M2WorkspaceService, M2Workspace, M2WorkspaceMember } from "../m2-workspaces/m2-workspace.service";
 import { M2ProjectService } from "../m2-projects/m2-project.service";
 import { AuthService } from "../../../auth/auth.service";
@@ -82,6 +82,18 @@ interface ParsedTask {
     startOffsetDays?: number;
     dueOffsetDays?: number;
     parentTaskKey?: string;
+    selected: boolean;
+}
+
+interface AcademicSourceCandidate {
+    key: string;
+    id?: string;
+    title: string;
+    publicationYear?: number | null;
+    citedByCount?: number | null;
+    openAccessUrl?: string | null;
+    landingPageUrl?: string | null;
+    firstAuthor?: string | null;
     selected: boolean;
 }
 
@@ -243,7 +255,7 @@ function safeParse(json?: string | null): unknown[] {
 
             <!-- ═══════════════════════════ STEP: PICK ═══════════════════════════ -->
             @if (currentStep() === 'pick') {
-                <p class="small text-secondary mb-3">Choose an approved template to start your project from.</p>
+                <p class="small text-secondary mb-3">Choose a template to start your project from (approved public templates and templates created by you).</p>
                 <!-- Search + filter -->
                 <div class="row gx-2 mb-3">
                     <div class="col">
@@ -275,7 +287,7 @@ function safeParse(json?: string | null): unknown[] {
                     } @else if (filteredPick().length === 0) {
                         <div class="text-center py-4">
                             <mat-icon class="material-icons-outlined text-secondary">layers</mat-icon>
-                            <p class="text-secondary small mt-1 mb-0">No approved templates found.</p>
+                            <p class="text-secondary small mt-1 mb-0">No matching templates found.</p>
                         </div>
                     } @else {
                         @for (t of filteredPick(); track t.id) {
@@ -289,6 +301,12 @@ function safeParse(json?: string | null): unknown[] {
                                     </div>
                                     <div class="d-flex align-items-center gap-2 mt-1">
                                         <span class="badge badge-light" style="font-size:9px;">{{ t.templateType }}</span>
+                                        @if (isMyTemplate(t)) {
+                                            <span class="badge" style="background:rgba(34,197,94,0.16);color:#166534;font-size:9px;">Mine</span>
+                                            @if (t.status !== 'APPROVED') {
+                                                <span class="badge" style="background:rgba(251,191,36,0.2);color:#92400e;font-size:9px;">{{ t.status }}</span>
+                                            }
+                                        }
                                         @if (t.estimatedDurationDays) { <span class="text-secondary" style="font-size:10px;">{{ t.estimatedDurationDays }}d</span> }
                                         <span class="text-secondary ms-auto" style="font-size:10px;">{{ t.rating | number:'1.1-1' }} ★ · {{ t.usageCount }} uses</span>
                                     </div>
@@ -557,6 +575,75 @@ function safeParse(json?: string | null): unknown[] {
                     </div>
                 </div>
 
+                @if (isAcademicWorkspace()) {
+                    <div class="p-3 rounded-3 mb-3" style="background:rgba(14,165,233,0.08);border:1px solid rgba(14,165,233,0.24);">
+                        <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                            <div>
+                                <p class="fw-medium mb-0" style="font-size:13px;">
+                                    <mat-icon class="material-icons-outlined align-middle me-1" style="font-size:14px;width:14px;height:14px;color:#0369a1;">library_books</mat-icon>
+                                    Academic Source Pack (OpenAlex)
+                                </p>
+                                <p class="small text-secondary mb-0">Search academic papers and inject selected references as project tasks.</p>
+                            </div>
+                            <span class="badge" style="background:rgba(3,105,161,0.12);color:#0369a1;font-size:10px;">
+                                {{ selectedAcademicSourceCount() }} selected
+                            </span>
+                        </div>
+
+                        <div class="d-flex gap-2 flex-wrap align-items-start mb-2">
+                            <mat-form-field appearance="outline" class="inline-small" style="min-width:280px;flex:1;">
+                                <mat-label>Paper topic</mat-label>
+                                <input matInput [(ngModel)]="academicSourceQuery" placeholder="e.g. machine learning fairness" />
+                            </mat-form-field>
+                            <button matButton="filled" (click)="searchAcademicSources()" [disabled]="academicSourcesLoading()" style="height:40px;">
+                                <mat-icon class="material-icons-outlined">search</mat-icon>
+                                {{ academicSourcesLoading() ? 'Searching...' : 'Search Papers' }}
+                            </button>
+                            <button matButton (click)="injectSelectedAcademicSources()" [disabled]="selectedAcademicSourceCount() === 0" style="height:40px;">
+                                <mat-icon class="material-icons-outlined">playlist_add</mat-icon>
+                                Inject Selected
+                            </button>
+                        </div>
+
+                        @if (academicSourceWarning()) {
+                            <p class="small mb-2" style="color:#92400e;">{{ academicSourceWarning() }}</p>
+                        }
+                        @if (academicSourceError()) {
+                            <p class="small mb-2" style="color:#991b1b;">{{ academicSourceError() }}</p>
+                        }
+
+                        @if (academicSourcesLoading()) {
+                            <div class="small text-secondary py-1">Searching OpenAlex...</div>
+                        } @else if (academicSources().length > 0) {
+                            <div style="max-height:220px;overflow-y:auto;border:1px solid rgba(0,0,0,0.08);border-radius:8px;background:#fff;">
+                                @for (source of academicSources(); track source.key) {
+                                    <div style="padding:10px 12px;border-bottom:1px solid rgba(0,0,0,0.06);">
+                                        <div class="d-flex align-items-start gap-2">
+                                            <input type="checkbox" [checked]="source.selected" (change)="toggleAcademicSourceSelection(source.key)" style="margin-top:2px;" />
+                                            <div class="flex-grow-1">
+                                                <p class="mb-1" style="font-size:12px;font-weight:600;line-height:1.35;">{{ source.title }}</p>
+                                                <p class="text-secondary mb-1" style="font-size:10px;line-height:1.3;">
+                                                    @if (source.firstAuthor) { {{ source.firstAuthor }} · }
+                                                    @if (source.publicationYear) { {{ source.publicationYear }} · }
+                                                    @if (source.citedByCount !== null && source.citedByCount !== undefined) { {{ source.citedByCount }} citations }
+                                                </p>
+                                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                    @if (source.openAccessUrl) {
+                                                        <a [href]="source.openAccessUrl" target="_blank" rel="noopener" style="font-size:10px;color:#0369a1;" (click)="$event.stopPropagation()">Open access</a>
+                                                    }
+                                                    @if (!source.openAccessUrl && source.landingPageUrl) {
+                                                        <a [href]="source.landingPageUrl" target="_blank" rel="noopener" style="font-size:10px;color:#0369a1;" (click)="$event.stopPropagation()">Source page</a>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+
                 @for (group of taskGroups(); track group.name) {
                     @if (group.tasks.length > 0) {
                         <div class="task-group-header d-flex align-items-center justify-content-between">
@@ -751,6 +838,7 @@ export class UseTemplateWizardDialogComponent implements OnInit {
     // ── Workspace data ──
     readonly workspaces = signal<M2Workspace[]>([]);
     readonly workspaceMembers = signal<M2WorkspaceMember[]>([]);
+    readonly workspaceOrgTypeOverride = signal("");
 
     // ── Template picker state (step: pick) ──
     readonly allPublicTemplates = signal<M2TemplateSummary[]>([]);
@@ -759,6 +847,13 @@ export class UseTemplateWizardDialogComponent implements OnInit {
     pickSearch = "";
     pickType = "";
 
+    // ── Academic source pack (OpenAlex) ──
+    academicSourceQuery = "";
+    readonly academicSources = signal<AcademicSourceCandidate[]>([]);
+    readonly academicSourcesLoading = signal(false);
+    readonly academicSourceError = signal("");
+    readonly academicSourceWarning = signal("");
+
     // ── Computed helpers ──
     readonly enabledPhaseCount = computed(() => this.parsedPhases().filter(p => p.enabled).length);
     readonly totalDays = computed(() => this.parsedPhases().filter(p => p.enabled).reduce((s, p) => s + p.durationDays, 0));
@@ -766,6 +861,24 @@ export class UseTemplateWizardDialogComponent implements OnInit {
     readonly selectedTaskCount = computed(() => this.selectedTasksForLaunch().length);
     readonly filledSlots = computed(() => this.parsedRoles().flatMap(r => r.slots).filter(s => s.userId !== null).length);
     readonly totalSlots = computed(() => this.parsedRoles().reduce((s, r) => s + r.slots.length, 0));
+    readonly currentUserId = computed(() => this.authService.currentUser()?.id ?? 0);
+    readonly selectedWorkspaceOrgType = computed(() => {
+        const workspaceId = this.data.workspaceId || this.selectedWorkspaceId;
+        if (!workspaceId) {
+            const fallback = this.authService.currentOrganization()?.organizationType || "";
+            return String(fallback).toLowerCase();
+        }
+
+        const row = this.workspaces().find((workspace) => workspace.id === workspaceId);
+        const rawOrgType = row?.orgType
+            || row?.organization?.orgType
+            || this.workspaceOrgTypeOverride()
+            || this.authService.currentOrganization()?.organizationType
+            || "";
+        return String(rawOrgType).toLowerCase();
+    });
+    readonly isAcademicWorkspace = computed(() => this.selectedWorkspaceOrgType() === "academic");
+    readonly selectedAcademicSourceCount = computed(() => this.academicSources().filter((item) => item.selected).length);
     readonly taskGroups = computed(() => {
         const visibleTasks = this.visibleTasksForSelection();
         const milestonesById = new Map(this.parsedMilestones().map(m => [m.id, m.name]));
@@ -798,6 +911,15 @@ export class UseTemplateWizardDialogComponent implements OnInit {
             });
         } else {
             this.selectedWorkspaceId = this.data.workspaceId;
+            this.workspaceService.getWorkspaceById(this.data.workspaceId).subscribe({
+                next: (workspace) => {
+                    const rawOrgType = workspace?.orgType || workspace?.organization?.orgType || "";
+                    this.workspaceOrgTypeOverride.set(String(rawOrgType).toLowerCase());
+                },
+                error: () => {
+                    this.workspaceOrgTypeOverride.set("");
+                },
+            });
         }
 
         // Load template or public templates for picker
@@ -818,13 +940,37 @@ export class UseTemplateWizardDialogComponent implements OnInit {
             this.activeStepIndex.set(0);
             this.loadingTemplate.set(false);
             this.loadingPick.set(true);
-            this.templateService.getPublic(0, 200).subscribe({
-                next: (page) => {
-                    const sorted = (page.content || []).sort((a, b) => {
+            const userId = this.currentUserId();
+            const publicTemplates$ = this.templateService.getPublic(0, 200).pipe(
+                catchError(() => of({ content: [] as M2TemplateSummary[] }))
+            );
+            const myTemplates$ = userId
+                ? this.templateService.getMyTemplates(userId, 0, 200).pipe(
+                    catchError(() => of({ content: [] as M2TemplateSummary[] }))
+                )
+                : of({ content: [] as M2TemplateSummary[] });
+
+            forkJoin([publicTemplates$, myTemplates$]).subscribe({
+                next: ([publicPage, myPage]) => {
+                    const mergedById = new Map<string, M2TemplateSummary>();
+                    for (const template of (myPage.content || [])) {
+                        mergedById.set(template.id, template);
+                    }
+                    for (const template of (publicPage.content || [])) {
+                        if (!mergedById.has(template.id)) {
+                            mergedById.set(template.id, template);
+                        }
+                    }
+
+                    const sorted = [...mergedById.values()].sort((a, b) => {
+                        const aMine = userId > 0 && a.createdBy === userId;
+                        const bMine = userId > 0 && b.createdBy === userId;
+                        if (aMine !== bMine) return aMine ? -1 : 1;
                         if (a.isTrending && !b.isTrending) return -1;
                         if (!a.isTrending && b.isTrending) return 1;
-                        return b.usageCount - a.usageCount;
+                        return (b.usageCount || 0) - (a.usageCount || 0);
                     });
+
                     this.allPublicTemplates.set(sorted);
                     this.filteredPick.set(sorted);
                     this.loadingPick.set(false);
@@ -951,6 +1097,7 @@ export class UseTemplateWizardDialogComponent implements OnInit {
         }
 
         this.loadingTemplate.set(false);
+        this.resetAcademicSources();
 
         // Load members if workspaceId is already known
         if (this.data.workspaceId) {
@@ -974,6 +1121,11 @@ export class UseTemplateWizardDialogComponent implements OnInit {
         this.filteredPick.set(items);
     }
 
+    isMyTemplate(template: M2TemplateSummary): boolean {
+        const userId = this.currentUserId();
+        return userId > 0 && template.createdBy === userId;
+    }
+
     pickTemplate(t: M2TemplateSummary): void {
         this.selectedPickId.set(t.id);
         if (t.defaultPhasesJson !== undefined) {
@@ -990,7 +1142,10 @@ export class UseTemplateWizardDialogComponent implements OnInit {
     // ── Workspace members ────────────────────────────────────────────────────
 
     onWorkspaceChange(): void {
-        if (this.selectedWorkspaceId) this.loadWorkspaceMembers(this.selectedWorkspaceId);
+        if (this.selectedWorkspaceId) {
+            this.loadWorkspaceMembers(this.selectedWorkspaceId);
+        }
+        this.resetAcademicSources();
     }
 
     private loadWorkspaceMembers(wsId: string): void {
@@ -1229,6 +1384,150 @@ export class UseTemplateWizardDialogComponent implements OnInit {
 
     taskCountByPriority(p: string): number {
         return this.selectedTasksForLaunch().filter(t => String(t["priority"]).toUpperCase() === p).length;
+    }
+
+    resetAcademicSources(): void {
+        this.academicSources.set([]);
+        this.academicSourcesLoading.set(false);
+        this.academicSourceError.set("");
+        this.academicSourceWarning.set("");
+    }
+
+    searchAcademicSources(): void {
+        if (!this.isAcademicWorkspace()) {
+            this.academicSourceError.set("Academic source pack is only available for academic workspaces.");
+            return;
+        }
+
+        const query = (this.academicSourceQuery || this.template()?.name || this.projectName || "").trim();
+        if (!query) {
+            this.academicSourceError.set("Enter a topic to search academic sources.");
+            this.academicSourceWarning.set("");
+            this.academicSources.set([]);
+            return;
+        }
+
+        this.academicSourceQuery = query;
+        this.academicSourcesLoading.set(true);
+        this.academicSourceError.set("");
+        this.academicSourceWarning.set("");
+
+        const workspaceId = this.data.workspaceId || this.selectedWorkspaceId || undefined;
+
+        this.templateService.getAcademicSources(query, { perPage: 8, workspaceId }).subscribe({
+            next: (response) => {
+                const items = (response.items || []).map((item, index) => this.toAcademicSourceCandidate(item, index));
+                this.academicSources.set(items);
+                this.academicSourceWarning.set(response.warning || "");
+                this.academicSourcesLoading.set(false);
+            },
+            error: (error: any) => {
+                this.academicSources.set([]);
+                this.academicSourcesLoading.set(false);
+                this.academicSourceWarning.set("");
+                this.academicSourceError.set(error?.error?.message || error?.message || "Unable to fetch academic sources.");
+            },
+        });
+    }
+
+    toggleAcademicSourceSelection(key: string): void {
+        this.academicSources.update((items) =>
+            items.map((item) => (item.key === key ? { ...item, selected: !item.selected } : item))
+        );
+    }
+
+    injectSelectedAcademicSources(): void {
+        const selectedSources = this.academicSources().filter((item) => item.selected);
+        if (selectedSources.length === 0) {
+            this.snackBar.open("Select at least one paper to inject.", "Close", { duration: 2500 });
+            return;
+        }
+
+        const enabledPhase = this.parsedPhases().find((phase) => phase.enabled) || this.parsedPhases()[0];
+        const activePhaseKeys = new Set(this.parsedPhases().filter((phase) => phase.enabled).map((phase) => phase.id));
+        const enabledMilestone = this.parsedMilestones().find((milestone) => {
+            if (!milestone.enabled) return false;
+            if (!milestone.phaseKey) return true;
+            return activePhaseKeys.size === 0 || activePhaseKeys.has(milestone.phaseKey);
+        }) || this.parsedMilestones()[0];
+
+        const targetPhaseKey = enabledPhase?.id;
+        const targetMilestoneKey = enabledMilestone?.id;
+
+        const existingTasks = this.parsedTasks();
+        const additions: ParsedTask[] = [];
+        let skippedDuplicates = 0;
+        const now = Date.now();
+
+        for (let i = 0; i < selectedSources.length; i++) {
+            const source = selectedSources[i];
+            const marker = this.openAlexMarker(source);
+            const alreadyPresent = existingTasks.some((task) => (task.description || "").includes(marker));
+            if (alreadyPresent) {
+                skippedDuplicates += 1;
+                continue;
+            }
+
+            const sourceTitle = source.title || "Untitled paper";
+            const taskTitle = `Read paper: ${sourceTitle.length > 86 ? `${sourceTitle.slice(0, 83)}...` : sourceTitle}`;
+            const description = [
+                marker,
+                source.firstAuthor ? `Author: ${source.firstAuthor}` : null,
+                source.publicationYear ? `Year: ${source.publicationYear}` : null,
+                source.citedByCount !== null && source.citedByCount !== undefined ? `Citations: ${source.citedByCount}` : null,
+                source.openAccessUrl
+                    ? `Open access: ${source.openAccessUrl}`
+                    : (source.landingPageUrl ? `Source: ${source.landingPageUrl}` : null),
+            ]
+                .filter((line): line is string => !!line)
+                .join("\n");
+
+            additions.push({
+                id: `task-openalex-${now}-${i}`,
+                title: taskTitle,
+                description,
+                phaseKey: targetPhaseKey,
+                milestoneKey: targetMilestoneKey,
+                phase: enabledPhase?.name,
+                taskType: "task",
+                status: "todo",
+                priority: "MEDIUM",
+                estimatedHours: 2,
+                selected: true,
+            });
+        }
+
+        if (additions.length === 0) {
+            this.snackBar.open("All selected papers were already injected.", "Close", { duration: 2800 });
+            return;
+        }
+
+        this.parsedTasks.update((tasks) => [...tasks, ...additions]);
+        this.academicSources.update((items) => items.map((item) => ({ ...item, selected: false })));
+
+        const suffix = skippedDuplicates > 0 ? ` (${skippedDuplicates} duplicates skipped)` : "";
+        this.snackBar.open(`${additions.length} academic source task(s) injected${suffix}.`, "Close", { duration: 3600 });
+    }
+
+    private toAcademicSourceCandidate(item: M2AcademicSourceItem, index: number): AcademicSourceCandidate {
+        const id = item.id ? String(item.id) : undefined;
+        const fallbackTitle = item.title ? String(item.title) : "Untitled paper";
+        return {
+            key: id || `openalex-${index}`,
+            id,
+            title: fallbackTitle,
+            publicationYear: item.publicationYear ?? null,
+            citedByCount: item.citedByCount ?? null,
+            openAccessUrl: item.openAccessUrl ?? null,
+            landingPageUrl: item.landingPageUrl ?? null,
+            firstAuthor: item.firstAuthor ?? null,
+            selected: false,
+        };
+    }
+
+    private openAlexMarker(source: AcademicSourceCandidate): string {
+        const token = source.id || source.title;
+        return `[OpenAlex:${token}]`;
     }
 
     // ── Type color helper ────────────────────────────────────────────────────

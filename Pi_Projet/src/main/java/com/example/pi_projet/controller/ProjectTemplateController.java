@@ -169,6 +169,35 @@ public class ProjectTemplateController {
         return publicIntegrationService.getTemplateCoverSuggestions(query.trim(), pageSize == null ? 12 : pageSize);
     }
 
+    @GetMapping("/academic-sources")
+    public Map<String, Object> getAcademicSources(
+            @RequestParam("q") String query,
+            @RequestParam(defaultValue = "8") Integer perPage,
+            @RequestParam(required = false) UUID workspaceId,
+            HttpServletRequest request) {
+        User currentUser = requireCurrentUser(request);
+        if (query == null || query.trim().isEmpty()) {
+            throw new Module2Exception(VALIDATION, "q is required");
+        }
+
+        if (workspaceId != null) {
+            Workspace workspace = workspaceService.getByIdVisibleForUser(workspaceId, currentUser);
+            String orgType = workspace.getOrgType();
+            if ((orgType == null || orgType.isBlank())
+                && workspace.getOrganization() != null
+                && workspace.getOrganization().getOrgType() != null) {
+                orgType = workspace.getOrganization().getOrgType().name();
+            }
+
+            if (orgType == null || !"ACADEMIC".equalsIgnoreCase(orgType)) {
+                throw new Module2Exception(Module2Exception.ErrorCode.FORBIDDEN,
+                    "Academic source pack is only available for academic workspaces");
+            }
+        }
+
+        return publicIntegrationService.getAcademicSources(query.trim(), perPage == null ? 8 : perPage);
+    }
+
     /* ── Write ─────────────────────────────────────────────────── */
 
     @PostMapping

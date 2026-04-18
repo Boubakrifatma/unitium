@@ -10,7 +10,7 @@ import { MatIconModule } from "@angular/material/icon";
 import { MatSnackBar, MatSnackBarModule } from "@angular/material/snack-bar";
 import { MatDividerModule } from "@angular/material/divider";
 import { AuthService } from "../../../auth/auth.service";
-import { M2TemplateService, M2TemplateSummary } from "./m2-template.service";
+import { M2AcademicSourceItem, M2TemplateService, M2TemplateSummary } from "./m2-template.service";
 
 export interface CreateTemplateDialogResult { created: true; }
 
@@ -52,6 +52,18 @@ export interface MilestoneRow {
     phaseKey?: string;
     offsetDays: number;
     tasks: MilestoneTaskRow[];
+}
+
+interface AcademicTemplateSourceCandidate {
+    key: string;
+    id?: string;
+    title: string;
+    publicationYear?: number | null;
+    citedByCount?: number | null;
+    openAccessUrl?: string | null;
+    landingPageUrl?: string | null;
+    firstAuthor?: string | null;
+    selected: boolean;
 }
 
 const STARTERS: TemplateStarter[] = [
@@ -446,6 +458,89 @@ const STARTERS: TemplateStarter[] = [
                     }
                 </div>
 
+                @if (isAcademicContext()) {
+                    <div class="mb-3 p-3 rounded" style="background:rgba(14,165,233,0.08);border:1px solid rgba(14,165,233,0.24);">
+                        <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                            <div>
+                                <p class="fw-medium mb-0" style="font-size:13px;">
+                                    <mat-icon class="material-icons-outlined align-middle me-1" style="font-size:14px;width:14px;height:14px;color:#0369a1;">library_books</mat-icon>
+                                    Academic Source Pack (OpenAlex)
+                                </p>
+                                <p class="small text-secondary mb-0">Search papers and inject selected references as milestone tasks.</p>
+                            </div>
+                            <span class="badge" style="background:rgba(3,105,161,0.12);color:#0369a1;font-size:10px;">
+                                {{ selectedAcademicTemplateSourceCount() }} selected
+                            </span>
+                        </div>
+
+                        <div class="row gx-2 gy-2 mb-2">
+                            <div class="col-12 col-md-4">
+                                <mat-form-field appearance="outline" class="w-100 mb-0 inline-small">
+                                    <mat-label>Target milestone</mat-label>
+                                    <mat-select [(ngModel)]="academicSourceMilestoneKey" [disabled]="milestones().length === 0">
+                                        @for (milestone of milestones(); track milestone.key) {
+                                            <mat-option [value]="milestone.key">{{ milestone.name || 'Unnamed milestone' }}</mat-option>
+                                        }
+                                    </mat-select>
+                                </mat-form-field>
+                            </div>
+                            <div class="col-12 col-md-5">
+                                <mat-form-field appearance="outline" class="w-100 mb-0 inline-small">
+                                    <mat-label>Paper topic</mat-label>
+                                    <input matInput [(ngModel)]="academicSourceQuery" placeholder="e.g. software quality assurance" />
+                                </mat-form-field>
+                            </div>
+                            <div class="col-12 col-md-3 d-flex gap-2 align-items-start">
+                                <button matButton="filled" (click)="searchAcademicSourcesForTemplate()" [disabled]="academicSourcesLoading()" style="height:40px;">
+                                    <mat-icon class="material-icons-outlined">search</mat-icon>
+                                    {{ academicSourcesLoading() ? 'Searching...' : 'Search' }}
+                                </button>
+                                <button matButton (click)="injectSelectedAcademicSourcesIntoTemplate()" [disabled]="selectedAcademicTemplateSourceCount() === 0 || milestones().length === 0" style="height:40px;">
+                                    <mat-icon class="material-icons-outlined">playlist_add</mat-icon>
+                                    Inject
+                                </button>
+                            </div>
+                        </div>
+
+                        @if (academicSourceWarning()) {
+                            <p class="small mb-2" style="color:#92400e;">{{ academicSourceWarning() }}</p>
+                        }
+                        @if (academicSourceError()) {
+                            <p class="small mb-2" style="color:#991b1b;">{{ academicSourceError() }}</p>
+                        }
+
+                        @if (academicSourcesLoading()) {
+                            <div class="small text-secondary py-1">Searching OpenAlex...</div>
+                        } @else if (academicSources().length > 0) {
+                            <div style="max-height:220px;overflow-y:auto;border:1px solid rgba(0,0,0,0.08);border-radius:8px;background:#fff;">
+                                @for (source of academicSources(); track source.key) {
+                                    <div style="padding:10px 12px;border-bottom:1px solid rgba(0,0,0,0.06);">
+                                        <div class="d-flex align-items-start gap-2">
+                                            <input type="checkbox" [checked]="source.selected" (change)="toggleAcademicTemplateSourceSelection(source.key)" style="margin-top:2px;" />
+                                            <div class="flex-grow-1">
+                                                <p class="mb-1" style="font-size:12px;font-weight:600;line-height:1.35;">{{ source.title }}</p>
+                                                <p class="text-secondary mb-1" style="font-size:10px;line-height:1.3;">
+                                                    @if (source.firstAuthor) { {{ source.firstAuthor }} · }
+                                                    @if (source.publicationYear) { {{ source.publicationYear }} · }
+                                                    @if (source.citedByCount !== null && source.citedByCount !== undefined) { {{ source.citedByCount }} citations }
+                                                </p>
+                                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                    @if (source.openAccessUrl) {
+                                                        <a [href]="source.openAccessUrl" target="_blank" rel="noopener" style="font-size:10px;color:#0369a1;" (click)="$event.stopPropagation()">Open access</a>
+                                                    }
+                                                    @if (!source.openAccessUrl && source.landingPageUrl) {
+                                                        <a [href]="source.landingPageUrl" target="_blank" rel="noopener" style="font-size:10px;color:#0369a1;" (click)="$event.stopPropagation()">Source page</a>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+
                 <mat-divider class="mb-3"></mat-divider>
 
                 <!-- ── Milestones & Tasks ── -->
@@ -767,6 +862,14 @@ export class CreateTemplateDialogComponent implements OnInit {
     readonly validRoles = computed(() => this.roles().filter(r => r.role.trim().length > 0));
     readonly totalPhaseDays = computed(() => this.phases().reduce((s, p) => s + (p.durationDays || 0), 0));
     readonly totalTaskCount = computed(() => this.milestones().reduce((sum, m) => sum + m.tasks.length, 0));
+    readonly isAcademicContext = computed(() =>
+        String(this.authService.currentOrganization()?.organizationType || "").toUpperCase() === "ACADEMIC"
+    );
+    readonly academicSources = signal<AcademicTemplateSourceCandidate[]>([]);
+    readonly academicSourcesLoading = signal(false);
+    readonly academicSourceError = signal("");
+    readonly academicSourceWarning = signal("");
+    readonly selectedAcademicTemplateSourceCount = computed(() => this.academicSources().filter((item) => item.selected).length);
     phaseNameErrors = signal<string[]>([]);
     milestoneNameErrors = signal<string[]>([]);
     milestonePhaseErrors = signal<string[]>([]);
@@ -797,6 +900,8 @@ export class CreateTemplateDialogComponent implements OnInit {
     defaultMilestonesJson = "";
     defaultTasksJson = "";
     configJsonError = "";
+    academicSourceQuery = "";
+    academicSourceMilestoneKey = "";
 
     ngOnInit(): void {
         if (this.dialogData?.starterType) {
@@ -1344,13 +1449,21 @@ export class CreateTemplateDialogComponent implements OnInit {
             offsetDays: this.totalPhaseDays(),
             tasks: [],
         }]);
+        if (!this.academicSourceMilestoneKey) {
+            this.academicSourceMilestoneKey = this.milestones()[0]?.key || "";
+        }
         this.syncStructureJsonFields();
     }
 
     removeMilestone(index: number): void {
+        const removedMilestoneKey = this.milestones()[index]?.key;
         this.milestones.update(ms => ms.filter((_, i) => i !== index));
         this.milestoneNameErrors.update(errs => errs.filter((_, i) => i !== index));
         this.milestonePhaseErrors.update(errs => errs.filter((_, i) => i !== index));
+
+        if (removedMilestoneKey && this.academicSourceMilestoneKey === removedMilestoneKey) {
+            this.academicSourceMilestoneKey = this.milestones()[0]?.key || "";
+        }
         this.syncStructureJsonFields();
     }
 
@@ -1437,6 +1550,148 @@ export class CreateTemplateDialogComponent implements OnInit {
                 : m
         ));
         this.syncStructureJsonFields();
+    }
+
+    searchAcademicSourcesForTemplate(): void {
+        if (!this.isAcademicContext()) {
+            this.academicSourceError.set("Academic source pack is only available for academic organizations.");
+            return;
+        }
+
+        const query = (this.academicSourceQuery || this.name || this.useCaseDescription || "").trim();
+        if (!query) {
+            this.academicSourceError.set("Enter a topic to search academic sources.");
+            this.academicSourceWarning.set("");
+            this.academicSources.set([]);
+            return;
+        }
+
+        this.academicSourceQuery = query;
+        this.academicSourcesLoading.set(true);
+        this.academicSourceError.set("");
+        this.academicSourceWarning.set("");
+
+        this.templateService.getAcademicSources(query, { perPage: 8 }).subscribe({
+            next: (response) => {
+                const items = (response.items || []).map((item, index) => this.toAcademicTemplateSource(item, index));
+                this.academicSources.set(items);
+                this.academicSourceWarning.set(response.warning || "");
+                this.academicSourcesLoading.set(false);
+            },
+            error: (error: any) => {
+                this.academicSources.set([]);
+                this.academicSourceWarning.set("");
+                this.academicSourcesLoading.set(false);
+                this.academicSourceError.set(error?.error?.message || error?.message || "Unable to fetch academic sources.");
+            },
+        });
+    }
+
+    toggleAcademicTemplateSourceSelection(key: string): void {
+        this.academicSources.update((items) =>
+            items.map((item) => (item.key === key ? { ...item, selected: !item.selected } : item))
+        );
+    }
+
+    injectSelectedAcademicSourcesIntoTemplate(): void {
+        const selected = this.academicSources().filter((item) => item.selected);
+        if (selected.length === 0) {
+            this.snackBar.open("Select at least one paper to inject.", "Close", { duration: 2500 });
+            return;
+        }
+
+        const allMilestones = this.milestones();
+        if (allMilestones.length === 0) {
+            this.snackBar.open("Add at least one milestone before injecting academic sources.", "Close", { duration: 3200 });
+            return;
+        }
+
+        const targetMilestoneKey = this.academicSourceMilestoneKey || allMilestones[0].key;
+        const targetIndex = allMilestones.findIndex((milestone) => milestone.key === targetMilestoneKey);
+        if (targetIndex < 0) {
+            this.snackBar.open("Select a valid milestone for injection.", "Close", { duration: 2800 });
+            return;
+        }
+
+        const existingMarkers = new Set(
+            allMilestones
+                .flatMap((milestone) => milestone.tasks)
+                .map((task) => task.description || "")
+                .filter((description) => description.includes("[OpenAlex:"))
+        );
+
+        let skippedDuplicates = 0;
+        const injectedTasks: MilestoneTaskRow[] = [];
+
+        for (const source of selected) {
+            const marker = this.openAlexMarker(source);
+            const alreadyExists = Array.from(existingMarkers).some((description) => description.includes(marker));
+            if (alreadyExists) {
+                skippedDuplicates += 1;
+                continue;
+            }
+
+            const sourceTitle = source.title || "Untitled paper";
+            const taskTitle = `Read paper: ${sourceTitle.length > 86 ? `${sourceTitle.slice(0, 83)}...` : sourceTitle}`;
+            const description = [
+                marker,
+                source.firstAuthor ? `Author: ${source.firstAuthor}` : null,
+                source.publicationYear ? `Year: ${source.publicationYear}` : null,
+                source.citedByCount !== null && source.citedByCount !== undefined ? `Citations: ${source.citedByCount}` : null,
+                source.openAccessUrl
+                    ? `Open access: ${source.openAccessUrl}`
+                    : (source.landingPageUrl ? `Source: ${source.landingPageUrl}` : null),
+            ]
+                .filter((line): line is string => !!line)
+                .join("\n");
+
+            injectedTasks.push({
+                key: this.makeKey("task"),
+                title: taskTitle,
+                description,
+                priority: "medium",
+                estimatedHours: 2,
+            });
+            existingMarkers.add(description);
+        }
+
+        if (injectedTasks.length === 0) {
+            this.snackBar.open("All selected papers were already injected.", "Close", { duration: 2800 });
+            return;
+        }
+
+        this.milestones.update((milestones) =>
+            milestones.map((milestone, index) =>
+                index === targetIndex
+                    ? { ...milestone, tasks: [...milestone.tasks, ...injectedTasks] }
+                    : milestone
+            )
+        );
+        this.academicSources.update((items) => items.map((item) => ({ ...item, selected: false })));
+        this.syncStructureJsonFields();
+
+        const duplicateSuffix = skippedDuplicates > 0 ? ` (${skippedDuplicates} duplicates skipped)` : "";
+        this.snackBar.open(`${injectedTasks.length} academic task(s) injected${duplicateSuffix}.`, "Close", { duration: 3600 });
+    }
+
+    private toAcademicTemplateSource(item: M2AcademicSourceItem, index: number): AcademicTemplateSourceCandidate {
+        const id = item.id ? String(item.id) : undefined;
+        return {
+            key: id || `openalex-template-${index}`,
+            id,
+            title: item.title ? String(item.title) : "Untitled paper",
+            publicationYear: item.publicationYear ?? null,
+            citedByCount: item.citedByCount ?? null,
+            openAccessUrl: item.openAccessUrl ?? null,
+            landingPageUrl: item.landingPageUrl ?? null,
+            firstAuthor: item.firstAuthor ?? null,
+            selected: false,
+        };
+    }
+
+    private openAlexMarker(source: AcademicTemplateSourceCandidate): string {
+        const token = source.id || source.title;
+        return `[OpenAlex:${token}]`;
     }
 
     // ── Role management ──
@@ -1586,6 +1841,14 @@ export class CreateTemplateDialogComponent implements OnInit {
         }
 
         this.milestones.set(milestoneRows);
+        if (milestoneRows.length > 0) {
+            const exists = milestoneRows.some((milestone) => milestone.key === this.academicSourceMilestoneKey);
+            if (!exists) {
+                this.academicSourceMilestoneKey = milestoneRows[0].key;
+            }
+        } else {
+            this.academicSourceMilestoneKey = "";
+        }
     }
 
     submit(): void {

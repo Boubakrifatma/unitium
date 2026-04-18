@@ -788,6 +788,27 @@ export class AllMilestoneComponent implements OnInit {
     }
 
     loadMilestones() {
+        const selectedProjectId = this.selectedProjectId();
+
+        if (selectedProjectId) {
+            this.milestoneService.getByProjectId(selectedProjectId).subscribe({
+                next: (milestones: Milestone[]) => {
+                    const resolvedProjectName = this.extractProjectNameFromMilestones(milestones);
+                    this.ensureProjectReference(selectedProjectId, resolvedProjectName);
+                    this.milestones.set(milestones || []);
+                    this.filteredMilestones.set(milestones || []);
+                    this.cdr.markForCheck();
+                },
+                error: (err: any) => {
+                    console.error('Error loading project milestones', err);
+                    this.milestones.set([]);
+                    this.filteredMilestones.set([]);
+                    this.cdr.markForCheck();
+                }
+            });
+            return;
+        }
+
         this.milestoneService.getAll().subscribe({
             next: (milestones: Milestone[]) => {
                 let filtered = milestones;
@@ -821,29 +842,38 @@ export class AllMilestoneComponent implements OnInit {
     }
 
     loadUserProjects() {
-        const currentUser = this.authService.currentUser();
-        if (currentUser && currentUser.id) {
-            this.projectService.getUserProjects(currentUser.id).subscribe({
-                next: (projects: Project[]) => {
-                    this.projects.set(projects);
-                    this.cdr.markForCheck();
-                    // Charger les milestones après avoir chargé les projets
-                    this.loadMilestones();
-                },
-                error: (err: any) => {
-                    console.error('Error loading user projects', err);
-                    // Si l'utilisateur n'a pas de projets ou erreur, charger une liste vide
-                    this.projects.set([]);
-                    this.filteredMilestones.set([]);
-                    this.cdr.markForCheck();
+        this.projectService.getMyProjects().subscribe({
+            next: (projects: Project[]) => {
+                this.projects.set(projects || []);
+                this.cdr.markForCheck();
+                // Charger les milestones après avoir chargé les projets
+                this.loadMilestones();
+            },
+            error: (err: any) => {
+                console.error('Error loading user projects', err);
+                // Fallback legacy workspace resolution if /api/projects is unavailable
+                const currentUser = this.authService.currentUser();
+                if (currentUser && currentUser.id) {
+                    this.projectService.getUserProjects(currentUser.id).subscribe({
+                        next: (projects: Project[]) => {
+                            this.projects.set(projects || []);
+                            this.cdr.markForCheck();
+                            this.loadMilestones();
+                        },
+                        error: () => {
+                            this.projects.set([]);
+                            this.filteredMilestones.set([]);
+                            this.cdr.markForCheck();
+                        }
+                    });
+                    return;
                 }
-            });
-        } else {
-            // Si pas d'utilisateur connecté, pas de projets ni de milestones
-            this.projects.set([]);
-            this.filteredMilestones.set([]);
-            this.cdr.markForCheck();
-        }
+
+                this.projects.set([]);
+                this.filteredMilestones.set([]);
+                this.cdr.markForCheck();
+            }
+        });
     }
 
     milestoneProjectId(m: Milestone): string | undefined {
@@ -851,9 +881,40 @@ export class AllMilestoneComponent implements OnInit {
     }
 
     getProjectName(projectId: string | undefined): string {
-        if (!projectId) return 'Unknown';
+        if (!projectId) return 'No project';
         const project = this.projects().find(p => p.id === projectId);
-        return project ? project.name : 'Unknown';
+        return project?.name?.trim() || this.projectFallbackLabel(projectId);
+    }
+
+    private extractProjectNameFromMilestones(milestones: Milestone[]): string | null {
+        for (const milestone of milestones || []) {
+            const name = milestone.project?.name;
+            if (typeof name === 'string' && name.trim().length > 0) {
+                return name.trim();
+            }
+        }
+        return null;
+    }
+
+    private ensureProjectReference(projectId: string, projectName: string | null): void {
+        const list = this.projects();
+        if (list.some(project => project.id === projectId)) {
+            return;
+        }
+
+        this.projects.set([
+            ...list,
+            {
+                id: projectId,
+                name: projectName || this.projectFallbackLabel(projectId),
+                status: '',
+                visibility: '',
+            }
+        ]);
+    }
+
+    private projectFallbackLabel(projectId: string): string {
+        return projectId ? `Project ${projectId.slice(0, 8)}` : 'Project';
     }
 
     applyFilter(event: Event) {

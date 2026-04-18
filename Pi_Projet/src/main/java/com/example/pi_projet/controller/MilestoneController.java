@@ -26,6 +26,11 @@ public class MilestoneController {
         return milestoneService.getAll();
     }
 
+    @GetMapping("/project/{projectId}")
+    public List<Milestone> getByProject(@PathVariable UUID projectId) {
+        return milestoneService.getByProjectId(projectId);
+    }
+
     @GetMapping("/{id}")
     public Milestone getById(@PathVariable Long id) {
         return milestoneService.getById(id);
