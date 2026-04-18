@@ -26,18 +26,25 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ProjectService {
+    private static final Pattern GITHUB_OWNER_REPO_PATTERN = Pattern.compile("^([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)$");
+    private static final Pattern GITHUB_URL_PATTERN = Pattern.compile("^https?://(?:www\\.)?github\\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)(?:/.*)?$");
+
     private Project findOrThrow(UUID id) {
         return projectRepo.findById(id)
             .orElseThrow(() -> new Module2Exception(NOT_FOUND, "Project not found: " + id));
@@ -68,6 +75,7 @@ public class ProjectService {
     private final TaskRepository taskRepository;
     private final TemplateStructureService templateStructureService;
     private final M2AuditLogService auditLogService;
+    private final M2PublicIntegrationService publicIntegrationService;
 
     public Page<Project> getVisible(UUID workspaceId, Long userId, Pageable pageable) {
         if (!userRepo.existsById(userId)) {
@@ -97,9 +105,111 @@ public class ProjectService {
         return p;
     }
 
+    public Map<String, Object> getProjectHealth(UUID workspaceId, UUID projectId, Long requesterId) {
+        Project project = getById(projectId, requesterId);
+        if (!project.getWorkspace().getId().equals(workspaceId)) {
+            throw new Module2Exception(NOT_FOUND, "Project not found in this workspace");
+        }
+
+        Workspace workspace = project.getWorkspace();
+        UUID orgId = workspace.getOrganization() != null ? workspace.getOrganization().getId() : null;
+
+        long memberCount = projectMemberRepo.findAllByProjectId(projectId).size();
+        long projectAgeDays = Math.max(1L, daysSince(project.getCreatedAt()));
+        Instant statusRef = project.getUpdatedAt() != null ? project.getUpdatedAt() : project.getCreatedAt();
+        long statusAgeDays = Math.max(0L, daysSince(statusRef));
+
+        LocalDate today = LocalDate.now();
+        Long daysToDeadline = project.getEndDate() == null ? null : ChronoUnit.DAYS.between(today, project.getEndDate());
+        boolean terminalStatus = project.getStatus() == ProjectStatus.COMPLETED
+            || project.getStatus() == ProjectStatus.CANCELLED
+            || project.getStatus() == ProjectStatus.ARCHIVED;
+        boolean overdue = daysToDeadline != null && daysToDeadline < 0 && !terminalStatus;
+
+        long eventsLast14d = orgId == null
+            ? 0L
+            : auditLogService.countProjectEventsSince(orgId, projectId, Instant.now().minus(14, ChronoUnit.DAYS));
+
+        long activeProjectsOrg = orgId == null ? 0L : quotaHelper.countActiveProjectsByOrg(orgId);
+        int maxActiveProjects = orgId == null ? 0 : quotaHelper.getMaxProjectsStub(orgId);
+        double quotaPressurePct = maxActiveProjects <= 0
+            ? 0.0
+            : round1(((double) activeProjectsOrg / (double) maxActiveProjects) * 100.0);
+
+        double timelineScore = scoreTimeline(daysToDeadline, overdue, terminalStatus);
+        double collaborationScore = memberCount == 0 ? 10.0 : Math.min(100.0, memberCount * 25.0);
+        double activityScore = Math.min(100.0, eventsLast14d * 18.0);
+        double statusScore = scoreForStatus(project.getStatus());
+        if (!terminalStatus && statusAgeDays > 30) {
+            statusScore = Math.max(15.0, statusScore - 15.0);
+        }
+
+        double healthScore = round1(
+            (timelineScore * 0.35)
+                + (collaborationScore * 0.25)
+                + (activityScore * 0.20)
+                + (statusScore * 0.20)
+        );
+
+        String riskLevel = healthScore >= 80.0 ? "LOW" : healthScore >= 60.0 ? "MEDIUM" : "HIGH";
+
+        List<String> hints = new ArrayList<>();
+        if (overdue) {
+            hints.add("Project is past its target end date.");
+        }
+        if (daysToDeadline != null && daysToDeadline >= 0 && daysToDeadline <= 7 && !terminalStatus) {
+            hints.add("Deadline is within the next 7 days.");
+        }
+        if (memberCount < 2) {
+            hints.add("Add at least one more member to improve delivery resilience.");
+        }
+        if (eventsLast14d == 0) {
+            hints.add("No recent project activity detected in the last 14 days.");
+        }
+        if (project.getStatus() == ProjectStatus.ON_HOLD) {
+            hints.add("Project is on hold. Review blockers and set a resume plan.");
+        }
+        if (quotaPressurePct >= 85.0) {
+            hints.add("Organization active-project quota is near capacity.");
+        }
+        if (hints.isEmpty()) {
+            hints.add("Project health is stable.");
+        }
+
+        Map<String, Object> scores = new LinkedHashMap<>();
+        scores.put("timeline", round1(timelineScore));
+        scores.put("collaboration", round1(collaborationScore));
+        scores.put("activity", round1(activityScore));
+        scores.put("status", round1(statusScore));
+
+        Map<String, Object> signals = new LinkedHashMap<>();
+        signals.put("memberCount", memberCount);
+        signals.put("eventsLast14d", eventsLast14d);
+        signals.put("projectAgeDays", projectAgeDays);
+        signals.put("statusAgeDays", statusAgeDays);
+        signals.put("daysToDeadline", daysToDeadline);
+        signals.put("quotaPressurePct", quotaPressurePct);
+        signals.put("activeProjectsOrg", activeProjectsOrg);
+        signals.put("maxActiveProjectsOrg", maxActiveProjects);
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("projectId", projectId);
+        payload.put("workspaceId", workspaceId);
+        payload.put("projectName", project.getName());
+        payload.put("status", project.getStatus());
+        payload.put("healthScore", healthScore);
+        payload.put("riskLevel", riskLevel);
+        payload.put("scores", scores);
+        payload.put("signals", signals);
+        payload.put("hints", hints);
+        payload.put("generatedAt", Instant.now());
+        return payload;
+    }
+
     @Transactional
     public Project create(UUID workspaceId, String name, String description,
                           Visibility visibility, LocalDate startDate, LocalDate endDate,
+                          String githubRepoUrl,
                           Long requesterId) {
         if (!userRepo.existsById(requesterId)) throw new Module2Exception(NOT_FOUND, "Creator user not found");
         Workspace ws = workspaceService.getById(workspaceId);
@@ -127,6 +237,7 @@ public class ProjectService {
             .createdBy(requesterId)
             .name(name)
             .description(description)
+            .githubRepoUrl(normalizeGithubRepoUrl(githubRepoUrl))
             .visibility(visibility != null ? visibility : Visibility.PRIVATE)
             .startDate(startDate)
             .endDate(endDate)
@@ -278,6 +389,7 @@ public class ProjectService {
     @Transactional
     public Project update(UUID projectId, String name, String description,
                           Visibility visibility, LocalDate startDate, LocalDate endDate,
+                          boolean githubRepoUrlProvided, String githubRepoUrl,
                           Long requesterId) {
         Project p = findOrThrow(projectId);
         User requester = userRepo.findById(requesterId)
@@ -291,7 +403,39 @@ public class ProjectService {
         if (visibility != null)  p.setVisibility(visibility);
         if (startDate != null)   p.setStartDate(startDate);
         if (endDate != null)     p.setEndDate(endDate);
+        if (githubRepoUrlProvided) p.setGithubRepoUrl(normalizeGithubRepoUrl(githubRepoUrl));
         return projectRepo.save(p);
+    }
+
+    public Map<String, Object> getProjectRepoInsights(UUID workspaceId, UUID projectId, Long requesterId) {
+        Project project = getById(projectId, requesterId);
+        if (!project.getWorkspace().getId().equals(workspaceId)) {
+            throw new Module2Exception(NOT_FOUND, "Project not found in this workspace");
+        }
+
+        String normalizedUrl = normalizeGithubRepoUrl(project.getGithubRepoUrl());
+        if (normalizedUrl == null) {
+            Map<String, Object> emptyPayload = new LinkedHashMap<>();
+            emptyPayload.put("provider", "GitHub");
+            emptyPayload.put("projectId", projectId.toString());
+            emptyPayload.put("workspaceId", workspaceId.toString());
+            emptyPayload.put("repoLinked", false);
+            emptyPayload.put("githubRepoUrl", null);
+            emptyPayload.put("warning", "No GitHub repository linked to this project yet.");
+            return emptyPayload;
+        }
+
+        String repoFullName = extractOwnerRepo(normalizedUrl);
+        if (repoFullName == null) {
+            throw new Module2Exception(VALIDATION, "Stored GitHub repository URL is invalid");
+        }
+
+        Map<String, Object> payload = publicIntegrationService.getRepoInsights(repoFullName);
+        payload.put("projectId", projectId.toString());
+        payload.put("workspaceId", workspaceId.toString());
+        payload.put("repoLinked", true);
+        payload.put("githubRepoUrl", normalizedUrl);
+        return payload;
     }
 
     private void provisionProjectTimelineFromTemplate(Project project,
@@ -544,6 +688,50 @@ public class ProjectService {
         return status == ProjectStatus.ACTIVE;
     }
 
+    private long daysSince(Instant instant) {
+        if (instant == null) {
+            return 0L;
+        }
+        return Math.max(0L, ChronoUnit.DAYS.between(instant, Instant.now()));
+    }
+
+    private double scoreTimeline(Long daysToDeadline, boolean overdue, boolean terminalStatus) {
+        if (terminalStatus) {
+            return 100.0;
+        }
+        if (daysToDeadline == null) {
+            return 70.0;
+        }
+        if (overdue) {
+            return 25.0;
+        }
+        if (daysToDeadline <= 3) {
+            return 45.0;
+        }
+        if (daysToDeadline <= 7) {
+            return 60.0;
+        }
+        return 85.0;
+    }
+
+    private double scoreForStatus(ProjectStatus status) {
+        if (status == null) {
+            return 55.0;
+        }
+        return switch (status) {
+            case COMPLETED -> 100.0;
+            case ARCHIVED -> 90.0;
+            case ACTIVE -> 82.0;
+            case PLANNING -> 68.0;
+            case ON_HOLD -> 40.0;
+            case CANCELLED -> 30.0;
+        };
+    }
+
+    private double round1(double value) {
+        return Math.round(value * 10.0) / 10.0;
+    }
+
     private String resolveWorkspaceOrgType(Workspace workspace) {
         if (workspace.getOrgType() != null && !workspace.getOrgType().isBlank()) {
             return workspace.getOrgType().trim().toLowerCase();
@@ -552,5 +740,37 @@ public class ProjectService {
             return workspace.getOrganization().getOrgType().name().toLowerCase();
         }
         return "enterprise";
+    }
+
+    private String normalizeGithubRepoUrl(String raw) {
+        if (raw == null) return null;
+        String candidate = raw.trim();
+        if (candidate.isBlank()) return null;
+
+        Matcher ownerRepo = GITHUB_OWNER_REPO_PATTERN.matcher(candidate);
+        if (ownerRepo.matches()) {
+            return "https://github.com/" + ownerRepo.group(1) + "/" + stripGitSuffix(ownerRepo.group(2));
+        }
+
+        Matcher githubUrl = GITHUB_URL_PATTERN.matcher(candidate);
+        if (githubUrl.matches()) {
+            String owner = githubUrl.group(1);
+            String repo = stripGitSuffix(githubUrl.group(2));
+            return "https://github.com/" + owner + "/" + repo;
+        }
+
+        throw new Module2Exception(VALIDATION,
+            "GitHub repository must be owner/repository or a valid github.com URL");
+    }
+
+    private String extractOwnerRepo(String normalizedUrl) {
+        Matcher githubUrl = GITHUB_URL_PATTERN.matcher(normalizedUrl == null ? "" : normalizedUrl);
+        if (!githubUrl.matches()) return null;
+        return githubUrl.group(1) + "/" + stripGitSuffix(githubUrl.group(2));
+    }
+
+    private String stripGitSuffix(String repo) {
+        if (repo == null) return "";
+        return repo.endsWith(".git") ? repo.substring(0, repo.length() - 4) : repo;
     }
 }

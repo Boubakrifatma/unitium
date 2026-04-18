@@ -54,6 +54,14 @@ public class ProjectController {
         return projectService.getById(projectId, currentUser.getId());
     }
 
+    @GetMapping("/{projectId}/health")
+    public Map<String, Object> getProjectHealth(@PathVariable UUID workspaceId,
+                                                @PathVariable UUID projectId,
+                                                HttpServletRequest request) {
+        User currentUser = requireCurrentUser(request);
+        return projectService.getProjectHealth(workspaceId, projectId, currentUser.getId());
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Project create(@PathVariable UUID workspaceId,
@@ -65,8 +73,9 @@ public class ProjectController {
         LocalDate endDate = parseOptionalDate(body.get("endDate"), "endDate");
         validateDateRange(startDate, endDate);
         Visibility visibility = parseOptionalVisibility(body.get("visibility"));
+        String githubRepoUrl = parseOptionalRepoUrl(body.get("githubRepoUrl"));
         return projectService.create(workspaceId, name, (String) body.get("description"),
-                visibility, startDate, endDate, currentUser.getId());
+            visibility, startDate, endDate, githubRepoUrl, currentUser.getId());
     }
 
     @PostMapping("/from-template/{templateId}")
@@ -164,9 +173,19 @@ public class ProjectController {
         LocalDate endDate = parseOptionalDate(body.get("endDate"), "endDate");
         validateDateRange(startDate, endDate);
         Visibility visibility = body.get("visibility") != null ? parseOptionalVisibility(body.get("visibility")) : null;
+        boolean githubRepoProvided = body.containsKey("githubRepoUrl");
+        String githubRepoUrl = parseOptionalRepoUrl(body.get("githubRepoUrl"));
         return projectService.update(projectId, nameRaw, (String) body.get("description"),
-                visibility, startDate, endDate, currentUser.getId());
+            visibility, startDate, endDate, githubRepoProvided, githubRepoUrl, currentUser.getId());
     }
+
+        @GetMapping("/{projectId}/repo-insights")
+        public Map<String, Object> getProjectRepoInsights(@PathVariable UUID workspaceId,
+                                  @PathVariable UUID projectId,
+                                  HttpServletRequest request) {
+        User currentUser = requireCurrentUser(request);
+        return projectService.getProjectRepoInsights(workspaceId, projectId, currentUser.getId());
+        }
 
     @PatchMapping("/{projectId}/status")
     public Project changeStatus(@PathVariable UUID workspaceId,
@@ -349,6 +368,12 @@ public class ProjectController {
             throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION,
                     "Invalid visibility value. Use PUBLIC or PRIVATE.");
         }
+    }
+
+    private String parseOptionalRepoUrl(Object raw) {
+        if (raw == null) return null;
+        String value = raw.toString().trim();
+        return value.isBlank() ? null : value;
     }
 
     private String pickFirstJson(Map<String, Object> body, String... candidateKeys) {

@@ -1,6 +1,7 @@
 package com.example.pi_projet.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.pi_projet.entity.*;
 import com.example.pi_projet.entity.ProjectTemplate.*;
@@ -37,6 +38,10 @@ public class M2DevSeedService {
 
     // Seeded historic created_at used for workspaces and projects so snapshots exist
     private static final Instant SEEDED_CREATED_AT = Instant.parse("2024-01-01T00:00:00Z");
+
+    private record SeedPhaseSpec(String key, String name, int durationDays, boolean enabled) {}
+
+    private record SeedTemplateStructure(String phasesJson, String milestonesJson, String tasksJson) {}
 
     // ── Repositories ────────────────────────────────────────────────────────
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
@@ -751,37 +756,49 @@ public class M2DevSeedService {
                                            int estimatedDurationDays, int usageCount,
                                            double rating, int ratingCount,
                                            String useCaseDescription) {
-        return projectTemplateRepository.findAll().stream()
+        Optional<ProjectTemplate> existingOpt = projectTemplateRepository.findAll().stream()
             .filter(t -> t.getOrganization() != null
                 && org.getId().equals(t.getOrganization().getId())
                 && name.equalsIgnoreCase(t.getName()))
-            .findFirst()
-            .orElseGet(() -> projectTemplateRepository.save(
-                ProjectTemplate.builder()
-                    .organization(org)
-                    .createdBy(creatorId)
-                    .name(name)
-                    .templateType(type)
-                    .difficultyLevel(difficulty)
-                    .estimatedEffort(effort)
-                    .estimatedDurationDays(estimatedDurationDays)
-                    .status(status)
-                    .isPublic(isPublic)
-                    .isFeatured(isFeatured)
-                    .isRecommended(isRecommended)
-                    .isTrending(isTrending)
-                    .defaultVisibility(isPublic ? DefaultVisibility.PUBLIC : DefaultVisibility.PRIVATE)
-                    .teamStrategy(TeamStrategy.HYBRID)
-                    .defaultPhasesJson(phasesJson)
-                    .defaultRolesJson("[]")
-                    .defaultProjectConfigJson("{\"framework\":\"" + type.name().toLowerCase() + "\"}")
-                    .tags(tags)
-                    .useCaseDescription(useCaseDescription)
-                    .usageCount(usageCount)
-                    .rating(rating)
-                    .ratingCount(ratingCount)
-                    .version(1)
-                    .build()));
+            .findFirst();
+
+        if (existingOpt.isPresent()) {
+            ProjectTemplate existing = existingOpt.get();
+            if (ensureTemplateHasStructure(existing, name, phasesJson)) {
+                return projectTemplateRepository.save(existing);
+            }
+            return existing;
+        }
+
+        SeedTemplateStructure structure = buildTemplateStructureDefaults(phasesJson, name);
+        return projectTemplateRepository.save(
+            ProjectTemplate.builder()
+                .organization(org)
+                .createdBy(creatorId)
+                .name(name)
+                .templateType(type)
+                .difficultyLevel(difficulty)
+                .estimatedEffort(effort)
+                .estimatedDurationDays(estimatedDurationDays)
+                .status(status)
+                .isPublic(isPublic)
+                .isFeatured(isFeatured)
+                .isRecommended(isRecommended)
+                .isTrending(isTrending)
+                .defaultVisibility(isPublic ? DefaultVisibility.PUBLIC : DefaultVisibility.PRIVATE)
+                .teamStrategy(TeamStrategy.HYBRID)
+                .defaultPhasesJson(structure.phasesJson())
+                .defaultMilestonesJson(structure.milestonesJson())
+                .defaultTasksJson(structure.tasksJson())
+                .defaultRolesJson("[]")
+                .defaultProjectConfigJson("{\"framework\":\"" + type.name().toLowerCase() + "\"}")
+                .tags(tags)
+                .useCaseDescription(useCaseDescription)
+                .usageCount(usageCount)
+                .rating(rating)
+                .ratingCount(ratingCount)
+                .version(1)
+                .build());
     }
 
     private void ensurePibAlignedTemplates(User enterpriseOwner, User academicOwner) {
@@ -906,14 +923,20 @@ public class M2DevSeedService {
                                    String description,
                                    double fitness,
                                    double completion) {
-        // Check if exists — if so, simply return (fully idempotent)
+        String phasesJson = "[{\"name\":\"Discovery\",\"durationDays\":7},{\"name\":\"Planning\",\"durationDays\":14},{\"name\":\"Execution\",\"durationDays\":21},{\"name\":\"Validation\",\"durationDays\":7}]";
+        SeedTemplateStructure structure = buildTemplateStructureDefaults(phasesJson, name);
+
         try {
-            if (projectTemplateRepository.existsById(templateId)) {
+            Optional<ProjectTemplate> existingOpt = projectTemplateRepository.findById(templateId);
+            if (existingOpt.isPresent()) {
+                ProjectTemplate existing = existingOpt.get();
+                if (ensureTemplateHasStructure(existing, name, phasesJson)) {
+                    projectTemplateRepository.save(existing);
+                }
                 return;
             }
         } catch (Exception ex) {
-            // Ignore database errors during existence check
-            log.debug("Error checking template existence: {}", templateId, ex);
+            log.debug("Error checking PIB template existence: {}", templateId, ex);
             return;
         }
 
@@ -932,7 +955,9 @@ public class M2DevSeedService {
                 .isTrending(false)
                 .defaultVisibility(DefaultVisibility.PUBLIC)
                 .teamStrategy(TeamStrategy.HYBRID)
-                .defaultPhasesJson("[{\"name\":\"Discovery\",\"durationDays\":7},{\"name\":\"Planning\",\"durationDays\":14},{\"name\":\"Execution\",\"durationDays\":21},{\"name\":\"Validation\",\"durationDays\":7}]")
+                .defaultPhasesJson(structure.phasesJson())
+                .defaultMilestonesJson(structure.milestonesJson())
+                .defaultTasksJson(structure.tasksJson())
                 .defaultRolesJson(defaultRolesJson)
                 .defaultProjectConfigJson("{\"framework\":\"" + type.name().toLowerCase() + "\",\"source\":\"pib-aligned-seed\"}")
                 .useCaseDescription(description)
@@ -1216,6 +1241,37 @@ public class M2DevSeedService {
     private ProjectTemplate ensureTemplateFork(ProjectTemplate sourceTemplate,
                                                 Long requesterId,
                                                 String customName) {
+        Optional<ProjectTemplate> existingFork = projectTemplateRepository.findAll().stream()
+            .filter(t -> Objects.equals(t.getParentTemplateId(), sourceTemplate.getId())
+                && customName.equalsIgnoreCase(t.getName()))
+            .findFirst();
+
+        if (existingFork.isPresent()) {
+            ProjectTemplate fork = existingFork.get();
+            boolean changed = false;
+
+            if (!Boolean.TRUE.equals(fork.getIsPublic())) {
+                fork.setIsPublic(true);
+                changed = true;
+            }
+            if (fork.getStatus() != TemplateStatus.APPROVED) {
+                fork.setStatus(TemplateStatus.APPROVED);
+                changed = true;
+            }
+            if (fork.getDefaultVisibility() != DefaultVisibility.PUBLIC) {
+                fork.setDefaultVisibility(DefaultVisibility.PUBLIC);
+                changed = true;
+            }
+            if (!Objects.equals(fork.getVersion(), 1)) {
+                fork.setVersion(1);
+                changed = true;
+            }
+            if (ensureTemplateHasStructure(fork, customName, sourceTemplate.getDefaultPhasesJson())) {
+                changed = true;
+            }
+            return changed ? projectTemplateRepository.save(fork) : fork;
+        }
+
         // Use service to fork (sets parentTemplateId, status=DRAFT, etc.)
         ProjectTemplate fork = projectTemplateService.forkTemplate(sourceTemplate.getId(), requesterId);
         
@@ -1226,9 +1282,248 @@ public class M2DevSeedService {
         fork.setIsPublic(true);
         fork.setStatus(ProjectTemplate.TemplateStatus.APPROVED);
         fork.setDefaultVisibility(ProjectTemplate.DefaultVisibility.PUBLIC);
+        ensureTemplateHasStructure(fork, customName, sourceTemplate.getDefaultPhasesJson());
         
         // Save with custom name and public visibility
         return projectTemplateRepository.save(fork);
+    }
+
+    private boolean ensureTemplateHasStructure(ProjectTemplate template,
+                                               String templateName,
+                                               String preferredPhasesJson) {
+        String sourcePhasesJson = isJsonArray(template.getDefaultPhasesJson())
+            ? template.getDefaultPhasesJson()
+            : preferredPhasesJson;
+        SeedTemplateStructure generated = buildTemplateStructureDefaults(sourcePhasesJson, templateName);
+        boolean changed = false;
+
+        if (!isJsonArray(template.getDefaultPhasesJson())) {
+            template.setDefaultPhasesJson(generated.phasesJson());
+            changed = true;
+        }
+        if (!hasNonEmptyJsonArray(template.getDefaultMilestonesJson())) {
+            template.setDefaultMilestonesJson(generated.milestonesJson());
+            changed = true;
+        }
+        if (!hasNonEmptyJsonArray(template.getDefaultTasksJson())) {
+            template.setDefaultTasksJson(generated.tasksJson());
+            changed = true;
+        }
+        if (!hasText(template.getDefaultRolesJson())) {
+            template.setDefaultRolesJson("[]");
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    private SeedTemplateStructure buildTemplateStructureDefaults(String phasesJson, String templateName) {
+        List<SeedPhaseSpec> phases = parseSeedPhases(phasesJson, templateName);
+
+        List<Map<String, Object>> phaseRows = new ArrayList<>();
+        List<Map<String, Object>> milestones = new ArrayList<>();
+        List<Map<String, Object>> tasks = new ArrayList<>();
+
+        int runningOffset = 0;
+        for (int i = 0; i < phases.size(); i++) {
+            SeedPhaseSpec phase = phases.get(i);
+            int phaseDuration = Math.max(1, phase.durationDays());
+            int phaseStartOffset = runningOffset;
+            int phaseEndOffset = phaseStartOffset + phaseDuration;
+
+            Map<String, Object> phaseRow = new LinkedHashMap<>();
+            phaseRow.put("key", phase.key());
+            phaseRow.put("name", phase.name());
+            phaseRow.put("durationDays", phase.durationDays());
+            phaseRow.put("order", i + 1);
+            phaseRow.put("enabled", phase.enabled());
+            phaseRows.add(phaseRow);
+
+            String kickoffMilestoneKey = phase.key() + "-ms-kickoff";
+            String completionMilestoneKey = phase.key() + "-ms-complete";
+
+            Map<String, Object> kickoffMilestone = new LinkedHashMap<>();
+            kickoffMilestone.put("key", kickoffMilestoneKey);
+            kickoffMilestone.put("name", phase.name() + " Kickoff");
+            kickoffMilestone.put("description", "Kickoff checkpoint for " + phase.name() + ".");
+            kickoffMilestone.put("phaseKey", phase.key());
+            kickoffMilestone.put("offsetDays", phaseStartOffset);
+            kickoffMilestone.put("status", "pending");
+            kickoffMilestone.put("completionPct", 0f);
+            kickoffMilestone.put("enabled", phase.enabled());
+            milestones.add(kickoffMilestone);
+
+            Map<String, Object> completionMilestone = new LinkedHashMap<>();
+            completionMilestone.put("key", completionMilestoneKey);
+            completionMilestone.put("name", phase.name() + " Complete");
+            completionMilestone.put("description", "Completion checkpoint for " + phase.name() + ".");
+            completionMilestone.put("phaseKey", phase.key());
+            completionMilestone.put("offsetDays", Math.max(phaseStartOffset, phaseEndOffset - 1));
+            completionMilestone.put("status", "pending");
+            completionMilestone.put("completionPct", 0f);
+            completionMilestone.put("enabled", phase.enabled());
+            milestones.add(completionMilestone);
+
+            int planningDueOffset = Math.max(phaseStartOffset, phaseStartOffset + Math.max(1, phaseDuration / 2));
+            int executionStartOffset = Math.min(planningDueOffset, Math.max(phaseStartOffset, phaseEndOffset - 1));
+            int executionDueOffset = Math.max(executionStartOffset, phaseEndOffset);
+
+            Map<String, Object> planningTask = new LinkedHashMap<>();
+            planningTask.put("key", phase.key() + "-task-plan");
+            planningTask.put("title", "Plan " + phase.name());
+            planningTask.put("description", "Define scope and acceptance criteria for " + phase.name() + ".");
+            planningTask.put("phaseKey", phase.key());
+            planningTask.put("milestoneKey", kickoffMilestoneKey);
+            planningTask.put("taskType", "task");
+            planningTask.put("status", "todo");
+            planningTask.put("priority", "medium");
+            planningTask.put("estimatedHours", 6f + i);
+            planningTask.put("startOffsetDays", phaseStartOffset);
+            planningTask.put("dueOffsetDays", planningDueOffset);
+            planningTask.put("enabled", phase.enabled());
+            tasks.add(planningTask);
+
+            Map<String, Object> executionTask = new LinkedHashMap<>();
+            executionTask.put("key", phase.key() + "-task-deliver");
+            executionTask.put("title", "Deliver " + phase.name());
+            executionTask.put("description", "Execute and deliver the outputs for " + phase.name() + ".");
+            executionTask.put("phaseKey", phase.key());
+            executionTask.put("milestoneKey", completionMilestoneKey);
+            executionTask.put("taskType", "task");
+            executionTask.put("status", "todo");
+            executionTask.put("priority", i >= phases.size() - 1 ? "high" : "medium");
+            executionTask.put("estimatedHours", 10f + i);
+            executionTask.put("startOffsetDays", executionStartOffset);
+            executionTask.put("dueOffsetDays", executionDueOffset);
+            executionTask.put("enabled", phase.enabled());
+            tasks.add(executionTask);
+
+            if (phase.enabled()) {
+                runningOffset += phaseDuration;
+            }
+        }
+
+        return new SeedTemplateStructure(toJson(phaseRows), toJson(milestones), toJson(tasks));
+    }
+
+    private List<SeedPhaseSpec> parseSeedPhases(String phasesJson, String templateName) {
+        List<SeedPhaseSpec> phases = new ArrayList<>();
+        Set<String> usedKeys = new HashSet<>();
+
+        if (hasText(phasesJson)) {
+            try {
+                JsonNode root = objectMapper.readTree(phasesJson);
+                if (root.isArray()) {
+                    for (int i = 0; i < root.size(); i++) {
+                        JsonNode item = root.get(i);
+                        String name = null;
+                        String keyCandidate = null;
+                        int durationDays = 14;
+                        boolean enabled = true;
+
+                        if (item != null && item.isObject()) {
+                            name = optionalText(item, "name", "title");
+                            keyCandidate = optionalText(item, "key");
+                            durationDays = optionalInt(item, 14, "durationDays", "duration");
+                            enabled = item.path("enabled").asBoolean(true);
+                        } else if (item != null && item.isTextual()) {
+                            name = item.asText();
+                        }
+
+                        if (!hasText(name)) {
+                            name = "Phase " + (i + 1);
+                        }
+
+                        String key = uniqueKey(hasText(keyCandidate) ? keyCandidate : name, usedKeys);
+                        int boundedDuration = Math.max(0, Math.min(3650, durationDays));
+                        phases.add(new SeedPhaseSpec(key, name.trim(), boundedDuration, enabled));
+                    }
+                }
+            } catch (Exception ex) {
+                log.debug("[M2DevSeedService] Could not parse phases JSON for template '{}': {}", templateName, ex.getMessage());
+            }
+        }
+
+        if (phases.isEmpty()) {
+            phases.add(new SeedPhaseSpec("phase-1", "Planning", 7, true));
+            phases.add(new SeedPhaseSpec("phase-2", "Execution", 14, true));
+            phases.add(new SeedPhaseSpec("phase-3", "Validation", 7, true));
+        }
+
+        return phases;
+    }
+
+    private String optionalText(JsonNode node, String... fields) {
+        if (node == null) return null;
+        for (String field : fields) {
+            JsonNode value = node.get(field);
+            if (value == null || value.isNull()) continue;
+            String text = value.asText("").trim();
+            if (!text.isEmpty()) return text;
+        }
+        return null;
+    }
+
+    private int optionalInt(JsonNode node, int fallback, String... fields) {
+        if (node == null) return fallback;
+        for (String field : fields) {
+            JsonNode value = node.get(field);
+            if (value == null || value.isNull()) continue;
+            if (value.isInt() || value.isLong()) return value.asInt();
+            if (value.isTextual()) {
+                try {
+                    return Integer.parseInt(value.asText().trim());
+                } catch (NumberFormatException ignored) {
+                    // keep fallback
+                }
+            }
+        }
+        return fallback;
+    }
+
+    private String uniqueKey(String candidate, Set<String> usedKeys) {
+        String base = sanitizeKey(candidate);
+        if (!hasText(base)) base = "phase";
+
+        String key = base;
+        int suffix = 2;
+        while (usedKeys.contains(key)) {
+            key = base + "-" + suffix;
+            suffix++;
+        }
+        usedKeys.add(key);
+        return key;
+    }
+
+    private String sanitizeKey(String value) {
+        if (!hasText(value)) return "";
+        String normalized = value.trim().toLowerCase(Locale.ROOT)
+            .replaceAll("[^a-z0-9]+", "-")
+            .replaceAll("(^-+|-+$)", "");
+        return normalized;
+    }
+
+    private boolean hasNonEmptyJsonArray(String rawJson) {
+        if (!hasText(rawJson)) return false;
+        try {
+            JsonNode root = objectMapper.readTree(rawJson);
+            return root.isArray() && root.size() > 0;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    private boolean isJsonArray(String rawJson) {
+        if (!hasText(rawJson)) return false;
+        try {
+            return objectMapper.readTree(rawJson).isArray();
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 
     private User requireUser(String email) {

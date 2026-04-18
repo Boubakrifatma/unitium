@@ -105,6 +105,28 @@ export interface M2WorkspaceProjectCapacity {
     orgType: string;
 }
 
+export interface M2WorkspaceHoliday {
+    date: string;
+    localName: string;
+    name: string;
+    countryCode: string;
+    global: boolean;
+    types?: string[];
+}
+
+export interface M2WorkspaceHolidaysResponse {
+    provider: string;
+    providerUrl: string;
+    country: string;
+    year: number;
+    generatedAt: string;
+    providerStatus: "live" | "fallback";
+    warning?: string;
+    count: number;
+    workspaceId: string;
+    items: M2WorkspaceHoliday[];
+}
+
 export interface M2WorkspaceOverviewWorkspaceMetrics {
     workspaceId: string;
     projectCount: number;
@@ -229,5 +251,12 @@ export class M2WorkspaceService {
 
     getWorkspaceProjectCapacity(workspaceId: string): Observable<M2WorkspaceProjectCapacity> {
         return this.http.get<M2WorkspaceProjectCapacity>(`${this.base}/${workspaceId}/projects/capacity`);
+    }
+
+    getWorkspaceHolidays(workspaceId: string, country = "TN", year?: number): Observable<M2WorkspaceHolidaysResponse> {
+        const p = new URLSearchParams();
+        p.set("country", country);
+        if (year) p.set("year", String(year));
+        return this.http.get<M2WorkspaceHolidaysResponse>(`${this.base}/${workspaceId}/calendar/holidays?${p.toString()}`);
     }
 }

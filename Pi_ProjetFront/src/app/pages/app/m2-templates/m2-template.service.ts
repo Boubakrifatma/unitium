@@ -58,6 +58,85 @@ export interface M2TemplateLineageNode {
     children: M2TemplateLineageNode[];
 }
 
+export interface M2TemplateRecommendationItem {
+    templateId: string;
+    name: string;
+    templateType: "SCRUM" | "KANBAN" | "WATERFALL" | "CUSTOM";
+    difficultyLevel?: "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
+    score: number;
+    rating: number;
+    ratingCount: number;
+    usageCount: number;
+    favoriteCount: number;
+    isFeatured: boolean;
+    isTrending: boolean;
+    isRecommended: boolean;
+    favoritedByCurrentUser: boolean;
+    reasons: string[];
+}
+
+export interface M2TemplateRecommendationsResponse {
+    generatedAt: string;
+    limit: number;
+    count: number;
+    context: {
+        projectType?: string;
+        difficulty?: string;
+        workspaceOrgType?: string;
+    };
+    items: M2TemplateRecommendationItem[];
+}
+
+export interface M2TemplateAnalyticsResponse {
+    templateId: string;
+    name: string;
+    status: "DRAFT" | "PENDING_APPROVAL" | "APPROVED" | "REJECTED";
+    isPublic: boolean;
+    favoritedByCurrentUser: boolean;
+    totals: {
+        favoriteCount: number;
+        ratingCount: number;
+        usageCount: number;
+        averageRating: number;
+    };
+    recent: {
+        favorites7d: number;
+        favorites30d: number;
+        ratings7d: number;
+        ratings30d: number;
+    };
+    ratingDistribution: Record<number, number>;
+    scores: {
+        qualityScore: number;
+        growthScore: number;
+        usageVelocityPerWeek: number;
+    };
+    generatedAt: string;
+}
+
+export interface M2TemplateCoverSuggestion {
+    id?: string;
+    title?: string;
+    thumbnail?: string;
+    creator?: string;
+    license?: string;
+    licenseVersion?: string;
+    provider?: string;
+    url?: string;
+    foreignLandingUrl?: string;
+}
+
+export interface M2TemplateCoverSuggestionsResponse {
+    provider: string;
+    providerUrl: string;
+    query: string;
+    generatedAt: string;
+    providerStatus: "live" | "fallback";
+    warning?: string;
+    count: number;
+    items: M2TemplateCoverSuggestion[];
+}
+
 export interface TemplateLaunchOverrides {
     phases?: Array<Record<string, unknown>> | string;
     milestones?: Array<Record<string, unknown>> | string;
@@ -147,6 +226,31 @@ export class M2TemplateService {
         p.set('page', String(params.page ?? 0));
         p.set('size', String(params.size ?? 50));
         return this.http.get<M2TemplatePage>(`${this.base}/public?${p.toString()}`);
+    }
+
+    getRecommendations(params: {
+        workspaceId?: string;
+        projectType?: string;
+        difficulty?: string;
+        limit?: number;
+    } = {}): Observable<M2TemplateRecommendationsResponse> {
+        const p = new URLSearchParams();
+        if (params.workspaceId) p.set("workspaceId", params.workspaceId);
+        if (params.projectType) p.set("projectType", params.projectType);
+        if (params.difficulty) p.set("difficulty", params.difficulty);
+        p.set("limit", String(params.limit ?? 10));
+        return this.http.get<M2TemplateRecommendationsResponse>(`${this.base}/recommendations?${p.toString()}`);
+    }
+
+    getTemplateAnalytics(id: string): Observable<M2TemplateAnalyticsResponse> {
+        return this.http.get<M2TemplateAnalyticsResponse>(`${this.base}/${id}/analytics`);
+    }
+
+    getCoverSuggestions(query: string, pageSize = 12): Observable<M2TemplateCoverSuggestionsResponse> {
+        const p = new URLSearchParams();
+        p.set("q", query);
+        p.set("pageSize", String(pageSize));
+        return this.http.get<M2TemplateCoverSuggestionsResponse>(`${this.base}/cover-suggestions?${p.toString()}`);
     }
 
     toggleFavorite(id: string): Observable<{ favorited: boolean; favoriteCount: number }> {

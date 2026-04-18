@@ -220,6 +220,8 @@ public class ProjectIntelligenceService {
 
         String projectName = requireProjectName(confirmRequest.get("projectName"));
         String projectDescription = optionalString(confirmRequest.get("projectDescription"));
+        boolean githubRepoUrlProvided = confirmRequest.containsKey("githubRepoUrl");
+        String githubRepoUrl = optionalString(confirmRequest.get("githubRepoUrl"));
         Project.Visibility visibility = parseVisibility(optionalString(confirmRequest.get("visibility")));
 
         LocalDate startDate = parseOptionalDate(confirmRequest.get("startDate"), "startDate");
@@ -265,9 +267,9 @@ public class ProjectIntelligenceService {
             }
 
             created = projectService.createProjectFromTemplate(workspaceId, selectedTemplateId, projectName, startDate, endDate, currentUserId);
-            created = projectService.update(created.getId(), null, projectDescription, visibility, null, null, currentUserId);
+            created = projectService.update(created.getId(), null, projectDescription, visibility, null, null, githubRepoUrlProvided, githubRepoUrl, currentUserId);
         } else {
-            created = projectService.create(workspaceId, projectName, projectDescription, visibility, startDate, endDate, currentUserId);
+            created = projectService.create(workspaceId, projectName, projectDescription, visibility, startDate, endDate, githubRepoUrl, currentUserId);
         }
 
         String orgType = resolveWorkspaceOrgType(workspace);

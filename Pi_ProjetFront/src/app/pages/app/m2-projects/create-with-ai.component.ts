@@ -103,6 +103,7 @@ export class CreateWithAiComponent implements OnInit, OnDestroy {
 
     readonly projectName = signal("");
     readonly projectDescription = signal("");
+    readonly projectGithubRepoUrl = signal("");
 
     readonly stage1ProjectType = signal("other");
     readonly stage1Complexity = signal("MEDIUM");
@@ -402,6 +403,7 @@ export class CreateWithAiComponent implements OnInit, OnDestroy {
             inputType: this.inputType(),
             projectName: this.projectName().trim(),
             projectDescription: this.projectDescription().trim(),
+            githubRepoUrl: this.projectGithubRepoUrl().trim() || null,
             visibility: "PRIVATE",
             selectedTemplateId: this.selectedTemplateId(),
             selectedTemplateName: this.selectedTemplateName(),

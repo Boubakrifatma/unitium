@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,4 +26,6 @@ public interface TemplateFavoriteRepository extends JpaRepository<TemplateFavori
     List<UUID> findTemplateIdsByUserId(@Param("userId") Long userId);
 
     long countByTemplateId(UUID templateId);
+
+    long countByTemplateIdAndCreatedAtAfter(UUID templateId, Instant createdAt);
 }

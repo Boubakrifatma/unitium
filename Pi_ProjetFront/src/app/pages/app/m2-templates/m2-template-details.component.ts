@@ -13,12 +13,59 @@ import { MatDividerModule } from "@angular/material/divider";
 import { MatSnackBar, MatSnackBarModule } from "@angular/material/snack-bar";
 import { MatDialog, MatDialogModule } from "@angular/material/dialog";
 import { MatTooltipModule } from "@angular/material/tooltip";
-import { M2TemplateLineageNode, M2TemplateService, M2TemplateSummary } from "./m2-template.service";
+import {
+    M2TemplateAnalyticsResponse,
+    M2TemplateCoverSuggestion,
+    M2TemplateLineageNode,
+    M2TemplateService,
+    M2TemplateSummary,
+} from "./m2-template.service";
 import { TemplateDeleteConfirmDialogComponent } from "./template-delete-confirm-dialog.component";
 import { AuthService } from "../../../auth/auth.service";
 import { M2WorkspaceService } from "../m2-workspaces/m2-workspace.service";
 import { UseTemplateWizardDialogComponent, UseTemplateWizardResult } from "./use-template-wizard-dialog.component";
 import { TemplateDnaViewerComponent } from "../../../components/template-dna-viewer/template-dna-viewer.component";
+
+interface TemplatePhaseView {
+    key: string;
+    name: string;
+    durationDays: number;
+    order: number;
+    enabled: boolean;
+}
+
+interface TemplateMilestoneView {
+    key: string;
+    name: string;
+    description: string;
+    phaseKey: string | null;
+    offsetDays: number | null;
+    status: string;
+    completionPct: number;
+    enabled: boolean;
+}
+
+interface TemplateTaskView {
+    key: string;
+    title: string;
+    description: string;
+    phaseKey: string | null;
+    milestoneKey: string | null;
+    taskType: string;
+    status: string;
+    priority: string;
+    estimatedHours: number | null;
+    startOffsetDays: number | null;
+    dueOffsetDays: number | null;
+    parentTaskKey: string | null;
+    enabled: boolean;
+}
+
+interface TemplatePhaseBlueprint {
+    phase: TemplatePhaseView;
+    milestones: Array<TemplateMilestoneView & { tasks: TemplateTaskView[] }>;
+    looseTasks: TemplateTaskView[];
+}
 
 // Simple inline workspace-selector dialog
 import { Component as DlgComp, inject as dlgInject, signal as dlgSignal, OnInit as DlgOnInit } from "@angular/core";
@@ -308,6 +355,154 @@ export class RejectTemplateDialogComponent {
                     </div>
                 </div>
 
+                <!-- Analytics and cover suggestions -->
+                <div class="row gx-3 mb-1">
+                    <div class="col-12 col-lg-7 mb-3">
+                        <mat-card>
+                            <mat-card-content class="py-3">
+                                <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+                                    <div>
+                                        <h5 class="mb-0">
+                                            <mat-icon class="material-icons-outlined align-middle" style="font-size:18px;width:18px;height:18px;">analytics</mat-icon>
+                                            Template Analytics
+                                        </h5>
+                                        <p class="small text-secondary mb-0">Live quality, growth, velocity, and rating-distribution signals.</p>
+                                    </div>
+                                    <button matButton class="text-theme" (click)="loadTemplateAnalytics(templateId())" [disabled]="analyticsLoading()">
+                                        <mat-icon class="material-icons-outlined">refresh</mat-icon>
+                                        Refresh
+                                    </button>
+                                </div>
+
+                                @if (analyticsLoading()) {
+                                    <div class="d-flex align-items-center gap-2 text-secondary small py-2">
+                                        <mat-icon class="material-icons-outlined" style="font-size:16px;width:16px;height:16px;animation:spin 1s linear infinite;">cached</mat-icon>
+                                        Loading analytics...
+                                    </div>
+                                } @else if (analyticsError()) {
+                                    <div class="d-flex align-items-start gap-2 p-2 rounded" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);">
+                                        <mat-icon class="material-icons-outlined" style="font-size:16px;width:16px;height:16px;color:#dc2626;">error_outline</mat-icon>
+                                        <p class="small mb-0" style="color:#991b1b;">{{ analyticsError() }}</p>
+                                    </div>
+                                } @else if (templateAnalytics(); as analytics) {
+                                    <div class="row gx-2 mb-2">
+                                        <div class="col-6 col-md-3 mb-2">
+                                            <div style="border:1px solid rgba(34,197,94,0.24);border-radius:10px;background:rgba(34,197,94,0.08);padding:8px 10px;">
+                                                <p class="text-secondary mb-1" style="font-size:11px;">Quality</p>
+                                                <p class="fw-semibold mb-0" style="font-size:18px;color:#15803d;">{{ analytics.scores.qualityScore | number:'1.0-0' }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 col-md-3 mb-2">
+                                            <div style="border:1px solid rgba(14,165,233,0.25);border-radius:10px;background:rgba(14,165,233,0.08);padding:8px 10px;">
+                                                <p class="text-secondary mb-1" style="font-size:11px;">Growth</p>
+                                                <p class="fw-semibold mb-0" style="font-size:18px;color:#0369a1;">{{ analytics.scores.growthScore | number:'1.0-0' }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 col-md-3 mb-2">
+                                            <div style="border:1px solid rgba(99,102,241,0.26);border-radius:10px;background:rgba(99,102,241,0.08);padding:8px 10px;">
+                                                <p class="text-secondary mb-1" style="font-size:11px;">Velocity / week</p>
+                                                <p class="fw-semibold mb-0" style="font-size:18px;color:#4f46e5;">{{ analytics.scores.usageVelocityPerWeek | number:'1.1-1' }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 col-md-3 mb-2">
+                                            <div style="border:1px solid rgba(245,158,11,0.28);border-radius:10px;background:rgba(245,158,11,0.09);padding:8px 10px;">
+                                                <p class="text-secondary mb-1" style="font-size:11px;">Total Favorites</p>
+                                                <p class="fw-semibold mb-0" style="font-size:18px;color:#b45309;">{{ analytics.totals.favoriteCount }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex flex-wrap gap-2 mb-2">
+                                        <span class="badge badge-light">Avg rating {{ analytics.totals.averageRating | number:'1.1-1' }}</span>
+                                        <span class="badge badge-light">{{ analytics.totals.ratingCount }} ratings</span>
+                                        <span class="badge badge-light">{{ analytics.totals.usageCount }} launches</span>
+                                        <span class="badge badge-light">+{{ analytics.recent.favorites7d }} favorites in 7d</span>
+                                        <span class="badge badge-light">+{{ analytics.recent.ratings30d }} ratings in 30d</span>
+                                    </div>
+
+                                    <div class="d-flex flex-column gap-1">
+                                        @for (row of ratingDistributionRows(); track row.stars) {
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span style="font-size:11px;color:#475569;min-width:34px;">{{ row.stars }}★</span>
+                                                <div style="flex:1;height:7px;border-radius:999px;background:#e2e8f0;overflow:hidden;">
+                                                    <div style="height:100%;background:linear-gradient(90deg,#f59e0b,#f97316);" [style.width.%]="(row.count / ratingDistributionMax()) * 100"></div>
+                                                </div>
+                                                <span style="font-size:11px;color:#475569;min-width:20px;text-align:right;">{{ row.count }}</span>
+                                            </div>
+                                        }
+                                    </div>
+                                } @else {
+                                    <p class="small text-secondary mb-0">Analytics not available yet.</p>
+                                }
+                            </mat-card-content>
+                        </mat-card>
+                    </div>
+
+                    <div class="col-12 col-lg-5 mb-3">
+                        <mat-card>
+                            <mat-card-content class="py-3">
+                                <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+                                    <div>
+                                        <h5 class="mb-0">
+                                            <mat-icon class="material-icons-outlined align-middle" style="font-size:18px;width:18px;height:18px;">image_search</mat-icon>
+                                            Cover Suggestions
+                                        </h5>
+                                        <p class="small text-secondary mb-0">Free Openverse suggestions for better template visuals.</p>
+                                    </div>
+                                    @if (coverProviderStatus() === 'fallback') {
+                                        <span class="badge theme-orange" style="font-size:10px;">Fallback</span>
+                                    }
+                                </div>
+
+                                <div class="d-flex gap-2 mb-2">
+                                    <mat-form-field appearance="outline" class="w-100 inline-small" style="margin:0;">
+                                        <mat-label>Cover query</mat-label>
+                                        <input matInput [(ngModel)]="coverQuery" placeholder="kanban board" />
+                                    </mat-form-field>
+                                    <button matButton="filled" class="text-theme" (click)="loadCoverSuggestions(coverQuery)" [disabled]="coverSuggestionsLoading()" style="height:40px;margin-top:2px;">
+                                        Search
+                                    </button>
+                                </div>
+
+                                @if (coverSuggestionsLoading()) {
+                                    <div class="d-flex align-items-center gap-2 text-secondary small py-2">
+                                        <mat-icon class="material-icons-outlined" style="font-size:16px;width:16px;height:16px;animation:spin 1s linear infinite;">cached</mat-icon>
+                                        Loading cover suggestions...
+                                    </div>
+                                }
+
+                                @if (coverWarning()) {
+                                    <div class="small mb-2" style="color:#92400e;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:7px 9px;">
+                                        {{ coverWarning() }}
+                                    </div>
+                                }
+
+                                @if (coverSuggestionsError()) {
+                                    <div class="small" style="color:#991b1b;">{{ coverSuggestionsError() }}</div>
+                                } @else if (coverSuggestions().length === 0 && !coverSuggestionsLoading()) {
+                                    <p class="small text-secondary mb-0">No suggestions yet. Try another keyword.</p>
+                                } @else {
+                                    <div class="row gx-2 gy-2">
+                                        @for (item of coverSuggestions(); track item.id || $index) {
+                                            <div class="col-6">
+                                                <div style="border:1px solid rgba(15,23,42,0.12);border-radius:10px;padding:6px;background:#fff;">
+                                                    @if (item.thumbnail) {
+                                                        <img [src]="item.thumbnail" [alt]="item.title || 'cover'" style="width:100%;height:80px;object-fit:cover;border-radius:8px;" />
+                                                    } @else {
+                                                        <div style="height:80px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:11px;">No preview</div>
+                                                    }
+                                                    <p class="mb-0 mt-1 text-truncate" style="font-size:11px;color:#0f172a;">{{ item.title || 'Untitled image' }}</p>
+                                                    <p class="mb-0 text-truncate" style="font-size:10px;color:#64748b;">{{ item.creator || 'Unknown creator' }}</p>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </mat-card-content>
+                        </mat-card>
+                    </div>
+                </div>
+
                 <!-- Main body -->
                 <div class="row gx-3">
                     <!-- Left column -->
@@ -520,34 +715,205 @@ export class RejectTemplateDialogComponent {
                                         <mat-hint>Optional — must be valid JSON array if provided</mat-hint>
                                     </mat-form-field>
                                 } @else {
-                                    <!-- Phases — visual timeline -->
+                                    <div class="row gx-2 mb-3">
+                                        <div class="col-6 col-lg-3 mb-2">
+                                            <div style="border:1px solid rgba(99,102,241,0.2);border-radius:12px;padding:10px 12px;background:rgba(99,102,241,0.06);">
+                                                <p class="text-secondary mb-1" style="font-size:11px;">Phases</p>
+                                                <p class="fw-semibold mb-0" style="font-size:18px;color:#4f46e5;">{{ parsedPhases().length }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 col-lg-3 mb-2">
+                                            <div style="border:1px solid rgba(14,165,233,0.25);border-radius:12px;padding:10px 12px;background:rgba(14,165,233,0.07);">
+                                                <p class="text-secondary mb-1" style="font-size:11px;">Milestones</p>
+                                                <p class="fw-semibold mb-0" style="font-size:18px;color:#0369a1;">{{ parsedMilestones().length }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 col-lg-3 mb-2">
+                                            <div style="border:1px solid rgba(245,158,11,0.28);border-radius:12px;padding:10px 12px;background:rgba(245,158,11,0.09);">
+                                                <p class="text-secondary mb-1" style="font-size:11px;">Tasks</p>
+                                                <p class="fw-semibold mb-0" style="font-size:18px;color:#b45309;">{{ parsedTasks().length }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 col-lg-3 mb-2">
+                                            <div style="border:1px solid rgba(34,197,94,0.24);border-radius:12px;padding:10px 12px;background:rgba(34,197,94,0.08);">
+                                                <p class="text-secondary mb-1" style="font-size:11px;">Estimated Hours</p>
+                                                <p class="fw-semibold mb-0" style="font-size:18px;color:#15803d;">{{ estimatedTaskHours() | number:'1.0-0' }}h</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <p class="fw-medium small mb-2">
+                                            <mat-icon class="material-icons-outlined align-middle" style="font-size:14px;width:14px;height:14px;">settings</mat-icon>
+                                            Project Configuration
+                                        </p>
+                                        @if (parsedConfigEntries().length > 0) {
+                                            <div class="row gx-2">
+                                                @for (entry of parsedConfigEntries(); track $index) {
+                                                    <div class="col-12 col-lg-6 mb-2">
+                                                        <div style="border:1px solid rgba(15,23,42,0.1);border-radius:10px;padding:8px 10px;background:#f8fafc;">
+                                                            <p class="text-secondary mb-1" style="font-size:11px;">{{ entry.key }}</p>
+                                                            <p class="fw-medium mb-0" style="font-size:12px;color:#0f172a;">{{ entry.value }}</p>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            </div>
+                                        } @else {
+                                            <p class="text-secondary small mb-0 fst-italic">No project config preset defined.</p>
+                                        }
+                                    </div>
+                                    <mat-divider class="mb-3"></mat-divider>
+
                                     <div class="mb-3">
                                         <p class="fw-medium small mb-2">
                                             <mat-icon class="material-icons-outlined align-middle" style="font-size:14px;width:14px;height:14px;">account_tree</mat-icon>
-                                            Phases
+                                            Phase Flow
                                         </p>
                                         @if (parsedPhases().length > 0) {
                                             <div class="d-flex align-items-center flex-wrap gap-1">
-                                                @for (phase of parsedPhases(); track $index) {
+                                                @for (phase of parsedPhases(); track phase.key; let i = $index) {
                                                     <div class="d-flex align-items-center">
-                                                        <span style="background:rgba(99,102,241,0.12);color:#6366f1;padding:4px 10px;border-radius:20px;font-size:11px;white-space:nowrap;font-weight:500;border:1px solid rgba(99,102,241,0.25);">
-                                                            {{ $index + 1 }}. {{ phase.name }}
+                                                        <span style="padding:5px 10px;border-radius:20px;font-size:11px;white-space:nowrap;font-weight:600;border:1px solid;"
+                                                            [style.background]="phase.enabled ? 'rgba(99,102,241,0.12)' : 'rgba(148,163,184,0.14)'"
+                                                            [style.color]="phase.enabled ? '#4f46e5' : '#475569'"
+                                                            [style.borderColor]="phase.enabled ? 'rgba(99,102,241,0.3)' : 'rgba(148,163,184,0.4)'">
+                                                            {{ i + 1 }}. {{ phase.name }}
+                                                            @if (phase.durationDays > 0) {
+                                                                <span style="opacity:0.75;"> · {{ phase.durationDays }}d</span>
+                                                            }
                                                         </span>
-                                                        @if ($index < parsedPhases().length - 1) {
+                                                        @if (i < parsedPhases().length - 1) {
                                                             <mat-icon style="font-size:14px;width:14px;height:14px;color:#94a3b8;flex-shrink:0;">chevron_right</mat-icon>
                                                         }
                                                     </div>
                                                 }
                                             </div>
-                                        } @else if (template()!.defaultPhasesJson) {
-                                            <pre class="bg-light rounded p-2 small mb-0" style="white-space:pre-wrap;word-break:break-word;max-height:120px;overflow-y:auto;font-size:11px;">{{ template()!.defaultPhasesJson }}</pre>
                                         } @else {
-                                            <p class="text-secondary small mb-0 fst-italic">Not configured</p>
+                                            <p class="text-secondary small mb-0 fst-italic">No phases configured.</p>
                                         }
                                     </div>
                                     <mat-divider class="mb-3"></mat-divider>
 
-                                    <!-- Roles — chip display -->
+                                    <div class="mb-3">
+                                        <p class="fw-medium small mb-2">
+                                            <mat-icon class="material-icons-outlined align-middle" style="font-size:14px;width:14px;height:14px;">schema</mat-icon>
+                                            Execution Blueprint
+                                        </p>
+
+                                        @if (phaseBlueprint().length > 0) {
+                                            <div class="d-flex flex-column gap-2">
+                                                @for (bundle of phaseBlueprint(); track bundle.phase.key) {
+                                                    <div style="border:1px solid rgba(15,23,42,0.12);border-radius:12px;padding:10px;background:#ffffff;">
+                                                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                                                            <div>
+                                                                <p class="fw-semibold mb-0" style="font-size:13px;color:#0f172a;">{{ bundle.phase.name }}</p>
+                                                                <p class="small text-secondary mb-0">
+                                                                    {{ bundle.phase.durationDays }} day{{ bundle.phase.durationDays !== 1 ? 's' : '' }} · {{ bundle.milestones.length }} milestone{{ bundle.milestones.length !== 1 ? 's' : '' }} · {{ bundle.looseTasks.length }} standalone task{{ bundle.looseTasks.length !== 1 ? 's' : '' }}
+                                                                </p>
+                                                            </div>
+                                                            @if (!bundle.phase.enabled) {
+                                                                <span class="badge badge-light" style="font-size:10px;">Disabled</span>
+                                                            }
+                                                        </div>
+
+                                                        @if (bundle.milestones.length > 0) {
+                                                            <div class="d-flex flex-column gap-2 mb-2">
+                                                                @for (milestone of bundle.milestones; track milestone.key) {
+                                                                    <div style="border:1px solid;border-radius:10px;padding:8px 9px;"
+                                                                        [style.borderColor]="milestoneStatusColor(milestone.status) + '40'"
+                                                                        [style.background]="milestoneStatusColor(milestone.status) + '12'">
+                                                                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1">
+                                                                            <p class="mb-0 fw-medium" style="font-size:12px;color:#0f172a;">{{ milestone.name }}</p>
+                                                                            <span style="padding:2px 8px;border-radius:999px;font-size:10px;font-weight:600;border:1px solid;"
+                                                                                [style.color]="milestoneStatusColor(milestone.status)"
+                                                                                [style.borderColor]="milestoneStatusColor(milestone.status) + '66'"
+                                                                                [style.background]="milestoneStatusColor(milestone.status) + '1A'">
+                                                                                {{ milestoneStatusLabel(milestone.status) }}
+                                                                            </span>
+                                                                        </div>
+                                                                        <p class="small text-secondary mb-1" style="font-size:11px;">
+                                                                            Offset: {{ milestone.offsetDays ?? 0 }}d · Completion: {{ milestone.completionPct | number:'1.0-0' }}%
+                                                                        </p>
+                                                                        @if (milestone.description) {
+                                                                            <p class="small mb-1" style="font-size:11px;color:#334155;">{{ milestone.description }}</p>
+                                                                        }
+                                                                        @if (milestone.tasks.length > 0) {
+                                                                            <div class="d-flex flex-wrap gap-1">
+                                                                                @for (task of milestone.tasks.slice(0, 3); track task.key) {
+                                                                                    <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;font-size:10px;border:1px solid;"
+                                                                                        [style.background]="taskPriorityColor(task.priority) + '1A'"
+                                                                                        [style.borderColor]="taskPriorityColor(task.priority) + '55'"
+                                                                                        [style.color]="taskPriorityColor(task.priority)">
+                                                                                        {{ task.title }}
+                                                                                        @if (task.estimatedHours !== null) {
+                                                                                            <span style="opacity:.8;">({{ task.estimatedHours }}h)</span>
+                                                                                        }
+                                                                                    </span>
+                                                                                }
+                                                                                @if (milestone.tasks.length > 3) {
+                                                                                    <span class="badge badge-light" style="font-size:10px;">+{{ milestone.tasks.length - 3 }} more</span>
+                                                                                }
+                                                                            </div>
+                                                                        } @else {
+                                                                            <p class="small text-secondary mb-0 fst-italic" style="font-size:11px;">No tasks mapped to this milestone.</p>
+                                                                        }
+                                                                    </div>
+                                                                }
+                                                            </div>
+                                                        }
+
+                                                        @if (bundle.looseTasks.length > 0) {
+                                                            <div>
+                                                                <p class="small fw-medium mb-1" style="font-size:11px;color:#0f172a;">Standalone Tasks</p>
+                                                                <div class="d-flex flex-wrap gap-1">
+                                                                    @for (task of bundle.looseTasks; track task.key) {
+                                                                        <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;font-size:10px;border:1px solid;"
+                                                                            [style.background]="taskPriorityColor(task.priority) + '1A'"
+                                                                            [style.borderColor]="taskPriorityColor(task.priority) + '55'"
+                                                                            [style.color]="taskPriorityColor(task.priority)">
+                                                                            {{ task.title }}
+                                                                            <span style="opacity:.8;">{{ taskStatusLabel(task.status) }}</span>
+                                                                        </span>
+                                                                    }
+                                                                </div>
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                }
+                                            </div>
+                                        } @else {
+                                            <p class="text-secondary small mb-0 fst-italic">No relation-aware blueprint available yet.</p>
+                                        }
+                                    </div>
+
+                                    @if (orphanMilestones().length > 0 || unscopedTasks().length > 0) {
+                                        <div class="mb-3" style="border:1px dashed rgba(148,163,184,0.5);border-radius:10px;padding:10px;background:rgba(248,250,252,0.85);">
+                                            <p class="fw-medium small mb-2" style="color:#475569;">
+                                                <mat-icon class="material-icons-outlined align-middle" style="font-size:14px;width:14px;height:14px;">warning_amber</mat-icon>
+                                                Unlinked Structure Items
+                                            </p>
+
+                                            @if (orphanMilestones().length > 0) {
+                                                <p class="small mb-1" style="font-size:11px;color:#64748b;">Milestones without a valid phase link:</p>
+                                                <div class="d-flex flex-wrap gap-1 mb-2">
+                                                    @for (milestone of orphanMilestones(); track milestone.key) {
+                                                        <span class="badge badge-light" style="font-size:10px;">{{ milestone.name }}</span>
+                                                    }
+                                                </div>
+                                            }
+
+                                            @if (unscopedTasks().length > 0) {
+                                                <p class="small mb-1" style="font-size:11px;color:#64748b;">Tasks without phase/milestone references:</p>
+                                                <div class="d-flex flex-wrap gap-1">
+                                                    @for (task of unscopedTasks(); track task.key) {
+                                                        <span class="badge badge-light" style="font-size:10px;">{{ task.title }}</span>
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                    <mat-divider class="mb-3"></mat-divider>
+
                                     <div class="mb-3">
                                         <p class="fw-medium small mb-2">
                                             <mat-icon class="material-icons-outlined align-middle" style="font-size:14px;width:14px;height:14px;">group</mat-icon>
@@ -558,34 +924,56 @@ export class RejectTemplateDialogComponent {
                                                 @for (role of parsedRoles(); track $index) {
                                                     <span style="background:rgba(20,184,166,0.1);color:#0d9488;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:500;display:inline-flex;align-items:center;gap:4px;border:1px solid rgba(20,184,166,0.25);">
                                                         <mat-icon style="font-size:11px;width:11px;height:11px;">person</mat-icon>
-                                                        {{ role.role || role.name }}
-                                                        @if (role.count && role.count > 1) { <span style="opacity:0.7;">×{{ role.count }}</span> }
+                                                        {{ role.role }}
+                                                        @if (role.count > 1) { <span style="opacity:0.7;">×{{ role.count }}</span> }
                                                     </span>
                                                 }
                                             </div>
-                                        } @else if (template()!.defaultRolesJson) {
-                                            <pre class="bg-light rounded p-2 small mb-0" style="white-space:pre-wrap;word-break:break-word;max-height:120px;overflow-y:auto;font-size:11px;">{{ template()!.defaultRolesJson }}</pre>
                                         } @else {
                                             <p class="text-secondary small mb-0 fst-italic">Not configured</p>
                                         }
                                     </div>
                                     <mat-divider class="mb-3"></mat-divider>
 
-                                    <!-- Remaining sections as raw JSON -->
-                                    @for (section of rawStructureSections(); track section.label) {
-                                        <div class="mb-3">
-                                            <p class="fw-medium small mb-1">
-                                                <mat-icon class="material-icons-outlined align-middle" style="font-size:14px;width:14px;height:14px;">{{ section.icon }}</mat-icon>
-                                                {{ section.label }}
+                                    <div class="row gx-2">
+                                        <div class="col-12 col-lg-6 mb-2">
+                                            <p class="fw-medium small mb-2">
+                                                <mat-icon class="material-icons-outlined align-middle" style="font-size:14px;width:14px;height:14px;">playlist_add_check</mat-icon>
+                                                Checklist
                                             </p>
-                                            @if (section.value) {
-                                                <pre class="bg-light rounded p-2 small mb-0" style="white-space:pre-wrap;word-break:break-word;max-height:160px;overflow-y:auto;font-size:11px;">{{ section.value }}</pre>
+                                            @if (parsedChecklistItems().length > 0) {
+                                                <div class="d-flex flex-column gap-1">
+                                                    @for (item of parsedChecklistItems(); track $index) {
+                                                        <div style="display:flex;align-items:flex-start;gap:6px;font-size:11px;color:#334155;">
+                                                            <mat-icon style="font-size:14px;width:14px;height:14px;color:#16a34a;flex-shrink:0;">task_alt</mat-icon>
+                                                            <span>{{ item }}</span>
+                                                        </div>
+                                                    }
+                                                </div>
                                             } @else {
                                                 <p class="text-secondary small mb-0 fst-italic">Not configured</p>
                                             }
                                         </div>
-                                        <mat-divider class="mb-3"></mat-divider>
-                                    }
+
+                                        <div class="col-12 col-lg-6 mb-2">
+                                            <p class="fw-medium small mb-2">
+                                                <mat-icon class="material-icons-outlined align-middle" style="font-size:14px;width:14px;height:14px;">groups</mat-icon>
+                                                Team Recommendation
+                                            </p>
+                                            @if (parsedTeamRecommendation().length > 0) {
+                                                <div class="d-flex flex-column gap-2">
+                                                    @for (entry of parsedTeamRecommendation(); track $index) {
+                                                        <div style="border:1px solid rgba(15,23,42,0.1);border-radius:10px;padding:8px 9px;background:#f8fafc;">
+                                                            <p class="text-secondary mb-1" style="font-size:10px;">{{ entry.key }}</p>
+                                                            <p class="small mb-0" style="font-size:11px;color:#0f172a;">{{ entry.value }}</p>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            } @else {
+                                                <p class="text-secondary small mb-0 fst-italic">Not configured</p>
+                                            }
+                                        </div>
+                                    </div>
                                 }
                             </mat-card-content>
                         </mat-card>
@@ -634,8 +1022,17 @@ export class M2TemplateDetailsComponent implements OnInit {
     readonly lineageError = signal("");
     readonly editMode = signal(false);
     readonly saving = signal(false);
+    readonly templateAnalytics = signal<M2TemplateAnalyticsResponse | null>(null);
+    readonly analyticsLoading = signal(false);
+    readonly analyticsError = signal("");
+    readonly coverSuggestions = signal<M2TemplateCoverSuggestion[]>([]);
+    readonly coverSuggestionsLoading = signal(false);
+    readonly coverSuggestionsError = signal("");
+    readonly coverProviderStatus = signal<"live" | "fallback" | null>(null);
+    readonly coverWarning = signal("");
     readonly userRating = signal(0);
     hoverRating = 0;
+    coverQuery = "";
 
     // Validation error messages for edit mode
     editNameError = "";
@@ -670,46 +1067,309 @@ export class M2TemplateDetailsComponent implements OnInit {
         (this.template()?.tags || "").split(",").map(t => t.trim()).filter(Boolean)
     );
 
-    readonly structureSections = computed(() => {
-        const t = this.template();
-        if (!t) return [];
-        return [
-            { label: "Project Config", icon: "settings", value: t.defaultProjectConfigJson },
-            { label: "Phases", icon: "account_tree", value: t.defaultPhasesJson },
-            { label: "Milestones", icon: "flag", value: t.defaultMilestonesJson },
-            { label: "Tasks", icon: "checklist", value: t.defaultTasksJson },
-            { label: "Roles", icon: "group", value: t.defaultRolesJson },
-            { label: "Checklist", icon: "playlist_add_check", value: t.defaultChecklistJson },
-            { label: "Team Recommendation", icon: "groups", value: t.teamRecommendationJson },
-        ];
+    readonly ratingDistributionRows = computed(() => {
+        const distribution = this.templateAnalytics()?.ratingDistribution || {};
+        return [5, 4, 3, 2, 1].map((stars) => ({
+            stars,
+            count: Number((distribution as Record<string, number>)[String(stars)] ?? 0),
+        }));
     });
 
-    // Visual: parsed phases for timeline rendering
-    readonly parsedPhases = computed((): Array<{ name?: string }> => {
-        const json = this.template()?.defaultPhasesJson;
-        if (!json) return [];
-        try { const a = JSON.parse(json); return Array.isArray(a) ? a as Array<{ name?: string }> : []; } catch { return []; }
+    readonly ratingDistributionMax = computed(() => {
+        const rows = this.ratingDistributionRows();
+        if (rows.length === 0) return 1;
+        return Math.max(1, ...rows.map((row) => row.count));
     });
 
-    // Visual: parsed roles for chip rendering
-    readonly parsedRoles = computed((): Array<{ role?: string; name?: string; count?: number }> => {
-        const json = this.template()?.defaultRolesJson;
-        if (!json) return [];
-        try { const a = JSON.parse(json); return Array.isArray(a) ? a as Array<{ role?: string; name?: string; count?: number }> : []; } catch { return []; }
+    readonly parsedPhases = computed((): TemplatePhaseView[] => {
+        const rows = this.parseJsonArray(this.template()?.defaultPhasesJson);
+        return rows
+            .map((row, index) => ({
+                key: this.valueToText(row["key"]) || `phase-${index + 1}`,
+                name: this.valueToText(row["name"]) || `Phase ${index + 1}`,
+                durationDays: this.valueToNumber(row["durationDays"] ?? row["duration"], 0),
+                order: this.valueToNumber(row["order"], index + 1),
+                enabled: this.valueToBoolean(row["enabled"], true),
+            }))
+            .sort((left, right) => left.order - right.order);
     });
 
-    // Raw JSON sections (all except phases & roles which are shown visually)
-    readonly rawStructureSections = computed(() => {
-        const t = this.template();
-        if (!t) return [];
-        return [
-            { label: "Project Config", icon: "settings", value: t.defaultProjectConfigJson },
-            { label: "Milestones", icon: "flag", value: t.defaultMilestonesJson },
-            { label: "Tasks", icon: "checklist", value: t.defaultTasksJson },
-            { label: "Checklist", icon: "playlist_add_check", value: t.defaultChecklistJson },
-            { label: "Team Recommendation", icon: "groups", value: t.teamRecommendationJson },
-        ];
+    readonly parsedMilestones = computed((): TemplateMilestoneView[] => {
+        const rows = this.parseJsonArray(this.template()?.defaultMilestonesJson);
+        return rows.map((row, index) => ({
+            key: this.valueToText(row["key"]) || `milestone-${index + 1}`,
+            name: this.valueToText(row["name"] ?? row["title"]) || `Milestone ${index + 1}`,
+            description: this.valueToText(row["description"]) || "",
+            phaseKey: this.valueToText(row["phaseKey"] ?? row["phase"]),
+            offsetDays: this.valueToNullableNumber(row["offsetDays"]),
+            status: (this.valueToText(row["status"]) || "pending").toLowerCase(),
+            completionPct: this.valueToNumber(row["completionPct"], 0),
+            enabled: this.valueToBoolean(row["enabled"], true),
+        }));
     });
+
+    readonly parsedTasks = computed((): TemplateTaskView[] => {
+        const rows = this.parseJsonArray(this.template()?.defaultTasksJson);
+        return rows.map((row, index) => ({
+            key: this.valueToText(row["key"]) || `task-${index + 1}`,
+            title: this.valueToText(row["title"] ?? row["name"]) || `Task ${index + 1}`,
+            description: this.valueToText(row["description"]) || "",
+            phaseKey: this.valueToText(row["phaseKey"] ?? row["phase"]),
+            milestoneKey: this.valueToText(row["milestoneKey"] ?? row["milestone"]),
+            taskType: (this.valueToText(row["taskType"] ?? row["type"]) || "task").toLowerCase(),
+            status: (this.valueToText(row["status"]) || "todo").toLowerCase(),
+            priority: (this.valueToText(row["priority"]) || "medium").toLowerCase(),
+            estimatedHours: this.valueToNullableNumber(row["estimatedHours"]),
+            startOffsetDays: this.valueToNullableNumber(row["startOffsetDays"]),
+            dueOffsetDays: this.valueToNullableNumber(row["dueOffsetDays"]),
+            parentTaskKey: this.valueToText(row["parentTaskKey"]),
+            enabled: this.valueToBoolean(row["enabled"], true),
+        }));
+    });
+
+    readonly parsedRoles = computed((): Array<{ role: string; count: number }> => {
+        const rows = this.parseJsonArray(this.template()?.defaultRolesJson);
+        return rows.map((row) => ({
+            role: this.valueToText(row["role"] ?? row["name"]) || "ROLE",
+            count: Math.max(1, this.valueToNumber(row["count"], 1)),
+        }));
+    });
+
+    readonly parsedConfigEntries = computed((): Array<{ key: string; value: string }> => {
+        const config = this.parseJsonObject(this.template()?.defaultProjectConfigJson);
+        if (!config) return [];
+        return Object.entries(config).map(([key, value]) => ({
+            key: this.humanizeKey(key),
+            value: this.humanizeValue(value),
+        }));
+    });
+
+    readonly parsedChecklistItems = computed(() => this.toStringItems(this.template()?.defaultChecklistJson));
+
+    readonly parsedTeamRecommendation = computed((): Array<{ key: string; value: string }> => {
+        const root = this.parseJson(this.template()?.teamRecommendationJson);
+        if (!root) return [];
+
+        if (Array.isArray(root)) {
+            return root
+                .map((entry, index) => ({
+                    key: `Recommendation ${index + 1}`,
+                    value: this.humanizeValue(entry),
+                }))
+                .filter((entry) => !!entry.value);
+        }
+
+        if (typeof root === "object") {
+            return Object.entries(root as Record<string, unknown>).map(([key, value]) => ({
+                key: this.humanizeKey(key),
+                value: this.humanizeValue(value),
+            }));
+        }
+
+        return [{ key: "Team Recommendation", value: this.humanizeValue(root) }];
+    });
+
+    readonly estimatedTaskHours = computed(() =>
+        this.parsedTasks().reduce((sum, task) => sum + (task.estimatedHours ?? 0), 0)
+    );
+
+    readonly phaseBlueprint = computed((): TemplatePhaseBlueprint[] => {
+        const phases = this.parsedPhases();
+        const milestones = this.parsedMilestones();
+        const tasks = this.parsedTasks();
+
+        const milestonesByKey = new Map(milestones.map((milestone) => [milestone.key, milestone]));
+        const tasksByMilestone = new Map<string, TemplateTaskView[]>();
+
+        for (const task of tasks) {
+            if (!task.milestoneKey) continue;
+            const list = tasksByMilestone.get(task.milestoneKey) || [];
+            list.push(task);
+            tasksByMilestone.set(task.milestoneKey, list);
+        }
+
+        return phases.map((phase) => {
+            const phaseMilestones = milestones
+                .filter((milestone) => milestone.phaseKey === phase.key)
+                .sort((left, right) => (left.offsetDays ?? 0) - (right.offsetDays ?? 0))
+                .map((milestone) => ({
+                    ...milestone,
+                    tasks: (tasksByMilestone.get(milestone.key) || [])
+                        .slice()
+                        .sort((left, right) => (left.startOffsetDays ?? 0) - (right.startOffsetDays ?? 0)),
+                }));
+
+            const looseTasks = tasks
+                .filter((task) => task.phaseKey === phase.key && (!task.milestoneKey || !milestonesByKey.has(task.milestoneKey)))
+                .sort((left, right) => (left.startOffsetDays ?? 0) - (right.startOffsetDays ?? 0));
+
+            return { phase, milestones: phaseMilestones, looseTasks };
+        });
+    });
+
+    readonly orphanMilestones = computed((): Array<TemplateMilestoneView & { tasks: TemplateTaskView[] }> => {
+        const phaseKeys = new Set(this.parsedPhases().map((phase) => phase.key));
+        const tasksByMilestone = new Map<string, TemplateTaskView[]>();
+
+        for (const task of this.parsedTasks()) {
+            if (!task.milestoneKey) continue;
+            const list = tasksByMilestone.get(task.milestoneKey) || [];
+            list.push(task);
+            tasksByMilestone.set(task.milestoneKey, list);
+        }
+
+        return this.parsedMilestones()
+            .filter((milestone) => !milestone.phaseKey || !phaseKeys.has(milestone.phaseKey))
+            .map((milestone) => ({
+                ...milestone,
+                tasks: (tasksByMilestone.get(milestone.key) || []).slice(),
+            }));
+    });
+
+    readonly unscopedTasks = computed(() =>
+        this.parsedTasks().filter((task) => !task.phaseKey && !task.milestoneKey)
+    );
+
+    milestoneStatusLabel(status: string): string {
+        const normalized = (status || "").toLowerCase();
+        if (normalized === "done" || normalized === "completed") return "Completed";
+        if (normalized === "in_progress") return "In Progress";
+        if (normalized === "on_hold") return "On Hold";
+        if (normalized === "cancelled") return "Cancelled";
+        return normalized ? this.humanizeKey(normalized) : "Pending";
+    }
+
+    milestoneStatusColor(status: string): string {
+        const normalized = (status || "").toLowerCase();
+        if (normalized === "done" || normalized === "completed") return "#16a34a";
+        if (normalized === "in_progress") return "#2563eb";
+        if (normalized === "on_hold") return "#f59e0b";
+        if (normalized === "cancelled") return "#dc2626";
+        return "#64748b";
+    }
+
+    taskPriorityColor(priority: string): string {
+        const normalized = (priority || "").toLowerCase();
+        if (normalized === "high" || normalized === "urgent") return "#dc2626";
+        if (normalized === "low") return "#2563eb";
+        return "#b45309";
+    }
+
+    taskStatusLabel(status: string): string {
+        const normalized = (status || "").toLowerCase();
+        if (normalized === "done" || normalized === "completed") return "Done";
+        if (normalized === "in_progress") return "In Progress";
+        if (normalized === "on_hold") return "On Hold";
+        if (normalized === "cancelled") return "Cancelled";
+        return normalized ? this.humanizeKey(normalized) : "Todo";
+    }
+
+    private parseJson(rawJson?: string): unknown | null {
+        if (!rawJson || !rawJson.trim()) return null;
+        try {
+            return JSON.parse(rawJson);
+        } catch {
+            return null;
+        }
+    }
+
+    private parseJsonArray(rawJson?: string): Array<Record<string, unknown>> {
+        const parsed = this.parseJson(rawJson);
+        return Array.isArray(parsed) ? parsed as Array<Record<string, unknown>> : [];
+    }
+
+    private parseJsonObject(rawJson?: string): Record<string, unknown> | null {
+        const parsed = this.parseJson(rawJson);
+        if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
+            return null;
+        }
+        return parsed as Record<string, unknown>;
+    }
+
+    private valueToText(value: unknown): string | null {
+        if (value === null || value === undefined) return null;
+        const text = String(value).trim();
+        return text ? text : null;
+    }
+
+    private valueToNumber(value: unknown, fallback: number): number {
+        const num = Number(value);
+        return Number.isFinite(num) ? num : fallback;
+    }
+
+    private valueToNullableNumber(value: unknown): number | null {
+        if (value === null || value === undefined || String(value).trim() === "") {
+            return null;
+        }
+        const num = Number(value);
+        return Number.isFinite(num) ? num : null;
+    }
+
+    private valueToBoolean(value: unknown, fallback: boolean): boolean {
+        if (value === null || value === undefined) return fallback;
+        if (typeof value === "boolean") return value;
+        const normalized = String(value).trim().toLowerCase();
+        if (normalized === "true") return true;
+        if (normalized === "false") return false;
+        return fallback;
+    }
+
+    private humanizeKey(value: string): string {
+        return (value || "")
+            .replace(/[_-]+/g, " ")
+            .replace(/\s+/g, " ")
+            .trim()
+            .replace(/\b\w/g, (char) => char.toUpperCase());
+    }
+
+    private humanizeValue(value: unknown): string {
+        if (value === null || value === undefined) return "-";
+        if (typeof value === "boolean") return value ? "Yes" : "No";
+        if (typeof value === "number") return String(value);
+        if (typeof value === "string") return value;
+
+        if (Array.isArray(value)) {
+            const preview = value.slice(0, 4).map((item) => this.humanizeValue(item)).filter(Boolean);
+            return value.length > 4 ? `${preview.join(", ")} (+${value.length - 4} more)` : preview.join(", ");
+        }
+
+        if (typeof value === "object") {
+            const entries = Object.entries(value as Record<string, unknown>)
+                .slice(0, 3)
+                .map(([key, item]) => `${this.humanizeKey(key)}: ${this.humanizeValue(item)}`);
+            return entries.join(" | ");
+        }
+
+        return String(value);
+    }
+
+    private toStringItems(rawJson?: string): string[] {
+        const parsed = this.parseJson(rawJson);
+        if (!parsed) return [];
+
+        if (Array.isArray(parsed)) {
+            return parsed
+                .map((entry, index) => {
+                    if (typeof entry === "string") return entry;
+                    if (entry && typeof entry === "object") {
+                        const row = entry as Record<string, unknown>;
+                        return this.valueToText(row["title"] ?? row["name"] ?? row["label"] ?? row["text"])
+                            || this.humanizeValue(entry)
+                            || `Checklist item ${index + 1}`;
+                    }
+                    return this.humanizeValue(entry);
+                })
+                .filter(Boolean);
+        }
+
+        if (typeof parsed === "object") {
+            return Object.entries(parsed as Record<string, unknown>)
+                .map(([key, value]) => `${this.humanizeKey(key)}: ${this.humanizeValue(value)}`)
+                .filter(Boolean);
+        }
+
+        return [this.humanizeValue(parsed)];
+    }
 
     ngOnInit(): void {
         this.route.paramMap.subscribe((params) => {
@@ -733,11 +1393,16 @@ export class M2TemplateDetailsComponent implements OnInit {
                 this.loading.set(false);
                 this.loadUserRating(id);
                 this.loadLineage(id);
+                this.coverQuery = t.name || "";
+                this.loadTemplateAnalytics(id);
+                this.loadCoverSuggestions(this.coverQuery);
             },
             error: (err: HttpErrorResponse) => {
                 this.error.set(err.message || "Template not found.");
                 this.loading.set(false);
                 this.lineage.set(null);
+                this.templateAnalytics.set(null);
+                this.coverSuggestions.set([]);
             },
         });
     }
@@ -754,6 +1419,56 @@ export class M2TemplateDetailsComponent implements OnInit {
                 this.lineage.set(null);
                 this.lineageError.set("Unable to load template lineage.");
                 this.lineageLoading.set(false);
+            },
+        });
+    }
+
+    loadTemplateAnalytics(id: string): void {
+        if (!id) return;
+        this.analyticsLoading.set(true);
+        this.analyticsError.set("");
+
+        this.templateService.getTemplateAnalytics(id).subscribe({
+            next: (analytics) => {
+                this.templateAnalytics.set(analytics);
+                this.analyticsLoading.set(false);
+            },
+            error: (error: HttpErrorResponse) => {
+                this.templateAnalytics.set(null);
+                this.analyticsLoading.set(false);
+                this.analyticsError.set(error.message || "Unable to load template analytics.");
+            },
+        });
+    }
+
+    loadCoverSuggestions(query?: string): void {
+        const q = (query || this.coverQuery || this.template()?.name || "").trim();
+        if (!q) {
+            this.coverSuggestions.set([]);
+            this.coverSuggestionsError.set("Enter a keyword to search for cover suggestions.");
+            this.coverProviderStatus.set(null);
+            this.coverWarning.set("");
+            return;
+        }
+
+        this.coverQuery = q;
+        this.coverSuggestionsLoading.set(true);
+        this.coverSuggestionsError.set("");
+        this.coverWarning.set("");
+
+        this.templateService.getCoverSuggestions(q, 8).subscribe({
+            next: (response) => {
+                this.coverSuggestions.set(response.items || []);
+                this.coverProviderStatus.set(response.providerStatus || null);
+                this.coverWarning.set(response.warning || "");
+                this.coverSuggestionsLoading.set(false);
+            },
+            error: (error: HttpErrorResponse) => {
+                this.coverSuggestions.set([]);
+                this.coverSuggestionsLoading.set(false);
+                this.coverProviderStatus.set(null);
+                this.coverWarning.set("");
+                this.coverSuggestionsError.set(error.message || "Unable to load cover suggestions.");
             },
         });
     }

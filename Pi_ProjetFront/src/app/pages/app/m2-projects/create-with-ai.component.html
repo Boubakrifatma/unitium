@@ -211,6 +211,12 @@
                                     <textarea matInput rows="3" [ngModel]="projectDescription()" (ngModelChange)="projectDescription.set(($event || '').toString())"></textarea>
                                 </mat-form-field>
                             </div>
+                            <div class="col-12 mb-2">
+                                <mat-form-field appearance="outline" class="w-100">
+                                    <mat-label>GitHub repository URL (optional)</mat-label>
+                                    <input matInput [ngModel]="projectGithubRepoUrl()" (ngModelChange)="projectGithubRepoUrl.set(($event || '').toString())" placeholder="https://github.com/owner/repository or owner/repository" />
+                                </mat-form-field>
+                            </div>
                             <div class="col-12 col-md-6 mb-2">
                                 <mat-form-field appearance="outline" class="w-100">
                                     <mat-label>Project type</mat-label>
