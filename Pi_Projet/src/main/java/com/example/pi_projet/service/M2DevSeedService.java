@@ -42,6 +42,7 @@ public class M2DevSeedService {
 
     // Seeded historic created_at used for workspaces and projects so snapshots exist
     private static final Instant SEEDED_CREATED_AT = Instant.parse("2024-01-01T00:00:00Z");
+    private static final String ACADEMIC_SOURCE_TASK_MARKER = "[seed:academic-source]";
 
     private record SeedPhaseSpec(String key, String name, int durationDays, boolean enabled) {}
 
@@ -69,6 +70,7 @@ public class M2DevSeedService {
     private final M2OrganizationProvisioningService organizationProvisioningService;
     private final ProjectTemplateService projectTemplateService;
     private final TemplateStructureService templateStructureService;
+    private final M2PublicIntegrationService publicIntegrationService;
 
     // ─────────────────────────────────────────────────────────────────────────
     //  ENTRY POINT
@@ -330,6 +332,61 @@ public class M2DevSeedService {
         // These are attempted after base templates and forks to avoid conflicts.
         ensurePibAlignedTemplates(manager, tutor);
 
+        ProjectTemplate tplPibDelivery = projectTemplateRepository
+            .findById(UUID.fromString("fba6784c-2f42-5ab2-93ff-b5b9a150298f"))
+            .orElse(tplAgile);
+        ProjectTemplate tplPibKanban = projectTemplateRepository
+            .findById(UUID.fromString("5bb54131-eed8-53eb-8cdd-02667e3b58f4"))
+            .orElse(tplKanban);
+        ProjectTemplate tplPibAcademic = projectTemplateRepository
+            .findById(UUID.fromString("1553b2f4-3aea-533d-b198-fcff8e7ba5d6"))
+            .orElse(tplResearch);
+
+        tplAgile = applyTemplateReferenceConfig(
+            tplAgile,
+            List.of(
+                "https://github.com/spring-projects/spring-boot",
+                "https://github.com/kubernetes/kubernetes"
+            ),
+            null
+        );
+        tplKanban = applyTemplateReferenceConfig(
+            tplKanban,
+            List.of(
+                "https://github.com/grafana/grafana",
+                "https://github.com/hashicorp/terraform"
+            ),
+            null
+        );
+        tplResearch = applyTemplateReferenceConfig(
+            tplResearch,
+            List.of("https://github.com/scikit-learn/scikit-learn"),
+            "machine learning reproducibility"
+        );
+        tplMl = applyTemplateReferenceConfig(
+            tplMl,
+            List.of(
+                "https://github.com/pytorch/pytorch",
+                "https://github.com/huggingface/transformers"
+            ),
+            "machine learning pipeline evaluation"
+        );
+        tplPibDelivery = applyTemplateReferenceConfig(
+            tplPibDelivery,
+            List.of("https://github.com/spring-projects/spring-boot"),
+            null
+        );
+        tplPibKanban = applyTemplateReferenceConfig(
+            tplPibKanban,
+            List.of("https://github.com/envoyproxy/envoy"),
+            null
+        );
+        tplPibAcademic = applyTemplateReferenceConfig(
+            tplPibAcademic,
+            List.of("https://github.com/jupyter/notebook"),
+            "project based learning software engineering"
+        );
+
         // ── 8. Projects ──────────────────────────────────────────────────────
         // Engineering HQ
         Project pPlatform = ensureProject(engHQ, manager.getId(),
@@ -370,16 +427,22 @@ public class M2DevSeedService {
         // Chronos Ops (time machine demo)
         Project pChronosCore = ensureProject(chronosOps, manager.getId(),
             "Chronos Core Rollout", Project.ProjectStatus.ACTIVE, Project.Visibility.PRIVATE,
-            LocalDate.of(2026, 1, 10), LocalDate.of(2026, 5, 30), tplAgile);
+            LocalDate.of(2024, 3, 15), LocalDate.of(2026, 6, 30), tplAgile);
         Project pLegacySunset = ensureProject(chronosOps, manager.getId(),
             "Legacy Sunset Program", Project.ProjectStatus.COMPLETED, Project.Visibility.PRIVATE,
-            LocalDate.of(2026, 2, 1), LocalDate.of(2026, 3, 20), tplWaterfall);
+            LocalDate.of(2024, 9, 1), LocalDate.of(2025, 6, 20), tplWaterfall);
         Project pPortalReboot = ensureProject(chronosOps, manager.getId(),
             "Client Portal Reboot", Project.ProjectStatus.ACTIVE, Project.Visibility.PUBLIC,
-            LocalDate.of(2026, 3, 25), LocalDate.of(2026, 7, 15), tplKanban);
+            LocalDate.of(2025, 9, 5), LocalDate.of(2026, 9, 30), tplKanban);
         Project pGrowthAnalytics = ensureProject(chronosOps, manager.getId(),
             "Growth Analytics Revamp", Project.ProjectStatus.PLANNING, Project.Visibility.PRIVATE,
-            LocalDate.of(2026, 4, 8), LocalDate.of(2026, 8, 30), tplMl);
+            LocalDate.of(2026, 2, 20), LocalDate.of(2026, 12, 15), tplMl);
+        Project pManagerDelivery = ensureProject(chronosOps, manager.getId(),
+            "Morgan M2 Delivery Command", Project.ProjectStatus.ACTIVE, Project.Visibility.PUBLIC,
+            LocalDate.of(2026, 3, 1), LocalDate.of(2026, 11, 30), tplPibDelivery);
+        Project pManagerAcademicBridge = ensureProject(chronosOps, manager.getId(),
+            "Morgan Academic Collaboration Hub", Project.ProjectStatus.PLANNING, Project.Visibility.PRIVATE,
+            LocalDate.of(2026, 3, 20), LocalDate.of(2026, 12, 20), tplPibAcademic);
 
         // StartupX Main
         Project pMvp = ensureProject(startMain, manager2.getId(),
@@ -475,6 +538,15 @@ public class M2DevSeedService {
         ensureProjMember(pGrowthAnalytics, manager.getId(), ProjectMember.ProjectRole.PROJECT_MANAGER, null);
         ensureProjMember(pGrowthAnalytics, analyst.getId(), ProjectMember.ProjectRole.REVIEWER,  manager);
 
+        ensureProjMember(pManagerDelivery, manager.getId(), ProjectMember.ProjectRole.PROJECT_MANAGER, null);
+        ensureProjMember(pManagerDelivery, dev1.getId(),    ProjectMember.ProjectRole.DEVELOPER, manager);
+        ensureProjMember(pManagerDelivery, dev2.getId(),    ProjectMember.ProjectRole.DEVELOPER, manager);
+        ensureProjMember(pManagerDelivery, analyst.getId(), ProjectMember.ProjectRole.REVIEWER,  manager);
+
+        ensureProjMember(pManagerAcademicBridge, manager.getId(), ProjectMember.ProjectRole.PROJECT_MANAGER, null);
+        ensureProjMember(pManagerAcademicBridge, dev3.getId(),    ProjectMember.ProjectRole.DEVELOPER, manager);
+        ensureProjMember(pManagerAcademicBridge, analyst.getId(), ProjectMember.ProjectRole.REVIEWER,  manager);
+
         // StartupX  (StartupX users only)
         ensureProjMember(pMvp, manager2.getId(), ProjectMember.ProjectRole.PROJECT_MANAGER, null);
         ensureProjMember(pMvp, employee.getId(), ProjectMember.ProjectRole.DEVELOPER, manager2);
@@ -516,6 +588,112 @@ public class M2DevSeedService {
         ensureProjMember(pIntro, student3.getId(), ProjectMember.ProjectRole.DEVELOPER, tutor2);
         ensureProjMember(pIntro, po.getId(),       ProjectMember.ProjectRole.DEVELOPER, tutor2);
 
+        // ── 9.25. Realistic metadata (GitHub + ML descriptors) ─────────────
+        pPlatform = applyProjectMetadata(
+            pPlatform,
+            "Modernize the enterprise platform runtime, resilience posture, and service ownership model.",
+            "https://github.com/kubernetes/kubernetes",
+            "enterprise",
+            List.of("platform", "cloud", "reliability"),
+            List.of("zero-downtime rollout", "audit readiness")
+        );
+        pApiGw = applyProjectMetadata(
+            pApiGw,
+            "Deliver an observable API gateway baseline with secure traffic policies and versioned rollout.",
+            "https://github.com/envoyproxy/envoy",
+            "enterprise",
+            List.of("gateway", "security", "api"),
+            List.of("latency under 100ms", "oauth2 policies")
+        );
+        pDevOps = applyProjectMetadata(
+            pDevOps,
+            "Automate infrastructure provisioning and release workflows across staging and production.",
+            "https://github.com/hashicorp/terraform",
+            "enterprise",
+            List.of("devops", "iac", "automation"),
+            List.of("policy as code", "cost guardrails")
+        );
+        pMobile = applyProjectMetadata(
+            pMobile,
+            "Ship mobile v3 with stronger telemetry, accessibility, and performance budgets.",
+            "https://github.com/flutter/flutter",
+            "enterprise",
+            List.of("mobile", "ux", "performance"),
+            List.of("offline support", "app startup under 2s")
+        );
+        pAi = applyProjectMetadata(
+            pAi,
+            "Integrate ML-assisted features with staged validation and ethical review checkpoints.",
+            "https://github.com/huggingface/transformers",
+            "enterprise",
+            List.of("ai", "feature-engineering", "evaluation"),
+            List.of("bias checks", "human approval path")
+        );
+        pChronosCore = applyProjectMetadata(
+            pChronosCore,
+            "Core program for legacy replacement, release governance, and cross-team delivery cadence.",
+            "https://github.com/temporalio/temporal",
+            "enterprise",
+            List.of("migration", "workflow", "governance"),
+            List.of("weekly release train", "cross-team dependency map")
+        );
+        pPortalReboot = applyProjectMetadata(
+            pPortalReboot,
+            "Public-facing portal modernization focused on observability, analytics, and conversion quality.",
+            "https://github.com/grafana/grafana",
+            "enterprise",
+            List.of("portal", "observability", "analytics"),
+            List.of("public uptime 99.9%", "accessibility conformance")
+        );
+        pManagerDelivery = applyProjectMetadata(
+            pManagerDelivery,
+            "Morgan Manager flagship template-driven portfolio project for M2 enterprise delivery simulation.",
+            "https://github.com/spring-projects/spring-boot",
+            "enterprise",
+            List.of("m2", "portfolio", "template-driven"),
+            List.of("manager-owned", "time-machine checkpoints")
+        );
+        pManagerAcademicBridge = applyProjectMetadata(
+            pManagerAcademicBridge,
+            "Manager-led collaboration project that imports academic sources and translates them into delivery tasks.",
+            "https://github.com/jupyter/notebook",
+            "academic",
+            List.of("knowledge-transfer", "academic-sources", "delivery"),
+            List.of("evidence-backed tasks", "weekly literature digest")
+        );
+        pWebDev = applyProjectMetadata(
+            pWebDev,
+            "Course project focused on modern web engineering practices and iterative team delivery.",
+            "https://github.com/freeCodeCamp/freeCodeCamp",
+            "academic",
+            List.of("web", "course", "teamwork"),
+            List.of("weekly demos", "peer review")
+        );
+        pAlgo = applyProjectMetadata(
+            pAlgo,
+            "Research-oriented algorithms project with benchmark replication and result reporting.",
+            "https://github.com/cp-algorithms/cp-algorithms",
+            "academic",
+            List.of("algorithms", "research", "benchmarking"),
+            List.of("report reproducibility", "complexity analysis")
+        );
+        pMlFund = applyProjectMetadata(
+            pMlFund,
+            "Academic ML fundamentals program grounded in reproducible experiments and open-source references.",
+            "https://github.com/scikit-learn/scikit-learn",
+            "academic",
+            List.of("ml", "education", "reproducibility"),
+            List.of("experiment tracking", "evaluation rubric")
+        );
+        pNlp = applyProjectMetadata(
+            pNlp,
+            "NLP research initiative for educational use cases with transparent model assessment.",
+            "https://github.com/huggingface/transformers",
+            "academic",
+            List.of("nlp", "research", "education"),
+            List.of("citation-backed claims", "ablation notes")
+        );
+
         // ── 9.5. Project timeline seed (milestones + tasks for richer README output) ──
         ensureSeedProjectTimelines(List.of(
             new SeedProjectTimelineSpec(pPlatform, manager, tplSdlc),
@@ -532,6 +710,8 @@ public class M2DevSeedService {
             new SeedProjectTimelineSpec(pLegacySunset, manager, tplWaterfall),
             new SeedProjectTimelineSpec(pPortalReboot, manager, tplKanban),
             new SeedProjectTimelineSpec(pGrowthAnalytics, manager, tplMl),
+            new SeedProjectTimelineSpec(pManagerDelivery, manager, tplPibDelivery),
+            new SeedProjectTimelineSpec(pManagerAcademicBridge, manager, tplPibAcademic),
             new SeedProjectTimelineSpec(pMvp, manager2, tplStartup),
             new SeedProjectTimelineSpec(pWebDev, tutor, tplCourse),
             new SeedProjectTimelineSpec(pAlgo, tutor, tplResearch),
@@ -543,10 +723,28 @@ public class M2DevSeedService {
             new SeedProjectTimelineSpec(pIntro, tutor2, tplCourse)
         ));
 
+        ensureAcademicSourceTasks(
+            pMlFund,
+            tutor,
+            "machine learning reproducibility and evaluation"
+        );
+        ensureAcademicSourceTasks(
+            pAlgo,
+            tutor,
+            "algorithm analysis empirical study"
+        );
+        ensureAcademicSourceTasks(
+            pManagerAcademicBridge,
+            manager,
+            "project based learning software engineering"
+        );
+
         // ── 10. Template Favorites ───────────────────────────────────────────
         ensureFavorite(manager,  tplAgile);
         ensureFavorite(manager,  tplKanban);
         ensureFavorite(manager,  tplWaterfall);
+        ensureFavorite(manager,  tplPibDelivery);
+        ensureFavorite(manager,  tplPibAcademic);
 
         ensureFavorite(manager2, tplStartup);
         ensureFavorite(manager2, tplAgile);
@@ -568,6 +766,8 @@ public class M2DevSeedService {
         ensureRating(manager,  tplAgile,     5);
         ensureRating(manager,  tplKanban,    4);
         ensureRating(manager,  tplWaterfall, 5);
+        ensureRating(manager,  tplPibDelivery, 5);
+        ensureRating(manager,  tplPibAcademic, 4);
         ensureRating(manager2, tplStartup,   4);
         ensureRating(manager2, tplAgile,     4);
         ensureRating(tutor,    tplResearch,  5);
@@ -579,10 +779,21 @@ public class M2DevSeedService {
         ensureRating(ta,       tplCourse,    4);
         ensureRating(ta,       tplResearch,  5);
 
-        applyTimeMachineTimeline(chronosOps, manager, dev1, dev2, analyst,
-            pChronosCore, pLegacySunset, pPortalReboot, pGrowthAnalytics);
+        applyTimeMachineTimeline(
+            chronosOps,
+            manager,
+            dev1,
+            dev2,
+            analyst,
+            pChronosCore,
+            pLegacySunset,
+            pPortalReboot,
+            pGrowthAnalytics,
+            pManagerDelivery,
+            pManagerAcademicBridge
+        );
 
-        log.info("[M2DevSeedService] Seed complete: 4 orgs, 9 workspaces, 10 templates, 22 projects.");
+        log.info("[M2DevSeedService] Seed complete with realistic enterprise + academic portfolio data.");
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("nexusCorpId",  nexusCorp.getId());
         out.put("startupXId",   startupX.getId());
@@ -591,7 +802,7 @@ public class M2DevSeedService {
         out.put("timeMachineWorkspaceId", chronosOps.getId());
         out.put("timeMachineWorkspaceSlug", chronosOps.getSlug());
         out.put("timeMachineSuggestedDates", timeMachineSuggestedDates());
-        out.put("message", "Module 2 rich seed completed: 4 orgs, 9 workspaces, 10 templates, 22 projects");
+        out.put("message", "Module 2 rich seed completed with realistic enterprise + academic template-driven projects");
         return out;
     }
 
@@ -1073,6 +1284,292 @@ public class M2DevSeedService {
         }
     }
 
+    private ProjectTemplate applyTemplateReferenceConfig(ProjectTemplate template,
+                                                         List<String> githubRepos,
+                                                         String academicSourcesQuery) {
+        if (template == null) {
+            return null;
+        }
+
+        List<String> normalizedRepos = new ArrayList<>();
+        if (githubRepos != null) {
+            for (String repo : githubRepos) {
+                String normalized = normalizeGithubRepoUrlSeed(repo);
+                if (normalized != null && !normalizedRepos.contains(normalized)) {
+                    normalizedRepos.add(normalized);
+                }
+            }
+        }
+
+        Map<String, Object> config = new LinkedHashMap<>();
+        config.put(
+            "framework",
+            template.getTemplateType() != null
+                ? template.getTemplateType().name().toLowerCase(Locale.ROOT)
+                : "custom"
+        );
+        config.put("source", "m2-real-data-seed");
+        if (!normalizedRepos.isEmpty()) {
+            config.put("referenceRepos", normalizedRepos);
+        }
+        if (hasText(academicSourcesQuery)) {
+            config.put("academicSourcesQuery", academicSourcesQuery.trim());
+            config.put("academicSourcesEndpoint", "/api/project-templates/academic-sources");
+        }
+
+        String configJson = toJson(config);
+        if (Objects.equals(template.getDefaultProjectConfigJson(), configJson)) {
+            return template;
+        }
+
+        template.setDefaultProjectConfigJson(configJson);
+        return projectTemplateRepository.save(template);
+    }
+
+    private Project applyProjectMetadata(Project project,
+                                         String description,
+                                         String githubRepoUrl,
+                                         String detectedMode,
+                                         List<String> domainTags,
+                                         List<String> constraints) {
+        if (project == null) {
+            return null;
+        }
+
+        boolean changed = false;
+
+        if (hasText(description) && !Objects.equals(project.getDescription(), description.trim())) {
+            project.setDescription(description.trim());
+            changed = true;
+        }
+
+        String normalizedRepo = normalizeGithubRepoUrlSeed(githubRepoUrl);
+        if (!Objects.equals(project.getGithubRepoUrl(), normalizedRepo)) {
+            project.setGithubRepoUrl(normalizedRepo);
+            changed = true;
+        }
+
+        String normalizedMode = hasText(detectedMode) ? detectedMode.trim().toLowerCase(Locale.ROOT) : null;
+        if (!Objects.equals(project.getMlDetectedMode(), normalizedMode)) {
+            project.setMlDetectedMode(normalizedMode);
+            changed = true;
+        }
+
+        String domainTagsJson = (domainTags == null || domainTags.isEmpty()) ? null : toJson(domainTags);
+        if (!Objects.equals(project.getMlDomainTagsJson(), domainTagsJson)) {
+            project.setMlDomainTagsJson(domainTagsJson);
+            changed = true;
+        }
+
+        String constraintsJson = (constraints == null || constraints.isEmpty()) ? null : toJson(constraints);
+        if (!Objects.equals(project.getMlConstraintsJson(), constraintsJson)) {
+            project.setMlConstraintsJson(constraintsJson);
+            changed = true;
+        }
+
+        if (project.getMlLastInferenceAt() == null) {
+            project.setMlLastInferenceAt(Instant.now());
+            changed = true;
+        }
+
+        return changed ? projectRepository.save(project) : project;
+    }
+
+    private String normalizeGithubRepoUrlSeed(String rawUrl) {
+        if (!hasText(rawUrl)) {
+            return null;
+        }
+
+        String value = rawUrl.trim();
+        if (value.matches("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")) {
+            value = "https://github.com/" + value;
+        }
+
+        value = value.replaceAll("/+$", "");
+        return value;
+    }
+
+    private void ensureAcademicSourceTasks(Project project, User owner, String query) {
+        if (project == null || owner == null || !hasText(query)) {
+            return;
+        }
+
+        List<Task> existing = taskRepository.findByProject_Id(project.getId());
+        boolean alreadySeeded = existing.stream().anyMatch(task ->
+            hasText(task.getDescription()) && task.getDescription().contains(ACADEMIC_SOURCE_TASK_MARKER)
+        );
+        if (alreadySeeded) {
+            return;
+        }
+
+        List<Map<String, Object>> sources = fetchAcademicSourceItems(query.trim(), 4);
+        if (sources.isEmpty()) {
+            return;
+        }
+
+        Milestone sourceMilestone = ensureAcademicSourcesMilestone(project, owner, query);
+        LocalDate baseDate = resolveProjectStartDate(project);
+        int created = 0;
+
+        for (Map<String, Object> source : sources) {
+            if (created >= 4) {
+                break;
+            }
+
+            String title = asText(source.get("title"));
+            if (!hasText(title)) {
+                continue;
+            }
+
+            String openAccessUrl = asText(source.get("openAccessUrl"));
+            String landingPageUrl = asText(source.get("landingPageUrl"));
+            String sourceUrl = firstNonBlank(openAccessUrl, landingPageUrl);
+            String firstAuthor = asText(source.get("firstAuthor"));
+            String publicationYear = asText(source.get("publicationYear"));
+
+            StringBuilder description = new StringBuilder();
+            description.append(ACADEMIC_SOURCE_TASK_MARKER)
+                .append(" Review and summarize evidence from \"")
+                .append(title)
+                .append("\".");
+
+            if (hasText(firstAuthor) || hasText(publicationYear)) {
+                description.append(" Source metadata:");
+                if (hasText(firstAuthor)) {
+                    description.append(" author=").append(firstAuthor).append(";");
+                }
+                if (hasText(publicationYear)) {
+                    description.append(" year=").append(publicationYear).append(";");
+                }
+            }
+
+            if (hasText(sourceUrl)) {
+                description.append(" Link: ").append(sourceUrl).append(".");
+            }
+
+            taskRepository.save(Task.builder()
+                .project(project)
+                .milestone(sourceMilestone)
+                .title("Review source: " + abbreviate(title, 80))
+                .description(description.toString())
+                .taskType(Task.TaskType.task)
+                .status(Task.TaskStatus.todo)
+                .priority(Task.TaskPriority.medium)
+                .estimatedHours(4f + created)
+                .createdBy(owner)
+                .assignedTo(owner)
+                .startDate(baseDate.plusDays(2L + (long) created * 5L))
+                .dueDate(baseDate.plusDays(5L + (long) created * 5L))
+                .build());
+
+            created++;
+        }
+    }
+
+    private Milestone ensureAcademicSourcesMilestone(Project project, User owner, String query) {
+        for (Milestone milestone : milestoneRepository.findByProject_Id(project.getId())) {
+            if ("academic-source-digest".equalsIgnoreCase(milestone.getSourceMilestoneKey())) {
+                return milestone;
+            }
+        }
+
+        LocalDate dueDate = resolveProjectStartDate(project).plusDays(14L);
+        return milestoneRepository.save(Milestone.builder()
+            .project(project)
+            .name("Academic Source Digest")
+            .description("Curated literature review checkpoint for query: " + query)
+            .dueDate(dueDate)
+            .status(Milestone.MilestoneStatus.in_progress)
+            .completionPct(30f)
+            .isGate(Boolean.FALSE)
+            .sourceMilestoneKey("academic-source-digest")
+            .createdBy(owner)
+            .build());
+    }
+
+    private List<Map<String, Object>> fetchAcademicSourceItems(String query, int limit) {
+        try {
+            Map<String, Object> payload = publicIntegrationService.getAcademicSources(query, limit);
+            Object rawItems = payload.get("items");
+            if (rawItems instanceof List<?> list) {
+                List<Map<String, Object>> normalized = new ArrayList<>();
+                for (Object row : list) {
+                    if (!(row instanceof Map<?, ?> map)) {
+                        continue;
+                    }
+
+                    Map<String, Object> copy = new LinkedHashMap<>();
+                    for (Map.Entry<?, ?> entry : map.entrySet()) {
+                        if (entry.getKey() != null) {
+                            copy.put(String.valueOf(entry.getKey()), entry.getValue());
+                        }
+                    }
+                    normalized.add(copy);
+                }
+
+                if (!normalized.isEmpty()) {
+                    return normalized;
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("[M2DevSeedService] Academic source API unavailable for '{}': {}", query, ex.getMessage());
+        }
+
+        return fallbackAcademicSourceItems();
+    }
+
+    private List<Map<String, Object>> fallbackAcademicSourceItems() {
+        List<Map<String, Object>> fallback = new ArrayList<>();
+
+        Map<String, Object> source1 = new LinkedHashMap<>();
+        source1.put("title", "A Survey on Reproducibility in Machine Learning");
+        source1.put("firstAuthor", "Pineau et al.");
+        source1.put("publicationYear", 2021);
+        source1.put("openAccessUrl", "https://arxiv.org/abs/2003.12206");
+        fallback.add(source1);
+
+        Map<String, Object> source2 = new LinkedHashMap<>();
+        source2.put("title", "Technical Debt in Machine Learning Systems");
+        source2.put("firstAuthor", "Sculley et al.");
+        source2.put("publicationYear", 2015);
+        source2.put("openAccessUrl", "https://papers.nips.cc/paper_files/paper/2015/hash/86df7dcfd896fcaf2674f757a2463eba-Abstract.html");
+        fallback.add(source2);
+
+        Map<String, Object> source3 = new LinkedHashMap<>();
+        source3.put("title", "Hidden Technical Debt in ML Systems (Practice Notes)");
+        source3.put("firstAuthor", "Google Research");
+        source3.put("publicationYear", 2023);
+        source3.put("landingPageUrl", "https://research.google/pubs/hidden-technical-debt-in-machine-learning-systems/");
+        fallback.add(source3);
+
+        Map<String, Object> source4 = new LinkedHashMap<>();
+        source4.put("title", "Project-Based Learning in Software Engineering Education");
+        source4.put("firstAuthor", "ACM Education SIG");
+        source4.put("publicationYear", 2022);
+        source4.put("landingPageUrl", "https://dl.acm.org/");
+        fallback.add(source4);
+
+        return fallback;
+    }
+
+    private String asText(Object raw) {
+        if (raw == null) {
+            return null;
+        }
+        String text = String.valueOf(raw).trim();
+        return text.isEmpty() ? null : text;
+    }
+
+    private String abbreviate(String text, int maxLength) {
+        if (text == null || text.length() <= maxLength) {
+            return text;
+        }
+        if (maxLength <= 3) {
+            return text.substring(0, Math.max(0, maxLength));
+        }
+        return text.substring(0, maxLength - 3) + "...";
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     //  PROJECT
     // ─────────────────────────────────────────────────────────────────────────
@@ -1088,10 +1585,53 @@ public class M2DevSeedService {
 
         if (existing.isPresent()) {
             Project p = existing.get();
+            boolean changed = false;
+
+            if (!Objects.equals(p.getCreatedBy(), creatorId)) {
+                p.setCreatedBy(creatorId);
+                changed = true;
+            }
+            if (!Objects.equals(p.getName(), name)) {
+                p.setName(name);
+                changed = true;
+            }
+            if (!Objects.equals(p.getStatus(), status)) {
+                p.setStatus(status);
+                changed = true;
+            }
+            if (!Objects.equals(p.getVisibility(), visibility)) {
+                p.setVisibility(visibility);
+                changed = true;
+            }
+            if (!Objects.equals(p.getStartDate(), startDate)) {
+                p.setStartDate(startDate);
+                changed = true;
+            }
+            if (!Objects.equals(p.getEndDate(), endDate)) {
+                p.setEndDate(endDate);
+                changed = true;
+            }
+
+            UUID expectedTemplateId = template != null ? template.getId() : null;
+            if (!Objects.equals(p.getTemplateId(), expectedTemplateId)) {
+                p.setTemplateId(expectedTemplateId);
+                changed = true;
+            }
+
+            if (template != null && !Objects.equals(p.getPhasesJson(), template.getDefaultPhasesJson())) {
+                p.setPhasesJson(template.getDefaultPhasesJson());
+                changed = true;
+            }
+
             if (p.getCreatedAt() == null || p.getCreatedAt().isAfter(SEEDED_CREATED_AT)) {
                 // Use direct JDBC update because created_at is updatable=false in JPA mapping
                 jdbcTemplate.update("UPDATE projects SET created_at = ? WHERE id = ?", java.sql.Timestamp.from(SEEDED_CREATED_AT), p.getId().toString());
                 p.setCreatedAt(SEEDED_CREATED_AT);
+                changed = true;
+            }
+
+            if (changed) {
+                p = projectRepository.save(p);
             }
             return p;
         }
@@ -1136,40 +1676,50 @@ public class M2DevSeedService {
         Project chronosCore,
         Project legacySunset,
         Project portalReboot,
-        Project growthAnalytics
+        Project growthAnalytics,
+        Project managerDelivery,
+        Project managerAcademicBridge
     ) {
         ensureWorkspaceMemberTimeline(
             workspace.getId(), owner.getId(), WorkspaceMember.WorkspaceRole.OWNER,
-            Instant.parse("2026-01-05T09:00:00Z"), null
+            Instant.parse("2024-01-02T09:00:00Z"), null
         );
         ensureWorkspaceMemberTimeline(
             workspace.getId(), coreDev.getId(), WorkspaceMember.WorkspaceRole.EMPLOYEE,
-            Instant.parse("2026-01-12T10:15:00Z"), null
+            Instant.parse("2024-04-12T10:15:00Z"), null
         );
         ensureWorkspaceMemberTimeline(
             workspace.getId(), rotatingDev.getId(), WorkspaceMember.WorkspaceRole.EMPLOYEE,
-            Instant.parse("2026-02-06T08:45:00Z"), Instant.parse("2026-03-02T18:00:00Z")
+            Instant.parse("2025-02-06T08:45:00Z"), Instant.parse("2026-01-15T18:00:00Z")
         );
         ensureWorkspaceMemberTimeline(
             workspace.getId(), analyst.getId(), WorkspaceMember.WorkspaceRole.VIEWER,
-            Instant.parse("2026-04-01T09:30:00Z"), null
+            Instant.parse("2026-04-17T09:30:00Z"), null
         );
 
         ensureProjectTimeline(
             chronosCore.getId(), Project.ProjectStatus.ACTIVE, Project.Visibility.PRIVATE,
-            Instant.parse("2026-01-10T08:00:00Z"), null
+            Instant.parse("2024-03-10T08:00:00Z"), null
         );
         ensureProjectTimeline(
             legacySunset.getId(), Project.ProjectStatus.COMPLETED, Project.Visibility.PRIVATE,
-            Instant.parse("2026-02-01T12:00:00Z"), Instant.parse("2026-03-20T20:00:00Z")
+            Instant.parse("2024-09-01T12:00:00Z"), Instant.parse("2025-06-20T20:00:00Z")
         );
         ensureProjectTimeline(
             portalReboot.getId(), Project.ProjectStatus.ACTIVE, Project.Visibility.PUBLIC,
-            Instant.parse("2026-03-25T14:00:00Z"), null
+            Instant.parse("2025-09-05T14:00:00Z"), null
         );
         ensureProjectTimeline(
             growthAnalytics.getId(), Project.ProjectStatus.PLANNING, Project.Visibility.PRIVATE,
-            Instant.parse("2026-04-08T16:00:00Z"), null
+            Instant.parse("2026-02-28T16:00:00Z"), null
+        );
+        ensureProjectTimeline(
+            managerDelivery.getId(), Project.ProjectStatus.ACTIVE, Project.Visibility.PUBLIC,
+            Instant.parse("2026-04-18T11:15:00Z"), null
+        );
+        ensureProjectTimeline(
+            managerAcademicBridge.getId(), Project.ProjectStatus.PLANNING, Project.Visibility.PRIVATE,
+            Instant.parse("2026-04-19T10:45:00Z"), null
         );
     }
 
@@ -1225,11 +1775,12 @@ public class M2DevSeedService {
 
     private List<String> timeMachineSuggestedDates() {
         return List.of(
-            "2026-01-11T23:59:59Z",
-            "2026-02-10T23:59:59Z",
-            "2026-03-05T23:59:59Z",
-            "2026-03-22T23:59:59Z",
-            "2026-04-09T23:59:59Z"
+            "2024-01-02T23:59:59Z",
+            "2024-09-01T23:59:59Z",
+            "2025-09-05T23:59:59Z",
+            "2026-02-28T23:59:59Z",
+            "2026-04-18T23:59:59Z",
+            "2026-04-19T23:59:59Z"
         );
     }
 

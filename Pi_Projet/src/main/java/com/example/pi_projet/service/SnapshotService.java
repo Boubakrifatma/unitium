@@ -2,6 +2,7 @@ package com.example.pi_projet.service;
 
 import com.example.pi_projet.exception.Module2Exception;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +16,7 @@ import java.util.UUID;
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
+@Slf4j
 public class SnapshotService {
 
     private final JdbcTemplate jdbcTemplate;
@@ -22,6 +24,8 @@ public class SnapshotService {
     public Map<String, Object> buildSnapshot(UUID workspaceId, Instant at) {
         Timestamp ts = Timestamp.from(at);
         String workspaceKey = workspaceId.toString();
+
+        try {
 
         // Workspace visible at requested time
         String wsSql = "SELECT id, name, created_at FROM workspaces WHERE (id = ? OR id = UNHEX(REPLACE(?, '-', ''))) AND created_at <= ? AND (deleted_at IS NULL OR deleted_at > ?)";
@@ -41,7 +45,9 @@ public class SnapshotService {
         String workspaceName = workspaceMetadata.get("name");
         String workspaceCreatedAt = workspaceMetadata.get("createdAt");
         List<Map<String, Object>> timelineCheckpoints = buildTimelineCheckpoints(workspaceKey);
-        List<String> suggestedDates = buildSuggestedDates(timelineCheckpoints, workspaceCreatedAt);
+        LinkedHashSet<String> suggestedDatesSet = new LinkedHashSet<>(buildSuggestedDates(timelineCheckpoints, workspaceCreatedAt));
+        suggestedDatesSet.add(toEndOfDayIso(at));
+        List<String> suggestedDates = new ArrayList<>(suggestedDatesSet);
 
         if (wsRows.isEmpty()) {
             Map<String, Object> empty = new LinkedHashMap<>();
@@ -67,15 +73,15 @@ public class SnapshotService {
         String memberRoleColumn = columnExists("workspace_members", "workspace_role") ? "workspace_role" : "role";
 
         // Counts
-        String countProjectsSql = "SELECT COUNT(*) FROM projects WHERE (workspace_id = ? OR workspace_id = UNHEX(REPLACE(?, '-', ''))) AND created_at <= ? AND (deleted_at IS NULL OR deleted_at > ?)";
-        Integer totalProjects = jdbcTemplate.queryForObject(countProjectsSql, new Object[]{workspaceKey, workspaceKey, ts, ts}, Integer.class);
+        String countProjectsSql = "SELECT COUNT(*) FROM projects WHERE workspace_id = UNHEX(REPLACE(?, '-', '')) AND created_at <= ? AND (deleted_at IS NULL OR deleted_at > ?)";
+        Integer totalProjects = jdbcTemplate.queryForObject(countProjectsSql, new Object[]{workspaceKey, ts, ts}, Integer.class);
 
-        String membersCountSql = "SELECT COUNT(*) FROM workspace_members WHERE (workspace_id = ? OR workspace_id = UNHEX(REPLACE(?, '-', ''))) AND (joined_at IS NULL OR joined_at <= ?) AND (deleted_at IS NULL OR deleted_at > ?)";
-        Integer memberCount = jdbcTemplate.queryForObject(membersCountSql, new Object[]{workspaceKey, workspaceKey, ts, ts}, Integer.class);
+        String membersCountSql = "SELECT COUNT(*) FROM workspace_members WHERE workspace_id = UNHEX(REPLACE(?, '-', '')) AND (joined_at IS NULL OR joined_at <= ?) AND (deleted_at IS NULL OR deleted_at > ?)";
+        Integer memberCount = jdbcTemplate.queryForObject(membersCountSql, new Object[]{workspaceKey, ts, ts}, Integer.class);
 
         // Projects list (basic fields)
-        String projectsSql = "SELECT id, name, status, visibility, created_at FROM projects WHERE (workspace_id = ? OR workspace_id = UNHEX(REPLACE(?, '-', ''))) AND created_at <= ? AND (deleted_at IS NULL OR deleted_at > ?) ORDER BY created_at";
-        List<Map<String, Object>> projects = jdbcTemplate.query(projectsSql, new Object[]{workspaceKey, workspaceKey, ts, ts}, (rs, rowNum) -> {
+        String projectsSql = "SELECT id, name, status, visibility, created_at FROM projects WHERE workspace_id = UNHEX(REPLACE(?, '-', '')) AND created_at <= ? AND (deleted_at IS NULL OR deleted_at > ?) ORDER BY created_at";
+        List<Map<String, Object>> projects = jdbcTemplate.query(projectsSql, new Object[]{workspaceKey, ts, ts}, (rs, rowNum) -> {
             Map<String, Object> m = new LinkedHashMap<>();
             Object idObj = rs.getObject("id");
             m.put("id", uuidToString(idObj));
@@ -88,16 +94,19 @@ public class SnapshotService {
         });
 
         // Members list (basic fields + identity)
-        String membersSql = "SELECT wm.id, wm.user_id, wm." + memberRoleColumn + " AS workspace_role, wm.joined_at, u.full_name, u.email, u.avatar_url " +
+        String membersSql = "SELECT wm.id, " +
+            "CASE WHEN OCTET_LENGTH(wm.user_id) = 16 THEN BIN_TO_UUID(wm.user_id) ELSE CAST(wm.user_id AS CHAR) END AS user_id_label, " +
+            "wm." + memberRoleColumn + " AS workspace_role, wm.joined_at, u.full_name, u.email, u.avatar_url " +
             "FROM workspace_members wm " +
-            "LEFT JOIN users u ON u.id = wm.user_id " +
-            "WHERE (wm.workspace_id = ? OR wm.workspace_id = UNHEX(REPLACE(?, '-', ''))) AND (wm.joined_at IS NULL OR wm.joined_at <= ?) AND (wm.deleted_at IS NULL OR wm.deleted_at > ?) " +
+            "LEFT JOIN users u ON CAST(u.id AS CHAR) = " +
+            "CASE WHEN OCTET_LENGTH(wm.user_id) = 16 THEN BIN_TO_UUID(wm.user_id) ELSE CAST(wm.user_id AS CHAR) END " +
+            "WHERE wm.workspace_id = UNHEX(REPLACE(?, '-', '')) AND (wm.joined_at IS NULL OR wm.joined_at <= ?) AND (wm.deleted_at IS NULL OR wm.deleted_at > ?) " +
             "ORDER BY wm.joined_at";
-        List<Map<String, Object>> members = jdbcTemplate.query(membersSql, new Object[]{workspaceKey, workspaceKey, ts, ts}, (rs, rowNum) -> {
+        List<Map<String, Object>> members = jdbcTemplate.query(membersSql, new Object[]{workspaceKey, ts, ts}, (rs, rowNum) -> {
             Map<String, Object> m = new LinkedHashMap<>();
             Object idObj = rs.getObject("id");
             m.put("id", uuidToString(idObj));
-            m.put("userId", rs.getLong("user_id"));
+            m.put("userId", rs.getString("user_id_label"));
             m.put("workspaceRole", rs.getString("workspace_role"));
             m.put("fullName", rs.getString("full_name"));
             m.put("email", rs.getString("email"));
@@ -123,6 +132,54 @@ public class SnapshotService {
         warnings.add("Open task and workload metrics are not available for historical snapshots.");
         result.put("dataWarnings", warnings);
         return result;
+        } catch (Module2Exception ex) {
+            throw ex;
+        } catch (Exception ex) {
+            log.error("[SnapshotService] Snapshot build failed for workspace {} at {}: {}", workspaceKey, at, ex.getMessage(), ex);
+            return buildDegradedSnapshot(workspaceId, at, workspaceKey);
+        }
+    }
+
+    private Map<String, Object> buildDegradedSnapshot(UUID workspaceId, Instant at, String workspaceKey) {
+        Map<String, String> workspaceMetadata = null;
+        try {
+            workspaceMetadata = readWorkspaceMetadata(workspaceKey);
+        } catch (Exception ex) {
+            log.warn("[SnapshotService] Unable to read workspace metadata during fallback for workspace {}: {}", workspaceKey, ex.getMessage());
+        }
+
+        String workspaceName = workspaceMetadata == null ? null : workspaceMetadata.get("name");
+        String workspaceCreatedAt = workspaceMetadata == null ? null : workspaceMetadata.get("createdAt");
+
+        List<Map<String, Object>> timelineCheckpoints;
+        try {
+            timelineCheckpoints = buildTimelineCheckpoints(workspaceKey);
+        } catch (Exception ex) {
+            log.warn("[SnapshotService] Unable to build timeline during fallback for workspace {}: {}", workspaceKey, ex.getMessage());
+            timelineCheckpoints = Collections.emptyList();
+        }
+        LinkedHashSet<String> suggestedDatesSet = new LinkedHashSet<>(buildSuggestedDates(timelineCheckpoints, workspaceCreatedAt));
+        suggestedDatesSet.add(toEndOfDayIso(at));
+        List<String> suggestedDates = new ArrayList<>(suggestedDatesSet);
+
+        Map<String, Object> fallback = new LinkedHashMap<>();
+        fallback.put("workspaceId", workspaceId.toString());
+        fallback.put("workspaceName", workspaceName);
+        fallback.put("workspaceCreatedAt", workspaceCreatedAt);
+        fallback.put("asOf", at.toString());
+        fallback.put("totalProjects", 0);
+        fallback.put("memberCount", 0);
+        fallback.put("projects", Collections.emptyList());
+        fallback.put("members", Collections.emptyList());
+        fallback.put("timelineCheckpoints", timelineCheckpoints);
+        fallback.put("suggestedDates", suggestedDates);
+        fallback.put("workspaceUnavailable", true);
+
+        List<String> warnings = new ArrayList<>();
+        warnings.add("Snapshot data is partially unavailable. Showing fallback historical state.");
+        warnings.add("Open task and workload metrics are not available for historical snapshots.");
+        fallback.put("dataWarnings", warnings);
+        return fallback;
     }
 
     private Map<String, String> readWorkspaceMetadata(String workspaceKey) {
@@ -139,38 +196,40 @@ public class SnapshotService {
 
     private List<Map<String, Object>> buildTimelineCheckpoints(String workspaceKey) {
         String timelineSql = "SELECT event_at, event_type, label FROM (" +
-            " SELECT w.created_at AS event_at, 'WORKSPACE_CREATED' AS event_type, CONCAT('Workspace created: ', w.name) AS label" +
-            "   FROM workspaces w" +
-            "  WHERE (w.id = ? OR w.id = UNHEX(REPLACE(?, '-', ''))) AND w.created_at IS NOT NULL" +
-            " UNION ALL" +
-            " SELECT wm.joined_at AS event_at, 'MEMBER_JOINED' AS event_type, CONCAT('Member joined: ', COALESCE(u.full_name, CONCAT('User #', wm.user_id))) AS label" +
+            " SELECT wm.joined_at AS event_at, 'MEMBER_JOINED' AS event_type, 'Member joined' AS label" +
             "   FROM workspace_members wm" +
-            "   LEFT JOIN users u ON u.id = wm.user_id" +
-            "  WHERE (wm.workspace_id = ? OR wm.workspace_id = UNHEX(REPLACE(?, '-', ''))) AND wm.joined_at IS NOT NULL" +
+            "  WHERE wm.workspace_id = UNHEX(REPLACE(?, '-', '')) AND wm.joined_at IS NOT NULL" +
             " UNION ALL" +
-            " SELECT wm.deleted_at AS event_at, 'MEMBER_LEFT' AS event_type, CONCAT('Member left: ', COALESCE(u.full_name, CONCAT('User #', wm.user_id))) AS label" +
+            " SELECT wm.deleted_at AS event_at, 'MEMBER_LEFT' AS event_type, 'Member left' AS label" +
             "   FROM workspace_members wm" +
-            "   LEFT JOIN users u ON u.id = wm.user_id" +
-            "  WHERE (wm.workspace_id = ? OR wm.workspace_id = UNHEX(REPLACE(?, '-', ''))) AND wm.deleted_at IS NOT NULL" +
+            "  WHERE wm.workspace_id = UNHEX(REPLACE(?, '-', '')) AND wm.deleted_at IS NOT NULL" +
             " UNION ALL" +
-            " SELECT p.created_at AS event_at, 'PROJECT_CREATED' AS event_type, CONCAT('Project created: ', p.name) AS label" +
+            " SELECT p.created_at AS event_at, 'PROJECT_CREATED' AS event_type, 'Project created' AS label" +
             "   FROM projects p" +
-            "  WHERE (p.workspace_id = ? OR p.workspace_id = UNHEX(REPLACE(?, '-', ''))) AND p.created_at IS NOT NULL" +
+            "  WHERE p.workspace_id = UNHEX(REPLACE(?, '-', '')) AND p.created_at IS NOT NULL" +
             " UNION ALL" +
-            " SELECT p.deleted_at AS event_at, 'PROJECT_REMOVED' AS event_type, CONCAT('Project removed: ', p.name) AS label" +
+            " SELECT p.deleted_at AS event_at, 'PROJECT_REMOVED' AS event_type, 'Project removed' AS label" +
             "   FROM projects p" +
-            "  WHERE (p.workspace_id = ? OR p.workspace_id = UNHEX(REPLACE(?, '-', ''))) AND p.deleted_at IS NOT NULL" +
+            "  WHERE p.workspace_id = UNHEX(REPLACE(?, '-', '')) AND p.deleted_at IS NOT NULL" +
             ") events WHERE event_at IS NOT NULL ORDER BY event_at LIMIT 40";
 
         Object[] args = new Object[] {
-            workspaceKey, workspaceKey,
-            workspaceKey, workspaceKey,
-            workspaceKey, workspaceKey,
-            workspaceKey, workspaceKey,
-            workspaceKey, workspaceKey
+            workspaceKey,
+            workspaceKey,
+            workspaceKey,
+            workspaceKey
         };
 
-        return jdbcTemplate.query(timelineSql, args, (rs, rowNum) -> {
+        try {
+            return mapTimelineEvents(timelineSql, args);
+        } catch (Exception ex) {
+            log.warn("[SnapshotService] Timeline query failed for workspace {}: {}", workspaceKey, ex.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    private List<Map<String, Object>> mapTimelineEvents(String sql, Object[] args) {
+        return jdbcTemplate.query(sql, args, (rs, rowNum) -> {
             Timestamp eventAt = rs.getTimestamp("event_at");
             Instant instant = eventAt == null ? null : eventAt.toInstant();
             Map<String, Object> event = new LinkedHashMap<>();

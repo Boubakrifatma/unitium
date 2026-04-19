@@ -101,7 +101,7 @@ interface WorkspaceActivity {
                         <mat-form-field appearance="outline" style="width:220px;margin-right:8px;">
                             <input matInput [matDatepicker]="asOfPicker" placeholder="View as of" [value]="historicalAsDate()" (dateChange)="onDateSelected($event)" [min]="pickerMinDate()" [max]="pickerMaxDate()" [matDatepickerFilter]="dateFilter">
                             <mat-datepicker-toggle matSuffix [for]="asOfPicker"></mat-datepicker-toggle>
-                            <mat-datepicker #asOfPicker></mat-datepicker>
+                            <mat-datepicker #asOfPicker [dateClass]="timelineDateClass"></mat-datepicker>
                         </mat-form-field>
                         <button matButton (click)="backToWorkspaces()"><mat-icon class="material-icons-outlined">arrow_back</mat-icon> Back</button>
                         <button matButton class="ms-1" (click)="refresh()"><mat-icon class="material-icons-outlined">refresh</mat-icon> Refresh</button>
@@ -2739,6 +2739,19 @@ interface WorkspaceActivity {
                 color: var(--text-color-secondary, #64748b);
                 margin: 0;
             }
+
+            ::ng-deep .tm-checkpoint-day .mat-calendar-body-cell-content,
+            ::ng-deep .tm-checkpoint-day.mat-calendar-body-cell-content {
+                background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+                color: #ffffff;
+                border-radius: 999px;
+                font-weight: 700;
+            }
+
+            ::ng-deep .tm-checkpoint-day.mat-calendar-body-today .mat-calendar-body-cell-content,
+            ::ng-deep .tm-checkpoint-day.mat-calendar-body-today.mat-calendar-body-cell-content {
+                box-shadow: 0 0 0 2px #bfdbfe inset;
+            }
     `],
 })
 export class M2WorkspaceDetailsComponent implements OnInit {
@@ -2785,6 +2798,17 @@ export class M2WorkspaceDetailsComponent implements OnInit {
     // Date object for MatDatepicker value binding (avoid `new` in template expressions)
     readonly historicalAsDate = computed(() => this.historicalAt() ? new Date(this.historicalAt()!) : null);
     readonly timelineQuickDates = signal<M2TimelineCheckpoint[]>([]);
+    readonly timelineDateKeys = computed(() => {
+        const keys = new Set<string>();
+        for (const checkpoint of this.timelineQuickDates()) {
+            const key = this.toUtcDateKeyFromIso(checkpoint?.at);
+            if (key) {
+                keys.add(key);
+            }
+        }
+        return keys;
+    });
+    readonly timelineDateClass = (date: Date): string => this.timelineDateKeys().has(this.toUtcDateKey(date)) ? 'tm-checkpoint-day' : '';
     // Datepicker bounds and filter to prevent selecting unavailable snapshot dates
     readonly pickerMinDate = signal<Date | null>(null);
     readonly pickerMaxDate = signal<Date | null>(null);
@@ -3173,6 +3197,24 @@ export class M2WorkspaceDetailsComponent implements OnInit {
         if (pct >= 75) return '#1D9E75';
         if (pct >= 40) return '#EF9F27';
         return '#E24B4A';
+    }
+
+    private toUtcDateKey(date: Date): string {
+        const year = date.getUTCFullYear();
+        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(date.getUTCDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    private toUtcDateKeyFromIso(value?: string | null): string | null {
+        if (!value) {
+            return null;
+        }
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) {
+            return null;
+        }
+        return this.toUtcDateKey(parsed);
     }
 
     ovCapColor(pct: number): string {
