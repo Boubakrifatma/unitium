@@ -448,6 +448,14 @@ public class ProjectService {
 
         Map<String, Milestone> milestonesByKey = new LinkedHashMap<>();
         Map<String, Integer> milestoneOffsetByKey = new LinkedHashMap<>();
+        Map<String, String> phaseNamesByKey = structure.phases().stream()
+            .collect(java.util.stream.Collectors.toMap(
+                TemplateStructureService.PhaseSpec::key,
+                TemplateStructureService.PhaseSpec::name,
+                (left, right) -> left,
+                LinkedHashMap::new
+            ));
+        int inferredMilestoneIndex = 0;
 
         for (TemplateStructureService.MilestoneSpec spec : structure.milestones()) {
             if (!spec.enabled()) continue;
@@ -460,10 +468,16 @@ public class ProjectService {
             milestone.setCompletionPct(spec.completionPct());
             milestone.setCreatedBy(creator);
             milestone.setDueDate(resolveDateFromOffset(projectStartDate, spec.offsetDays()));
+            milestone.setIsGate(spec.isGate());
+            milestone.setPhaseKey(spec.phaseKey());
+            milestone.setPhaseName(spec.phaseKey() == null ? null : phaseNamesByKey.get(spec.phaseKey()));
+            milestone.setMilestoneIndex(spec.milestoneIndex() == null ? inferredMilestoneIndex : spec.milestoneIndex());
+            milestone.setSourceMilestoneKey(spec.key());
 
             Milestone saved = milestoneRepository.save(milestone);
             milestonesByKey.put(spec.key(), saved);
             milestoneOffsetByKey.put(spec.key(), spec.offsetDays());
+            inferredMilestoneIndex++;
         }
 
         Map<String, Task> tasksByKey = new LinkedHashMap<>();

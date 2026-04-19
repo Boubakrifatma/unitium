@@ -366,6 +366,60 @@ public class ProjectTemplateService {
         return payload;
     }
 
+    public List<Map<String, Object>> getTopFeaturedOrTrendingTemplates(int limit) {
+        int safeLimit = Math.max(1, Math.min(limit, 12));
+        int fetchSize = Math.max(40, safeLimit * 10);
+
+        List<ProjectTemplate> candidates = projectTemplateRepository.search(
+            null,
+            null,
+            ProjectTemplate.TemplateStatus.APPROVED,
+            null,
+            true,
+            PageRequest.of(0, fetchSize)
+        ).getContent();
+
+        return candidates.stream()
+            .filter(template -> Boolean.TRUE.equals(template.getIsTrending())
+                || Boolean.TRUE.equals(template.getIsFeatured()))
+            .sorted((left, right) -> {
+                int trendingDelta = Boolean.compare(Boolean.TRUE.equals(right.getIsTrending()), Boolean.TRUE.equals(left.getIsTrending()));
+                if (trendingDelta != 0) return trendingDelta;
+
+                int featuredDelta = Boolean.compare(Boolean.TRUE.equals(right.getIsFeatured()), Boolean.TRUE.equals(left.getIsFeatured()));
+                if (featuredDelta != 0) return featuredDelta;
+
+                int usageDelta = Integer.compare(
+                    right.getUsageCount() == null ? 0 : right.getUsageCount(),
+                    left.getUsageCount() == null ? 0 : left.getUsageCount());
+                if (usageDelta != 0) return usageDelta;
+
+                int ratingDelta = Double.compare(
+                    right.getRating() == null ? 0.0 : right.getRating(),
+                    left.getRating() == null ? 0.0 : left.getRating());
+                if (ratingDelta != 0) return ratingDelta;
+
+                return Integer.compare(
+                    right.getRatingCount() == null ? 0 : right.getRatingCount(),
+                    left.getRatingCount() == null ? 0 : left.getRatingCount());
+            })
+            .limit(safeLimit)
+            .map(template -> {
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("id", template.getId());
+                row.put("name", template.getName());
+                row.put("templateType", template.getTemplateType());
+                row.put("previewImageUrl", template.getPreviewImageUrl());
+                row.put("rating", round1(template.getRating() == null ? 0.0 : template.getRating()));
+                row.put("ratingCount", template.getRatingCount() == null ? 0 : template.getRatingCount());
+                row.put("usageCount", template.getUsageCount() == null ? 0 : template.getUsageCount());
+                row.put("isTrending", Boolean.TRUE.equals(template.getIsTrending()));
+                row.put("isFeatured", Boolean.TRUE.equals(template.getIsFeatured()));
+                return row;
+            })
+            .toList();
+    }
+
     public Map<String, Object> getTemplateAnalytics(UUID templateId, Long userId) {
         ProjectTemplate template = projectTemplateRepository.findById(templateId)
             .orElseThrow(() -> new Module2Exception(NOT_FOUND, "Template not found"));

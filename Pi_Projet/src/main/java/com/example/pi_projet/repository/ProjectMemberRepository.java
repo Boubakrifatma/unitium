@@ -48,6 +48,25 @@ public interface ProjectMemberRepository extends JpaRepository<ProjectMember, UU
     @Query(value = "DELETE FROM project_members WHERE project_id = :projectId", nativeQuery = true)
     void hardDeleteAllByProjectId(@Param("projectId") UUID projectId);
 
+    @Query("""
+        SELECT pm.project.id, COUNT(pm)
+        FROM ProjectMember pm
+        WHERE pm.project.id IN :projectIds
+          AND pm.deletedAt IS NULL
+        GROUP BY pm.project.id
+        """)
+    List<Object[]> countByProjectIds(@Param("projectIds") List<UUID> projectIds);
+
+    @Query("""
+        SELECT pm.project.id, pm.userId, u.fullName, u.avatarUrl
+        FROM ProjectMember pm
+        LEFT JOIN pm.user u
+        WHERE pm.project.id IN :projectIds
+          AND pm.deletedAt IS NULL
+        ORDER BY pm.project.id ASC, pm.assignedAt ASC
+        """)
+    List<Object[]> findMemberPreviewRows(@Param("projectIds") List<UUID> projectIds);
+
     /**
      * Returns pairs of user IDs that share at least one project in the given workspace,
      * along with the count of shared projects. Used by the War Room collaboration graph.

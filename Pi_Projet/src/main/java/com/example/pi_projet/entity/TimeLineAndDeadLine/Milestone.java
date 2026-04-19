@@ -36,6 +36,22 @@ public class Milestone {
     @Column(name = "completion_pct")
     private Float completionPct;
 
+    @Builder.Default
+    @Column(name = "is_gate", nullable = false)
+    private Boolean isGate = false;
+
+    @Column(name = "phase_key", length = 120)
+    private String phaseKey;
+
+    @Column(name = "phase_name", length = 160)
+    private String phaseName;
+
+    @Column(name = "milestone_index")
+    private Integer milestoneIndex;
+
+    @Column(name = "source_milestone_key", length = 120)
+    private String sourceMilestoneKey;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     private User createdBy;
@@ -52,6 +68,7 @@ public class Milestone {
         updatedAt = LocalDateTime.now();
         if (status == null) status = MilestoneStatus.pending;
         if (completionPct == null) completionPct = 0f;
+        if (isGate == null) isGate = false;
     }
 
     @PreUpdate

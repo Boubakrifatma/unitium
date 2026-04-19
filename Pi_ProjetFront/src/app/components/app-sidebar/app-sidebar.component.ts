@@ -181,6 +181,7 @@ export class AppSidebarComponent {
             { name: "My Projects", route: "/app/real-projects", icon: "folder_special" },
         ];
         if (this.canManageWorkspaces) {
+            projectChildren.unshift({ name: "Master Dashboard", route: "/app/master-dashboard", icon: "space_dashboard" });
             projectChildren.push({ name: "Templates Hub", route: "/app/templates", icon: "layers" });
         }
 

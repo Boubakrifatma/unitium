@@ -83,6 +83,10 @@ export const routes: Routes = [
                 loadComponent: () => import("./pages/app/dashboard/dashboard.component").then((c) => c.DashboardComponent),
             },
             {
+                path: "master-dashboard",
+                loadComponent: () => import("./pages/app/master-dashboard/master-dashboard.component").then((c) => c.MasterDashboardComponent),
+            },
+            {
                 path: "workspaces",
                 loadComponent: () => import("./pages/app/m2-workspaces/m2-workspaces.component").then((c) => c.M2WorkspacesComponent),
             },

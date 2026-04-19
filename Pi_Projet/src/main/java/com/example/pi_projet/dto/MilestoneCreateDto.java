@@ -12,6 +12,11 @@ public class MilestoneCreateDto {
     private LocalDate dueDate;
     private String status;
     private Integer completionPct;
+    private Boolean isGate;
+    private String phaseKey;
+    private String phaseName;
+    private Integer milestoneIndex;
+    private String sourceMilestoneKey;
     @NotBlank(message = "Project ID is required")
     private String projectId;
 }

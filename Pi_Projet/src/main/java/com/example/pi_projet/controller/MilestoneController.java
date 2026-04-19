@@ -56,8 +56,17 @@ public class MilestoneController {
             milestone.setName(dto.getName());
             milestone.setDescription(dto.getDescription());
             milestone.setDueDate(dto.getDueDate());
-            milestone.setStatus(Milestone.MilestoneStatus.valueOf(dto.getStatus()));
-            milestone.setCompletionPct(Float.valueOf(dto.getCompletionPct()));
+            milestone.setStatus(
+                dto.getStatus() == null
+                    ? Milestone.MilestoneStatus.pending
+                    : Milestone.MilestoneStatus.valueOf(dto.getStatus().toLowerCase())
+            );
+            milestone.setCompletionPct(dto.getCompletionPct() == null ? 0f : Float.valueOf(dto.getCompletionPct()));
+            milestone.setIsGate(Boolean.TRUE.equals(dto.getIsGate()));
+            milestone.setPhaseKey(dto.getPhaseKey());
+            milestone.setPhaseName(dto.getPhaseName());
+            milestone.setMilestoneIndex(dto.getMilestoneIndex());
+            milestone.setSourceMilestoneKey(dto.getSourceMilestoneKey());
             milestone.setProject(projectService.getById(projectId));
 
             return ResponseEntity.status(201).body(milestoneService.create(milestone));

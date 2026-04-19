@@ -90,17 +90,9 @@ interface ProjectMilestoneSnapshot {
                     <div class="col-auto order-2 order-lg-5 mb-3 mb-xl-0">
                         <button matButton (click)="backToRealProjects()"><mat-icon class="material-icons-outlined">arrow_back</mat-icon> Back</button>
                         <button matButton class="ms-1" (click)="refresh()"><mat-icon class="material-icons-outlined">refresh</mat-icon> Refresh</button>
-                        <button matButton class="ms-1" [disabled]="!canManageProjects() || readmeGenerating() !== null || isLoading()" (click)="generateReadme('fast')">
+                        <button matButton class="ms-1" [disabled]="isLoading()" (click)="openReadmePreview()">
                             <mat-icon class="material-icons-outlined">description</mat-icon>
                             README
-                        </button>
-                        <button matButton class="ms-1" [disabled]="!canManageProjects() || readmeGenerating() !== null || isLoading()" (click)="generateReadme('enhanced')">
-                            <mat-icon class="material-icons-outlined">auto_awesome</mat-icon>
-                            README+
-                        </button>
-                        <button matButton class="ms-1" [disabled]="isLoading()" (click)="openReadmePreview()">
-                            <mat-icon class="material-icons-outlined">preview</mat-icon>
-                            README View
                         </button>
                         <button matButton="filled" class="ms-1" [disabled]="!canManageProjects()" (click)="startEdit()">
                             <mat-icon class="material-icons-outlined">edit</mat-icon>
@@ -1084,7 +1076,6 @@ export class ProjectDetailsComponent implements OnInit {
     readonly isLoading = signal(true);
     readonly error = signal<string | null>(null);
     readonly editMode = signal(false);
-    readonly readmeGenerating = signal<"fast" | "enhanced" | null>(null);
 
     readonly workspaceId = signal("");
     readonly projectId = signal("");
@@ -1126,7 +1117,8 @@ export class ProjectDetailsComponent implements OnInit {
     readonly projectHolidayLocationLon = signal<number | null>(null);
     readonly detectedHolidayMapEmbedUrl = signal<SafeResourceUrl | null>(null);
 
-    projectHolidayCountry = "TN";
+    private readonly holidayDefaultCountry = "TN";
+    projectHolidayCountry = this.holidayDefaultCountry;
 
     readonly canManageProjects = computed(() => this.permissionService.canManageProject());
     readonly projectStatus = computed(() => (this.project()?.status || "PLANNING").toUpperCase());
@@ -1348,15 +1340,14 @@ export class ProjectDetailsComponent implements OnInit {
         this.detectHolidayLocationLoading.set(true);
         this.detectHolidayLocationError.set(null);
 
-        const localeCountry = this.detectCountryFromBrowserLocale();
         const timezoneCountry = this.detectCountryFromTimezone();
-        const detectedCountry = localeCountry || timezoneCountry;
-        const cityFromTimezone = this.detectCityFromTimezone();
-
-        const sourceFromFallback = localeCountry ? "locale" : timezoneCountry ? "timezone" : "default";
+        const fallbackCountry = this.holidayDefaultCountry;
+        const cityFromTimezone = timezoneCountry === this.holidayDefaultCountry
+            ? this.detectCityFromTimezone()
+            : null;
 
         const applyWithCoordinates = (lat: number | null, lon: number | null) => {
-            const countryCode = (detectedCountry || this.projectHolidayCountry || "TN").trim().toUpperCase().slice(0, 2) || "TN";
+            const countryCode = fallbackCountry;
             const countryName = this.countryNameFromCode(countryCode);
             this.applyDetectedLocation(
                 {
@@ -1366,18 +1357,12 @@ export class ProjectDetailsComponent implements OnInit {
                     lat,
                     lon,
                 },
-                refreshAfterDetect,
-                sourceFromFallback
+                refreshAfterDetect
             );
         };
 
         if (!("geolocation" in navigator)) {
-            if (detectedCountry) {
-                applyWithCoordinates(null, null);
-                return;
-            }
-            this.detectHolidayLocationLoading.set(false);
-            this.detectHolidayLocationError.set("Automatic location is unavailable in this browser.");
+            applyWithCoordinates(null, null);
             return;
         }
 
@@ -1386,28 +1371,29 @@ export class ProjectDetailsComponent implements OnInit {
                 const lat = position.coords.latitude;
                 const lon = position.coords.longitude;
                 const reverse = await this.reverseGeocodeCountry(lat, lon);
-                const countryCode = (reverse?.countryCode || detectedCountry || this.projectHolidayCountry || "TN").trim().toUpperCase().slice(0, 2) || "TN";
-                const countryName = reverse?.countryName || this.countryNameFromCode(countryCode);
+                const reverseCountry = String(reverse?.countryCode || "").trim().toUpperCase();
+                const useReverseTunisia = reverseCountry === this.holidayDefaultCountry;
+                const countryCode = fallbackCountry;
+                const countryName = this.countryNameFromCode(countryCode);
+                const safeLat = useReverseTunisia ? lat : null;
+                const safeLon = useReverseTunisia ? lon : null;
+                const safeCity = useReverseTunisia
+                    ? (reverse?.city || cityFromTimezone)
+                    : cityFromTimezone;
 
                 this.applyDetectedLocation(
                     {
                         countryCode,
-                        city: reverse?.city || cityFromTimezone,
+                        city: safeCity,
                         countryName,
-                        lat,
-                        lon,
+                        lat: safeLat,
+                        lon: safeLon,
                     },
-                    refreshAfterDetect,
-                    reverse?.countryCode ? "gps-reverse" : sourceFromFallback
+                    refreshAfterDetect
                 );
             },
             () => {
-                if (detectedCountry) {
-                    applyWithCoordinates(null, null);
-                    return;
-                }
-                this.detectHolidayLocationLoading.set(false);
-                this.detectHolidayLocationError.set("Allow browser location to auto-detect your country.");
+                applyWithCoordinates(null, null);
             },
             {
                 enableHighAccuracy: false,
@@ -1439,32 +1425,6 @@ export class ProjectDetailsComponent implements OnInit {
         } catch {
             return null;
         }
-    }
-
-    private detectCountryFromBrowserLocale(): string | null {
-        const localeCandidates = [navigator.language, ...(navigator.languages || [])].filter(Boolean);
-
-        for (const locale of localeCandidates) {
-            const normalized = String(locale).trim();
-            if (!normalized) continue;
-
-            try {
-                const region = new Intl.Locale(normalized).region;
-                if (region && /^[A-Za-z]{2}$/.test(region)) {
-                    return region.toUpperCase();
-                }
-            } catch {
-                // Ignore invalid locale strings and continue.
-            }
-
-            const parts = normalized.replace("_", "-").split("-");
-            const regionCandidate = parts.find((p) => /^[A-Za-z]{2}$/.test(p));
-            if (regionCandidate) {
-                return regionCandidate.toUpperCase();
-            }
-        }
-
-        return null;
     }
 
     private detectCountryFromTimezone(): string | null {
@@ -1523,21 +1483,19 @@ export class ProjectDetailsComponent implements OnInit {
 
     private applyDetectedLocation(
         detected: { countryCode: string; city: string | null; countryName: string | null; lat: number | null; lon: number | null },
-        refreshAfterDetect: boolean,
-        source: string
+        refreshAfterDetect: boolean
     ): void {
-        this.projectHolidayCountry = detected.countryCode;
-        this.projectHolidayCountryDetected.set(detected.countryCode);
+        const countryCode = (detected.countryCode || this.holidayDefaultCountry).trim().toUpperCase().slice(0, 2) || this.holidayDefaultCountry;
+        this.projectHolidayCountry = countryCode;
+        this.projectHolidayCountryDetected.set(countryCode);
         this.projectHolidayLocationCity.set(detected.city);
-        this.projectHolidayLocationCountryName.set(detected.countryName);
+        this.projectHolidayLocationCountryName.set(detected.countryName || this.countryNameFromCode(countryCode));
         this.projectHolidayLocationLat.set(detected.lat);
         this.projectHolidayLocationLon.set(detected.lon);
         this.detectedHolidayMapEmbedUrl.set(this.buildHolidayMapEmbedUrl(detected.lat, detected.lon));
         this.detectHolidayLocationLoading.set(false);
 
-        if (source === "default") {
-            this.detectHolidayLocationError.set("Country estimated from your browser settings. You can adjust manually.");
-        }
+        this.detectHolidayLocationError.set(null);
 
         if (refreshAfterDetect) {
             this.refreshProjectDurationHolidays();
@@ -1728,7 +1686,7 @@ export class ProjectDetailsComponent implements OnInit {
         this.loadData();
     }
 
-    openReadmePreview(mode: "fast" | "enhanced" = "fast"): void {
+    openReadmePreview(): void {
         const workspaceId = this.workspaceId();
         const projectId = this.projectId();
         if (!workspaceId || !projectId) {
@@ -1741,48 +1699,7 @@ export class ProjectDetailsComponent implements OnInit {
             projectId,
             "readme-preview",
         ], {
-            queryParams: {
-                mode,
-                ...this.historicalQueryParams(),
-            },
-        });
-    }
-
-    generateReadme(mode: "fast" | "enhanced" = "fast"): void {
-        if (!this.canManageProjects() || this.readmeGenerating() !== null) {
-            return;
-        }
-
-        const workspaceId = this.workspaceId();
-        const projectId = this.projectId();
-        if (!workspaceId || !projectId) {
-            return;
-        }
-
-        this.readmeGenerating.set(mode);
-
-        this.projectService.downloadProjectReadme(workspaceId, projectId, mode).subscribe({
-            next: (response) => {
-                const blob = response.body ?? new Blob([""], { type: "text/markdown;charset=utf-8" });
-                const fileName = this.extractReadmeFilename(response.headers.get("content-disposition"))
-                    || this.defaultReadmeFilename(mode);
-
-                this.downloadBlob(blob, fileName);
-                this.snackBar.open(
-                    mode === "enhanced"
-                        ? "Enhanced README generated and downloaded."
-                        : "README generated and downloaded.",
-                    "Close",
-                    { duration: 3200 }
-                );
-            },
-            error: (error: HttpErrorResponse) => {
-                this.readmeGenerating.set(null);
-                this.snackBar.open(`Failed to generate README: ${this.errorMessage(error)}`, "Close", { duration: 4500 });
-            },
-            complete: () => {
-                this.readmeGenerating.set(null);
-            },
+            queryParams: this.historicalQueryParams(),
         });
     }
 
@@ -2187,45 +2104,6 @@ this.editStartDate = p.startDate || "";
                 assignedAt: member.assignedAt || "",
             };
         });
-    }
-
-    private extractReadmeFilename(contentDisposition: string | null): string | null {
-        if (!contentDisposition) {
-            return null;
-        }
-
-        const utfMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
-        if (utfMatch?.[1]) {
-            try {
-                return decodeURIComponent(utfMatch[1].trim());
-            } catch {
-                return utfMatch[1].trim();
-            }
-        }
-
-        const asciiMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
-        return asciiMatch?.[1]?.trim() || null;
-    }
-
-    private defaultReadmeFilename(mode: "fast" | "enhanced"): string {
-        const projectName = (this.project()?.name || "project")
-            .toLowerCase()
-            .replace(/[^a-z0-9\s-]/g, "")
-            .trim()
-            .replace(/\s+/g, "-");
-        const date = new Date().toISOString().slice(0, 10);
-        return `${projectName || "project"}-readme-${mode}-${date}.md`;
-    }
-
-    private downloadBlob(blob: Blob, fileName: string): void {
-        const objectUrl = URL.createObjectURL(blob);
-        const anchor = document.createElement("a");
-        anchor.href = objectUrl;
-        anchor.download = fileName;
-        document.body.appendChild(anchor);
-        anchor.click();
-        document.body.removeChild(anchor);
-        URL.revokeObjectURL(objectUrl);
     }
 
     private isManageRole(role: string): boolean {

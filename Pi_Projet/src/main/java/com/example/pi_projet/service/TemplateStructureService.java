@@ -55,6 +55,8 @@ public class TemplateStructureService {
         int offsetDays,
         String status,
         float completionPct,
+        boolean isGate,
+        Integer milestoneIndex,
         boolean enabled
     ) {}
 
@@ -211,7 +213,7 @@ public class TemplateStructureService {
                 throw validation(contextLabel, "milestones[" + i + "].phaseKey references a missing phase.");
             }
 
-            Integer offsetRaw = optionalInt(item, contextLabel, "milestones", i, "offsetDays");
+            Integer offsetRaw = optionalInt(item, contextLabel, "milestones", i, "offsetDays", "dueAfterDays");
             int offsetDays = offsetRaw != null
                 ? offsetRaw
                 : (phaseKey != null ? phaseOffsetsByKey.getOrDefault(phaseKey, 0) : 0);
@@ -232,9 +234,27 @@ public class TemplateStructureService {
                 throw validation(contextLabel, "milestones[" + i + "].completionPct must be between 0 and 100.");
             }
 
+            boolean isGate = optionalBoolean(item, "isGate", false);
+
+            Integer milestoneIndex = optionalInt(item, contextLabel, "milestones", i, "milestoneIndex", "index", "order");
+            if (milestoneIndex != null && milestoneIndex < 0) {
+                throw validation(contextLabel, "milestones[" + i + "].milestoneIndex must be >= 0.");
+            }
+
             boolean enabled = optionalBoolean(item, "enabled", true);
 
-            milestones.add(new MilestoneSpec(key, name, description, phaseKey, offsetDays, status, completionPct, enabled));
+            milestones.add(new MilestoneSpec(
+                key,
+                name,
+                description,
+                phaseKey,
+                offsetDays,
+                status,
+                completionPct,
+                isGate,
+                milestoneIndex,
+                enabled
+            ));
         }
 
         return milestones;
@@ -365,8 +385,11 @@ public class TemplateStructureService {
             if (milestone.description() != null) row.put("description", milestone.description());
             if (milestone.phaseKey() != null) row.put("phaseKey", milestone.phaseKey());
             row.put("offsetDays", milestone.offsetDays());
+            row.put("dueAfterDays", milestone.offsetDays());
             row.put("status", milestone.status());
             row.put("completionPct", milestone.completionPct());
+            row.put("isGate", milestone.isGate());
+            if (milestone.milestoneIndex() != null) row.put("milestoneIndex", milestone.milestoneIndex());
             row.put("enabled", milestone.enabled());
             payload.add(row);
         }
