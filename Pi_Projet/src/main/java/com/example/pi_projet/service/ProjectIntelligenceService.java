@@ -239,6 +239,7 @@ public class ProjectIntelligenceService {
                 throw new Module2Exception(VALIDATION, "selectedTemplateId must be a valid UUID.");
             }
 
+            UUID effectiveTemplateId = selectedTemplateId;
             Optional<ProjectTemplate> selectedTemplate = projectTemplateService.getById(selectedTemplateId);
             if (selectedTemplate.isEmpty()) {
                 Map<String, Object> meta = new LinkedHashMap<>();
@@ -251,22 +252,26 @@ public class ProjectIntelligenceService {
                 if (byName.isPresent()) {
                     meta.put("matchingTemplateIdByName", byName.get().getId().toString());
                     meta.put("diagnosis", "stale-template-id");
-                    throw new Module2Exception(
-                        NOT_FOUND,
-                        "AI selected template ID was not found in backend templates. The template name exists with a different ID, which usually means ML template metadata is stale after reseed/training export. Re-run AI bootstrap and select the refreshed template.",
-                        meta
+                    effectiveTemplateId = byName.get().getId();
+                    log.warn(
+                        "PIB confirm stale template id detected, auto-resolving by name selectedTemplateId={} selectedTemplateName={} resolvedTemplateId={}",
+                        selectedTemplateIdRaw,
+                        selectedTemplateNameRaw,
+                        effectiveTemplateId
                     );
                 }
 
-                meta.put("diagnosis", "template-not-found-in-db");
-                throw new Module2Exception(
-                    NOT_FOUND,
-                    "AI selected template was not found in backend templates. This usually means ML template metadata is out of sync with current project_templates data (deleted/reseeded templates). Re-run AI bootstrap before confirming.",
-                    meta
-                );
+                if (byName.isEmpty()) {
+                    meta.put("diagnosis", "template-not-found-in-db");
+                    throw new Module2Exception(
+                        NOT_FOUND,
+                        "AI selected template was not found in backend templates. This usually means ML template metadata is out of sync with current project_templates data (deleted/reseeded templates). Re-run AI bootstrap before confirming.",
+                        meta
+                    );
+                }
             }
 
-            created = projectService.createProjectFromTemplate(workspaceId, selectedTemplateId, projectName, startDate, endDate, currentUserId);
+            created = projectService.createProjectFromTemplate(workspaceId, effectiveTemplateId, projectName, startDate, endDate, currentUserId);
             created = projectService.update(created.getId(), null, projectDescription, visibility, null, null, githubRepoUrlProvided, githubRepoUrl, currentUserId);
         } else {
             created = projectService.create(workspaceId, projectName, projectDescription, visibility, startDate, endDate, githubRepoUrl, currentUserId);
@@ -295,8 +300,30 @@ public class ProjectIntelligenceService {
             List<String> reasons = parseStringList(memberRow.get("reasons"));
 
             ProjectMember assignedMember = null;
+            String decisionNote = null;
             if (accepted) {
-                assignedMember = assignOrReuseProjectMember(created.getId(), suggestedUserId, role, currentUserId);
+                boolean workspaceEligible = workspaceMemberRepository
+                    .findByWorkspaceIdAndUserId(workspaceId, suggestedUserId)
+                    .isPresent();
+
+                if (workspaceEligible) {
+                    assignedMember = assignOrReuseProjectMember(created.getId(), suggestedUserId, role, currentUserId);
+                } else {
+                    accepted = false;
+                    decisionNote = "Rejected during PIB confirm (not in workspace).";
+                    log.warn(
+                        "PIB confirm assignment skipped projectId={} userId={} role={} reason=not-workspace-member",
+                        created.getId(),
+                        suggestedUserId,
+                        role
+                    );
+                }
+            }
+
+            if (accepted) {
+                decisionNote = "Accepted during PIB confirm.";
+            } else if (decisionNote == null) {
+                decisionNote = "Rejected during PIB confirm.";
             }
 
             MLTeamRecommendation rec = MLTeamRecommendation.builder()
@@ -312,7 +339,7 @@ public class ProjectIntelligenceService {
                 .mlReasonsJson(toJson(reasons))
                 .mlColdStartMode(coldStartMode)
                 .mlModelVersion(modelVersion)
-                .mlDecisionNote(accepted ? "Accepted during PIB confirm." : "Rejected during PIB confirm.")
+                .mlDecisionNote(decisionNote)
                 .build();
 
             MLTeamRecommendation savedRec = mlTeamRecommendationService.create(rec);

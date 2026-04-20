@@ -1,5 +1,6 @@
 package com.example.pi_projet.service;
 
+import org.springframework.beans.factory.annotation.Value;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,12 +16,19 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.BufferedReader;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Seeder for Module 2 showcase data.
@@ -43,6 +51,9 @@ public class M2DevSeedService {
     // Seeded historic created_at used for workspaces and projects so snapshots exist
     private static final Instant SEEDED_CREATED_AT = Instant.parse("2024-01-01T00:00:00Z");
     private static final String ACADEMIC_SOURCE_TASK_MARKER = "[seed:academic-source]";
+
+    @Value("${m2.seed.export-pib-artifacts:true}")
+    private boolean exportPibArtifactsOnSeed;
 
     private record SeedPhaseSpec(String key, String name, int durationDays, boolean enabled) {}
 
@@ -793,6 +804,8 @@ public class M2DevSeedService {
             pManagerAcademicBridge
         );
 
+        boolean pibArtifactsExported = exportPibArtifactsFromSeed();
+
         log.info("[M2DevSeedService] Seed complete with realistic enterprise + academic portfolio data.");
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("nexusCorpId",  nexusCorp.getId());
@@ -802,8 +815,101 @@ public class M2DevSeedService {
         out.put("timeMachineWorkspaceId", chronosOps.getId());
         out.put("timeMachineWorkspaceSlug", chronosOps.getSlug());
         out.put("timeMachineSuggestedDates", timeMachineSuggestedDates());
+        out.put("pibArtifactsExported", pibArtifactsExported);
         out.put("message", "Module 2 rich seed completed with realistic enterprise + academic template-driven projects");
         return out;
+    }
+
+    private boolean exportPibArtifactsFromSeed() {
+        if (!exportPibArtifactsOnSeed) {
+            log.info("[M2DevSeedService] Skipping PIB artifact export (m2.seed.export-pib-artifacts=false).");
+            return false;
+        }
+
+        Path scriptPath = resolvePibExportScriptPath();
+        if (scriptPath == null) {
+            log.warn("[M2DevSeedService] PIB artifact export script not found (expected m2_ml_service/scripts/export_pib_artifacts.py).");
+            return false;
+        }
+
+        List<List<String>> commands = new ArrayList<>();
+        commands.add(List.of("python", scriptPath.toString()));
+        commands.add(List.of("py", "-3", scriptPath.toString()));
+
+        String activeDb = null;
+        try {
+            activeDb = jdbcTemplate.queryForObject("SELECT DATABASE()", String.class);
+        } catch (Exception ignored) {
+        }
+
+        for (List<String> command : commands) {
+            try {
+                ProcessBuilder builder = new ProcessBuilder(command);
+                builder.redirectErrorStream(true);
+                if (activeDb != null && !activeDb.isBlank()) {
+                    builder.environment().put("DB_NAME", activeDb.trim());
+                }
+
+                Process process = builder.start();
+                StringBuilder output = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        output.append(line).append('\n');
+                    }
+                }
+
+                boolean finished = process.waitFor(180, TimeUnit.SECONDS);
+                if (!finished) {
+                    process.destroyForcibly();
+                    log.warn("[M2DevSeedService] PIB artifact export timed out for command {}", command);
+                    continue;
+                }
+
+                int exitCode = process.exitValue();
+                if (exitCode == 0) {
+                    log.info("[M2DevSeedService] PIB artifacts exported via {}\n{}", String.join(" ", command), output.toString().trim());
+                    return true;
+                }
+
+                log.warn("[M2DevSeedService] PIB artifact export failed via {} (exit={})\n{}",
+                    String.join(" ", command),
+                    exitCode,
+                    output.toString().trim());
+            } catch (IOException ex) {
+                log.warn("[M2DevSeedService] PIB artifact export command unavailable: {} ({})", String.join(" ", command), ex.getMessage());
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                log.warn("[M2DevSeedService] PIB artifact export interrupted.");
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    private Path resolvePibExportScriptPath() {
+        String userDir = System.getProperty("user.dir", ".");
+        Path current = Paths.get(userDir).toAbsolutePath().normalize();
+        List<Path> roots = new ArrayList<>();
+        while (current != null) {
+            roots.add(current);
+            current = current.getParent();
+        }
+
+        for (Path root : roots) {
+            Path direct = root.resolve("m2_ml_service").resolve("scripts").resolve("export_pib_artifacts.py");
+            if (Files.exists(direct)) {
+                return direct;
+            }
+
+            Path nested = root.resolve("PiProjetByUnitum").resolve("m2_ml_service").resolve("scripts").resolve("export_pib_artifacts.py");
+            if (Files.exists(nested)) {
+                return nested;
+            }
+        }
+
+        return null;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
