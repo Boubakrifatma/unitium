@@ -51,6 +51,18 @@ public class DeliverableVersionService {
             throw new IllegalArgumentException("File URL is required");
         }
 
+        // Resolve scan status carried by the upload controller (clean / unverified / infected).
+        // Falls back to "pending" for the legacy JSON-only path that never went through the guard.
+        DeliverableVersion.VirusScanStatus scanStatus = DeliverableVersion.VirusScanStatus.pending;
+        LocalDateTime scannedAt = null;
+        if (request.getVirusScanStatus() != null && !request.getVirusScanStatus().isBlank()) {
+            try {
+                scanStatus = DeliverableVersion.VirusScanStatus.valueOf(
+                        request.getVirusScanStatus().toLowerCase());
+                scannedAt = LocalDateTime.now();
+            } catch (IllegalArgumentException ignored) { /* keep pending */ }
+        }
+
         // Create version record
         DeliverableVersion version = DeliverableVersion.builder()
                 .deliverable(deliverable)
@@ -60,7 +72,9 @@ public class DeliverableVersionService {
                 .changeSummary(request.getChangeSummary())
                 .submittedBy(submittedBy)
                 .submittedAt(LocalDateTime.now())
-                .virusScanStatus(DeliverableVersion.VirusScanStatus.pending)
+                .virusScanStatus(scanStatus)
+                .scannedAt(scannedAt)
+                .virusName(request.getVirusName())
                 .build();
 
         DeliverableVersion saved = versionRepository.save(version);

@@ -11,6 +11,8 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ReviewService, PoReviewRequest } from '../../../services/review.service';
 import { AuthService } from '../../../auth/auth.service';
 import { DeliverableService } from '../../../services/Deliverable.service';
+import { DeliverableIntelligenceService } from '../../../services/deliverable-intelligence.service';
+import { AutoFeedbackComponent } from '../intelligence/auto-feedback.component';
 
 export interface PoReviewDialogData {
   deliverable: any; // DeliverableResponseDto
@@ -22,6 +24,7 @@ export interface PoReviewDialogData {
   imports: [
     CommonModule, FormsModule, MatDialogModule, MatButtonModule,
     MatFormFieldModule, MatInputModule, MatIconModule, MatProgressSpinnerModule,
+    AutoFeedbackComponent,
   ],
   template: `
     <div class="po-review-dialog">
@@ -51,6 +54,12 @@ export interface PoReviewDialogData {
       </div>
 
       <mat-dialog-content class="dialog-content">
+
+        <!-- Auto PO feedback (Deliverable Intelligence) -->
+        <app-auto-feedback [deliverableId]="data.deliverable.id"></app-auto-feedback>
+        <button class="ai-prefill" mat-button type="button" (click)="prefillFromAi()">
+          <mat-icon>auto_awesome</mat-icon> Reprendre la suggestion dans le commentaire
+        </button>
 
         <!-- Decision Buttons -->
         <div class="decision-label">Décision <span class="req">*</span></div>
@@ -146,6 +155,12 @@ export interface PoReviewDialogData {
 
     .dialog-content { padding: 20px 24px !important; }
 
+    .ai-prefill {
+      display: inline-flex; align-items: center; gap: 4px;
+      color: #7c3aed; font-size: 0.8rem; margin: 4px 0 14px;
+      mat-icon { font-size: 16px; width: 16px; height: 16px; }
+    }
+
     .decision-label { font-weight: 600; color: #374151; font-size: 0.9rem; margin-bottom: 10px;
       .req { color: #e74c3c; } }
 
@@ -194,8 +209,22 @@ export class PoReviewDialogComponent {
     @Inject(MAT_DIALOG_DATA) public data: PoReviewDialogData,
     private reviewService: ReviewService,
     private authService: AuthService,
-    public deliverableService: DeliverableService
+    public deliverableService: DeliverableService,
+    private intelligence: DeliverableIntelligenceService,
   ) {}
+
+  /** Pulls auto-feedback once and copies it into the comment field. */
+  prefillFromAi(): void {
+    this.intelligence.feedback(this.data.deliverable.id).subscribe({
+      next: (f) => {
+        if (f.feedback.length === 0) {
+          this.feedbackText = 'Livrable conforme, aucune remarque bloquante.';
+        } else {
+          this.feedbackText = f.feedback.join(' — ');
+        }
+      }
+    });
+  }
 
   isValid(): boolean {
     return this.feedbackText.trim().length >= 5;

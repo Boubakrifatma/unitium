@@ -157,6 +157,10 @@ export const routes: Routes = [
                 loadComponent: () => import("./pages/app/deliverable/manager-deliverables.component").then((m) => m.ManagerDeliverablesComponent),
             },
             {
+                path: "tutor-compare-deliverables",
+                loadComponent: () => import("./pages/app/intelligence/tutor-compare-deliverables.component").then((m) => m.TutorCompareDeliverablesComponent),
+            },
+            {
                 path: "mes-fichiers",
                 loadComponent: () => import("./pages/app/deliverable/employee-files.component").then((m) => m.EmployeeFilesComponent),
             },
@@ -298,6 +302,10 @@ export const routes: Routes = [
             {
                 path: "po-deliverables",
                 loadComponent: () => import("./pages/app/po/po-deliverables.component").then((c) => c.PoDeliverablesComponent),
+            },
+            {
+                path: "po-analytics",
+                loadComponent: () => import("./pages/app/intelligence/po-analytics.component").then((c) => c.PoAnalyticsComponent),
             },
             {
                 path: "activity-stats",

@@ -174,6 +174,11 @@ export class DeliverableDialogComponent implements OnInit {
   isDragging = signal(false);
   selectedFile = signal<File | null>(null);
 
+  // ── Antivirus scan UI state ─────────────────────────────────────────────
+  scanState = signal<'idle' | 'scanning' | 'clean' | 'unverified' | 'rejected'>('idle');
+  scanMessage = signal('');
+  scanResult: { status?: 'clean' | 'unverified'; virusName?: string | null } = {};
+
   // ── Smart Description Analyzer ──────────────────────────────────────────
   descriptionScore = signal(0);
   missingKeywords = signal<string[]>([]);
@@ -325,22 +330,41 @@ export class DeliverableDialogComponent implements OnInit {
 
     this.form.patchValue({ fileType, fileSizeKb });
 
-    // Upload vers le serveur
+    // Upload vers le serveur — backend runs ClamAV scan synchronously
     this.uploading = true;
     this.error = '';
+    this.scanState.set('scanning');
+    this.scanMessage.set('Analyse antivirus en cours…');
+    this.scanResult = {};
+
     this.deliverableService.uploadFile(file).subscribe({
       next: (res) => {
         this.uploading = false;
         this.form.patchValue({ fileUrl: res.fileUrl });
+        this.scanResult = { status: res.scanStatus, virusName: res.virusName };
+        if (res.scanStatus === 'unverified') {
+          this.scanState.set('unverified');
+          this.scanMessage.set('Antivirus indisponible — le fichier sera marqué "non vérifié".');
+        } else {
+          this.scanState.set('clean');
+          this.scanMessage.set('Aucune menace détectée ✓');
+        }
       },
       error: (err) => {
         this.uploading = false;
         this.selectedFile.set(null);
-        // Handle virus detection error
-        if (err.message?.includes('Virus détecté')) {
-          this.error = err.message;
+        this.form.patchValue({ fileUrl: '' });
+        // Backend rejection: HTTP 422 (virus) / 400 (type/size) / 503 (scanner down)
+        const backendMsg = err?.error?.message || err?.error?.error || err?.message;
+        const isVirus = err?.status === 422 || (typeof backendMsg === 'string' && backendMsg.toLowerCase().includes('virus'));
+        if (isVirus) {
+          this.scanState.set('rejected');
+          this.scanMessage.set(backendMsg || 'Fichier rejeté : virus détecté.');
+          this.error = this.scanMessage();
         } else {
-          this.error = 'Erreur lors de l\'upload du fichier. Veuillez réessayer.';
+          this.scanState.set('idle');
+          this.scanMessage.set('');
+          this.error = backendMsg || 'Erreur lors de l\'upload du fichier. Veuillez réessayer.';
         }
         console.error('Upload error:', err);
       }
@@ -371,6 +395,9 @@ export class DeliverableDialogComponent implements OnInit {
         fileUrl: this.form.get('fileUrl')?.value,
         fileSizeKb: this.form.get('fileSizeKb')?.value ? Number(this.form.get('fileSizeKb')?.value) : undefined,
         changeSummary: this.form.get('changeSummary')?.value,
+        // forward antivirus verdict so the version row stores the actual scan result
+        virusScanStatus: this.scanResult.status,
+        virusName: this.scanResult.virusName ?? null,
       };
 
       this.deliverableService.createVersion(

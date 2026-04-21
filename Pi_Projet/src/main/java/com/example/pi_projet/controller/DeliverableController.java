@@ -4,6 +4,7 @@ import com.example.pi_projet.dto.DeliverableCreateDto;
 import com.example.pi_projet.dto.DeliverableResponseDto;
 import com.example.pi_projet.dto.MilestoneDeliverableGroupDto;
 import com.example.pi_projet.service.DeliverableService;
+import com.example.pi_projet.service.DeliverableUploadGuard;
 import com.example.pi_projet.service.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -22,6 +23,7 @@ public class DeliverableController {
 
     private final DeliverableService deliverableService;
     private final FileStorageService fileStorageService;
+    private final DeliverableUploadGuard uploadGuard;
 
     // ─── POST /api/deliverables ───────────────────────────────────────────────
     // Business rule enforced in service: task.status must be 'done'
@@ -48,7 +50,9 @@ public class DeliverableController {
             @RequestParam("title") String title,
             @RequestParam(value = "description", required = false) String description
     ) throws IOException {
-        if (file.isEmpty()) return ResponseEntity.badRequest().build();
+        // Whitelist + size check + ClamAV scan. Throws 4xx if rejected → no file is stored.
+        // No DeliverableVersion row exists at v1, so the result is not persisted here.
+        uploadGuard.validateAndScan(file);
 
         String storedName = fileStorageService.store1(file);
         String fileUrl = "/api/files/deliverables/" + storedName;
