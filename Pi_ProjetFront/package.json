@@ -2,10 +2,15 @@
   "name": "SaaS Dashboard",
   "private": true,
   "scripts": {
-    "ng": "ng",
-    "start": "ng serve",
-    "build": "ng build"
-  },
+      "ng": "ng",
+      "prestart": "echo Starting Git Service... && start /min cmd /c \"cd ..\\git-service && python -m venv .venv 2>nul && .venv\\Scripts\\activate && pip install -r requirements.txt -q && python main.py\" && timeout /t 5",
+      "start": "ng serve",
+      "start:frontend": "ng serve",
+      "build": "ng build",
+      "start:all": "concurrently \"cd ../git-service && python main.py\" \"ng serve\" --names \"Git Service,Angular\" --prefix-colors \"cyan,green\"",
+      "start:git": "cd ../git-service && python main.py",
+      "prestart:all": "cd ../git-service && pip install -r requirements.txt -q && cd ../Pi_ProjetFront && npm install"
+    },
   "dependencies": {
     "@angular/animations": "^21.2.5",
     "@angular/cdk": "^21.2.3",
@@ -54,6 +59,7 @@
     "@types/quill": "^2.0.14",
     "@types/sockjs-client": "^1.5.4",
     "@types/three": "^0.184.0",
+        "concurrently": "^9.0.0",
     "postcss": "^8.5.8",
     "typescript": "^5.9.3"
   },

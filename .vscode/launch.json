@@ -1,0 +1,34 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Git Service",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/git-service/main.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/git-service",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/git-service"
+      },
+      "preLaunchTask": "pip-install-git-service"
+    },
+    {
+      "name": "Angular Frontend",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["start"],
+      "cwd": "${workspaceFolder}/Pi_ProjetFront",
+      "preLaunchTask": "npm-install-frontend"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Start All Services",
+      "configurations": ["Git Service", "Angular Frontend"],
+      "preLaunchTask": "prepare-all",
+      "stopAll": true
+    }
+  ]
+}

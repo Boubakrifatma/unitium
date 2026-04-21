@@ -221,6 +221,19 @@ export class AppSidebarComponent {
 
             ],
         });
+        // Git integration — workspace for everyone, dashboard for managers/admins
+        const gitChildren: NavItem[] = [
+            { name: "My Workspace", route: "/app/git/workspace", icon: "code" },
+        ];
+        if (this.isManager) {
+            gitChildren.push({ name: "Manager Dashboard", route: "/app/git/dashboard", icon: "insights" });
+        }
+        all.push({
+            name: "Git",
+            icon: "account_tree",
+            children: gitChildren,
+        });
+
         all.push({
             name: "Account",
             icon: "account_circle",
@@ -275,6 +288,7 @@ export class AppSidebarComponent {
                     { name: "Available Plans", route: "/app/org-billing", icon: "star" },
                 ],
             });
+        }
         }
 
         return all;

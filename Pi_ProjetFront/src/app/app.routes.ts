@@ -323,6 +323,14 @@ export const routes: Routes = [
                 path: "activity-stats",
                 loadComponent: () => import("./pages/app/activity-stats/activity-stats.component").then((c) => c.ActivityStatsComponent),
             },
+            {
+                path: "git/workspace",
+                loadComponent: () => import("./pages/app/git/git-workspace.component").then((c) => c.GitWorkspaceComponent),
+            },
+            {
+                path: "git/dashboard",
+                loadComponent: () => import("./pages/app/git/git-dashboard.component").then((c) => c.GitDashboardComponent),
+            },
         ],
     },
     {
