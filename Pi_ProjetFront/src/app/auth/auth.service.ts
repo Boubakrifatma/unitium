@@ -92,6 +92,13 @@ export class AuthService {
     return this.http.post(`${this.API}/change-password`, { userId, newPassword });
   }
 
+  /**
+   * Envoie un magic link à l'adresse email (reset de mot de passe).
+   */
+  sendMagicLink(email: string): Observable<any> {
+    return this.http.post(`${this.API}/magic-link`, { email });
+  }
+
   logout(): void {
     this.http.post(`${this.API}/logout`, {}).subscribe();
     this.clearSession();

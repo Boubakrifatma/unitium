@@ -33,42 +33,47 @@ import { FaceCameraComponent } from "../../../components/face-camera/face-camera
         <div class="brand-inner">
           <div class="brand-logo">
             <div class="brand-icon">
-              <mat-icon>hub</mat-icon>
+              <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
+                <rect width="32" height="32" rx="8" fill="rgba(99,102,241,0.3)"/>
+                <path d="M8 10C8 8.9 8.9 8 10 8H14C15.1 8 16 8.9 16 10V16C16 17.1 15.1 18 14 18H10C8.9 18 8 17.1 8 16V10Z" fill="white"/>
+                <path d="M18 14C18 12.9 18.9 12 20 12H22C23.1 12 24 12.9 24 14V22C24 23.1 23.1 24 22 24H20C18.9 24 18 23.1 18 22V14Z" fill="white" fill-opacity="0.75"/>
+                <path d="M8 22C8 20.9 8.9 20 10 20H16C17.1 20 18 20.9 18 22C18 23.1 17.1 24 16 24H10C8.9 24 8 23.1 8 22Z" fill="white" fill-opacity="0.5"/>
+              </svg>
             </div>
-            <span class="brand-name">Unitum</span>
+            <span class="brand-name">Pi Projet</span>
           </div>
 
           <div class="brand-hero">
-            <h1>The platform<br>your team deserves.</h1>
-            <p>Manage your organization, members,<br>and access — all in one place.</p>
+            <h1>Where great<br>projects are born.</h1>
+            <p>Manage tasks, track deliverables,<br>and collaborate — all in one place.</p>
           </div>
 
           <div class="brand-features">
             <div class="feat">
+              <div class="feat-icon">📋</div>
+              <div class="feat-text">
+                <strong>Kanban & task boards</strong>
+                <span>Organize work with drag-and-drop clarity</span>
+              </div>
+            </div>
+            <div class="feat">
+              <div class="feat-icon">📦</div>
+              <div class="feat-text">
+                <strong>Deliverable management</strong>
+                <span>Submit, review, and validate work</span>
+              </div>
+            </div>
+            <div class="feat">
               <div class="feat-icon">🔐</div>
               <div class="feat-text">
                 <strong>Secure by default</strong>
-                <span>2FA, Face ID, Magic Link</span>
-              </div>
-            </div>
-            <div class="feat">
-              <div class="feat-icon">👥</div>
-              <div class="feat-text">
-                <strong>Team management</strong>
-                <span>Roles, invitations, audit logs</span>
-              </div>
-            </div>
-            <div class="feat">
-              <div class="feat-icon">🤖</div>
-              <div class="feat-text">
-                <strong>AI-powered insights</strong>
-                <span>Anomaly detection, activity stats</span>
+                <span>2FA, Face ID, Magic Link auth</span>
               </div>
             </div>
           </div>
 
           <div class="brand-footer">
-            <span>© 2025 Unitum · Built with care</span>
+            <span>© 2026 Pi Projet · Built with care</span>
           </div>
         </div>
       </div>
@@ -88,7 +93,7 @@ import { FaceCameraComponent } from "../../../components/face-camera/face-camera
 
             <div class="form-header">
               <h2>Welcome back</h2>
-              <p>Sign in to your Unitum account</p>
+              <p>Sign in to your Pi Projet account</p>
             </div>
 
             <!-- Alerts -->
@@ -187,20 +192,6 @@ import { FaceCameraComponent } from "../../../components/face-camera/face-camera
               Continue with Google
             </button>
 
-            <!-- Quick access -->
-            <div class="quick-section">
-              <p class="quick-label">Demo accounts</p>
-              <div class="quick-grid">
-                <button class="quick-card" *ngFor="let a of testAccounts" (click)="fillAccount(a)">
-                  <div class="quick-dot" [ngClass]="'role-' + getRoleColor(a.role)"></div>
-                  <div class="quick-info">
-                    <span class="quick-email">{{ a.email }}</span>
-                    <span class="quick-role">{{ a.role }}</span>
-                  </div>
-                  <mat-icon class="quick-arrow">chevron_right</mat-icon>
-                </button>
-              </div>
-            </div>
 
           </ng-container>
 
@@ -320,12 +311,10 @@ import { FaceCameraComponent } from "../../../components/face-camera/face-camera
         }
         .brand-icon {
             width: 40px; height: 40px;
-            background: rgba(99,102,241,0.25);
-            border: 1px solid rgba(99,102,241,0.4);
             border-radius: 10px;
             display: flex; align-items: center; justify-content: center;
+            overflow: hidden;
         }
-        .brand-icon mat-icon { color: #a5b4fc; font-size: 20px; width: 20px; height: 20px; }
         .brand-name { color: #fff; font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
 
         .brand-hero h1 {
@@ -524,31 +513,6 @@ import { FaceCameraComponent } from "../../../components/face-camera/face-camera
         }
         .google-btn:hover { background: #f8fafc; border-color: #c7d2fe; }
 
-        /* Quick access */
-        .quick-section { margin-top: 24px; }
-        .quick-label {
-            font-size: 11px; font-weight: 700; text-transform: uppercase;
-            letter-spacing: 0.08em; color: #94a3b8;
-            margin-bottom: 10px;
-        }
-        .quick-grid { display: flex; flex-direction: column; gap: 5px; }
-        .quick-card {
-            display: flex; align-items: center; gap: 10px;
-            padding: 10px 12px; border-radius: 10px;
-            border: 1.5px solid #f1f5f9; background: #fff;
-            cursor: pointer; transition: all 0.15s; width: 100%;
-        }
-        .quick-card:hover { border-color: #c7d2fe; background: #f8f7ff; transform: translateX(2px); }
-        .quick-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-        .role-red    { background: #ef4444; }
-        .role-yellow { background: #f59e0b; }
-        .role-blue   { background: #3b82f6; }
-        .role-green  { background: #10b981; }
-        .quick-info  { flex: 1; text-align: left; }
-        .quick-email { display: block; font-size: 12px; font-weight: 500; color: #374151; }
-        .quick-role  { display: block; font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
-        .quick-arrow { color: #e2e8f0 !important; font-size: 16px !important; width: 16px !important; height: 16px !important; }
-
         /* Magic sent */
         .magic-panel { display: flex; flex-direction: column; gap: 16px; }
         .magic-desc  { color: #64748b; font-size: 13px; line-height: 1.6; margin: 0; }
@@ -582,21 +546,6 @@ export class LoginComponent implements OnInit {
     mfaCode = '';
     pendingUserId: number | null = null;
 
-    testAccounts = [
-        { email: 'superadmin@cmp.com', password: 'superadmin123',   role: 'SUPER_ADMIN',   fullname: ''       },
-        { email: 'admin@test.com',     password: 'admin123',         role: 'ADMIN',         fullname: ''       },
-        { email: 'manager@test.com',   password: 'manager123',       role: 'MANAGER',       fullname: ''       },
-        { email: 'po@test.com',        password: 'productowner123',  role: 'PRODUCT_OWNER', fullname: ''       },
-        { email: 'tutor@test.com',     password: 'tutor123',         role: 'TUTOR',         fullname: ''       },
-        { email: 'student@test.com',   password: 'student123',       role: 'STUDENT',       fullname: ''       },
-        { email: 'student2@test.com',  password: 'student123',       role: 'STUDENT',       fullname: 'MOTAZ'  },
-        { email: 'student3@test.com',  password: 'student123',       role: 'STUDENT',       fullname: 'SONDOS' },
-        { email: 'viewer@test.com',    password: 'viewer123',        role: 'VIEWER',        fullname: ''       },
-        { email: 'employee@test.com',  password: 'employee123',      role: 'EMPLOYEE',      fullname: 'Fatma'  },
-        { email: 'employee2@test.com', password: 'employee123',      role: 'EMPLOYEE',      fullname: 'EYA'    },
-        { email: 'employee3@test.com', password: 'employee123',      role: 'EMPLOYEE',      fullname: 'YOSRA'  },
-        { email: 'employee4@test.com', password: 'employee123',      role: 'EMPLOYEE',      fullname: 'MINIAR' },
-    ];
 
     constructor(
         private fb: FormBuilder,
@@ -613,18 +562,6 @@ export class LoginComponent implements OnInit {
     }
 
     ngOnInit() {}
-
-    fillAccount(a: { email: string; password: string }): void {
-        this.loginForm.patchValue({ email: a.email, password: a.password });
-        this.loginTab = 'password';
-    }
-
-    getRoleColor(role: string): string {
-        const map: Record<string, string> = {
-            SUPER_ADMIN: 'red', ADMIN: 'yellow', MANAGER: 'blue', TUTOR: 'green', EMPLOYEE: 'green'
-        };
-        return map[role] ?? 'blue';
-    }
 
     goHome(): void {
         this.router.navigate(['/web/website']);

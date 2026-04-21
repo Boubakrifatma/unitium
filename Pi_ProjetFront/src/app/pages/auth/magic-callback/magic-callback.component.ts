@@ -65,6 +65,15 @@ export class MagicCallbackComponent implements OnInit {
           this.router.navigate(['/auth/first-login'], { state: { userId: res.id } });
           return;
         }
+
+        // If user came via "forgot password", redirect to change-password
+        const pendingReset = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('pendingPasswordReset') === 'true';
+        if (pendingReset) {
+          sessionStorage.removeItem('pendingPasswordReset');
+          this.router.navigate(['/auth/change-password']);
+          return;
+        }
+
         const redirectMap: Record<string, string> = {
           SUPER_ADMIN: '/app/super-admin',
           PRODUCT_OWNER: '/app/po',
