@@ -98,8 +98,74 @@ export interface M2WorkspaceProjectCapacity {
     currentActiveProjects: number;
     maxActiveProjects: number;
     remainingActiveProjects: number;
+    quotaScope?: "ORGANIZATION" | "WORKSPACE" | string;
+    currentWorkspaceQuotaProjects?: number;
+    currentWorkspaceActiveProjects?: number;
     planName: string;
     orgType: string;
+}
+
+export interface M2WorkspaceHoliday {
+    date: string;
+    localName: string;
+    name: string;
+    countryCode: string;
+    global: boolean;
+    types?: string[];
+}
+
+export interface M2WorkspaceHolidaysResponse {
+    provider: string;
+    providerUrl: string;
+    country: string;
+    year: number;
+    generatedAt: string;
+    providerStatus: "live" | "fallback";
+    warning?: string;
+    count: number;
+    workspaceId: string;
+    items: M2WorkspaceHoliday[];
+}
+
+export interface M2WorkspaceOverviewWorkspaceMetrics {
+    workspaceId: string;
+    projectCount: number;
+    activeProjects: number;
+    completedProjects: number;
+    memberCount: number;
+}
+
+export interface M2WorkspaceOverview {
+    organizationId?: string | null;
+    organizationName?: string | null;
+    orgType?: string | null;
+    planName?: string | null;
+    quotaScope?: "ORGANIZATION" | "MIXED" | string;
+    workspaces: {
+        visible: number;
+        current?: number | null;
+        max?: number | null;
+        remaining?: number | null;
+    };
+    projects: {
+        visibleTotal: number;
+        visibleActive: number;
+        visibleCompleted: number;
+        visibleOnHold: number;
+        visibleOther: number;
+        visiblePublic: number;
+        visiblePrivate: number;
+        currentActiveOrg?: number | null;
+        maxActiveOrg?: number | null;
+        remainingActiveOrg?: number | null;
+    };
+    members: {
+        visibleAssignments: number;
+        visibleUnique: number;
+        organizationMembers?: number | null;
+        maxPerWorkspace?: number | null;
+    };
+    byWorkspace: M2WorkspaceOverviewWorkspaceMetrics[];
 }
 
 export interface M2CreateWorkspaceRequest {
@@ -122,6 +188,10 @@ export class M2WorkspaceService {
 
     getWorkspaces(): Observable<M2Workspace[]> {
         return this.http.get<M2Workspace[]>(this.base);
+    }
+
+    getWorkspaceOverview(): Observable<M2WorkspaceOverview> {
+        return this.http.get<M2WorkspaceOverview>(`${this.base}/overview`);
     }
 
     createWorkspace(body: M2CreateWorkspaceRequest): Observable<M2Workspace> {
@@ -181,5 +251,12 @@ export class M2WorkspaceService {
 
     getWorkspaceProjectCapacity(workspaceId: string): Observable<M2WorkspaceProjectCapacity> {
         return this.http.get<M2WorkspaceProjectCapacity>(`${this.base}/${workspaceId}/projects/capacity`);
+    }
+
+    getWorkspaceHolidays(workspaceId: string, country = "TN", year?: number): Observable<M2WorkspaceHolidaysResponse> {
+        const p = new URLSearchParams();
+        p.set("country", country);
+        if (year) p.set("year", String(year));
+        return this.http.get<M2WorkspaceHolidaysResponse>(`${this.base}/${workspaceId}/calendar/holidays?${p.toString()}`);
     }
 }

@@ -10,6 +10,7 @@ import com.stripe.param.PaymentIntentCreateParams;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +42,7 @@ public class BillingService {
     private final OrganizationRepository    organizationRepository;
     private final PlanRepository            planRepository;
     private final SubscriptionRepository    subscriptionRepository;
+    private final JdbcTemplate              jdbcTemplate;
     private final InvoiceRepository         invoiceRepository;
     private final InvoiceLineItemRepository invoiceLineItemRepository;
     private final PaymentAttemptRepository  paymentAttemptRepository;
@@ -225,20 +227,37 @@ public class BillingService {
             .billingPeriodEnd(periodEnd.toLocalDate())
             .dueDate(LocalDate.now())
             .paidAt(LocalDateTime.now())
+            .couponCode(appliedCouponCode)
+            .discountAmountCents(couponDiscountCents > 0 ? couponDiscountCents : null)
             .build());
 
         // ── 6. Invoice Line Items (détail de la facture) ──────────────────────
-        // Line 1 : abonnement principal
+        // Line 1 : abonnement principal (prix original avant remise)
+        int originalAmountCents = amountCents + couponDiscountCents;
         InvoiceLineItem lineItemSub = invoiceLineItemRepository.save(InvoiceLineItem.builder()
             .invoice(invoice)
             .description(planName + " Plan – " + (cycle == Subscription.BillingCycle.ANNUAL ? "Annual" : "Monthly") + " Subscription")
             .quantity(1)
-            .unitPriceCents(amountCents)
-            .totalPriceCents(amountCents)
+            .unitPriceCents(originalAmountCents)
+            .totalPriceCents(originalAmountCents)
             .taxRate(0.0)
             .periodStart(periodStart.toLocalDate())
             .periodEnd(periodEnd.toLocalDate())
             .build());
+
+        // Line 2 : remise coupon (si applicable)
+        if (couponDiscountCents > 0 && appliedCouponCode != null) {
+            invoiceLineItemRepository.save(InvoiceLineItem.builder()
+                .invoice(invoice)
+                .description("Coupon discount – " + appliedCouponCode)
+                .quantity(1)
+                .unitPriceCents(-couponDiscountCents)
+                .totalPriceCents(-couponDiscountCents)
+                .taxRate(0.0)
+                .periodStart(periodStart.toLocalDate())
+                .periodEnd(periodEnd.toLocalDate())
+                .build());
+        }
 
         // Line 2 : TVA
         InvoiceLineItem lineItemTax = invoiceLineItemRepository.save(InvoiceLineItem.builder()
@@ -663,13 +682,20 @@ public class BillingService {
 
     @Transactional
     public boolean deletePlan(String planId) {
-        return planRepository.findById(planId)
-            .map(plan -> {
-                planRepository.delete(plan);
-                log.info("Plan {} deleted from database", planId);
-                return true;
-            })
-            .orElse(false);
+        if (!planRepository.existsById(planId)) return false;
+        jdbcTemplate.update("UPDATE ml_churn_predictions SET upsell_recommended_plan_id = NULL WHERE upsell_recommended_plan_id = ?", planId);
+        jdbcTemplate.update("UPDATE subscriptions SET downgraded_from_plan_id = NULL WHERE downgraded_from_plan_id = ?", planId);
+        jdbcTemplate.update("DELETE cp FROM ml_churn_predictions cp INNER JOIN subscriptions s ON cp.subscription_id = s.id WHERE s.plan_id = ?", planId);
+        jdbcTemplate.update("DELETE ur FROM upsell_recommendations ur INNER JOIN subscriptions s ON ur.subscription_id = s.id WHERE s.plan_id = ?", planId);
+        jdbcTemplate.update("DELETE pa FROM payment_attempts pa INNER JOIN subscriptions s ON pa.subscription_id = s.id WHERE s.plan_id = ?", planId);
+        jdbcTemplate.update("DELETE ili FROM invoice_line_items ili INNER JOIN invoices i ON ili.invoice_id = i.id INNER JOIN subscriptions s ON i.subscription_id = s.id WHERE s.plan_id = ?", planId);
+        jdbcTemplate.update("DELETE i FROM invoices i INNER JOIN subscriptions s ON i.subscription_id = s.id WHERE s.plan_id = ?", planId);
+        jdbcTemplate.update("DELETE FROM upsell_recommendations WHERE recommended_plan_id = ?", planId);
+        jdbcTemplate.update("DELETE FROM usage_metrics WHERE plan_id = ?", planId);
+        jdbcTemplate.update("DELETE FROM subscriptions WHERE plan_id = ?", planId);
+        jdbcTemplate.update("DELETE FROM plans WHERE id = ?", planId);
+        log.info("Plan {} deleted from database", planId);
+        return true;
     }
 
     // ─────────────────────────────────────────────────────────────────────────

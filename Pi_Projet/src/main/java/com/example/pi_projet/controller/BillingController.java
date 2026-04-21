@@ -341,6 +341,21 @@ public class BillingController {
         return ResponseEntity.ok(Map.of("message", "Security alerts cleared"));
     }
 
+    @Operation(summary = "Re-sign all invoices with updated hash algorithm (super admin — run once after hash change)")
+    @PostMapping("/invoices/resign-all")
+    public ResponseEntity<?> resignAllInvoices() {
+        try {
+            int count = invoiceTamperingService.resignAllInvoices();
+            return ResponseEntity.ok(Map.of(
+                "message", "All invoices re-signed successfully.",
+                "count", count
+            ));
+        } catch (Exception e) {
+            log.error("Failed to re-sign invoices: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     // ── Coupon Endpoints ─────────────────────────────────────────────────────
 
     @Operation(summary = "Validate a coupon code (public — called from payment page)")

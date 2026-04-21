@@ -24,9 +24,15 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.util.StringUtils;
 import java.time.Instant;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -46,6 +52,15 @@ public class WorkspaceService {
     @PersistenceContext
     private EntityManager em;
 
+    private static final class WorkspaceOverviewRow {
+        long projectCount;
+        long activeProjects;
+        long completedProjects;
+        long onHoldProjects;
+        long publicProjects;
+        long memberCount;
+    }
+
     public List<Workspace> getVisibleForUser(User currentUser) {
         if (currentUser == null || currentUser.getId() == null) {
             throw new Module2Exception(FORBIDDEN, "Missing authenticated user context");
@@ -64,6 +79,120 @@ public class WorkspaceService {
         }
 
         return workspaceRepo.findAllByMemberUserIdAndOrganizationId(userId, orgId);
+    }
+
+    public Map<String, Object> getWorkspacesOverview(Long requesterId) {
+        User requester = userRepo.findById(requesterId)
+            .orElseThrow(() -> new Module2Exception(FORBIDDEN, "Missing authenticated user context"));
+
+        List<Workspace> visibleWorkspaces = getVisibleForUser(requester);
+        List<UUID> visibleWorkspaceIds = visibleWorkspaces.stream().map(Workspace::getId).toList();
+        Map<String, WorkspaceOverviewRow> byWorkspaceMetrics = loadWorkspaceOverviewRows(visibleWorkspaceIds);
+
+        long visibleProjects = 0L;
+        long visibleActiveProjects = 0L;
+        long visibleCompletedProjects = 0L;
+        long visibleOnHoldProjects = 0L;
+        long visibleOtherProjects = 0L;
+        long visiblePublicProjects = 0L;
+        long visibleMemberAssignments = 0L;
+
+        List<Map<String, Object>> byWorkspace = new ArrayList<>();
+        for (Workspace workspace : visibleWorkspaces) {
+            String workspaceId = workspace.getId().toString();
+            WorkspaceOverviewRow metrics = byWorkspaceMetrics.getOrDefault(workspaceId, new WorkspaceOverviewRow());
+
+            long workspaceOther = Math.max(0L,
+                metrics.projectCount - metrics.activeProjects - metrics.completedProjects - metrics.onHoldProjects);
+
+            visibleProjects += metrics.projectCount;
+            visibleActiveProjects += metrics.activeProjects;
+            visibleCompletedProjects += metrics.completedProjects;
+            visibleOnHoldProjects += metrics.onHoldProjects;
+            visibleOtherProjects += workspaceOther;
+            visiblePublicProjects += metrics.publicProjects;
+            visibleMemberAssignments += metrics.memberCount;
+
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("workspaceId", workspaceId);
+            row.put("projectCount", metrics.projectCount);
+            row.put("activeProjects", metrics.activeProjects);
+            row.put("completedProjects", metrics.completedProjects);
+            row.put("memberCount", metrics.memberCount);
+            byWorkspace.add(row);
+        }
+
+        long visiblePrivateProjects = Math.max(0L, visibleProjects - visiblePublicProjects);
+        long visibleUniqueMembers = countVisibleUniqueMembers(visibleWorkspaceIds);
+
+        UUID overviewOrgId = resolveOverviewOrganizationId(requester, visibleWorkspaces);
+        String organizationName = null;
+        String orgType = null;
+        String planName = null;
+
+        Long currentWorkspaces = null;
+        Integer maxWorkspaces = null;
+        Long remainingWorkspaces = null;
+
+        Long currentActiveProjectsOrg = null;
+        Integer maxActiveProjects = null;
+        Long remainingActiveProjects = null;
+
+        Long organizationMembers = null;
+        Integer maxMembersPerWorkspace = null;
+
+        if (overviewOrgId != null) {
+            organizationName = resolveOrganizationName(overviewOrgId, visibleWorkspaces);
+            orgType = quotaHelper.getOrgTypeStub(overviewOrgId);
+            planName = quotaHelper.getPlanNameStub(overviewOrgId);
+
+            currentWorkspaces = quotaHelper.countActiveWorkspaces(overviewOrgId);
+            maxWorkspaces = quotaHelper.getMaxWorkspacesStub(overviewOrgId);
+            remainingWorkspaces = Math.max(0L, (long) maxWorkspaces - currentWorkspaces);
+
+            currentActiveProjectsOrg = quotaHelper.countActiveProjectsByOrg(overviewOrgId);
+            maxActiveProjects = quotaHelper.getMaxProjectsStub(overviewOrgId);
+            remainingActiveProjects = Math.max(0L, (long) maxActiveProjects - currentActiveProjectsOrg);
+
+            organizationMembers = countOrganizationMembers(overviewOrgId);
+            maxMembersPerWorkspace = quotaHelper.getMaxMembersPerWorkspaceStub(overviewOrgId);
+        }
+
+        Map<String, Object> workspaces = new LinkedHashMap<>();
+        workspaces.put("visible", visibleWorkspaces.size());
+        workspaces.put("current", currentWorkspaces);
+        workspaces.put("max", maxWorkspaces);
+        workspaces.put("remaining", remainingWorkspaces);
+
+        Map<String, Object> projects = new LinkedHashMap<>();
+        projects.put("visibleTotal", visibleProjects);
+        projects.put("visibleActive", visibleActiveProjects);
+        projects.put("visibleCompleted", visibleCompletedProjects);
+        projects.put("visibleOnHold", visibleOnHoldProjects);
+        projects.put("visibleOther", visibleOtherProjects);
+        projects.put("visiblePublic", visiblePublicProjects);
+        projects.put("visiblePrivate", visiblePrivateProjects);
+        projects.put("currentActiveOrg", currentActiveProjectsOrg);
+        projects.put("maxActiveOrg", maxActiveProjects);
+        projects.put("remainingActiveOrg", remainingActiveProjects);
+
+        Map<String, Object> members = new LinkedHashMap<>();
+        members.put("visibleAssignments", visibleMemberAssignments);
+        members.put("visibleUnique", visibleUniqueMembers);
+        members.put("organizationMembers", organizationMembers);
+        members.put("maxPerWorkspace", maxMembersPerWorkspace);
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("organizationId", overviewOrgId != null ? overviewOrgId.toString() : null);
+        payload.put("organizationName", organizationName);
+        payload.put("orgType", orgType);
+        payload.put("planName", planName);
+        payload.put("quotaScope", overviewOrgId != null ? "ORGANIZATION" : "MIXED");
+        payload.put("workspaces", workspaces);
+        payload.put("projects", projects);
+        payload.put("members", members);
+        payload.put("byWorkspace", byWorkspace);
+        return payload;
     }
 
     public Workspace getById(UUID id) {
@@ -261,14 +390,10 @@ public class WorkspaceService {
             throw new Module2Exception(FORBIDDEN, "Only workspace members or org admins can view project capacity");
         }
 
-        Long currentActiveProjects = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM projects WHERE workspace_id = ? AND deleted_at IS NULL AND UPPER(status) = 'ACTIVE'",
-            Long.class,
-            workspaceId.toString()
-        );
-
-        long activeProjects = currentActiveProjects == null ? 0L : currentActiveProjects;
         UUID orgId = workspace.getOrganization().getId();
+        long activeProjects = quotaHelper.countActiveProjectsByOrg(orgId);
+        long workspaceQuotaProjects = quotaHelper.countActiveProjectsByWorkspace(workspaceId);
+        long workspaceStrictlyActiveProjects = quotaHelper.countStrictlyActiveProjectsByWorkspace(workspaceId);
         int maxActiveProjects = quotaHelper.getMaxProjectsStub(orgId);
         long remainingActiveProjects = Math.max(0L, (long) maxActiveProjects - activeProjects);
         String planName = quotaHelper.getPlanNameStub(orgId);
@@ -278,6 +403,9 @@ public class WorkspaceService {
         payload.put("currentActiveProjects", activeProjects);
         payload.put("maxActiveProjects", maxActiveProjects);
         payload.put("remainingActiveProjects", remainingActiveProjects);
+        payload.put("quotaScope", "ORGANIZATION");
+        payload.put("currentWorkspaceQuotaProjects", workspaceQuotaProjects);
+        payload.put("currentWorkspaceActiveProjects", workspaceStrictlyActiveProjects);
         payload.put("planName", planName);
         payload.put("orgType", orgType);
         return payload;
@@ -646,6 +774,156 @@ public class WorkspaceService {
             return UUID.fromString(value.toString());
         } catch (IllegalArgumentException ex) {
             throw new Module2Exception(INTERNAL, "Invalid UUID value in organization membership context");
+        }
+    }
+
+    private Map<String, WorkspaceOverviewRow> loadWorkspaceOverviewRows(List<UUID> workspaceIds) {
+        Map<String, WorkspaceOverviewRow> rowsByWorkspace = new HashMap<>();
+        if (workspaceIds == null || workspaceIds.isEmpty()) {
+            return rowsByWorkspace;
+        }
+
+        for (UUID workspaceId : workspaceIds) {
+            rowsByWorkspace.put(workspaceId.toString(), new WorkspaceOverviewRow());
+        }
+
+        String placeholders = String.join(",", Collections.nCopies(workspaceIds.size(), "?"));
+        Object[] params = workspaceIds.stream().map(UUID::toString).toArray();
+
+        String projectSql = """
+            SELECT
+                workspace_id,
+                COUNT(*) AS project_count,
+                SUM(CASE WHEN UPPER(status) = 'ACTIVE' THEN 1 ELSE 0 END) AS active_projects,
+                SUM(CASE WHEN UPPER(status) IN ('COMPLETED', 'ARCHIVED') THEN 1 ELSE 0 END) AS completed_projects,
+                SUM(CASE WHEN UPPER(status) = 'ON_HOLD' THEN 1 ELSE 0 END) AS on_hold_projects,
+                SUM(CASE WHEN UPPER(visibility) = 'PUBLIC' THEN 1 ELSE 0 END) AS public_projects
+            FROM projects
+            WHERE workspace_id IN (%s)
+              AND deleted_at IS NULL
+            GROUP BY workspace_id
+            """.formatted(placeholders);
+
+        for (Map<String, Object> resultRow : jdbcTemplate.queryForList(projectSql, params)) {
+            Object workspaceIdRaw = resultRow.get("workspace_id");
+            if (workspaceIdRaw == null) continue;
+            String workspaceId = parseUuidValue(workspaceIdRaw).toString();
+
+            WorkspaceOverviewRow target = rowsByWorkspace.get(workspaceId);
+            if (target == null) continue;
+
+            target.projectCount = toLong(resultRow.get("project_count"));
+            target.activeProjects = toLong(resultRow.get("active_projects"));
+            target.completedProjects = toLong(resultRow.get("completed_projects"));
+            target.onHoldProjects = toLong(resultRow.get("on_hold_projects"));
+            target.publicProjects = toLong(resultRow.get("public_projects"));
+        }
+
+        String memberSql = """
+            SELECT
+                workspace_id,
+                COUNT(*) AS member_count
+            FROM workspace_members
+            WHERE workspace_id IN (%s)
+              AND deleted_at IS NULL
+            GROUP BY workspace_id
+            """.formatted(placeholders);
+
+        for (Map<String, Object> resultRow : jdbcTemplate.queryForList(memberSql, params)) {
+            Object workspaceIdRaw = resultRow.get("workspace_id");
+            if (workspaceIdRaw == null) continue;
+            String workspaceId = parseUuidValue(workspaceIdRaw).toString();
+
+            WorkspaceOverviewRow target = rowsByWorkspace.get(workspaceId);
+            if (target == null) continue;
+            target.memberCount = toLong(resultRow.get("member_count"));
+        }
+
+        return rowsByWorkspace;
+    }
+
+    private long countVisibleUniqueMembers(List<UUID> workspaceIds) {
+        if (workspaceIds == null || workspaceIds.isEmpty()) {
+            return 0L;
+        }
+
+        String placeholders = String.join(",", Collections.nCopies(workspaceIds.size(), "?"));
+        Object[] params = workspaceIds.stream().map(UUID::toString).toArray();
+        String sql = """
+            SELECT COUNT(DISTINCT user_id)
+            FROM workspace_members
+            WHERE workspace_id IN (%s)
+              AND deleted_at IS NULL
+            """.formatted(placeholders);
+
+        Long count = jdbcTemplate.queryForObject(sql, Long.class, params);
+        return count == null ? 0L : count;
+    }
+
+    private long countOrganizationMembers(UUID orgId) {
+        Long count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM org_members WHERE organization_id = ? AND deleted_at IS NULL",
+            Long.class,
+            orgId.toString()
+        );
+        return count == null ? 0L : count;
+    }
+
+    private UUID resolveOverviewOrganizationId(User requester, List<Workspace> visibleWorkspaces) {
+        Set<UUID> orgIds = new LinkedHashSet<>();
+        for (Workspace workspace : visibleWorkspaces) {
+            if (workspace != null && workspace.getOrganization() != null && workspace.getOrganization().getId() != null) {
+                orgIds.add(workspace.getOrganization().getId());
+            }
+        }
+
+        if (orgIds.size() == 1) {
+            return orgIds.iterator().next();
+        }
+
+        if (orgIds.size() > 1) {
+            return null;
+        }
+
+        try {
+            return authorizationService.requireSingleOrganizationMembership(requester.getId()).getOrganization().getId();
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private String resolveOrganizationName(UUID orgId, List<Workspace> visibleWorkspaces) {
+        for (Workspace workspace : visibleWorkspaces) {
+            if (workspace != null
+                && workspace.getOrganization() != null
+                && orgId.equals(workspace.getOrganization().getId())
+                && StringUtils.hasText(workspace.getOrganization().getName())) {
+                return workspace.getOrganization().getName();
+            }
+        }
+
+        try {
+            return jdbcTemplate.queryForObject(
+                "SELECT name FROM organizations WHERE id = ?",
+                String.class,
+                orgId.toString()
+            );
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private long toLong(Object raw) {
+        if (raw == null) {
+            return 0L;
+        }
+        if (raw instanceof Number number) {
+            return number.longValue();
+        }
+        try {
+            return Long.parseLong(String.valueOf(raw));
+        } catch (NumberFormatException ignored) {
+            return 0L;
         }
     }
 

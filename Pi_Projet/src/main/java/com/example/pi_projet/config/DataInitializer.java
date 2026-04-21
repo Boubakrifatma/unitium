@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -32,6 +33,7 @@ public class DataInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
     private final PlanRepository planRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     @Value("${stripe.secret.key}")
     private String stripeSecretKey;
@@ -119,8 +121,35 @@ public class DataInitializer implements CommandLineRunner {
                 20, 100, 50, 204800L,
                 Plan.MlTier.FULL, Plan.SupportTier.ACADEMIC,
                 true, 20000, Plan.CustomIntegrations.LIMITED,
+                true, true, true, "academic"),
+
+            new TestPlan("enterprise", "Enterprise",
+                0, 0,
+                null, null, null, 10485760L,
+                Plan.MlTier.FULL_API, Plan.SupportTier.DEDICATED,
+                true, null, Plan.CustomIntegrations.FULL,
+                true, false, false, "enterprise"),
+
+            new TestPlan("campus", "Campus",
+                0, 0,
+                null, null, null, 10485760L,
+                Plan.MlTier.FULL, Plan.SupportTier.ACADEMIC,
+                true, null, Plan.CustomIntegrations.FULL,
                 true, true, true, "academic")
         );
+
+        // ── Remove deprecated plans (cascade via native SQL to respect FK order) ─
+        List<String> deprecatedPlanNames = List.of(
+            "startup", "free", "startup_free", "startup free",
+            "enterprise_pro", "enterprise pro",
+            "academic-basic", "academic_basic", "academic basic",
+            "academic-full", "academic_full", "academic full"
+        );
+        for (String deprecated : deprecatedPlanNames) {
+            planRepository.findByName(deprecated).ifPresent(plan -> {
+                deleteDeprecatedPlan(plan.getId(), deprecated);
+            });
+        }
 
         for (TestPlan p : plans) {
             Plan existing = planRepository.findByName(p.name()).orElse(null);
@@ -195,6 +224,25 @@ public class DataInitializer implements CommandLineRunner {
 
             planRepository.save(entity);
             System.out.println("[DataInitializer] Upserted plan: " + p.name());
+        }
+    }
+
+    private void deleteDeprecatedPlan(String planId, String planName) {
+        try {
+            jdbcTemplate.update("UPDATE ml_churn_predictions SET upsell_recommended_plan_id = NULL WHERE upsell_recommended_plan_id = ?", planId);
+            jdbcTemplate.update("UPDATE subscriptions SET downgraded_from_plan_id = NULL WHERE downgraded_from_plan_id = ?", planId);
+            jdbcTemplate.update("DELETE cp FROM ml_churn_predictions cp INNER JOIN subscriptions s ON cp.subscription_id = s.id WHERE s.plan_id = ?", planId);
+            jdbcTemplate.update("DELETE ur FROM upsell_recommendations ur INNER JOIN subscriptions s ON ur.subscription_id = s.id WHERE s.plan_id = ?", planId);
+            jdbcTemplate.update("DELETE pa FROM payment_attempts pa INNER JOIN subscriptions s ON pa.subscription_id = s.id WHERE s.plan_id = ?", planId);
+            jdbcTemplate.update("DELETE ili FROM invoice_line_items ili INNER JOIN invoices i ON ili.invoice_id = i.id INNER JOIN subscriptions s ON i.subscription_id = s.id WHERE s.plan_id = ?", planId);
+            jdbcTemplate.update("DELETE i FROM invoices i INNER JOIN subscriptions s ON i.subscription_id = s.id WHERE s.plan_id = ?", planId);
+            jdbcTemplate.update("DELETE FROM upsell_recommendations WHERE recommended_plan_id = ?", planId);
+            jdbcTemplate.update("DELETE FROM usage_metrics WHERE plan_id = ?", planId);
+            jdbcTemplate.update("DELETE FROM subscriptions WHERE plan_id = ?", planId);
+            jdbcTemplate.update("DELETE FROM plans WHERE id = ?", planId);
+            System.out.println("[DataInitializer] Deleted deprecated plan: " + planName);
+        } catch (Exception e) {
+            System.err.println("[DataInitializer] Failed to delete deprecated plan '" + planName + "': " + e.getMessage());
         }
     }
 

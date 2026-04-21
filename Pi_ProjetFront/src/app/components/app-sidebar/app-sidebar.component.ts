@@ -181,6 +181,7 @@ export class AppSidebarComponent {
             { name: "My Projects", route: "/app/real-projects", icon: "folder_special" },
         ];
         if (this.canManageWorkspaces) {
+            projectChildren.unshift({ name: "Master Dashboard", route: "/app/master-dashboard", icon: "space_dashboard" });
             projectChildren.push({ name: "Templates Hub", route: "/app/templates", icon: "layers" });
         }
 
@@ -252,13 +253,26 @@ export class AppSidebarComponent {
         }
         // ADMIN + above — billing
         if (this.isAdmin) {
+        // SUPER_ADMIN — platform billing management
+        if (this.isSuperAdmin) {
             all.push({
                 name: "Billing",
                 icon: "receipt_long",
                 children: [
-                    { name: "Subscription", route: "/app/subscription", icon: "workspace_premium" },
-                    { name: "Plans", route: "/app/plans", icon: "star" },
-                    { name: "Invoice", route: "/app/invoice", icon: "receipt" },
+                    { name: "Billing Management", route: "/app/super-admin-billing", icon: "workspace_premium" },
+                ],
+            });
+        }
+
+        // ADMIN only (not SUPER_ADMIN) — org billing
+        if (this.isAdmin && !this.isSuperAdmin) {
+            all.push({
+                name: "Billing",
+                icon: "receipt_long",
+                children: [
+                    { name: "My Subscription", route: "/app/org-billing", icon: "workspace_premium" },
+                    { name: "My Invoices", route: "/app/org-billing", icon: "receipt" },
+                    { name: "Available Plans", route: "/app/org-billing", icon: "star" },
                 ],
             });
         }

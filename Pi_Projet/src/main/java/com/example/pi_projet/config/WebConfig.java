@@ -21,6 +21,7 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowedOrigins("http://localhost:4200")
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
+            .exposedHeaders("Content-Disposition", "ETag", "Last-Modified", "X-Readme-Mode")
                 .allowCredentials(true);
     }
 

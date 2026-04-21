@@ -10,7 +10,7 @@ import { m2AdminGuard } from "./pages/app/m2-admin/m2-admin.guard";
 export const routes: Routes = [
     {
         path: "",
-        redirectTo: "/billing/pricing",
+        redirectTo: "web/website",
         pathMatch: "full",
     },
     {
@@ -62,6 +62,10 @@ export const routes: Routes = [
                 path: "invitation",
                 loadComponent: () => import("./pages/auth/invitation/invitation-response.component").then((c) => c.InvitationResponseComponent),
             },
+            {
+                path: "first-login",
+                loadComponent: () => import("./pages/auth/first-login/first-login.component").then((c) => c.FirstLoginComponent),
+            },
         ],
     },
     {
@@ -77,6 +81,10 @@ export const routes: Routes = [
             {
                 path: "dashboard",
                 loadComponent: () => import("./pages/app/dashboard/dashboard.component").then((c) => c.DashboardComponent),
+            },
+            {
+                path: "master-dashboard",
+                loadComponent: () => import("./pages/app/master-dashboard/master-dashboard.component").then((c) => c.MasterDashboardComponent),
             },
             {
                 path: "workspaces",
@@ -105,6 +113,10 @@ export const routes: Routes = [
             {
                 path: "real-projects",
                 loadComponent: () => import("./pages/app/m2-projects/real-projects.component").then((c) => c.RealProjectsComponent),
+            },
+            {
+                path: "real-projects/:workspaceId/:projectId/readme-preview",
+                loadComponent: () => import("./pages/app/m2-projects/project-readme-preview.component").then((c) => c.ProjectReadmePreviewComponent),
             },
             {
                 path: "real-projects/:workspaceId/:projectId",

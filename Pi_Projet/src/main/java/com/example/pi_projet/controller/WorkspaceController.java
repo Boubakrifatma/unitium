@@ -7,10 +7,12 @@ import com.example.pi_projet.entity.WorkspaceMember.WorkspaceRole;
 import com.example.pi_projet.exception.M2ValidationUtils;
 import com.example.pi_projet.exception.Module2Exception;
 import com.example.pi_projet.service.M2AuditLogService;
+import com.example.pi_projet.service.M2PublicIntegrationService;
 import com.example.pi_projet.service.WorkspaceMemberService;
 import com.example.pi_projet.service.WorkspaceService;
 import com.example.pi_projet.service.SnapshotService;
 import java.time.Instant;
+import java.time.Year;
 import java.time.format.DateTimeParseException;
 import com.example.pi_projet.annotation.Authorized;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,10 +34,17 @@ public class WorkspaceController {
     private final WorkspaceMemberService memberService;
     private final M2AuditLogService auditLogService;
     private final SnapshotService snapshotService;
+    private final M2PublicIntegrationService publicIntegrationService;
 
     @GetMapping
     public List<Workspace> getVisibleWorkspaces(HttpServletRequest request) {
         return workspaceService.getVisibleForUser(requireCurrentUser(request));
+    }
+
+    @GetMapping("/overview")
+    public Map<String, Object> getWorkspacesOverview(HttpServletRequest request) {
+        User currentUser = requireCurrentUser(request);
+        return workspaceService.getWorkspacesOverview(currentUser.getId());
     }
 
     @GetMapping("/{id}")
@@ -115,6 +124,20 @@ public class WorkspaceController {
                                                            HttpServletRequest request) {
         User currentUser = requireCurrentUser(request);
         return workspaceService.getWorkspaceProjectCapacity(id, currentUser.getId());
+    }
+
+    @GetMapping("/{id}/calendar/holidays")
+    public Map<String, Object> getWorkspaceHolidays(@PathVariable UUID id,
+                                                    @RequestParam(defaultValue = "TN") String country,
+                                                    @RequestParam(required = false) Integer year,
+                                                    HttpServletRequest request) {
+        User currentUser = requireCurrentUser(request);
+        workspaceService.getByIdVisibleForUser(id, currentUser);
+
+        int resolvedYear = year == null ? Year.now().getValue() : Math.max(2000, Math.min(2100, year));
+        Map<String, Object> payload = publicIntegrationService.getPublicHolidays(country, resolvedYear);
+        payload.put("workspaceId", id.toString());
+        return payload;
     }
 
     @PostMapping("/{id}/members")

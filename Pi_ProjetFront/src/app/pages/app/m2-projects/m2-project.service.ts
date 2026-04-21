@@ -1,11 +1,12 @@
 import { Injectable, inject } from "@angular/core";
-import { HttpClient } from "@angular/common/http";
+import { HttpClient, HttpParams, HttpResponse } from "@angular/common/http";
 import { Observable } from "rxjs";
 
 export interface M2ProjectSummary {
     id: string;
     name: string;
     description?: string;
+    githubRepoUrl?: string | null;
     status?: string;
     visibility?: "PUBLIC" | "PRIVATE" | string;
     startDate?: string;
@@ -144,6 +145,7 @@ export interface M2PibConfirmRequest {
     inputType: "text" | "document";
     projectName: string;
     projectDescription: string;
+    githubRepoUrl?: string | null;
     visibility?: "PUBLIC" | "PRIVATE";
     selectedTemplateId?: string | null;
     selectedTemplateName?: string | null;
@@ -162,6 +164,78 @@ export interface M2PibConfirmRequest {
     modelVersion?: string;
 }
 
+export interface M2ProjectHealthResponse {
+    projectId: string;
+    workspaceId: string;
+    projectName: string;
+    status: string;
+    healthScore: number;
+    riskLevel: "LOW" | "MEDIUM" | "HIGH";
+    scores: {
+        timeline: number;
+        collaboration: number;
+        activity: number;
+        status: number;
+    };
+    signals: {
+        memberCount: number;
+        eventsLast14d: number;
+        projectAgeDays: number;
+        statusAgeDays: number;
+        daysToDeadline?: number | null;
+        quotaPressurePct: number;
+        activeProjectsOrg: number;
+        maxActiveProjectsOrg: number;
+    };
+    hints: string[];
+    generatedAt: string;
+}
+
+export interface M2ProjectRepoInsightsResponse {
+    provider: string;
+    providerUrl?: string;
+    projectId: string;
+    workspaceId: string;
+    repoLinked: boolean;
+    githubRepoUrl?: string | null;
+    warning?: string;
+    providerStatus?: "live" | "fallback";
+    repo?: string;
+    generatedAt?: string;
+    name?: string;
+    description?: string;
+    homepage?: string;
+    visibility?: string;
+    defaultBranch?: string;
+    stars?: number;
+    forks?: number;
+    watchers?: number;
+    openIssues?: number;
+    openPullRequests?: number;
+    lastPushAt?: string;
+    daysSinceLastPush?: number | null;
+    topLanguage?: string;
+    languages?: Record<string, number>;
+    contributorsSampleCount?: number;
+    topContributors?: Array<{
+        login?: string;
+        contributions?: number;
+        avatarUrl?: string;
+        profileUrl?: string;
+        type?: string;
+    }>;
+    recentCommits?: Array<{
+        sha?: string;
+        title?: string;
+        message?: string;
+        authorName?: string;
+        authorDate?: string;
+        authorLogin?: string;
+        url?: string;
+    }>;
+    htmlUrl?: string;
+}
+
 @Injectable({ providedIn: "root" })
 export class M2ProjectService {
     private readonly http = inject(HttpClient);
@@ -173,6 +247,14 @@ export class M2ProjectService {
 
     getProjectById(workspaceId: string, projectId: string): Observable<M2ProjectSummary> {
         return this.http.get<M2ProjectSummary>(`${this.workspaceBase}/${workspaceId}/projects/${projectId}`);
+    }
+
+    getProjectHealth(workspaceId: string, projectId: string): Observable<M2ProjectHealthResponse> {
+        return this.http.get<M2ProjectHealthResponse>(`${this.workspaceBase}/${workspaceId}/projects/${projectId}/health`);
+    }
+
+    getProjectRepoInsights(workspaceId: string, projectId: string): Observable<M2ProjectRepoInsightsResponse> {
+        return this.http.get<M2ProjectRepoInsightsResponse>(`${this.workspaceBase}/${workspaceId}/projects/${projectId}/repo-insights`);
     }
 
     createProject(workspaceId: string, body: Record<string, unknown>): Observable<M2ProjectSummary> {
@@ -229,5 +311,37 @@ export class M2ProjectService {
 
     confirmProjectIntelligence(workspaceId: string, body: M2PibConfirmRequest): Observable<M2ProjectSummary> {
         return this.http.post<M2ProjectSummary>(`${this.workspaceBase}/${workspaceId}/projects/pib/confirm`, body);
+    }
+
+    viewProjectReadme(
+        workspaceId: string,
+        projectId: string,
+        mode: "fast" | "enhanced" = "fast"
+    ): Observable<HttpResponse<string>> {
+        const params = new HttpParams()
+            .set("mode", mode)
+            .set("download", "false");
+
+        return this.http.get(`${this.workspaceBase}/${workspaceId}/projects/${projectId}/readme`, {
+            params,
+            observe: "response",
+            responseType: "text",
+        });
+    }
+
+    downloadProjectReadme(
+        workspaceId: string,
+        projectId: string,
+        mode: "fast" | "enhanced" = "fast"
+    ): Observable<HttpResponse<Blob>> {
+        const params = new HttpParams()
+            .set("mode", mode)
+            .set("download", "true");
+
+        return this.http.get(`${this.workspaceBase}/${workspaceId}/projects/${projectId}/readme`, {
+            params,
+            observe: "response",
+            responseType: "blob",
+        });
     }
 }

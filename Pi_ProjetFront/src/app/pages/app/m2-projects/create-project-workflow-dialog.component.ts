@@ -134,6 +134,19 @@ export interface CreateProjectWorkflowDialogResult {
                         </mat-form-field>
                     </div>
 
+                    <div class="col-12 mb-3">
+                        <mat-form-field appearance="outline" class="w-100">
+                            <mat-label>GitHub Repository URL <span class="text-secondary">(optional)</span></mat-label>
+                            <input
+                                matInput
+                                name="githubRepoUrl"
+                                [(ngModel)]="githubRepoUrl"
+                                placeholder="https://github.com/owner/repository or owner/repository"
+                            />
+                            <mat-hint>Link repository now to enable immediate GitHub insights on project details.</mat-hint>
+                        </mat-form-field>
+                    </div>
+
                     <div class="col-12 col-sm-6 mb-3">
                         <mat-form-field appearance="outline" class="w-100">
                             <mat-label>Visibility</mat-label>
@@ -266,6 +279,7 @@ export interface CreateProjectWorkflowDialogResult {
                 <div class="summary-row"><span>Status</span><strong>{{ statusLabel(status) }}</strong></div>
                 <div class="summary-row"><span>Start Date</span><strong>{{ formatDate(startDateVal) }}</strong></div>
                 <div class="summary-row"><span>End Date</span><strong>{{ formatDate(endDateVal) }}</strong></div>
+                <div class="summary-row"><span>Repository</span><strong class="text-end" style="max-width:55%;">{{ githubRepoUrl.trim() || '—' }}</strong></div>
                 <div class="summary-row"><span>Assigned Members</span><strong>{{ selectedMembers().length }}</strong></div>
             </div>
             @if (selectedMembers().length > 0) {
@@ -501,6 +515,7 @@ export class CreateProjectWorkflowDialogComponent {
     // Form fields
     name = "";
     description = "";
+    githubRepoUrl = "";
     visibility: "PRIVATE" | "PUBLIC" = "PRIVATE";
     status: "PLANNING" | "ACTIVE" | "ON_HOLD" = "PLANNING";
     startDateVal: Date | null = new Date();
@@ -652,6 +667,7 @@ export class CreateProjectWorkflowDialogComponent {
         const payload: Record<string, unknown> = {
             name: this.name.trim(),
             description: this.description.trim() || null,
+            githubRepoUrl: this.githubRepoUrl.trim() || null,
             visibility: this.visibility,
             status: this.status,
         };

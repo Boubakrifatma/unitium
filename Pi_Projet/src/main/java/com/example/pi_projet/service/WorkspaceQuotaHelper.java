@@ -25,9 +25,33 @@ public class WorkspaceQuotaHelper {
 
     public long countActiveProjectsByOrg(UUID orgId) {
         Long cnt = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM projects p JOIN workspaces w ON p.workspace_id = w.id WHERE w.organization_id = ? AND p.deleted_at IS NULL",
+            """
+            SELECT COUNT(*)
+            FROM projects p
+            JOIN workspaces w ON p.workspace_id = w.id
+            WHERE w.organization_id = ?
+              AND p.deleted_at IS NULL
+              AND UPPER(p.status) = 'ACTIVE'
+            """,
             Long.class, orgId.toString());
         return cnt == null ? 0L : cnt;
+    }
+
+    public long countActiveProjectsByWorkspace(UUID workspaceId) {
+        Long cnt = jdbcTemplate.queryForObject(
+            """
+            SELECT COUNT(*)
+            FROM projects p
+            WHERE p.workspace_id = ?
+              AND p.deleted_at IS NULL
+              AND UPPER(p.status) = 'ACTIVE'
+            """,
+            Long.class, workspaceId.toString());
+        return cnt == null ? 0L : cnt;
+    }
+
+    public long countStrictlyActiveProjectsByWorkspace(UUID workspaceId) {
+        return countActiveProjectsByWorkspace(workspaceId);
     }
 
     // Returns organization type; tries Module 1 read via M2OrganizationService, falls back to stub

@@ -16,6 +16,8 @@ export interface InvoiceDTO {
   billingPeriodStart: string; billingPeriodEnd: string;
   dueDate: string; paidAt: string; pdfUrl: string;
   planName: string; orgName: string; createdAt: string;
+  couponCode?: string;
+  discountAmount?: number;
   lineItems?: InvoiceLineItemDTO[];
 }
 

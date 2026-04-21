@@ -5,6 +5,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
 
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -103,6 +105,29 @@ public class M2AuditLogService {
         } catch (Exception e) {
             log.warn("Failed to fetch workspace audit logs: {}", e.getMessage());
             return List.of();
+        }
+    }
+
+    /**
+     * Counts project-scoped events from the module-2 audit table since a timestamp.
+     */
+    public long countProjectEventsSince(UUID orgId, UUID projectId, Instant since) {
+        if (orgId == null || projectId == null || since == null) {
+            return 0L;
+        }
+        try {
+            Long count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM m2_audit_logs " +
+                    "WHERE org_id = ? AND entity_type = 'project' AND entity_id = ? AND created_at >= ?",
+                Long.class,
+                orgId.toString(),
+                projectId.toString(),
+                Timestamp.from(since)
+            );
+            return count == null ? 0L : count;
+        } catch (Exception e) {
+            log.warn("Failed to count project audit logs: {}", e.getMessage());
+            return 0L;
         }
     }
 }

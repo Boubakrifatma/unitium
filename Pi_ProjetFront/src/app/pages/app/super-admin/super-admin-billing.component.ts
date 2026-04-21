@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, inject, ViewChild, ElementRef, signal } from '@angular/core';
 import { forkJoin } from 'rxjs';
 import { Chart, registerables } from 'chart.js/auto';
 Chart.register(...registerables);
@@ -9,6 +9,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatRippleModule } from '@angular/material/core';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { OrgBillingService, PlanDTO, InvoiceDTO, PaymentAttemptDTO, UsageQuotaDTO } from '../../../billing/services/org-billing.service';
@@ -20,7 +21,7 @@ import { PaymentResponse } from '../../../billing/models/billing.models';
   standalone: true,
   imports: [
     CommonModule, MatCardModule, MatIconModule, MatButtonModule,
-    MatTableModule, MatTabsModule, MatTooltipModule, FormsModule, RouterModule
+    MatTableModule, MatTabsModule, MatTooltipModule, MatRippleModule, FormsModule, RouterModule
   ],
   template: `
     <div class="container-fluid fade-in mb-3 mb-lg-4">
@@ -89,64 +90,92 @@ import { PaymentResponse } from '../../../billing/models/billing.models';
               </ng-template>
               <div class="tab-content">
 
-                <div class="tab-header">
+                <div class="tab-header mb-3">
                   <div>
                     <h4 class="mb-1">Subscription Plans</h4>
-                    <p class="text-secondary small mb-0">Create and manage all subscription tiers — read/write</p>
+                    <p class="text-secondary small mb-0">Create and manage all subscription tiers</p>
                   </div>
-                  <button mat-flat-button color="primary" (click)="openAddPlan()">
-                    <mat-icon>add</mat-icon> New Plan
-                  </button>
+                  <div class="d-flex align-items-center gap-3">
+                    <!-- Billing cycle toggle -->
+                    <div class="d-flex align-items-center gap-2">
+                      <span class="small fw-medium" [class.text-secondary]="plansCycle() === 'annual'">Monthly</span>
+                      <div class="ptoggle" (click)="togglePlansCycle()">
+                        <div class="ptoggle-track" [class.annual]="plansCycle() === 'annual'">
+                          <div class="ptoggle-thumb"></div>
+                        </div>
+                      </div>
+                      <span class="small fw-medium" [class.text-secondary]="plansCycle() === 'monthly'">
+                        Annual <span class="badge text-bg-success ms-1" style="font-size:10px">-20%</span>
+                      </span>
+                    </div>
+                    <button mat-flat-button color="primary" (click)="openAddPlan()">
+                      <mat-icon>add</mat-icon> New Plan
+                    </button>
+                  </div>
                 </div>
 
-                <div class="row gx-3 gx-lg-4 mt-3">
-                  <div class="col-12 col-md-6 col-xl-4" *ngFor="let p of plans">
-                    <mat-card class="plan-card mb-3">
-                      <mat-card-content>
-                        <div class="plan-head">
-                          <div>
-                            <h4 class="mb-0">{{ p.displayName }}</h4>
-                            <code class="text-secondary" style="font-size:11px">{{ p.name }}</code>
-                          </div>
-                          <span class="pill" [class]="p.isActive ? 'pill-green' : 'pill-red'">
-                            {{ p.isActive ? 'Active' : 'Inactive' }}
-                          </span>
-                        </div>
+                <div class="row gx-3 gx-lg-4 align-items-stretch">
+                  <div class="col-12 col-md-6 col-xl-3 mb-4" *ngFor="let p of visiblePlans">
+                    <div class="pcard h-100" [class.pcard-inactive]="!p.isActive" matRipple>
 
-                        <div class="price-row">
-                          <div class="price-box">
-                            <span class="price-lbl">Monthly</span>
-                            <span class="price-val">\${{ p.priceMonthly }}</span>
-                          </div>
-                          <div class="price-box">
-                            <span class="price-lbl">Annual/mo</span>
-                            <span class="price-val">\${{ p.priceYearly }}</span>
-                          </div>
-                        </div>
+                      <!-- Status badge -->
+                      <div class="pcard-badge-status" [class.badge-active]="p.isActive" [class.badge-inactive]="!p.isActive">
+                        <mat-icon>{{ p.isActive ? 'check_circle' : 'block' }}</mat-icon>
+                        {{ p.isActive ? 'Active' : 'Inactive' }}
+                      </div>
 
-                        <div class="plan-meta">
-                          <div class="meta-row"><mat-icon class="material-icons-outlined">storage</mat-icon>{{ (p.storageMb/1024)|number:'1.0-0' }} GB storage</div>
-                          <div class="meta-row"><mat-icon class="material-icons-outlined">psychology</mat-icon>ML: {{ p.mlTier }}</div>
-                          <div class="meta-row"><mat-icon class="material-icons-outlined">support_agent</mat-icon>Support: {{ p.supportTier }}</div>
-                          <div class="meta-row"><mat-icon class="material-icons-outlined">lock_open</mat-icon>API: {{ p.apiAccess ? 'Yes':'No' }} · SSO: {{ p.ssoEnabled ? 'Yes':'No' }}</div>
+                      <!-- Header -->
+                      <div class="pcard-header">
+                        <div class="pcard-icon" [class.icon-academic]="p.orgType === 'ACADEMIC'">
+                          <mat-icon>{{ p.orgType === 'ACADEMIC' ? 'school' : p.priceMonthly === 0 ? 'domain' : p.priceMonthly < 100 ? 'rocket_launch' : p.priceMonthly < 200 ? 'workspace_premium' : 'business' }}</mat-icon>
                         </div>
+                        <div>
+                          <h5 class="mb-0">{{ p.displayName }}</h5>
+                          <code class="text-secondary" style="font-size:10px">{{ p.name }}</code>
+                        </div>
+                      </div>
 
-                        <div class="plan-actions">
-                          <button mat-stroked-button class="action-btn" (click)="editPlan(p)">
-                            <mat-icon class="material-icons-outlined">edit</mat-icon> Edit
-                          </button>
-                          <button mat-icon-button
-                                  [matTooltip]="p.isActive ? 'Deactivate plan' : 'Activate plan'"
-                                  [class]="p.isActive ? 'btn-danger-icon' : 'btn-success-icon'"
-                                  (click)="togglePlan(p)">
-                            <mat-icon class="material-icons-outlined">{{ p.isActive ? 'block' : 'check_circle' }}</mat-icon>
-                          </button>
-                        </div>
-                      </mat-card-content>
-                    </mat-card>
+                      <!-- Price -->
+                      <div class="pcard-price">
+                        <span class="pcard-price-currency">$</span>
+                        <span class="pcard-price-amount">{{ plansCycle() === 'monthly' ? p.priceMonthly : p.priceYearly }}</span>
+                        <span class="pcard-price-period">/ {{ plansCycle() === 'monthly' ? 'mo' : 'mo · annual' }}</span>
+                      </div>
+
+                      <!-- Limits chips -->
+                      <div class="pcard-limits">
+                        <span class="plimit"><mat-icon>people</mat-icon>{{ p.maxMembersPerWs ?? '—' }} users</span>
+                        <span class="plimit"><mat-icon>workspaces</mat-icon>{{ p.maxWorkspaces ?? '—' }} ws</span>
+                        <span class="plimit"><mat-icon>folder</mat-icon>{{ p.maxActiveProjects ?? '—' }} proj</span>
+                        <span class="plimit"><mat-icon>storage</mat-icon>{{ (p.storageMb/1024)|number:'1.0-0' }} GB</span>
+                      </div>
+
+                      <!-- Meta -->
+                      <ul class="pcard-features">
+                        <li><mat-icon class="pfeature-check">check_circle</mat-icon>ML: {{ p.mlTier }}</li>
+                        <li><mat-icon class="pfeature-check">check_circle</mat-icon>Support: {{ p.supportTier }}</li>
+                        <li><mat-icon class="pfeature-check">check_circle</mat-icon>API access: {{ p.apiAccess ? 'Yes' : 'No' }}</li>
+                        <li><mat-icon class="pfeature-check">check_circle</mat-icon>SSO: {{ p.ssoEnabled ? 'Yes' : 'No' }}</li>
+                      </ul>
+
+                      <!-- Actions -->
+                      <div class="pcard-cta mt-auto pt-3">
+                        <button mat-stroked-button class="w-100 mb-2" (click)="editPlan(p)">
+                          <mat-icon class="material-icons-outlined">edit</mat-icon> Edit
+                        </button>
+                        <button mat-stroked-button class="w-100"
+                                [style.color]="p.isActive ? '#ef4444' : '#22c55e'"
+                                [style.border-color]="p.isActive ? '#ef4444' : '#22c55e'"
+                                [matTooltip]="p.isActive ? 'Deactivate plan' : 'Activate plan'"
+                                (click)="togglePlan(p)">
+                          <mat-icon class="material-icons-outlined">{{ p.isActive ? 'block' : 'check_circle' }}</mat-icon>
+                          {{ p.isActive ? 'Deactivate' : 'Activate' }}
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
-                  <div class="col-12" *ngIf="plans.length === 0">
+                  <div class="col-12" *ngIf="visiblePlans.length === 0">
                     <div class="empty-state">
                       <mat-icon class="material-icons-outlined">inventory_2</mat-icon>
                       <p>No plans yet. They are created automatically when an organisation pays.</p>
@@ -185,6 +214,16 @@ import { PaymentResponse } from '../../../billing/models/billing.models';
                       <th mat-header-cell *matHeaderCellDef>Plan</th>
                       <td mat-cell *matCellDef="let i">
                         <span class="pill pill-blue">{{ i.planName ?? '—' }}</span>
+                      </td>
+                    </ng-container>
+                    <ng-container matColumnDef="coupon">
+                      <th mat-header-cell *matHeaderCellDef>Coupon</th>
+                      <td mat-cell *matCellDef="let i">
+                        <ng-container *ngIf="i.couponCode; else noCoupon">
+                          <span class="pill pill-green" style="font-size:10px">{{ i.couponCode }}</span>
+                          <span class="text-success small d-block" style="font-size:10px">−\${{ i.discountAmount | number:'1.2-2' }}</span>
+                        </ng-container>
+                        <ng-template #noCoupon><span class="text-secondary">—</span></ng-template>
                       </td>
                     </ng-container>
                     <ng-container matColumnDef="subtotal">
@@ -861,21 +900,36 @@ import { PaymentResponse } from '../../../billing/models/billing.models';
     .cm-btn-save:disabled { opacity:.6; cursor:not-allowed; }
 
     /* Plan cards */
-    .plan-card { border:1px solid var(--bs-border-color,#e5e7eb); }
-    .plan-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
-    .price-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; }
-    .price-box { background:#f8fafc; border-radius:8px; padding:8px; text-align:center; }
-    .price-lbl { display:block; font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; }
-    .price-val { display:block; font-size:20px; font-weight:800; color:#1e293b; }
-    .plan-meta { display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
-    .meta-row { display:flex; align-items:center; gap:6px; font-size:12px; color:#64748b; }
-    .meta-row mat-icon { font-size:15px; width:15px; height:15px; }
+    .pcard { position:relative; border:1px solid #e5e7eb; border-radius:16px; padding:24px; display:flex; flex-direction:column; background:#fff; transition:box-shadow .2s,border-color .2s; overflow:hidden; }
+    .pcard:hover { box-shadow:0 8px 24px rgba(0,0,0,.08); }
+    .pcard-inactive { opacity:.65; border-style:dashed; }
+    .pcard-badge-status { position:absolute; top:12px; right:12px; display:flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; }
+    .pcard-badge-status mat-icon { font-size:13px; width:13px; height:13px; }
+    .badge-active { background:#dcfce7; color:#15803d; }
+    .badge-inactive { background:#fee2e2; color:#dc2626; }
+    .pcard-header { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
+    .pcard-icon { width:44px; height:44px; border-radius:12px; background:linear-gradient(135deg,#6366f1,#4f46e5); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .pcard-icon.icon-academic { background:linear-gradient(135deg,#0ea5e9,#0284c7); }
+    .pcard-icon mat-icon { color:#fff; font-size:22px; }
+    .pcard-header h5 { font-weight:700; }
+    .pcard-price { display:flex; align-items:baseline; gap:2px; margin-bottom:16px; }
+    .pcard-price-currency { font-size:1rem; font-weight:700; color:#64748b; }
+    .pcard-price-amount { font-size:2.4rem; font-weight:800; color:#1e293b; line-height:1; }
+    .pcard-price-period { font-size:12px; color:#94a3b8; margin-left:4px; }
+    .pcard-limits { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px; }
+    .plimit { display:flex; align-items:center; gap:4px; font-size:11px; color:#64748b; background:#f8fafc; border-radius:8px; padding:4px 8px; font-weight:600; }
+    .plimit mat-icon { font-size:13px; width:13px; height:13px; color:#6366f1; }
+    .pcard-features { list-style:none; padding:0; margin:0 0 8px; display:flex; flex-direction:column; gap:8px; }
+    .pcard-features li { display:flex; align-items:flex-start; gap:8px; font-size:13px; color:#374151; }
+    .pfeature-check { font-size:16px; width:16px; height:16px; color:#22c55e; flex-shrink:0; margin-top:1px; }
+    .pcard-cta button { border-radius:10px; }
 
-    /* Plan action buttons - FIXED: edit button full width, toggle icon only */
-    .plan-actions { display:flex; gap:8px; align-items:center; }
-    .action-btn { flex:1; }
-    .btn-danger-icon { color:#ef4444 !important; }
-    .btn-success-icon { color:#22c55e !important; }
+    /* Billing cycle toggle */
+    .ptoggle { cursor:pointer; }
+    .ptoggle-track { width:44px; height:24px; background:#e5e7eb; border-radius:12px; position:relative; transition:background .3s; }
+    .ptoggle-track.annual { background:#6366f1; }
+    .ptoggle-thumb { position:absolute; top:3px; left:3px; width:18px; height:18px; background:#fff; border-radius:50%; transition:left .3s; box-shadow:0 1px 4px rgba(0,0,0,.2); }
+    .ptoggle-track.annual .ptoggle-thumb { left:23px; }
 
     /* Churn */
     .churn-bar { height:8px; background:#f1f5f9; border-radius:10px; overflow:hidden; }
@@ -970,10 +1024,17 @@ export class SuperAdminBillingComponent implements OnInit {
   private orgBilling = inject(OrgBillingService);
   private billingService = inject(BillingService);
 
+  plansCycle = signal<'monthly' | 'annual'>('monthly');
+  togglePlansCycle() { this.plansCycle.update(c => c === 'monthly' ? 'annual' : 'monthly'); }
+
   plans: PlanDTO[] = [];
+
+  get visiblePlans(): PlanDTO[] {
+    return this.plans;
+  }
   allInvoices: InvoiceDTO[] = [];
   invoicesDS = new MatTableDataSource<InvoiceDTO>([]);
-  invCols = ['number', 'plan', 'subtotal', 'tax', 'total', 'status', 'period', 'paidAt', 'pdf'];
+  invCols = ['number', 'plan', 'coupon', 'subtotal', 'tax', 'total', 'status', 'period', 'paidAt', 'pdf'];
   securityAlerts: any[] = [];
   popupCollapsed = false;
 
@@ -1386,6 +1447,11 @@ export class SuperAdminBillingComponent implements OnInit {
       </table>
       <table class="totals">
         <tr><td>Subtotal</td><td style="text-align:right">${fmtUsd(inv.subtotal)}</td></tr>
+        ${inv.couponCode && inv.discountAmount ? `
+        <tr style="color:#16a34a">
+          <td>Coupon <strong>${inv.couponCode}</strong></td>
+          <td style="text-align:right">− ${fmtUsd(inv.discountAmount)}</td>
+        </tr>` : ''}
         <tr><td>Tax (19%)</td><td style="text-align:right">${fmtUsd(inv.taxAmount)}</td></tr>
         <tr class="grand"><td>Total</td><td style="text-align:right">${fmtUsd(inv.total)} ${inv.currency}</td></tr>
       </table>

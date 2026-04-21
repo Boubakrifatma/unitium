@@ -37,14 +37,20 @@ export class NotificationService implements OnDestroy {
 
   /** Call this once the user is authenticated */
   connect(): void {
+    const token = this.authService.getToken();
     const userId = this.authService.currentUser()?.id ?? this.authService.getUserId();
-    if (!userId) return;
+    if (!token || !userId) {
+      this.disconnect();
+      return;
+    }
+
+    // Reset previous streams first.
+    this.disconnect();
 
     // Charge immédiatement + poll toutes les 10 secondes
     this.startPolling(userId);
 
     // Tente aussi SSE pour le temps réel
-    this.disconnect();
     try {
       this.eventSource = new EventSource(`${this.baseUrl}/stream?userId=${userId}`);
       this.eventSource.addEventListener('notification', (event: MessageEvent) => {
@@ -55,6 +61,14 @@ export class NotificationService implements OnDestroy {
           this.newNotification$.next({ ...notif, isRead: false });
         }
       });
+
+      this.eventSource.onerror = () => {
+        // Keep polling active as fallback when SSE stream fails (e.g. 401/CORS/proxy).
+        if (this.eventSource) {
+          this.eventSource.close();
+          this.eventSource = null;
+        }
+      };
     } catch (e) {
       // SSE non supporté — polling suffit
     }
@@ -72,7 +86,12 @@ export class NotificationService implements OnDestroy {
             this._notifications.set(notifs);
             newOnes.filter(n => !n.isRead).forEach(n => this.newNotification$.next(n));
           }
-        }
+        },
+        error: (err) => {
+          if (err?.status === 401) {
+            this.disconnect();
+          }
+        },
       });
     poll();
     this.pollingSub = interval(10000).pipe(
@@ -88,7 +107,12 @@ export class NotificationService implements OnDestroy {
           // Mettre à jour les statuts isRead
           this._notifications.set(notifs);
         }
-      }
+      },
+      error: (err) => {
+        if (err?.status === 401) {
+          this.disconnect();
+        }
+      },
     });
   }
 
@@ -109,7 +133,10 @@ export class NotificationService implements OnDestroy {
         this._notifications.update(list =>
           list.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
         );
-      }
+      },
+      error: () => {
+        // Ignore transient/network/auth failures here; UI will refresh on next poll.
+      },
     });
   }
 
@@ -125,12 +152,16 @@ export class NotificationService implements OnDestroy {
   }
 
   markAllAsRead(): void {
+    if (!this.authService.getToken()) return;
     const userId = this.authService.currentUser()?.id ?? this.authService.getUserId();
     if (!userId) return;
     this.http.put(`${this.baseUrl}/read-all?userId=${userId}`, {}).subscribe({
       next: () => {
         this._notifications.update(list => list.map(n => ({ ...n, isRead: true })));
-      }
+      },
+      error: () => {
+        // Keep current UI state if server update fails.
+      },
     });
   }
 

@@ -9,7 +9,6 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatRippleModule } from '@angular/material/core';
 import { BillingService } from '../../services/billing.service';
-import { CheckoutStateService } from '../../services/checkout-state.service';
 import { Plan, OrgType, BillingCycle } from '../../models/billing.models';
 
 @Component({
@@ -134,11 +133,11 @@ import { Plan, OrgType, BillingCycle } from '../../models/billing.models';
               <!-- CTA -->
               <div class="plan-cta mt-auto pt-3">
                 @if (plan.onRequest) {
-                  <button matButton="outlined" class="w-100" (click)="contactUs(plan)">
+                  <button mat-stroked-button color="primary" class="w-100 cta-btn" (click)="contactUs(plan)">
                     <mat-icon>mail</mat-icon> Contact Sales
                   </button>
                 } @else {
-                  <button matButton="filled" class="w-100" [class.btn-recommended]="plan.recommended" (click)="choosePlan(plan)">
+                  <button mat-flat-button color="primary" class="w-100 cta-btn" (click)="choosePlan(plan)">
                     Get Started
                     <mat-icon iconPositionEnd>arrow_forward</mat-icon>
                   </button>
@@ -299,8 +298,7 @@ import { Plan, OrgType, BillingCycle } from '../../models/billing.models';
     }
     .feature-check { font-size: 17px; width: 17px; height: 17px; color: #198754; margin-top: 1px; flex-shrink: 0; }
 
-    .plan-cta button { border-radius: 10px !important; font-weight: 600 !important; height: 44px; }
-    .btn-recommended { background: var(--bs-primary, #0d6efd) !important; }
+    .cta-btn { width: 100% !important; height: 46px !important; border-radius: 10px !important; font-weight: 600 !important; font-size: .92rem !important; }
 
     .trust-section { padding: 24px 0; border-top: 1px solid var(--bs-border-color); }
     .trust-icon { color: var(--bs-primary, #0d6efd); display: block; margin: 0 auto 6px; }
@@ -318,7 +316,7 @@ export class PricingComponent {
     this.orgType() === 'enterprise' ? this.billing.enterprisePlans() : this.billing.academicPlans()
   );
 
-  constructor(private billing: BillingService, private checkoutState: CheckoutStateService, private router: Router) {}
+  constructor(private billing: BillingService, private router: Router) {}
 
   setOrgType(type: OrgType) { this.orgType.set(type); }
 
@@ -338,6 +336,6 @@ export class PricingComponent {
   }
 
   contactUs(plan: Plan) {
-    this.router.navigate(['/web/contactus']);
+    this.router.navigate(['/web/contact-us']);
   }
 }

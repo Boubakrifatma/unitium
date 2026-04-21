@@ -29,7 +29,17 @@ import { InviteMemberModalComponent } from "./invite-member-modal.component";
 import { MemberRoleEditDialogComponent, MemberRoleEditDialogResult } from "./member-role-edit-dialog.component";
 import { MemberUnassignDialogComponent, MemberUnassignDialogResult } from "./member-unassign-dialog.component";
 import { WorkspaceMember, WorkspaceMemberCapacity } from "./models/workspace-member.model";
-import { M2ProjectSummary, M2TimelineCheckpoint, M2Workspace, M2WorkspaceCapacity, M2WorkspaceProjectCapacity, M2WorkspaceService, M2WorkspaceSnapshot } from "./m2-workspace.service";
+import {
+    M2ProjectSummary,
+    M2TimelineCheckpoint,
+    M2Workspace,
+    M2WorkspaceCapacity,
+    M2WorkspaceHoliday,
+    M2WorkspaceHolidaysResponse,
+    M2WorkspaceProjectCapacity,
+    M2WorkspaceService,
+    M2WorkspaceSnapshot,
+} from "./m2-workspace.service";
 import { WorkspaceMemberService } from "./services/workspace-member.service";
 import { WorkspaceDeleteConfirmDialogComponent, WorkspaceDeleteConfirmDialogResult } from "./workspace-delete-confirm-dialog.component";
 import { WorkspaceEditDialogComponent, WorkspaceEditDialogResult } from "./workspace-edit-dialog.component";
@@ -91,7 +101,7 @@ interface WorkspaceActivity {
                         <mat-form-field appearance="outline" style="width:220px;margin-right:8px;">
                             <input matInput [matDatepicker]="asOfPicker" placeholder="View as of" [value]="historicalAsDate()" (dateChange)="onDateSelected($event)" [min]="pickerMinDate()" [max]="pickerMaxDate()" [matDatepickerFilter]="dateFilter">
                             <mat-datepicker-toggle matSuffix [for]="asOfPicker"></mat-datepicker-toggle>
-                            <mat-datepicker #asOfPicker></mat-datepicker>
+                            <mat-datepicker #asOfPicker [dateClass]="timelineDateClass"></mat-datepicker>
                         </mat-form-field>
                         <button matButton (click)="backToWorkspaces()"><mat-icon class="material-icons-outlined">arrow_back</mat-icon> Back</button>
                         <button matButton class="ms-1" (click)="refresh()"><mat-icon class="material-icons-outlined">refresh</mat-icon> Refresh</button>
@@ -238,6 +248,151 @@ interface WorkspaceActivity {
                 </div>
             </div>
 
+            @if (!historicalMode()) {
+            <div class="row gx-3 gx-lg-4 mb-2">
+                <div class="col-12 mb-3">
+                    <mat-card class="h-100">
+                        <mat-card-content class="py-3">
+                            <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+                                <div>
+                                    <h5 class="mb-0">
+                                        <mat-icon class="material-icons-outlined align-middle" style="font-size:18px;width:18px;height:18px;">event</mat-icon>
+                                        Holiday Intelligence
+                                    </h5>
+                                    <p class="small text-secondary mb-0">Public holiday context for deadline and sprint planning.</p>
+                                </div>
+                                <button matButton class="text-theme" (click)="refreshWorkspaceHolidayWidget()" [disabled]="holidaysLoading()">
+                                    <mat-icon class="material-icons-outlined">refresh</mat-icon>
+                                    Refresh
+                                </button>
+                            </div>
+
+                            <div class="row gx-2 mb-2">
+                                <div class="col-5">
+                                    <mat-form-field appearance="outline" class="w-100 inline-small" style="margin:0;">
+                                        <mat-label>Country</mat-label>
+                                        <input matInput [(ngModel)]="holidayCountry" maxlength="2" placeholder="TN" />
+                                    </mat-form-field>
+                                </div>
+                                <div class="col-4">
+                                    <mat-form-field appearance="outline" class="w-100 inline-small" style="margin:0;">
+                                        <mat-label>Year</mat-label>
+                                        <input matInput type="number" [(ngModel)]="holidayYear" min="2000" max="2100" />
+                                    </mat-form-field>
+                                </div>
+                                <div class="col-3 d-flex align-items-center">
+                                    <button matButton="filled" class="text-theme w-100" (click)="refreshWorkspaceHolidayWidget()" [disabled]="holidaysLoading()">Load</button>
+                                </div>
+                            </div>
+
+                            <div class="d-flex flex-wrap align-items-center gap-1 mb-2">
+                                <button
+                                    matButton
+                                    (click)="setHolidayYearMode(false)"
+                                    [disabled]="holidaysLoading()"
+                                    [style.background]="!holidayShowFullYear() ? 'rgba(99,102,241,0.15)' : ''"
+                                    [style.border]="'1px solid rgba(99,102,241,0.3)'"
+                                    style="font-size:11px;line-height:1.1;padding:4px 10px;min-height:30px;">
+                                    Upcoming
+                                </button>
+                                <button
+                                    matButton
+                                    (click)="setHolidayYearMode(true)"
+                                    [disabled]="holidaysLoading()"
+                                    [style.background]="holidayShowFullYear() ? 'rgba(14,165,233,0.15)' : ''"
+                                    [style.border]="'1px solid rgba(14,165,233,0.3)'"
+                                    style="font-size:11px;line-height:1.1;padding:4px 10px;min-height:30px;">
+                                    Full Year
+                                </button>
+                                @if (workspaceHolidays(); as holidaysMeta) {
+                                    <span class="badge badge-light" style="font-size:10px;">{{ holidaysMeta.count }} holidays</span>
+                                    <span class="badge badge-light" style="font-size:10px;">{{ holidaysMeta.country }} {{ holidaysMeta.year }}</span>
+                                }
+                            </div>
+
+                            @if (holidaysLoading()) {
+                                <div class="d-flex align-items-center gap-2 text-secondary small py-2">
+                                    <mat-icon class="material-icons-outlined" style="font-size:16px;width:16px;height:16px;animation:spin 1s linear infinite;">cached</mat-icon>
+                                    Loading holidays...
+                                </div>
+                            } @else if (holidaysError()) {
+                                <div class="small" style="color:#991b1b;">{{ holidaysError() }}</div>
+                            } @else if (workspaceHolidays(); as holidays) {
+                                @if (holidays.warning) {
+                                    <div class="small mb-2" style="color:#92400e;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:7px 9px;">{{ holidays.warning }}</div>
+                                }
+
+                                @if (holidays.items.length === 0) {
+                                    <p class="small text-secondary mb-0">No holidays returned for {{ holidays.country }} {{ holidays.year }}.</p>
+                                } @else {
+                                    @if (nextUpcomingHoliday(); as nextHoliday) {
+                                        <div class="mb-2" style="border:1px solid rgba(34,197,94,0.35);border-radius:10px;padding:8px 10px;background:linear-gradient(90deg,rgba(34,197,94,0.12),rgba(16,185,129,0.07));">
+                                            <p class="mb-0" style="font-size:11px;font-weight:600;color:#166534;">Closest upcoming holiday</p>
+                                            <div class="d-flex align-items-center justify-content-between gap-2">
+                                                <p class="mb-0 fw-semibold text-truncate" style="font-size:13px;color:#14532d;">{{ nextHoliday.localName || nextHoliday.name }}</p>
+                                                <span class="badge" style="background:rgba(21,128,61,0.15);color:#166534;border:1px solid rgba(21,128,61,0.35);font-size:10px;">
+                                                    @if (holidayRelativeDays(nextHoliday) === 0) {
+                                                        Today
+                                                    } @else if (holidayRelativeDays(nextHoliday) === 1) {
+                                                        Tomorrow
+                                                    } @else {
+                                                        In {{ holidayRelativeDays(nextHoliday) }} days
+                                                    }
+                                                </span>
+                                            </div>
+                                            <p class="mb-0" style="font-size:11px;color:#166534;">{{ nextHoliday.date | date:'fullDate' }}</p>
+                                        </div>
+                                    } @else {
+                                        <div class="mb-2" style="border:1px solid rgba(14,165,233,0.25);border-radius:10px;padding:8px 10px;background:rgba(14,165,233,0.07);">
+                                            <p class="mb-0" style="font-size:11px;color:#075985;">No more upcoming holidays for this year.</p>
+                                        </div>
+                                    }
+
+                                    <div class="d-flex flex-column gap-1" [style.max-height]="holidayShowFullYear() ? '280px' : '170px'" style="overflow:auto;">
+                                        @for (holiday of visibleWorkspaceHolidays(); track holiday.date + holiday.name) {
+                                            <div
+                                                class="d-flex align-items-center justify-content-between gap-2"
+                                                [style.border]="isNextUpcomingHoliday(holiday) ? '1px solid rgba(22,163,74,0.4)' : '1px solid rgba(15,23,42,0.1)'"
+                                                [style.background]="isNextUpcomingHoliday(holiday) ? 'linear-gradient(90deg,rgba(34,197,94,0.12),rgba(34,197,94,0.05))' : '#fff'"
+                                                style="border-radius:8px;padding:6px 8px;">
+                                                <div class="d-flex align-items-center gap-2" style="min-width:0;">
+                                                    <span style="display:inline-flex;align-items:center;justify-content:center;padding:2px 8px;border-radius:999px;background:rgba(15,23,42,0.06);font-size:10px;color:#334155;white-space:nowrap;">
+                                                        {{ holiday.date | date:'MMM d' }}
+                                                    </span>
+                                                    <div style="min-width:0;">
+                                                        <p class="mb-0 text-truncate" style="font-size:12px;color:#0f172a;">{{ holiday.localName || holiday.name }}</p>
+                                                        <p class="mb-0 text-secondary" style="font-size:10px;">{{ holiday.date | date:'fullDate' }}</p>
+                                                    </div>
+                                                </div>
+                                                <div class="d-flex flex-column align-items-end gap-1">
+                                                    @if (holiday.global) {
+                                                        <span class="badge badge-light" style="font-size:10px;">Global</span>
+                                                    }
+                                                    <span class="badge" style="font-size:10px;background:rgba(99,102,241,0.12);color:#4f46e5;border:1px solid rgba(99,102,241,0.25);">
+                                                        @if (holidayRelativeDays(holiday) > 1) {
+                                                            In {{ holidayRelativeDays(holiday) }}d
+                                                        } @else if (holidayRelativeDays(holiday) === 1) {
+                                                            Tomorrow
+                                                        } @else if (holidayRelativeDays(holiday) === 0) {
+                                                            Today
+                                                        } @else {
+                                                            Passed
+                                                        }
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            } @else {
+                                <p class="small text-secondary mb-0">Holiday data not loaded yet.</p>
+                            }
+                        </mat-card-content>
+                    </mat-card>
+                </div>
+            </div>
+            }
+
             <mat-card class="mb-3 mb-lg-4">
                 <mat-card-content class="p-0">
                     <mat-tab-group animationDuration="300ms" (selectedTabChange)="onTabChange($event)">
@@ -354,11 +509,11 @@ interface WorkspaceActivity {
                                                 <mat-card class="h-100 ov-cap-card">
                                                     <mat-card-content class="p-3">
                                                         <div class="ov-cap-header mb-3">
-                                                            <span class="ov-cap-title">Active Projects Capacity</span>
+                                                            <span class="ov-cap-title">Active Project Capacity (Org)</span>
                                                             <span class="ov-status-pill" [class]="ovCapClass(projectCapacityPercentage())">{{ ovCapLabel(projectCapacityPercentage()) }}</span>
                                                         </div>
                                                         <div class="d-flex align-items-center gap-3">
-                                                            <div class="ov-ring-wrap" matTooltip="{{ projectCapacityPercentage() }}% of active project slots used" matTooltipPosition="above">
+                                                            <div class="ov-ring-wrap" matTooltip="{{ projectCapacityPercentage() }}% of organization ACTIVE project slots used" matTooltipPosition="above">
                                                                 <svg viewBox="0 0 80 80" width="76" height="76">
                                                                     <circle cx="40" cy="40" r="30" fill="none" stroke="var(--surface-border,#e2e8f0)" stroke-width="9"/>
                                                                     <circle cx="40" cy="40" r="30" fill="none"
@@ -383,7 +538,10 @@ interface WorkspaceActivity {
                                                                     <span class="ov-cap-pct" [style.color]="ovCapColor(projectCapacityPercentage())">{{ projectCapacityPercentage() }}%</span>
                                                                 </div>
                                                                 <div class="ov-cap-detail">
-                                                                    <span>{{ projectCapacity()?.currentActiveProjects ?? 0 }} used · {{ (projectCapacity()?.maxActiveProjects ?? 0) - (projectCapacity()?.currentActiveProjects ?? 0) }} free</span>
+                                                                    <span>{{ projectCapacity()?.currentActiveProjects ?? 0 }} ACTIVE across org · {{ projectCapacity()?.remainingActiveProjects ?? 0 }} free</span>
+                                                                    @if (projectCapacity()?.currentWorkspaceActiveProjects !== undefined) {
+                                                                        <span>{{ projectCapacity()?.currentWorkspaceActiveProjects }} ACTIVE in this workspace</span>
+                                                                    }
                                                                     <span class="ov-plan-badge">{{ projectCapacity()?.planName ?? 'Plan' }}</span>
                                                                 </div>
                                                             </div>
@@ -826,7 +984,7 @@ interface WorkspaceActivity {
                                             @if (projectCapacity()) {
                                                 <div class="proj-capacity-card">
                                                     <div class="proj-cap-header">
-                                                        <span class="proj-cap-title">Active Project Capacity</span>
+                                                        <span class="proj-cap-title">Active Project Capacity (Org)</span>
                                                         <span class="ov-status-pill" [class]="ovCapClass(projectCapacityPercentage())">{{ ovCapLabel(projectCapacityPercentage()) }}</span>
                                                     </div>
                                                     <div class="proj-cap-bar-wrap">
@@ -839,7 +997,7 @@ interface WorkspaceActivity {
                                                             {{ projectCapacity()!.currentActiveProjects }}/{{ projectCapacity()!.maxActiveProjects }}
                                                         </span>
                                                     </div>
-                                                    <p class="proj-cap-detail">{{ projectCapacity()!.remainingActiveProjects }} slot{{ projectCapacity()!.remainingActiveProjects !== 1 ? 's' : '' }} available</p>
+                                                    <p class="proj-cap-detail">{{ projectCapacity()!.remainingActiveProjects }} active slot{{ projectCapacity()!.remainingActiveProjects !== 1 ? 's' : '' }} available · {{ projectCapacity()!.currentWorkspaceActiveProjects ?? activeProjects() }} active in this workspace</p>
                                                 </div>
                                             }
                                         </div>
@@ -2581,6 +2739,19 @@ interface WorkspaceActivity {
                 color: var(--text-color-secondary, #64748b);
                 margin: 0;
             }
+
+            ::ng-deep .tm-checkpoint-day .mat-calendar-body-cell-content,
+            ::ng-deep .tm-checkpoint-day.mat-calendar-body-cell-content {
+                background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+                color: #ffffff;
+                border-radius: 999px;
+                font-weight: 700;
+            }
+
+            ::ng-deep .tm-checkpoint-day.mat-calendar-body-today .mat-calendar-body-cell-content,
+            ::ng-deep .tm-checkpoint-day.mat-calendar-body-today.mat-calendar-body-cell-content {
+                box-shadow: 0 0 0 2px #bfdbfe inset;
+            }
     `],
 })
 export class M2WorkspaceDetailsComponent implements OnInit {
@@ -2612,6 +2783,13 @@ export class M2WorkspaceDetailsComponent implements OnInit {
     readonly activityLogs = signal<Record<string, unknown>[]>([]);
     readonly activityLoading = signal(false);
     readonly activityFilter = signal<string>('all');
+    readonly workspaceHolidays = signal<M2WorkspaceHolidaysResponse | null>(null);
+    readonly holidaysLoading = signal(false);
+    readonly holidaysError = signal<string | null>(null);
+    readonly holidayShowFullYear = signal(false);
+
+    holidayCountry = "TN";
+    holidayYear = new Date().getFullYear();
 
     // Historical (Time Machine) signals
     readonly historicalAt = signal<string | null>(null);
@@ -2620,6 +2798,17 @@ export class M2WorkspaceDetailsComponent implements OnInit {
     // Date object for MatDatepicker value binding (avoid `new` in template expressions)
     readonly historicalAsDate = computed(() => this.historicalAt() ? new Date(this.historicalAt()!) : null);
     readonly timelineQuickDates = signal<M2TimelineCheckpoint[]>([]);
+    readonly timelineDateKeys = computed(() => {
+        const keys = new Set<string>();
+        for (const checkpoint of this.timelineQuickDates()) {
+            const key = this.toUtcDateKeyFromIso(checkpoint?.at);
+            if (key) {
+                keys.add(key);
+            }
+        }
+        return keys;
+    });
+    readonly timelineDateClass = (date: Date): string => this.timelineDateKeys().has(this.toUtcDateKey(date)) ? 'tm-checkpoint-day' : '';
     // Datepicker bounds and filter to prevent selecting unavailable snapshot dates
     readonly pickerMinDate = signal<Date | null>(null);
     readonly pickerMaxDate = signal<Date | null>(null);
@@ -2898,6 +3087,31 @@ export class M2WorkspaceDetailsComponent implements OnInit {
     // ── Projects tab filter ───────────────────────────────────────────
     readonly projectFilter = signal<string>('ALL');
 
+    readonly sortedWorkspaceHolidays = computed(() => {
+        const items = [...(this.workspaceHolidays()?.items || [])];
+        items.sort((left, right) => {
+            const leftDate = this.parseIsoDate(left.date)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+            const rightDate = this.parseIsoDate(right.date)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+            if (leftDate !== rightDate) return leftDate - rightDate;
+            return (left.localName || left.name || "").localeCompare(right.localName || right.name || "");
+        });
+        return items;
+    });
+
+    readonly upcomingWorkspaceHolidays = computed(() =>
+        this.sortedWorkspaceHolidays().filter((holiday) => this.holidayRelativeDays(holiday) >= 0)
+    );
+
+    readonly nextUpcomingHoliday = computed(() => this.upcomingWorkspaceHolidays()[0] ?? null);
+
+    readonly visibleWorkspaceHolidays = computed(() => {
+        if (this.holidayShowFullYear()) {
+            return this.sortedWorkspaceHolidays();
+        }
+        const upcoming = this.upcomingWorkspaceHolidays();
+        return upcoming.length > 0 ? upcoming.slice(0, 8) : this.sortedWorkspaceHolidays().slice(0, 8);
+    });
+
     readonly filteredProjects = computed(() => {
         const f = this.projectFilter();
         if (f === 'ALL') return this.projects();
@@ -2983,6 +3197,24 @@ export class M2WorkspaceDetailsComponent implements OnInit {
         if (pct >= 75) return '#1D9E75';
         if (pct >= 40) return '#EF9F27';
         return '#E24B4A';
+    }
+
+    private toUtcDateKey(date: Date): string {
+        const year = date.getUTCFullYear();
+        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(date.getUTCDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    private toUtcDateKeyFromIso(value?: string | null): string | null {
+        if (!value) {
+            return null;
+        }
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) {
+            return null;
+        }
+        return this.toUtcDateKey(parsed);
     }
 
     ovCapColor(pct: number): string {
@@ -3254,10 +3486,11 @@ export class M2WorkspaceDetailsComponent implements OnInit {
                 },
                 error: (error: HttpErrorResponse) => {
                     const msg = (error?.error?.message || error?.error?.error || error.message || "").toLowerCase();
-                    const isQuota = error.status === 403 && (msg.includes("limit") || msg.includes("quota") || msg.includes("plan"));
+                    const isQuota = (error.status === 402 || error.status === 403)
+                        && (msg.includes("limit") || msg.includes("quota") || msg.includes("plan"));
                     this.snackBar.open(
                         isQuota
-                            ? `⚠ Project limit reached — your plan does not allow more projects in this workspace.`
+                            ? `⚠ Active project limit reached — your plan does not allow more ACTIVE projects across your organization.`
                             : `Failed to create project: ${error?.error?.message || "Unexpected error"}`,
                         "Close",
                         { duration: 5500 }
@@ -3841,6 +4074,8 @@ export class M2WorkspaceDetailsComponent implements OnInit {
         this.workspaceCapacity.set(null);
         this.projectCapacity.set(null);
         this.timelineQuickDates.set([]);
+        this.workspaceHolidays.set(null);
+        this.holidaysError.set(null);
 
         forkJoin({
             workspace: this.workspaceService.getWorkspaceById(workspaceId),
@@ -3862,6 +4097,7 @@ export class M2WorkspaceDetailsComponent implements OnInit {
                 this.isLoading.set(false);
                 this.loadMembers(workspaceId);
                 this.loadTimelineHints(workspaceId);
+                this.loadWorkspaceHolidays(workspaceId);
             },
             error: (error: HttpErrorResponse) => {
                 this.isLoading.set(false);
@@ -3875,6 +4111,69 @@ export class M2WorkspaceDetailsComponent implements OnInit {
                 this.error.set(this.errorMessage(error));
             },
         });
+    }
+
+    refreshWorkspaceHolidayWidget(): void {
+        const workspaceId = this.route.snapshot.paramMap.get("workspaceId");
+        if (!workspaceId) return;
+        this.loadWorkspaceHolidays(workspaceId);
+    }
+
+    setHolidayYearMode(showFullYear: boolean): void {
+        this.holidayShowFullYear.set(showFullYear);
+    }
+
+    holidayRelativeDays(holiday: M2WorkspaceHoliday): number {
+        const holidayDate = this.parseIsoDate(holiday.date);
+        if (!holidayDate) return 0;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return Math.floor((holidayDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    }
+
+    isNextUpcomingHoliday(holiday: M2WorkspaceHoliday): boolean {
+        const next = this.nextUpcomingHoliday();
+        if (!next) return false;
+        return next.date === holiday.date && (next.name || "") === (holiday.name || "");
+    }
+
+    private loadWorkspaceHolidays(workspaceId: string): void {
+        const resolvedCountry = (this.holidayCountry || "TN").trim().toUpperCase().slice(0, 2) || "TN";
+        const parsedYear = Number(this.holidayYear);
+        const resolvedYear = Number.isFinite(parsedYear)
+            ? Math.max(2000, Math.min(2100, Math.floor(parsedYear)))
+            : new Date().getFullYear();
+
+        this.holidayCountry = resolvedCountry;
+        this.holidayYear = resolvedYear;
+        this.holidaysLoading.set(true);
+        this.holidaysError.set(null);
+
+        this.workspaceService.getWorkspaceHolidays(workspaceId, resolvedCountry, resolvedYear).pipe(
+            catchError((error: HttpErrorResponse) => {
+                this.workspaceHolidays.set(null);
+                this.holidaysLoading.set(false);
+                this.holidaysError.set(this.errorMessage(error));
+                return of(null);
+            })
+        ).subscribe((payload) => {
+            if (!payload) return;
+            this.workspaceHolidays.set(payload);
+            this.holidaysLoading.set(false);
+        });
+    }
+
+    private parseIsoDate(rawDate: string | null | undefined): Date | null {
+        if (!rawDate) return null;
+        const parts = String(rawDate).split("-");
+        if (parts.length < 3) return null;
+        const year = Number(parts[0]);
+        const month = Number(parts[1]);
+        const day = Number(parts[2]);
+        if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+            return null;
+        }
+        return new Date(year, month - 1, day);
     }
 
     private applyPickerBounds(createdAt?: string): void {

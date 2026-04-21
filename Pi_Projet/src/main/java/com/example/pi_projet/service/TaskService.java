@@ -14,6 +14,7 @@ public class TaskService {
 
     private final TaskRepository repository;
     private final ProjectService projectService;
+    private final PulseEventBus pulseEventBus;
 
     public List<Task> getAll() {
         return repository.findAll();
@@ -29,6 +30,7 @@ public class TaskService {
         // ✅ recalcul projet
         if (saved.getProject() != null) {
             projectService.updateStatusFromTasks(saved.getProject().getId());
+            publishTaskEvent(saved, "TASK_CREATED", "Task \"" + saved.getTitle() + "\" created");
         }
         return saved;
     }
@@ -55,6 +57,7 @@ public class TaskService {
 
         if (saved.getProject() != null) {
             projectService.updateStatusFromTasks(saved.getProject().getId());
+            publishTaskEvent(saved, "TASK_UPDATED", "Task \"" + saved.getTitle() + "\" updated");
         }
 
         return saved;
@@ -78,6 +81,7 @@ public class TaskService {
         // ✅ recalcul après suppression
         if (projectId != null) {
             projectService.updateStatusFromTasks(projectId);
+            publishTaskDeleteEvent(projectId, task.getTitle());
         }
     }
 
@@ -87,6 +91,42 @@ public class TaskService {
 
     public List<Task> getTasksByUser(Long userId) {
         return repository.findByAssignedTo_Id(userId);
+    }
+
+    private void publishTaskEvent(Task task, String type, String message) {
+        if (task == null || task.getProject() == null || task.getProject().getId() == null) {
+            return;
+        }
+
+        try {
+            var project = projectService.getById(task.getProject().getId());
+            var workspace = project.getWorkspace();
+            if (workspace == null || workspace.getId() == null) {
+                return;
+            }
+
+            String actor = task.getCreatedBy() != null && task.getCreatedBy().getFullName() != null
+                ? task.getCreatedBy().getFullName()
+                : "System";
+            pulseEventBus.publish(workspace.getId(), type, message, actor);
+        } catch (Exception ignored) {
+            // SSE publishing must not break task lifecycle operations.
+        }
+    }
+
+    private void publishTaskDeleteEvent(UUID projectId, String taskTitle) {
+        try {
+            var project = projectService.getById(projectId);
+            var workspace = project.getWorkspace();
+            if (workspace == null || workspace.getId() == null) {
+                return;
+            }
+
+            String label = taskTitle == null || taskTitle.isBlank() ? "Task deleted" : "Task \"" + taskTitle + "\" deleted";
+            pulseEventBus.publish(workspace.getId(), "TASK_DELETED", label, "System");
+        } catch (Exception ignored) {
+            // SSE publishing must not break task lifecycle operations.
+        }
     }
 
 }

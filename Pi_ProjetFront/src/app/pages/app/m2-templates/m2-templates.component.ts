@@ -14,7 +14,12 @@ import { MatTooltipModule } from "@angular/material/tooltip";
 import { MatDialog } from "@angular/material/dialog";
 import { forkJoin, of, Subject } from "rxjs";
 import { catchError, debounceTime } from "rxjs/operators";
-import { M2TemplateService, M2TemplateSummary } from "./m2-template.service";
+import {
+    M2TemplateRecommendationItem,
+    M2TemplateRecommendationsResponse,
+    M2TemplateService,
+    M2TemplateSummary,
+} from "./m2-template.service";
 import { TemplatesCardsComponent, TemplateCardItem } from "./templates-cards.component";
 import { TemplatesGridComponent } from "./templates-grid.component";
 import { CreateTemplateDialogComponent, CreateTemplateDialogResult } from "./create-template-dialog.component";
@@ -29,6 +34,10 @@ interface QuickStarter {
     label: string;
     tagline: string;
     color: string;
+}
+
+interface TemplateRecommendationView extends M2TemplateRecommendationItem {
+    image: string;
 }
 
 const QUICK_STARTERS: QuickStarter[] = [
@@ -61,6 +70,10 @@ const QUICK_STARTERS: QuickStarter[] = [
         .filter-chip { border:1px solid rgba(0,0,0,0.13); background:none; padding:4px 12px; border-radius:16px; cursor:pointer; font-size:12px; color:#475569; transition:all .15s; }
         .filter-chip.active { border-color:#6366f1; background:rgba(99,102,241,0.09); color:#6366f1; font-weight:600; }
         .filter-chip:hover:not(.active) { background:rgba(0,0,0,0.04); }
+        .rec-card { border:1px solid rgba(15,23,42,0.12); border-radius:12px; padding:10px; background:white; cursor:pointer; height:100%; transition:all .18s ease; }
+        .rec-card:hover { border-color:rgba(79,70,229,0.42); box-shadow:0 10px 24px rgba(79,70,229,0.14); transform:translateY(-2px); }
+        .rec-thumb { width:48px; height:48px; border-radius:10px; object-fit:cover; flex-shrink:0; border:1px solid rgba(15,23,42,0.12); }
+        .rec-reason { font-size:10px; border:1px solid rgba(15,23,42,0.12); border-radius:999px; padding:2px 8px; color:#334155; background:#f8fafc; }
     `],
     template: `
         <div class="container-fluid fade-in mb-3 mb-lg-4">
@@ -267,6 +280,70 @@ const QUICK_STARTERS: QuickStarter[] = [
                     </div>
                 }
 
+                <!-- ── Personalized recommendations (Hub tab) ── -->
+                @if (activeTab() === 'hub') {
+                    <mat-card class="mb-3" style="border:1px solid rgba(99,102,241,0.22);background:linear-gradient(180deg,rgba(99,102,241,0.06),rgba(14,165,233,0.03));">
+                        <mat-card-content class="py-3">
+                            <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-2">
+                                <div>
+                                    <p class="small fw-medium mb-0" style="color:#4f46e5;">
+                                        <mat-icon class="material-icons-outlined align-middle" style="font-size:14px;width:14px;height:14px;">auto_awesome</mat-icon>
+                                        For You Recommendations
+                                    </p>
+                                    <p class="small text-secondary mb-0">Based on favorites, quality, usage momentum, and your current filter context.</p>
+                                </div>
+                                <button matButton class="text-theme" (click)="loadRecommendations()" [disabled]="recommendationsLoading()">
+                                    <mat-icon class="material-icons-outlined">refresh</mat-icon>
+                                    Refresh Recommendations
+                                </button>
+                            </div>
+
+                            @if (recommendationsLoading()) {
+                                <div class="d-flex align-items-center gap-2 text-secondary small py-2">
+                                    <mat-icon class="material-icons-outlined" style="font-size:16px;width:16px;height:16px;animation:spin 1s linear infinite;">cached</mat-icon>
+                                    Building recommendations...
+                                </div>
+                            } @else if (recommendationsError()) {
+                                <div class="d-flex align-items-start gap-2 p-2 rounded" style="border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.08);">
+                                    <mat-icon class="material-icons-outlined" style="font-size:16px;width:16px;height:16px;color:#dc2626;">error_outline</mat-icon>
+                                    <p class="small mb-0" style="color:#991b1b;">{{ recommendationsError() }}</p>
+                                </div>
+                            } @else if (recommendationViews().length === 0) {
+                                <p class="small text-secondary mb-0">No recommendations available for this context yet. Try removing filters or rating/favoriting templates.</p>
+                            } @else {
+                                <div class="row gx-2 gy-2">
+                                    @for (rec of recommendationViews(); track rec.templateId) {
+                                        <div class="col-12 col-md-6 col-lg-4 col-xl-3">
+                                            <article class="rec-card" (click)="openTemplateById(rec.templateId)">
+                                                <div class="d-flex align-items-start gap-2 mb-2">
+                                                    <img class="rec-thumb" [src]="rec.image" [alt]="rec.name" />
+                                                    <div class="flex-grow-1" style="min-width:0;">
+                                                        <p class="fw-semibold mb-0 text-truncate" style="font-size:13px;color:#0f172a;">{{ rec.name }}</p>
+                                                        <p class="small text-secondary mb-0" style="font-size:11px;">{{ rec.templateType }} · {{ rec.difficultyLevel || '—' }}</p>
+                                                    </div>
+                                                    <span class="badge" style="background:rgba(79,70,229,0.14);color:#4f46e5;font-size:10px;">{{ rec.score | number:'1.0-0' }}%</span>
+                                                </div>
+
+                                                <div class="d-flex align-items-center gap-2 mb-2">
+                                                    <span class="small" style="font-size:11px;color:#334155;">{{ rec.rating | number:'1.1-1' }} ★</span>
+                                                    <span class="small text-secondary" style="font-size:11px;">{{ rec.ratingCount }} ratings</span>
+                                                    <span class="small text-secondary ms-auto" style="font-size:11px;">{{ rec.usageCount }} uses</span>
+                                                </div>
+
+                                                <div class="d-flex flex-wrap gap-1">
+                                                    @for (reason of rec.reasons.slice(0, 2); track $index) {
+                                                        <span class="rec-reason">{{ reason }}</span>
+                                                    }
+                                                </div>
+                                            </article>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </mat-card-content>
+                    </mat-card>
+                }
+
                 <!-- ── Empty state ── -->
                 @if (activeTabData().length === 0 && activeTab() !== 'pending' && !hubSearchLoading()) {
                     <mat-card class="mt-2">
@@ -357,6 +434,9 @@ export class M2TemplatesComponent implements OnInit {
     readonly loading = signal(false);
     readonly hubSearchLoading = signal(false);
     readonly error = signal("");
+    readonly recommendations = signal<M2TemplateRecommendationItem[]>([]);
+    readonly recommendationsLoading = signal(false);
+    readonly recommendationsError = signal("");
 
     private readonly hubSearch$ = new Subject<void>();
 
@@ -393,6 +473,18 @@ export class M2TemplatesComponent implements OnInit {
         this.publicTemplates().filter(t => t.isFeatured || t.isTrending).slice(0, 8)
     );
 
+    readonly recommendationViews = computed((): TemplateRecommendationView[] => {
+        const byId = new Map<string, TemplateCardItem>();
+        for (const item of [...this.publicTemplates(), ...this.myTemplates(), ...this.favoritesTemplates()]) {
+            byId.set(item.id, item);
+        }
+
+        return this.recommendations().map((item) => ({
+            ...item,
+            image: byId.get(item.templateId)?.image || this.cardImageFor(item.name),
+        }));
+    });
+
     ngOnInit(): void {
         this.hubSearch$.pipe(debounceTime(350)).subscribe(() => this.runHubSearch());
         this.loadData();
@@ -401,16 +493,19 @@ export class M2TemplatesComponent implements OnInit {
     setTab(tab: "mine" | "hub" | "favorites" | "pending"): void {
         this.activeTab.set(tab);
         if (tab === "favorites") this.loadFavorites();
+        if (tab === "hub" && this.recommendations().length === 0) this.loadRecommendations();
     }
 
     setTypeFilter(val: string): void {
         this.typeFilter.set(val);
         this.hubSearch$.next();
+        this.loadRecommendations();
     }
 
     setDifficultyFilter(val: string): void {
         this.difficultyFilter.set(val);
         this.hubSearch$.next();
+        this.loadRecommendations();
     }
 
     loadFavorites(): void {
@@ -486,6 +581,7 @@ export class M2TemplatesComponent implements OnInit {
                 this.pendingTemplates.set((pendingPage.content || []).map(t => this.toCardItem(t)));
                 this.favoritesTemplates.set((favPage.content || []).map(t => ({ ...this.toCardItem(t), favorited: true })));
                 this.loading.set(false);
+                this.loadRecommendations();
             },
             error: (err: HttpErrorResponse) => {
                 this.error.set(err.message || "Failed to load templates.");
@@ -520,6 +616,32 @@ export class M2TemplatesComponent implements OnInit {
         this.router.navigate(["/app/templates", item.id]);
     }
 
+    openTemplateById(templateId: string): void {
+        if (!templateId) return;
+        this.router.navigate(["/app/templates", templateId]);
+    }
+
+    loadRecommendations(): void {
+        if (!this.currentUserId()) return;
+
+        this.recommendationsLoading.set(true);
+        this.recommendationsError.set("");
+
+        this.templateService.getRecommendations({
+            projectType: this.typeFilter() || undefined,
+            difficulty: this.difficultyFilter() || undefined,
+            limit: 8,
+        }).pipe(
+            catchError((err: HttpErrorResponse) => {
+                this.recommendationsError.set(err.message || "Recommendations are temporarily unavailable.");
+                return of(this.emptyRecommendationsResponse());
+            })
+        ).subscribe((payload) => {
+            this.recommendations.set(payload.items || []);
+            this.recommendationsLoading.set(false);
+        });
+    }
+
     private toCardItem(t: M2TemplateSummary): TemplateCardItem {
         return {
             id: t.id,
@@ -552,5 +674,15 @@ export class M2TemplatesComponent implements OnInit {
         ];
         const hash = [...(seed || "")].reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
         return images[Math.abs(hash) % images.length];
+    }
+
+    private emptyRecommendationsResponse(): M2TemplateRecommendationsResponse {
+        return {
+            generatedAt: new Date().toISOString(),
+            limit: 8,
+            count: 0,
+            context: {},
+            items: [],
+        };
     }
 }

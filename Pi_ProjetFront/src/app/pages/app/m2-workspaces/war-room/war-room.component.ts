@@ -7,7 +7,11 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { forkJoin, catchError, of } from 'rxjs';
-import { HeatmapDay, WarRoomEvent, WarRoomSnapshot } from './war-room.models';
+import {
+  HeatmapDay,
+  WarRoomEvent,
+  WarRoomSnapshot,
+} from './war-room.models';
 import { WarRoomService } from './war-room.service';
 
 interface IntelRec {
@@ -106,31 +110,34 @@ interface IntelRec {
               <div class="kpi-sep"></div>
 
               <div class="kpi-card"
-                   matTooltip="Open tasks across all projects. Requires Task module integration for live data."
+                 matTooltip="Active workspace members with a confirmed seat"
                    matTooltipPosition="above">
-                <mat-icon class="kpi-icon" style="color:var(--wr-purple)">assignment</mat-icon>
-                <div class="kpi-val">{{ snapshot()?.openTaskCount ?? 0 }}</div>
-                <div class="kpi-lbl">Open Tasks</div>
+               <mat-icon class="kpi-icon" style="color:var(--wr-teal)">group</mat-icon>
+               <div class="kpi-val">{{ snapshot()?.memberCount ?? 0 }}</div>
+               <div class="kpi-lbl">Members</div>
               </div>
 
               <div class="kpi-sep"></div>
 
               <div class="kpi-card"
-                   matTooltip="Active workspace members with a confirmed seat"
+                 matTooltip="Open and upcoming milestones across projects (excluding completed milestones)"
                    matTooltipPosition="above">
-                <mat-icon class="kpi-icon" style="color:var(--wr-teal)">group</mat-icon>
-                <div class="kpi-val">{{ snapshot()?.memberCount ?? 0 }}</div>
-                <div class="kpi-lbl">Members</div>
+               <mat-icon class="kpi-icon"
+                      [style.color]="(milestoneTimeline()?.summary?.overdue ?? 0) > 0 ? 'var(--wr-amber)' : 'var(--wr-green)'">
+                event
+               </mat-icon>
+               <div class="kpi-val">{{ milestoneTimeline()?.items?.length ?? 0 }}</div>
+               <div class="kpi-lbl">Milestones</div>
               </div>
 
               <div class="kpi-sep"></div>
 
               <div class="kpi-card"
-                   matTooltip="% of projects with ACTIVE or COMPLETED status — a delivery health proxy"
+                 matTooltip="Open tasks across all projects"
                    matTooltipPosition="above">
-                <mat-icon class="kpi-icon" style="color:var(--wr-green)">trending_up</mat-icon>
-                <div class="kpi-val">{{ snapshot()?.onTrackPercentage?.toFixed(0) ?? 0 }}<span class="kpi-unit">%</span></div>
-                <div class="kpi-lbl">On Track</div>
+               <mat-icon class="kpi-icon" style="color:var(--wr-purple)">assignment</mat-icon>
+               <div class="kpi-val">{{ snapshot()?.openTaskCount ?? 0 }}</div>
+               <div class="kpi-lbl">Open Tasks</div>
               </div>
 
               <div class="kpi-sep"></div>
@@ -232,31 +239,37 @@ interface IntelRec {
               <div class="d-flex align-items-center gap-2">
                 <mat-icon class="wr-panel-icon" style="color:var(--wr-teal)">grid_view</mat-icon>
                 <span class="wr-panel-title">Activity Heatmap</span>
-                @if (displayHeatmap().simulated) { <span class="sim-badge">simulated</span> }
               </div>
               <mat-icon class="info-btn material-icons-outlined"
                         matTooltip="Each cell = one day. Green intensity = completions. Red = overdue spike. Covers 12 weeks."
                         matTooltipPosition="left">info_outline</mat-icon>
             </div>
-            <div class="heatmap-grid">
-              @for (day of displayHeatmap().days; track day.date) {
-                <div class="heatmap-cell"
-                     [style.background]="heatmapCellColor(day)"
-                     [matTooltip]="formatHeatmapTooltip(day)">
-                </div>
-              }
-            </div>
-            <div class="heatmap-legend">
-              <span class="wr-muted" style="font-size:10px">Less</span>
-              <div class="legend-cell" style="background:rgba(29,158,117,.22)"></div>
-              <div class="legend-cell" style="background:rgba(29,158,117,.48)"></div>
-              <div class="legend-cell" style="background:rgba(29,158,117,.72)"></div>
-              <div class="legend-cell" style="background:rgba(29,158,117,.95)"></div>
-              <span class="wr-muted" style="font-size:10px">More</span>
-              <div class="legend-sep"></div>
-              <div class="legend-cell" style="background:rgba(226,75,74,.7)"></div>
-              <span class="wr-muted" style="font-size:10px">Overdue</span>
-            </div>
+            @if (heatmapDays().length) {
+              <div class="heatmap-grid">
+                @for (day of heatmapDays(); track day.date) {
+                  <div class="heatmap-cell"
+                       [style.background]="heatmapCellColor(day)"
+                       [matTooltip]="formatHeatmapTooltip(day)">
+                  </div>
+                }
+              </div>
+              <div class="heatmap-legend">
+                <span class="wr-muted" style="font-size:10px">Less</span>
+                <div class="legend-cell" style="background:rgba(29,158,117,.22)"></div>
+                <div class="legend-cell" style="background:rgba(29,158,117,.48)"></div>
+                <div class="legend-cell" style="background:rgba(29,158,117,.72)"></div>
+                <div class="legend-cell" style="background:rgba(29,158,117,.95)"></div>
+                <span class="wr-muted" style="font-size:10px">More</span>
+                <div class="legend-sep"></div>
+                <div class="legend-cell" style="background:rgba(226,75,74,.7)"></div>
+                <span class="wr-muted" style="font-size:10px">Overdue</span>
+              </div>
+            } @else {
+              <div class="wr-empty-state">
+                <mat-icon class="material-icons-outlined">grid_view</mat-icon>
+                <span>No activity records for this period</span>
+              </div>
+            }
           </div>
 
           <div class="wr-panel">
@@ -265,21 +278,27 @@ interface IntelRec {
               <div class="d-flex align-items-center gap-2">
                 <mat-icon class="wr-panel-icon" style="color:var(--wr-blue)">bolt</mat-icon>
                 <span class="wr-panel-title">Live Event Stream</span>
-                @if (displayEvents().simulated) { <span class="sim-badge">simulated</span> }
               </div>
               <mat-icon class="info-btn material-icons-outlined"
                         matTooltip="Real-time events via SSE. Shows project creations, member joins and task updates as they happen."
                         matTooltipPosition="left">info_outline</mat-icon>
             </div>
-            <div class="ticker-list">
-              @for (event of displayEvents().events; track event.timestamp) {
-                <div class="ticker-row">
-                  <div class="ticker-dot" [style.background]="eventDotColor(event.type)"></div>
-                  <span class="ticker-msg">{{ event.message }}</span>
-                  <span class="wr-muted ticker-time">{{ formatTime(event.timestamp) }}</span>
-                </div>
-              }
-            </div>
+            @if (displayedEvents().length) {
+              <div class="ticker-list">
+                @for (event of displayedEvents(); track event.timestamp) {
+                  <div class="ticker-row">
+                    <div class="ticker-dot" [style.background]="eventDotColor(event.type)"></div>
+                    <span class="ticker-msg">{{ event.message }}</span>
+                    <span class="wr-muted ticker-time">{{ formatTime(event.timestamp) }}</span>
+                  </div>
+                }
+              </div>
+            } @else {
+              <div class="wr-empty-state" style="padding:16px 0 8px">
+                <mat-icon class="material-icons-outlined">bolt</mat-icon>
+                <span>No live events yet</span>
+              </div>
+            }
 
             <!-- Throughput sparklines -->
             <div class="wr-divider"></div>
@@ -493,6 +512,156 @@ interface IntelRec {
             }
           </div>
 
+          <!-- ══════════════════════════════════════════════════════ -->
+          <!-- ROW 6 — TASK INTELLIGENCE (full width)                -->
+          <!-- ══════════════════════════════════════════════════════ -->
+          <div class="wr-panel wr-full">
+            <div class="wr-panel-head mb-3">
+              <div class="d-flex align-items-center gap-2">
+                <mat-icon class="wr-panel-icon" style="color:var(--wr-purple)">analytics</mat-icon>
+                <span class="wr-panel-title">Task Intelligence</span>
+              </div>
+              <mat-icon class="info-btn material-icons-outlined"
+                        matTooltip="Live workspace task signals: priority pressure, blockers, momentum and assignment load."
+                        matTooltipPosition="left">info_outline</mat-icon>
+            </div>
+
+            @if (taskIntelligence()?.available) {
+              <div class="task-intel-grid">
+                <div class="task-intel-card">
+                  <h4 class="task-intel-title">Priority Pressure</h4>
+                  @for (bucket of priorityBuckets(taskIntelligence()!.priorityDistribution); track bucket.label) {
+                    <div class="priority-row">
+                      <span class="priority-label">{{ bucket.label }}</span>
+                      <div class="priority-track">
+                        <div class="priority-fill" [style.width.%]="bucket.pct" [style.background]="priorityColor(bucket.label)"></div>
+                      </div>
+                      <span class="priority-value">{{ bucket.count }}</span>
+                    </div>
+                  }
+                </div>
+
+                <div class="task-intel-card">
+                  <h4 class="task-intel-title">Blocker Pulse</h4>
+                  <div class="blocker-metrics">
+                    <div class="blocker-item">
+                      <span class="blocker-label">Blocked</span>
+                      <strong class="blocker-value">{{ taskIntelligence()!.blockerPressure.blocked }}</strong>
+                    </div>
+                    <div class="blocker-item">
+                      <span class="blocker-label">Critical</span>
+                      <strong class="blocker-value">{{ taskIntelligence()!.blockerPressure.critical }}</strong>
+                    </div>
+                    <div class="blocker-item">
+                      <span class="blocker-label">Dependency-Blocked</span>
+                      <strong class="blocker-value">{{ taskIntelligence()!.blockerPressure.dependencyBlocked }}</strong>
+                    </div>
+                  </div>
+
+                  <h4 class="task-intel-title mt-3">Overdue by Phase</h4>
+                  @if (taskIntelligence()!.overdueByPhase.length) {
+                    @for (phase of taskIntelligence()!.overdueByPhase.slice(0, 5); track phase.phase) {
+                      <div class="phase-overdue-row">
+                        <span>{{ phase.phase }}</span>
+                        <strong>{{ phase.overdue }}</strong>
+                      </div>
+                    }
+                  } @else {
+                    <p class="wr-empty-small">No overdue tasks across phases</p>
+                  }
+                </div>
+
+                <div class="task-intel-card">
+                  <h4 class="task-intel-title">Completion Momentum</h4>
+                  @if (taskIntelligence()!.completionMomentum.length) {
+                    <div class="momentum-bars">
+                      @for (point of taskIntelligence()!.completionMomentum; track point.date) {
+                        <div class="momentum-bar"
+                             [style.height.px]="sparklineBarHeight(point.completed, momentumValues(taskIntelligence()!.completionMomentum)) + 2"
+                             [matTooltip]="point.date + ': ' + point.completed + ' completed'">
+                        </div>
+                      }
+                    </div>
+                  } @else {
+                    <p class="wr-empty-small">No completion trend available</p>
+                  }
+
+                  <h4 class="task-intel-title mt-3">Velocity by Project</h4>
+                  @if (taskIntelligence()!.velocityByProject.length) {
+                    @for (v of taskIntelligence()!.velocityByProject.slice(0, 4); track v.projectId) {
+                      <div class="velocity-row">
+                        <span class="velocity-name">{{ v.projectName }}</span>
+                        <span class="velocity-pill" [class.velocity-down]="v.momentumPct < 0">
+                          {{ v.momentumPct >= 0 ? '+' : '' }}{{ v.momentumPct }}%
+                        </span>
+                      </div>
+                    }
+                  } @else {
+                    <p class="wr-empty-small">No project velocity yet</p>
+                  }
+                </div>
+              </div>
+            } @else {
+              <div class="wr-empty-state">
+                <mat-icon class="material-icons-outlined">analytics</mat-icon>
+                <span>Task intelligence is not available yet</span>
+              </div>
+            }
+          </div>
+
+          <!-- ══════════════════════════════════════════════════════ -->
+          <!-- ROW 7 — MILESTONE TIMELINE (full width)               -->
+          <!-- ══════════════════════════════════════════════════════ -->
+          <div class="wr-panel wr-full">
+            <div class="wr-panel-head mb-3">
+              <div class="d-flex align-items-center gap-2">
+                <mat-icon class="wr-panel-icon" style="color:var(--wr-amber)">event</mat-icon>
+                <span class="wr-panel-title">Milestone Urgency Timeline</span>
+              </div>
+              <span class="wr-muted" style="font-size:11px">
+                @if (milestoneTimeline()?.summary) {
+                  {{ milestoneTimeline()!.summary.upcoming7Days }} upcoming · {{ milestoneTimeline()!.summary.overdue }} overdue · {{ milestoneTimeline()!.summary.overdueGates }} gate overdue
+                }
+              </span>
+            </div>
+
+            @if (milestoneTimeline()?.available) {
+              <div class="timeline-host">
+                <div class="timeline-axis">
+                  <span>-14d</span>
+                  <span>Today</span>
+                  <span>+30d</span>
+                </div>
+                @for (item of milestoneTimeline()!.items.slice(0, 12); track item.id) {
+                  <div class="timeline-row">
+                    <div class="timeline-meta">
+                      <strong>{{ item.projectName }}</strong>
+                      <span>{{ item.name }}</span>
+                    </div>
+                    <div class="timeline-track-wrap">
+                      <div class="timeline-track-line"></div>
+                      <div class="timeline-marker"
+                           [class.timeline-marker--gate]="item.isGate"
+                           [class.timeline-marker--overdue]="item.isOverdue"
+                           [style.left.%]="timelineMarkerPosition(item.daysFromToday)"
+                           [matTooltip]="item.dueDate + ' · ' + milestoneOffsetLabel(item.daysFromToday)">
+                      </div>
+                    </div>
+                    <div class="timeline-tail">
+                      <span class="timeline-badge" [class.timeline-badge--gate]="item.isGate">{{ item.isGate ? 'Gate' : 'Milestone' }}</span>
+                      <span class="wr-muted">{{ milestoneOffsetLabel(item.daysFromToday) }}</span>
+                    </div>
+                  </div>
+                }
+              </div>
+            } @else {
+              <div class="wr-empty-state">
+                <mat-icon class="material-icons-outlined">event_busy</mat-icon>
+                <span>No upcoming or overdue milestones</span>
+              </div>
+            }
+          </div>
+
         </div><!-- /wr-grid -->
       }
     </div>
@@ -572,13 +741,6 @@ interface IntelRec {
     .kpi-lbl { font-size: 10px; color: var(--wr-muted); margin-top: 3px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; }
     .kpi-sep { width: 1px; height: 40px; background: var(--wr-border); flex-shrink: 0; margin: 0 4px; }
 
-    /* ── Simulated badge ──────────────────────────────────────────── */
-    .sim-badge {
-      font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
-      padding: 1px 6px; border-radius: 10px;
-      background: rgba(239,159,39,.15); color: var(--wr-amber);
-      border: 1px solid rgba(239,159,39,.3);
-    }
     .badge-new {
       font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
       padding: 1px 6px; border-radius: 10px;
@@ -727,11 +889,78 @@ interface IntelRec {
     .hp-amber { background: rgba(239,159,39,.18);  color: #b36b00; border: 1px solid rgba(239,159,39,.3);  }
     .hp-red   { background: rgba(226,75,74,.18);   color: #b52a28; border: 1px solid rgba(226,75,74,.25); }
 
+    /* ── Task Intelligence ───────────────────────────────────────── */
+    .task-intel-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .task-intel-card {
+      border: 1px solid var(--wr-border);
+      border-radius: 10px;
+      background: var(--wr-ground);
+      padding: 12px;
+    }
+    .task-intel-title { margin: 0 0 10px; font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: var(--wr-muted); }
+    .priority-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .priority-label { width: 58px; font-size: 11px; color: var(--wr-text); }
+    .priority-track { flex: 1; height: 6px; border-radius: 4px; background: var(--wr-border); overflow: hidden; }
+    .priority-fill { height: 100%; border-radius: 4px; }
+    .priority-value { width: 20px; text-align: right; font-size: 11px; font-weight: 700; color: var(--wr-text); }
+    .blocker-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .blocker-item { border: 1px solid var(--wr-border); border-radius: 8px; padding: 8px; background: var(--wr-surface); }
+    .blocker-label { display: block; font-size: 10px; color: var(--wr-muted); margin-bottom: 4px; }
+    .blocker-value { font-size: 16px; color: var(--wr-text); }
+    .phase-overdue-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 4px 0; color: var(--wr-text); }
+    .momentum-bars { height: 34px; display: flex; align-items: flex-end; gap: 2px; }
+    .momentum-bar { flex: 1; min-height: 2px; border-radius: 2px 2px 0 0; background: linear-gradient(180deg, var(--wr-teal), var(--wr-blue)); }
+    .velocity-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
+    .velocity-name { font-size: 11px; color: var(--wr-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }
+    .velocity-pill {
+      font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+      color: #0d7a5f; background: rgba(29,158,117,.15); border: 1px solid rgba(29,158,117,.24);
+    }
+    .velocity-down { color: #b52a28; background: rgba(226,75,74,.12); border-color: rgba(226,75,74,.24); }
+
+    /* ── Milestone Timeline ─────────────────────────────────────── */
+    .timeline-host { display: flex; flex-direction: column; gap: 10px; }
+    .timeline-axis {
+      display: flex; justify-content: space-between; font-size: 10px; color: var(--wr-muted);
+      border-bottom: 1px dashed var(--wr-border); padding-bottom: 6px;
+    }
+    .timeline-row { display: grid; grid-template-columns: 1.1fr 1.8fr .8fr; align-items: center; gap: 8px; }
+    .timeline-meta { min-width: 0; display: flex; flex-direction: column; }
+    .timeline-meta strong { font-size: 11px; color: var(--wr-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .timeline-meta span { font-size: 11px; color: var(--wr-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .timeline-track-wrap { position: relative; height: 14px; }
+    .timeline-track-line {
+      position: absolute; left: 0; right: 0; top: 6px; height: 2px;
+      background: linear-gradient(90deg, rgba(226,75,74,.3), rgba(239,159,39,.3), rgba(29,158,117,.3));
+      border-radius: 2px;
+    }
+    .timeline-marker {
+      position: absolute; top: 1px; transform: translateX(-50%);
+      width: 12px; height: 12px; border-radius: 50%;
+      background: var(--wr-teal); border: 2px solid #fff;
+      box-shadow: 0 0 0 2px rgba(13,148,136,.2);
+    }
+    .timeline-marker--gate { background: var(--wr-purple); box-shadow: 0 0 0 2px rgba(127,119,221,.25); }
+    .timeline-marker--overdue { background: var(--wr-red); box-shadow: 0 0 0 2px rgba(226,75,74,.3); }
+    .timeline-tail { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+    .timeline-badge {
+      font-size: 9px; letter-spacing: .04em; text-transform: uppercase;
+      border-radius: 999px; padding: 1px 7px;
+      border: 1px solid rgba(13,148,136,.24); color: #0f766e; background: rgba(13,148,136,.12);
+    }
+    .timeline-badge--gate { border-color: rgba(127,119,221,.28); color: #5b4ec5; background: rgba(127,119,221,.14); }
+
     /* Dark mode overrides for health pills */
     @media (prefers-color-scheme: dark) {
       .hp-green { color: #4ade80; border-color: rgba(74,222,128,.3); }
       .hp-amber { color: #fbbf24; border-color: rgba(251,191,36,.3);  }
       .hp-red   { color: #f87171; border-color: rgba(248,113,113,.3); }
+    }
+
+    @media (max-width: 1100px) {
+      .task-intel-grid { grid-template-columns: 1fr; }
+      .timeline-row { grid-template-columns: 1fr; gap: 6px; }
+      .timeline-tail { align-items: flex-start; }
     }
 
     /* ── Empty states ─────────────────────────────────────────────── */
@@ -748,6 +977,7 @@ export class WarRoomComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly warRoomService = inject(WarRoomService);
   private sseStream: EventSource | null = null;
+  private refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
   readonly snapshot      = signal<WarRoomSnapshot | null>(null);
   readonly heatmapDays   = signal<HeatmapDay[]>([]);
@@ -758,6 +988,9 @@ export class WarRoomComponent implements OnInit, OnDestroy {
 
   readonly workspaceId   = computed(() => this.route.snapshot.paramMap.get('workspaceId') ?? '');
   readonly workspaceName = computed(() => this.snapshot()?.workspaceName ?? '');
+  readonly taskIntelligence = computed(() => this.snapshot()?.taskIntelligence ?? null);
+  readonly milestoneTimeline = computed(() => this.snapshot()?.milestoneTimeline ?? null);
+  readonly displayedEvents = computed(() => this.liveEvents());
 
   // ── Intelligence Digest ─────────────────────────────────────────────
   readonly intel = computed(() => {
@@ -805,8 +1038,8 @@ export class WarRoomComponent implements OnInit, OnDestroy {
     if (snap.openTaskCount === 0 && snap.totalProjects > 0) {
       recs.push({
         level: 'info', icon: 'link_off',
-        title: 'Task module not connected',
-        detail: 'Open task counts require the Task module. Wire TaskDataPort for real data in this dashboard.',
+        title: 'No open tasks detected',
+        detail: 'All tracked tasks are currently closed. Confirm upcoming milestones have enough execution capacity.',
       });
     }
     if (snap.onTrackPercentage >= 80 && overloaded.length === 0 && snap.totalProjects > 0) {
@@ -821,26 +1054,27 @@ export class WarRoomComponent implements OnInit, OnDestroy {
     return { score, grade, recs, briefing };
   });
 
-  // ── Simulated data ─────────────────────────────────────────────────
-  readonly displayHeatmap = computed<{ days: HeatmapDay[]; simulated: boolean }>(() => {
-    const days = this.heatmapDays();
-    const allEmpty = !days.length || days.every(d => d.completions === 0 && d.overdueCount === 0);
-    return allEmpty
-      ? { days: this.makeSimulatedHeatmap(84), simulated: true }
-      : { days, simulated: false };
-  });
-
-  readonly displayEvents = computed<{ events: WarRoomEvent[]; simulated: boolean }>(() => {
-    if (this.loading()) return { events: [], simulated: false };
-    if (this.liveEvents().length) return { events: this.liveEvents(), simulated: false };
-    return { events: this.makeSimulatedEvents(), simulated: true };
-  });
-
   // ── Lifecycle ──────────────────────────────────────────────────────
   ngOnInit(): void {
     const id = this.workspaceId();
     if (!id) return;
     const at = this.route.snapshot.queryParamMap.get('at') || undefined;
+    this.reloadWarRoomData(id, at);
+
+    // Only open live SSE when not viewing historical snapshot.
+    if (!at) this.openSse(id);
+  }
+
+  ngOnDestroy(): void {
+    this.sseStream?.close();
+    this.sseStream = null;
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+  }
+
+  private reloadWarRoomData(id: string, at?: string): void {
     forkJoin({
       snapshot: this.warRoomService.getSnapshot(id, at).pipe(catchError(() => of(null))),
       heatmap:  this.warRoomService.getHeatmap(id, 12, at).pipe(catchError(() => of([]))),
@@ -849,14 +1083,6 @@ export class WarRoomComponent implements OnInit, OnDestroy {
       this.heatmapDays.set(heatmap ?? []);
       this.loading.set(false);
     });
-
-    // Only open live SSE when not viewing historical snapshot
-    if (!at) this.openSse(id);
-  }
-
-  ngOnDestroy(): void {
-    this.sseStream?.close();
-    this.sseStream = null;
   }
 
   private openSse(id: string): void {
@@ -866,40 +1092,26 @@ export class WarRoomComponent implements OnInit, OnDestroy {
         try {
           const ev = JSON.parse(e.data) as WarRoomEvent;
           this.liveEvents.update(arr => [ev, ...arr].slice(0, 50));
+          if (ev.type.startsWith('TASK_') || ev.type.startsWith('MILESTONE_')) {
+            this.scheduleSnapshotRefresh();
+          }
         } catch { /* ignore */ }
       };
-      this.sseStream.onerror = () => this.sseStream?.close();
+      this.sseStream.onerror = () => {
+        this.sseStream?.close();
+        this.sseStream = null;
+      };
     } catch { /* unavailable */ }
   }
 
-  // ── Simulated generators ───────────────────────────────────────────
-  private makeSimulatedHeatmap(days: number): HeatmapDay[] {
-    const out: HeatmapDay[] = [];
-    const base = new Date();
-    base.setDate(base.getDate() - days + 1);
-    for (let i = 0; i < days; i++) {
-      const d = new Date(base);
-      d.setDate(base.getDate() + i);
-      const r = Math.random();
-      const weekend = d.getDay() === 0 || d.getDay() === 6;
-      const completions = weekend ? (r > .65 ? Math.ceil(r * 3) : 0) : (r > .3 ? Math.ceil(r * 9) : 0);
-      const overdueCount = completions === 0 && r > .88 ? 1 : 0;
-      out.push({ date: d.toISOString().split('T')[0], completions, overdueCount });
-    }
-    return out;
-  }
-
-  private makeSimulatedEvents(): WarRoomEvent[] {
-    const now = Date.now();
-    const names = ['Nassim', 'Ahmed', 'Rima', 'Sara', 'Khalil'];
-    const p = (a: string[]) => a[Math.floor(Math.random() * a.length)];
-    return [
-      { type: 'PROJECT_CREATED', message: 'Project "Sprint Alpha" was created',       actorDisplayName: p(names), timestamp: new Date(now -  2*60000).toISOString() },
-      { type: 'MEMBER_JOINED',   message: `${p(names)} joined the workspace`,          actorDisplayName: p(names), timestamp: new Date(now -  7*60000).toISOString() },
-      { type: 'TASK_COMPLETED',  message: 'Task "Design review" marked complete',     actorDisplayName: p(names), timestamp: new Date(now - 14*60000).toISOString() },
-      { type: 'PROJECT_CREATED', message: 'Milestone updated — 75% progress reached', actorDisplayName: p(names), timestamp: new Date(now - 22*60000).toISOString() },
-      { type: 'TASK_OVERDUE',    message: 'Task "API integration" is 2 days overdue', actorDisplayName: 'System', timestamp: new Date(now - 35*60000).toISOString() },
-    ];
+  private scheduleSnapshotRefresh(): void {
+    if (this.refreshTimer) clearTimeout(this.refreshTimer);
+    this.refreshTimer = setTimeout(() => {
+      this.refreshTimer = null;
+      const id = this.workspaceId();
+      if (!id) return;
+      this.reloadWarRoomData(id);
+    }, 650);
   }
 
   // ── Intelligence helpers ───────────────────────────────────────────
@@ -947,6 +1159,46 @@ export class WarRoomComponent implements OnInit, OnDestroy {
     if (score >= 80) return 'Healthy';
     if (score >= 50) return 'Needs attention';
     return 'At risk';
+  }
+
+  priorityBuckets(distribution: Record<string, number>): Array<{ label: string; count: number; pct: number }> {
+    const order = ['BLOCKER', 'HIGH', 'MEDIUM', 'LOW', 'UNSPECIFIED'];
+    const total = order.reduce((sum, label) => sum + (distribution?.[label] ?? 0), 0);
+    return order.map(label => {
+      const count = distribution?.[label] ?? 0;
+      return {
+        label,
+        count,
+        pct: total > 0 ? Math.round((count / total) * 100) : 0,
+      };
+    });
+  }
+
+  priorityColor(label: string): string {
+    return ({
+      BLOCKER: '#E24B4A',
+      HIGH: '#EF9F27',
+      MEDIUM: '#3B82F6',
+      LOW: '#1D9E75',
+      UNSPECIFIED: '#94a3b8',
+    } as Record<string, string>)[label] ?? '#94a3b8';
+  }
+
+  momentumValues(points: Array<{ completed: number }>): number[] {
+    return points.map(point => point.completed);
+  }
+
+  timelineMarkerPosition(daysFromToday: number): number {
+    const min = -14;
+    const max = 30;
+    const clamped = Math.min(max, Math.max(min, daysFromToday));
+    return ((clamped - min) / (max - min)) * 100;
+  }
+
+  milestoneOffsetLabel(daysFromToday: number): string {
+    if (daysFromToday === 0) return 'due today';
+    if (daysFromToday < 0) return `${Math.abs(daysFromToday)}d overdue`;
+    return `in ${daysFromToday}d`;
   }
 
   // ── Colour helpers ─────────────────────────────────────────────────

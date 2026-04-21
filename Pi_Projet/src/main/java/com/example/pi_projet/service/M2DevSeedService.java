@@ -1,9 +1,14 @@
 package com.example.pi_projet.service;
 
+import org.springframework.beans.factory.annotation.Value;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.pi_projet.entity.*;
 import com.example.pi_projet.entity.ProjectTemplate.*;
+import com.example.pi_projet.entity.TimeLineAndDeadLine.Milestone;
+import com.example.pi_projet.entity.TimeLineAndDeadLine.Task;
+import com.example.pi_projet.exception.Module2Exception;
 import com.example.pi_projet.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,11 +16,19 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.BufferedReader;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Seeder for Module 2 showcase data.
@@ -37,6 +50,16 @@ public class M2DevSeedService {
 
     // Seeded historic created_at used for workspaces and projects so snapshots exist
     private static final Instant SEEDED_CREATED_AT = Instant.parse("2024-01-01T00:00:00Z");
+    private static final String ACADEMIC_SOURCE_TASK_MARKER = "[seed:academic-source]";
+
+    @Value("${m2.seed.export-pib-artifacts:true}")
+    private boolean exportPibArtifactsOnSeed;
+
+    private record SeedPhaseSpec(String key, String name, int durationDays, boolean enabled) {}
+
+    private record SeedTemplateStructure(String phasesJson, String milestonesJson, String tasksJson) {}
+
+    private record SeedProjectTimelineSpec(Project project, User owner, ProjectTemplate template) {}
 
     // ── Repositories ────────────────────────────────────────────────────────
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
@@ -47,6 +70,8 @@ public class M2DevSeedService {
     private final ProjectTemplateRepository projectTemplateRepository;
     private final ProjectRepository projectRepository;
     private final ProjectMemberRepository projectMemberRepository;
+    private final MilestoneRepository milestoneRepository;
+    private final TaskRepository taskRepository;
     private final PlanRepository planRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final TemplateFavoriteRepository templateFavoriteRepository;
@@ -55,6 +80,8 @@ public class M2DevSeedService {
     // ── Services ─────────────────────────────────────────────────────────────
     private final M2OrganizationProvisioningService organizationProvisioningService;
     private final ProjectTemplateService projectTemplateService;
+    private final TemplateStructureService templateStructureService;
+    private final M2PublicIntegrationService publicIntegrationService;
 
     // ─────────────────────────────────────────────────────────────────────────
     //  ENTRY POINT
@@ -82,14 +109,14 @@ public class M2DevSeedService {
         User po        = requireUser("po@test.com");
 
         // ── 2. Plans ─────────────────────────────────────────────────────────
-        Plan enterprisePro  = ensurePlan("enterprise_pro",  "Enterprise Pro",  10,  50,  9900, 99000,
-                Plan.MlTier.FULL,  Plan.SupportTier.PRIORITY, Plan.CustomIntegrations.FULL,   102400L, true,  false, false);
-        Plan startupFree    = ensurePlan("startup_free",    "Startup Free",     1,   3,     0,     0,
-                Plan.MlTier.NONE,  Plan.SupportTier.COMMUNITY, Plan.CustomIntegrations.NONE,   1024L, false, false, false);
-        Plan academicFull   = ensurePlan("academic_full",   "Academic Full",   20, 100,  4900, 49000,
-                Plan.MlTier.BASIC, Plan.SupportTier.ACADEMIC,  Plan.CustomIntegrations.LIMITED, 51200L, true, true,  true);
-        Plan academicBasic  = ensurePlan("academic_basic",  "Academic Basic",   1,   3,     0,     0,
-                Plan.MlTier.NONE,  Plan.SupportTier.COMMUNITY, Plan.CustomIntegrations.NONE,   2048L, false, false, false);
+        Plan enterprisePro  = planRepository.findByName("pro")
+                .orElseThrow(() -> new IllegalStateException("Plan 'pro' not found — ensure DataInitializer runs first"));
+        Plan startupFree    = planRepository.findByName("starter")
+                .orElseThrow(() -> new IllegalStateException("Plan 'starter' not found — ensure DataInitializer runs first"));
+        Plan academicFull   = planRepository.findByName("academic-institution")
+                .orElseThrow(() -> new IllegalStateException("Plan 'academic-institution' not found — ensure DataInitializer runs first"));
+        Plan academicBasic  = planRepository.findByName("academic-starter")
+                .orElseThrow(() -> new IllegalStateException("Plan 'academic-starter' not found — ensure DataInitializer runs first"));
 
         // ── 3. Organizations ─────────────────────────────────────────────────
         Organization nexusCorp  = ensureOrg("nexus-corp",  "NexusCorp",  Organization.OrgType.ENTERPRISE, manager,  enterprisePro);
@@ -316,6 +343,61 @@ public class M2DevSeedService {
         // These are attempted after base templates and forks to avoid conflicts.
         ensurePibAlignedTemplates(manager, tutor);
 
+        ProjectTemplate tplPibDelivery = projectTemplateRepository
+            .findById(UUID.fromString("fba6784c-2f42-5ab2-93ff-b5b9a150298f"))
+            .orElse(tplAgile);
+        ProjectTemplate tplPibKanban = projectTemplateRepository
+            .findById(UUID.fromString("5bb54131-eed8-53eb-8cdd-02667e3b58f4"))
+            .orElse(tplKanban);
+        ProjectTemplate tplPibAcademic = projectTemplateRepository
+            .findById(UUID.fromString("1553b2f4-3aea-533d-b198-fcff8e7ba5d6"))
+            .orElse(tplResearch);
+
+        tplAgile = applyTemplateReferenceConfig(
+            tplAgile,
+            List.of(
+                "https://github.com/spring-projects/spring-boot",
+                "https://github.com/kubernetes/kubernetes"
+            ),
+            null
+        );
+        tplKanban = applyTemplateReferenceConfig(
+            tplKanban,
+            List.of(
+                "https://github.com/grafana/grafana",
+                "https://github.com/hashicorp/terraform"
+            ),
+            null
+        );
+        tplResearch = applyTemplateReferenceConfig(
+            tplResearch,
+            List.of("https://github.com/scikit-learn/scikit-learn"),
+            "machine learning reproducibility"
+        );
+        tplMl = applyTemplateReferenceConfig(
+            tplMl,
+            List.of(
+                "https://github.com/pytorch/pytorch",
+                "https://github.com/huggingface/transformers"
+            ),
+            "machine learning pipeline evaluation"
+        );
+        tplPibDelivery = applyTemplateReferenceConfig(
+            tplPibDelivery,
+            List.of("https://github.com/spring-projects/spring-boot"),
+            null
+        );
+        tplPibKanban = applyTemplateReferenceConfig(
+            tplPibKanban,
+            List.of("https://github.com/envoyproxy/envoy"),
+            null
+        );
+        tplPibAcademic = applyTemplateReferenceConfig(
+            tplPibAcademic,
+            List.of("https://github.com/jupyter/notebook"),
+            "project based learning software engineering"
+        );
+
         // ── 8. Projects ──────────────────────────────────────────────────────
         // Engineering HQ
         Project pPlatform = ensureProject(engHQ, manager.getId(),
@@ -356,16 +438,22 @@ public class M2DevSeedService {
         // Chronos Ops (time machine demo)
         Project pChronosCore = ensureProject(chronosOps, manager.getId(),
             "Chronos Core Rollout", Project.ProjectStatus.ACTIVE, Project.Visibility.PRIVATE,
-            LocalDate.of(2026, 1, 10), LocalDate.of(2026, 5, 30), tplAgile);
+            LocalDate.of(2024, 3, 15), LocalDate.of(2026, 6, 30), tplAgile);
         Project pLegacySunset = ensureProject(chronosOps, manager.getId(),
             "Legacy Sunset Program", Project.ProjectStatus.COMPLETED, Project.Visibility.PRIVATE,
-            LocalDate.of(2026, 2, 1), LocalDate.of(2026, 3, 20), tplWaterfall);
+            LocalDate.of(2024, 9, 1), LocalDate.of(2025, 6, 20), tplWaterfall);
         Project pPortalReboot = ensureProject(chronosOps, manager.getId(),
             "Client Portal Reboot", Project.ProjectStatus.ACTIVE, Project.Visibility.PUBLIC,
-            LocalDate.of(2026, 3, 25), LocalDate.of(2026, 7, 15), tplKanban);
+            LocalDate.of(2025, 9, 5), LocalDate.of(2026, 9, 30), tplKanban);
         Project pGrowthAnalytics = ensureProject(chronosOps, manager.getId(),
             "Growth Analytics Revamp", Project.ProjectStatus.PLANNING, Project.Visibility.PRIVATE,
-            LocalDate.of(2026, 4, 8), LocalDate.of(2026, 8, 30), tplMl);
+            LocalDate.of(2026, 2, 20), LocalDate.of(2026, 12, 15), tplMl);
+        Project pManagerDelivery = ensureProject(chronosOps, manager.getId(),
+            "Morgan M2 Delivery Command", Project.ProjectStatus.ACTIVE, Project.Visibility.PUBLIC,
+            LocalDate.of(2026, 3, 1), LocalDate.of(2026, 11, 30), tplPibDelivery);
+        Project pManagerAcademicBridge = ensureProject(chronosOps, manager.getId(),
+            "Morgan Academic Collaboration Hub", Project.ProjectStatus.PLANNING, Project.Visibility.PRIVATE,
+            LocalDate.of(2026, 3, 20), LocalDate.of(2026, 12, 20), tplPibAcademic);
 
         // StartupX Main
         Project pMvp = ensureProject(startMain, manager2.getId(),
@@ -461,6 +549,15 @@ public class M2DevSeedService {
         ensureProjMember(pGrowthAnalytics, manager.getId(), ProjectMember.ProjectRole.PROJECT_MANAGER, null);
         ensureProjMember(pGrowthAnalytics, analyst.getId(), ProjectMember.ProjectRole.REVIEWER,  manager);
 
+        ensureProjMember(pManagerDelivery, manager.getId(), ProjectMember.ProjectRole.PROJECT_MANAGER, null);
+        ensureProjMember(pManagerDelivery, dev1.getId(),    ProjectMember.ProjectRole.DEVELOPER, manager);
+        ensureProjMember(pManagerDelivery, dev2.getId(),    ProjectMember.ProjectRole.DEVELOPER, manager);
+        ensureProjMember(pManagerDelivery, analyst.getId(), ProjectMember.ProjectRole.REVIEWER,  manager);
+
+        ensureProjMember(pManagerAcademicBridge, manager.getId(), ProjectMember.ProjectRole.PROJECT_MANAGER, null);
+        ensureProjMember(pManagerAcademicBridge, dev3.getId(),    ProjectMember.ProjectRole.DEVELOPER, manager);
+        ensureProjMember(pManagerAcademicBridge, analyst.getId(), ProjectMember.ProjectRole.REVIEWER,  manager);
+
         // StartupX  (StartupX users only)
         ensureProjMember(pMvp, manager2.getId(), ProjectMember.ProjectRole.PROJECT_MANAGER, null);
         ensureProjMember(pMvp, employee.getId(), ProjectMember.ProjectRole.DEVELOPER, manager2);
@@ -502,10 +599,163 @@ public class M2DevSeedService {
         ensureProjMember(pIntro, student3.getId(), ProjectMember.ProjectRole.DEVELOPER, tutor2);
         ensureProjMember(pIntro, po.getId(),       ProjectMember.ProjectRole.DEVELOPER, tutor2);
 
+        // ── 9.25. Realistic metadata (GitHub + ML descriptors) ─────────────
+        pPlatform = applyProjectMetadata(
+            pPlatform,
+            "Modernize the enterprise platform runtime, resilience posture, and service ownership model.",
+            "https://github.com/kubernetes/kubernetes",
+            "enterprise",
+            List.of("platform", "cloud", "reliability"),
+            List.of("zero-downtime rollout", "audit readiness")
+        );
+        pApiGw = applyProjectMetadata(
+            pApiGw,
+            "Deliver an observable API gateway baseline with secure traffic policies and versioned rollout.",
+            "https://github.com/envoyproxy/envoy",
+            "enterprise",
+            List.of("gateway", "security", "api"),
+            List.of("latency under 100ms", "oauth2 policies")
+        );
+        pDevOps = applyProjectMetadata(
+            pDevOps,
+            "Automate infrastructure provisioning and release workflows across staging and production.",
+            "https://github.com/hashicorp/terraform",
+            "enterprise",
+            List.of("devops", "iac", "automation"),
+            List.of("policy as code", "cost guardrails")
+        );
+        pMobile = applyProjectMetadata(
+            pMobile,
+            "Ship mobile v3 with stronger telemetry, accessibility, and performance budgets.",
+            "https://github.com/flutter/flutter",
+            "enterprise",
+            List.of("mobile", "ux", "performance"),
+            List.of("offline support", "app startup under 2s")
+        );
+        pAi = applyProjectMetadata(
+            pAi,
+            "Integrate ML-assisted features with staged validation and ethical review checkpoints.",
+            "https://github.com/huggingface/transformers",
+            "enterprise",
+            List.of("ai", "feature-engineering", "evaluation"),
+            List.of("bias checks", "human approval path")
+        );
+        pChronosCore = applyProjectMetadata(
+            pChronosCore,
+            "Core program for legacy replacement, release governance, and cross-team delivery cadence.",
+            "https://github.com/temporalio/temporal",
+            "enterprise",
+            List.of("migration", "workflow", "governance"),
+            List.of("weekly release train", "cross-team dependency map")
+        );
+        pPortalReboot = applyProjectMetadata(
+            pPortalReboot,
+            "Public-facing portal modernization focused on observability, analytics, and conversion quality.",
+            "https://github.com/grafana/grafana",
+            "enterprise",
+            List.of("portal", "observability", "analytics"),
+            List.of("public uptime 99.9%", "accessibility conformance")
+        );
+        pManagerDelivery = applyProjectMetadata(
+            pManagerDelivery,
+            "Morgan Manager flagship template-driven portfolio project for M2 enterprise delivery simulation.",
+            "https://github.com/spring-projects/spring-boot",
+            "enterprise",
+            List.of("m2", "portfolio", "template-driven"),
+            List.of("manager-owned", "time-machine checkpoints")
+        );
+        pManagerAcademicBridge = applyProjectMetadata(
+            pManagerAcademicBridge,
+            "Manager-led collaboration project that imports academic sources and translates them into delivery tasks.",
+            "https://github.com/jupyter/notebook",
+            "academic",
+            List.of("knowledge-transfer", "academic-sources", "delivery"),
+            List.of("evidence-backed tasks", "weekly literature digest")
+        );
+        pWebDev = applyProjectMetadata(
+            pWebDev,
+            "Course project focused on modern web engineering practices and iterative team delivery.",
+            "https://github.com/freeCodeCamp/freeCodeCamp",
+            "academic",
+            List.of("web", "course", "teamwork"),
+            List.of("weekly demos", "peer review")
+        );
+        pAlgo = applyProjectMetadata(
+            pAlgo,
+            "Research-oriented algorithms project with benchmark replication and result reporting.",
+            "https://github.com/cp-algorithms/cp-algorithms",
+            "academic",
+            List.of("algorithms", "research", "benchmarking"),
+            List.of("report reproducibility", "complexity analysis")
+        );
+        pMlFund = applyProjectMetadata(
+            pMlFund,
+            "Academic ML fundamentals program grounded in reproducible experiments and open-source references.",
+            "https://github.com/scikit-learn/scikit-learn",
+            "academic",
+            List.of("ml", "education", "reproducibility"),
+            List.of("experiment tracking", "evaluation rubric")
+        );
+        pNlp = applyProjectMetadata(
+            pNlp,
+            "NLP research initiative for educational use cases with transparent model assessment.",
+            "https://github.com/huggingface/transformers",
+            "academic",
+            List.of("nlp", "research", "education"),
+            List.of("citation-backed claims", "ablation notes")
+        );
+
+        // ── 9.5. Project timeline seed (milestones + tasks for richer README output) ──
+        ensureSeedProjectTimelines(List.of(
+            new SeedProjectTimelineSpec(pPlatform, manager, tplSdlc),
+            new SeedProjectTimelineSpec(pApiGw, manager, tplAgile),
+            new SeedProjectTimelineSpec(pSecAudit, manager, null),
+            new SeedProjectTimelineSpec(pDevOps, manager, tplKanban),
+            new SeedProjectTimelineSpec(pLegacy, manager, null),
+            new SeedProjectTimelineSpec(pQ4, manager, null),
+            new SeedProjectTimelineSpec(pBrand, manager, tplWaterfall),
+            new SeedProjectTimelineSpec(pMobile, manager, tplAgile),
+            new SeedProjectTimelineSpec(pAi, manager, tplMl),
+            new SeedProjectTimelineSpec(pPython, manager, null),
+            new SeedProjectTimelineSpec(pChronosCore, manager, tplAgile),
+            new SeedProjectTimelineSpec(pLegacySunset, manager, tplWaterfall),
+            new SeedProjectTimelineSpec(pPortalReboot, manager, tplKanban),
+            new SeedProjectTimelineSpec(pGrowthAnalytics, manager, tplMl),
+            new SeedProjectTimelineSpec(pManagerDelivery, manager, tplPibDelivery),
+            new SeedProjectTimelineSpec(pManagerAcademicBridge, manager, tplPibAcademic),
+            new SeedProjectTimelineSpec(pMvp, manager2, tplStartup),
+            new SeedProjectTimelineSpec(pWebDev, tutor, tplCourse),
+            new SeedProjectTimelineSpec(pAlgo, tutor, tplResearch),
+            new SeedProjectTimelineSpec(pOs, tutor, null),
+            new SeedProjectTimelineSpec(pMlFund, tutor, tplMl),
+            new SeedProjectTimelineSpec(pCapstone, tutor, tplCapstone),
+            new SeedProjectTimelineSpec(pNlp, tutor, tplResearch),
+            new SeedProjectTimelineSpec(pBlockchain, tutor, null),
+            new SeedProjectTimelineSpec(pIntro, tutor2, tplCourse)
+        ));
+
+        ensureAcademicSourceTasks(
+            pMlFund,
+            tutor,
+            "machine learning reproducibility and evaluation"
+        );
+        ensureAcademicSourceTasks(
+            pAlgo,
+            tutor,
+            "algorithm analysis empirical study"
+        );
+        ensureAcademicSourceTasks(
+            pManagerAcademicBridge,
+            manager,
+            "project based learning software engineering"
+        );
+
         // ── 10. Template Favorites ───────────────────────────────────────────
         ensureFavorite(manager,  tplAgile);
         ensureFavorite(manager,  tplKanban);
         ensureFavorite(manager,  tplWaterfall);
+        ensureFavorite(manager,  tplPibDelivery);
+        ensureFavorite(manager,  tplPibAcademic);
 
         ensureFavorite(manager2, tplStartup);
         ensureFavorite(manager2, tplAgile);
@@ -527,6 +777,8 @@ public class M2DevSeedService {
         ensureRating(manager,  tplAgile,     5);
         ensureRating(manager,  tplKanban,    4);
         ensureRating(manager,  tplWaterfall, 5);
+        ensureRating(manager,  tplPibDelivery, 5);
+        ensureRating(manager,  tplPibAcademic, 4);
         ensureRating(manager2, tplStartup,   4);
         ensureRating(manager2, tplAgile,     4);
         ensureRating(tutor,    tplResearch,  5);
@@ -538,10 +790,23 @@ public class M2DevSeedService {
         ensureRating(ta,       tplCourse,    4);
         ensureRating(ta,       tplResearch,  5);
 
-        applyTimeMachineTimeline(chronosOps, manager, dev1, dev2, analyst,
-            pChronosCore, pLegacySunset, pPortalReboot, pGrowthAnalytics);
+        applyTimeMachineTimeline(
+            chronosOps,
+            manager,
+            dev1,
+            dev2,
+            analyst,
+            pChronosCore,
+            pLegacySunset,
+            pPortalReboot,
+            pGrowthAnalytics,
+            pManagerDelivery,
+            pManagerAcademicBridge
+        );
 
-        log.info("[M2DevSeedService] Seed complete: 4 orgs, 9 workspaces, 10 templates, 22 projects.");
+        boolean pibArtifactsExported = exportPibArtifactsFromSeed();
+
+        log.info("[M2DevSeedService] Seed complete with realistic enterprise + academic portfolio data.");
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("nexusCorpId",  nexusCorp.getId());
         out.put("startupXId",   startupX.getId());
@@ -550,8 +815,101 @@ public class M2DevSeedService {
         out.put("timeMachineWorkspaceId", chronosOps.getId());
         out.put("timeMachineWorkspaceSlug", chronosOps.getSlug());
         out.put("timeMachineSuggestedDates", timeMachineSuggestedDates());
-        out.put("message", "Module 2 rich seed completed: 4 orgs, 9 workspaces, 10 templates, 22 projects");
+        out.put("pibArtifactsExported", pibArtifactsExported);
+        out.put("message", "Module 2 rich seed completed with realistic enterprise + academic template-driven projects");
         return out;
+    }
+
+    private boolean exportPibArtifactsFromSeed() {
+        if (!exportPibArtifactsOnSeed) {
+            log.info("[M2DevSeedService] Skipping PIB artifact export (m2.seed.export-pib-artifacts=false).");
+            return false;
+        }
+
+        Path scriptPath = resolvePibExportScriptPath();
+        if (scriptPath == null) {
+            log.warn("[M2DevSeedService] PIB artifact export script not found (expected m2_ml_service/scripts/export_pib_artifacts.py).");
+            return false;
+        }
+
+        List<List<String>> commands = new ArrayList<>();
+        commands.add(List.of("python", scriptPath.toString()));
+        commands.add(List.of("py", "-3", scriptPath.toString()));
+
+        String activeDb = null;
+        try {
+            activeDb = jdbcTemplate.queryForObject("SELECT DATABASE()", String.class);
+        } catch (Exception ignored) {
+        }
+
+        for (List<String> command : commands) {
+            try {
+                ProcessBuilder builder = new ProcessBuilder(command);
+                builder.redirectErrorStream(true);
+                if (activeDb != null && !activeDb.isBlank()) {
+                    builder.environment().put("DB_NAME", activeDb.trim());
+                }
+
+                Process process = builder.start();
+                StringBuilder output = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        output.append(line).append('\n');
+                    }
+                }
+
+                boolean finished = process.waitFor(180, TimeUnit.SECONDS);
+                if (!finished) {
+                    process.destroyForcibly();
+                    log.warn("[M2DevSeedService] PIB artifact export timed out for command {}", command);
+                    continue;
+                }
+
+                int exitCode = process.exitValue();
+                if (exitCode == 0) {
+                    log.info("[M2DevSeedService] PIB artifacts exported via {}\n{}", String.join(" ", command), output.toString().trim());
+                    return true;
+                }
+
+                log.warn("[M2DevSeedService] PIB artifact export failed via {} (exit={})\n{}",
+                    String.join(" ", command),
+                    exitCode,
+                    output.toString().trim());
+            } catch (IOException ex) {
+                log.warn("[M2DevSeedService] PIB artifact export command unavailable: {} ({})", String.join(" ", command), ex.getMessage());
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                log.warn("[M2DevSeedService] PIB artifact export interrupted.");
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    private Path resolvePibExportScriptPath() {
+        String userDir = System.getProperty("user.dir", ".");
+        Path current = Paths.get(userDir).toAbsolutePath().normalize();
+        List<Path> roots = new ArrayList<>();
+        while (current != null) {
+            roots.add(current);
+            current = current.getParent();
+        }
+
+        for (Path root : roots) {
+            Path direct = root.resolve("m2_ml_service").resolve("scripts").resolve("export_pib_artifacts.py");
+            if (Files.exists(direct)) {
+                return direct;
+            }
+
+            Path nested = root.resolve("PiProjetByUnitum").resolve("m2_ml_service").resolve("scripts").resolve("export_pib_artifacts.py");
+            if (Files.exists(nested)) {
+                return nested;
+            }
+        }
+
+        return null;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -751,37 +1109,49 @@ public class M2DevSeedService {
                                            int estimatedDurationDays, int usageCount,
                                            double rating, int ratingCount,
                                            String useCaseDescription) {
-        return projectTemplateRepository.findAll().stream()
+        Optional<ProjectTemplate> existingOpt = projectTemplateRepository.findAll().stream()
             .filter(t -> t.getOrganization() != null
                 && org.getId().equals(t.getOrganization().getId())
                 && name.equalsIgnoreCase(t.getName()))
-            .findFirst()
-            .orElseGet(() -> projectTemplateRepository.save(
-                ProjectTemplate.builder()
-                    .organization(org)
-                    .createdBy(creatorId)
-                    .name(name)
-                    .templateType(type)
-                    .difficultyLevel(difficulty)
-                    .estimatedEffort(effort)
-                    .estimatedDurationDays(estimatedDurationDays)
-                    .status(status)
-                    .isPublic(isPublic)
-                    .isFeatured(isFeatured)
-                    .isRecommended(isRecommended)
-                    .isTrending(isTrending)
-                    .defaultVisibility(isPublic ? DefaultVisibility.PUBLIC : DefaultVisibility.PRIVATE)
-                    .teamStrategy(TeamStrategy.HYBRID)
-                    .defaultPhasesJson(phasesJson)
-                    .defaultRolesJson("[]")
-                    .defaultProjectConfigJson("{\"framework\":\"" + type.name().toLowerCase() + "\"}")
-                    .tags(tags)
-                    .useCaseDescription(useCaseDescription)
-                    .usageCount(usageCount)
-                    .rating(rating)
-                    .ratingCount(ratingCount)
-                    .version(1)
-                    .build()));
+            .findFirst();
+
+        if (existingOpt.isPresent()) {
+            ProjectTemplate existing = existingOpt.get();
+            if (ensureTemplateHasStructure(existing, name, phasesJson)) {
+                return projectTemplateRepository.save(existing);
+            }
+            return existing;
+        }
+
+        SeedTemplateStructure structure = buildTemplateStructureDefaults(phasesJson, name);
+        return projectTemplateRepository.save(
+            ProjectTemplate.builder()
+                .organization(org)
+                .createdBy(creatorId)
+                .name(name)
+                .templateType(type)
+                .difficultyLevel(difficulty)
+                .estimatedEffort(effort)
+                .estimatedDurationDays(estimatedDurationDays)
+                .status(status)
+                .isPublic(isPublic)
+                .isFeatured(isFeatured)
+                .isRecommended(isRecommended)
+                .isTrending(isTrending)
+                .defaultVisibility(isPublic ? DefaultVisibility.PUBLIC : DefaultVisibility.PRIVATE)
+                .teamStrategy(TeamStrategy.HYBRID)
+                .defaultPhasesJson(structure.phasesJson())
+                .defaultMilestonesJson(structure.milestonesJson())
+                .defaultTasksJson(structure.tasksJson())
+                .defaultRolesJson("[]")
+                .defaultProjectConfigJson("{\"framework\":\"" + type.name().toLowerCase() + "\"}")
+                .tags(tags)
+                .useCaseDescription(useCaseDescription)
+                .usageCount(usageCount)
+                .rating(rating)
+                .ratingCount(ratingCount)
+                .version(1)
+                .build());
     }
 
     private void ensurePibAlignedTemplates(User enterpriseOwner, User academicOwner) {
@@ -906,14 +1276,20 @@ public class M2DevSeedService {
                                    String description,
                                    double fitness,
                                    double completion) {
-        // Check if exists — if so, simply return (fully idempotent)
+        String phasesJson = "[{\"name\":\"Discovery\",\"durationDays\":7},{\"name\":\"Planning\",\"durationDays\":14},{\"name\":\"Execution\",\"durationDays\":21},{\"name\":\"Validation\",\"durationDays\":7}]";
+        SeedTemplateStructure structure = buildTemplateStructureDefaults(phasesJson, name);
+
         try {
-            if (projectTemplateRepository.existsById(templateId)) {
+            Optional<ProjectTemplate> existingOpt = projectTemplateRepository.findById(templateId);
+            if (existingOpt.isPresent()) {
+                ProjectTemplate existing = existingOpt.get();
+                if (ensureTemplateHasStructure(existing, name, phasesJson)) {
+                    projectTemplateRepository.save(existing);
+                }
                 return;
             }
         } catch (Exception ex) {
-            // Ignore database errors during existence check
-            log.debug("Error checking template existence: {}", templateId, ex);
+            log.debug("Error checking PIB template existence: {}", templateId, ex);
             return;
         }
 
@@ -932,7 +1308,9 @@ public class M2DevSeedService {
                 .isTrending(false)
                 .defaultVisibility(DefaultVisibility.PUBLIC)
                 .teamStrategy(TeamStrategy.HYBRID)
-                .defaultPhasesJson("[{\"name\":\"Discovery\",\"durationDays\":7},{\"name\":\"Planning\",\"durationDays\":14},{\"name\":\"Execution\",\"durationDays\":21},{\"name\":\"Validation\",\"durationDays\":7}]")
+                .defaultPhasesJson(structure.phasesJson())
+                .defaultMilestonesJson(structure.milestonesJson())
+                .defaultTasksJson(structure.tasksJson())
                 .defaultRolesJson(defaultRolesJson)
                 .defaultProjectConfigJson("{\"framework\":\"" + type.name().toLowerCase() + "\",\"source\":\"pib-aligned-seed\"}")
                 .useCaseDescription(description)
@@ -1012,6 +1390,292 @@ public class M2DevSeedService {
         }
     }
 
+    private ProjectTemplate applyTemplateReferenceConfig(ProjectTemplate template,
+                                                         List<String> githubRepos,
+                                                         String academicSourcesQuery) {
+        if (template == null) {
+            return null;
+        }
+
+        List<String> normalizedRepos = new ArrayList<>();
+        if (githubRepos != null) {
+            for (String repo : githubRepos) {
+                String normalized = normalizeGithubRepoUrlSeed(repo);
+                if (normalized != null && !normalizedRepos.contains(normalized)) {
+                    normalizedRepos.add(normalized);
+                }
+            }
+        }
+
+        Map<String, Object> config = new LinkedHashMap<>();
+        config.put(
+            "framework",
+            template.getTemplateType() != null
+                ? template.getTemplateType().name().toLowerCase(Locale.ROOT)
+                : "custom"
+        );
+        config.put("source", "m2-real-data-seed");
+        if (!normalizedRepos.isEmpty()) {
+            config.put("referenceRepos", normalizedRepos);
+        }
+        if (hasText(academicSourcesQuery)) {
+            config.put("academicSourcesQuery", academicSourcesQuery.trim());
+            config.put("academicSourcesEndpoint", "/api/project-templates/academic-sources");
+        }
+
+        String configJson = toJson(config);
+        if (Objects.equals(template.getDefaultProjectConfigJson(), configJson)) {
+            return template;
+        }
+
+        template.setDefaultProjectConfigJson(configJson);
+        return projectTemplateRepository.save(template);
+    }
+
+    private Project applyProjectMetadata(Project project,
+                                         String description,
+                                         String githubRepoUrl,
+                                         String detectedMode,
+                                         List<String> domainTags,
+                                         List<String> constraints) {
+        if (project == null) {
+            return null;
+        }
+
+        boolean changed = false;
+
+        if (hasText(description) && !Objects.equals(project.getDescription(), description.trim())) {
+            project.setDescription(description.trim());
+            changed = true;
+        }
+
+        String normalizedRepo = normalizeGithubRepoUrlSeed(githubRepoUrl);
+        if (!Objects.equals(project.getGithubRepoUrl(), normalizedRepo)) {
+            project.setGithubRepoUrl(normalizedRepo);
+            changed = true;
+        }
+
+        String normalizedMode = hasText(detectedMode) ? detectedMode.trim().toLowerCase(Locale.ROOT) : null;
+        if (!Objects.equals(project.getMlDetectedMode(), normalizedMode)) {
+            project.setMlDetectedMode(normalizedMode);
+            changed = true;
+        }
+
+        String domainTagsJson = (domainTags == null || domainTags.isEmpty()) ? null : toJson(domainTags);
+        if (!Objects.equals(project.getMlDomainTagsJson(), domainTagsJson)) {
+            project.setMlDomainTagsJson(domainTagsJson);
+            changed = true;
+        }
+
+        String constraintsJson = (constraints == null || constraints.isEmpty()) ? null : toJson(constraints);
+        if (!Objects.equals(project.getMlConstraintsJson(), constraintsJson)) {
+            project.setMlConstraintsJson(constraintsJson);
+            changed = true;
+        }
+
+        if (project.getMlLastInferenceAt() == null) {
+            project.setMlLastInferenceAt(Instant.now());
+            changed = true;
+        }
+
+        return changed ? projectRepository.save(project) : project;
+    }
+
+    private String normalizeGithubRepoUrlSeed(String rawUrl) {
+        if (!hasText(rawUrl)) {
+            return null;
+        }
+
+        String value = rawUrl.trim();
+        if (value.matches("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")) {
+            value = "https://github.com/" + value;
+        }
+
+        value = value.replaceAll("/+$", "");
+        return value;
+    }
+
+    private void ensureAcademicSourceTasks(Project project, User owner, String query) {
+        if (project == null || owner == null || !hasText(query)) {
+            return;
+        }
+
+        List<Task> existing = taskRepository.findByProject_Id(project.getId());
+        boolean alreadySeeded = existing.stream().anyMatch(task ->
+            hasText(task.getDescription()) && task.getDescription().contains(ACADEMIC_SOURCE_TASK_MARKER)
+        );
+        if (alreadySeeded) {
+            return;
+        }
+
+        List<Map<String, Object>> sources = fetchAcademicSourceItems(query.trim(), 4);
+        if (sources.isEmpty()) {
+            return;
+        }
+
+        Milestone sourceMilestone = ensureAcademicSourcesMilestone(project, owner, query);
+        LocalDate baseDate = resolveProjectStartDate(project);
+        int created = 0;
+
+        for (Map<String, Object> source : sources) {
+            if (created >= 4) {
+                break;
+            }
+
+            String title = asText(source.get("title"));
+            if (!hasText(title)) {
+                continue;
+            }
+
+            String openAccessUrl = asText(source.get("openAccessUrl"));
+            String landingPageUrl = asText(source.get("landingPageUrl"));
+            String sourceUrl = firstNonBlank(openAccessUrl, landingPageUrl);
+            String firstAuthor = asText(source.get("firstAuthor"));
+            String publicationYear = asText(source.get("publicationYear"));
+
+            StringBuilder description = new StringBuilder();
+            description.append(ACADEMIC_SOURCE_TASK_MARKER)
+                .append(" Review and summarize evidence from \"")
+                .append(title)
+                .append("\".");
+
+            if (hasText(firstAuthor) || hasText(publicationYear)) {
+                description.append(" Source metadata:");
+                if (hasText(firstAuthor)) {
+                    description.append(" author=").append(firstAuthor).append(";");
+                }
+                if (hasText(publicationYear)) {
+                    description.append(" year=").append(publicationYear).append(";");
+                }
+            }
+
+            if (hasText(sourceUrl)) {
+                description.append(" Link: ").append(sourceUrl).append(".");
+            }
+
+            taskRepository.save(Task.builder()
+                .project(project)
+                .milestone(sourceMilestone)
+                .title("Review source: " + abbreviate(title, 80))
+                .description(description.toString())
+                .taskType(Task.TaskType.task)
+                .status(Task.TaskStatus.todo)
+                .priority(Task.TaskPriority.medium)
+                .estimatedHours(4f + created)
+                .createdBy(owner)
+                .assignedTo(owner)
+                .startDate(baseDate.plusDays(2L + (long) created * 5L))
+                .dueDate(baseDate.plusDays(5L + (long) created * 5L))
+                .build());
+
+            created++;
+        }
+    }
+
+    private Milestone ensureAcademicSourcesMilestone(Project project, User owner, String query) {
+        for (Milestone milestone : milestoneRepository.findByProject_Id(project.getId())) {
+            if ("academic-source-digest".equalsIgnoreCase(milestone.getSourceMilestoneKey())) {
+                return milestone;
+            }
+        }
+
+        LocalDate dueDate = resolveProjectStartDate(project).plusDays(14L);
+        return milestoneRepository.save(Milestone.builder()
+            .project(project)
+            .name("Academic Source Digest")
+            .description("Curated literature review checkpoint for query: " + query)
+            .dueDate(dueDate)
+            .status(Milestone.MilestoneStatus.in_progress)
+            .completionPct(30f)
+            .isGate(Boolean.FALSE)
+            .sourceMilestoneKey("academic-source-digest")
+            .createdBy(owner)
+            .build());
+    }
+
+    private List<Map<String, Object>> fetchAcademicSourceItems(String query, int limit) {
+        try {
+            Map<String, Object> payload = publicIntegrationService.getAcademicSources(query, limit);
+            Object rawItems = payload.get("items");
+            if (rawItems instanceof List<?> list) {
+                List<Map<String, Object>> normalized = new ArrayList<>();
+                for (Object row : list) {
+                    if (!(row instanceof Map<?, ?> map)) {
+                        continue;
+                    }
+
+                    Map<String, Object> copy = new LinkedHashMap<>();
+                    for (Map.Entry<?, ?> entry : map.entrySet()) {
+                        if (entry.getKey() != null) {
+                            copy.put(String.valueOf(entry.getKey()), entry.getValue());
+                        }
+                    }
+                    normalized.add(copy);
+                }
+
+                if (!normalized.isEmpty()) {
+                    return normalized;
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("[M2DevSeedService] Academic source API unavailable for '{}': {}", query, ex.getMessage());
+        }
+
+        return fallbackAcademicSourceItems();
+    }
+
+    private List<Map<String, Object>> fallbackAcademicSourceItems() {
+        List<Map<String, Object>> fallback = new ArrayList<>();
+
+        Map<String, Object> source1 = new LinkedHashMap<>();
+        source1.put("title", "A Survey on Reproducibility in Machine Learning");
+        source1.put("firstAuthor", "Pineau et al.");
+        source1.put("publicationYear", 2021);
+        source1.put("openAccessUrl", "https://arxiv.org/abs/2003.12206");
+        fallback.add(source1);
+
+        Map<String, Object> source2 = new LinkedHashMap<>();
+        source2.put("title", "Technical Debt in Machine Learning Systems");
+        source2.put("firstAuthor", "Sculley et al.");
+        source2.put("publicationYear", 2015);
+        source2.put("openAccessUrl", "https://papers.nips.cc/paper_files/paper/2015/hash/86df7dcfd896fcaf2674f757a2463eba-Abstract.html");
+        fallback.add(source2);
+
+        Map<String, Object> source3 = new LinkedHashMap<>();
+        source3.put("title", "Hidden Technical Debt in ML Systems (Practice Notes)");
+        source3.put("firstAuthor", "Google Research");
+        source3.put("publicationYear", 2023);
+        source3.put("landingPageUrl", "https://research.google/pubs/hidden-technical-debt-in-machine-learning-systems/");
+        fallback.add(source3);
+
+        Map<String, Object> source4 = new LinkedHashMap<>();
+        source4.put("title", "Project-Based Learning in Software Engineering Education");
+        source4.put("firstAuthor", "ACM Education SIG");
+        source4.put("publicationYear", 2022);
+        source4.put("landingPageUrl", "https://dl.acm.org/");
+        fallback.add(source4);
+
+        return fallback;
+    }
+
+    private String asText(Object raw) {
+        if (raw == null) {
+            return null;
+        }
+        String text = String.valueOf(raw).trim();
+        return text.isEmpty() ? null : text;
+    }
+
+    private String abbreviate(String text, int maxLength) {
+        if (text == null || text.length() <= maxLength) {
+            return text;
+        }
+        if (maxLength <= 3) {
+            return text.substring(0, Math.max(0, maxLength));
+        }
+        return text.substring(0, maxLength - 3) + "...";
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     //  PROJECT
     // ─────────────────────────────────────────────────────────────────────────
@@ -1027,10 +1691,53 @@ public class M2DevSeedService {
 
         if (existing.isPresent()) {
             Project p = existing.get();
+            boolean changed = false;
+
+            if (!Objects.equals(p.getCreatedBy(), creatorId)) {
+                p.setCreatedBy(creatorId);
+                changed = true;
+            }
+            if (!Objects.equals(p.getName(), name)) {
+                p.setName(name);
+                changed = true;
+            }
+            if (!Objects.equals(p.getStatus(), status)) {
+                p.setStatus(status);
+                changed = true;
+            }
+            if (!Objects.equals(p.getVisibility(), visibility)) {
+                p.setVisibility(visibility);
+                changed = true;
+            }
+            if (!Objects.equals(p.getStartDate(), startDate)) {
+                p.setStartDate(startDate);
+                changed = true;
+            }
+            if (!Objects.equals(p.getEndDate(), endDate)) {
+                p.setEndDate(endDate);
+                changed = true;
+            }
+
+            UUID expectedTemplateId = template != null ? template.getId() : null;
+            if (!Objects.equals(p.getTemplateId(), expectedTemplateId)) {
+                p.setTemplateId(expectedTemplateId);
+                changed = true;
+            }
+
+            if (template != null && !Objects.equals(p.getPhasesJson(), template.getDefaultPhasesJson())) {
+                p.setPhasesJson(template.getDefaultPhasesJson());
+                changed = true;
+            }
+
             if (p.getCreatedAt() == null || p.getCreatedAt().isAfter(SEEDED_CREATED_AT)) {
                 // Use direct JDBC update because created_at is updatable=false in JPA mapping
                 jdbcTemplate.update("UPDATE projects SET created_at = ? WHERE id = ?", java.sql.Timestamp.from(SEEDED_CREATED_AT), p.getId().toString());
                 p.setCreatedAt(SEEDED_CREATED_AT);
+                changed = true;
+            }
+
+            if (changed) {
+                p = projectRepository.save(p);
             }
             return p;
         }
@@ -1075,40 +1782,50 @@ public class M2DevSeedService {
         Project chronosCore,
         Project legacySunset,
         Project portalReboot,
-        Project growthAnalytics
+        Project growthAnalytics,
+        Project managerDelivery,
+        Project managerAcademicBridge
     ) {
         ensureWorkspaceMemberTimeline(
             workspace.getId(), owner.getId(), WorkspaceMember.WorkspaceRole.OWNER,
-            Instant.parse("2026-01-05T09:00:00Z"), null
+            Instant.parse("2024-01-02T09:00:00Z"), null
         );
         ensureWorkspaceMemberTimeline(
             workspace.getId(), coreDev.getId(), WorkspaceMember.WorkspaceRole.EMPLOYEE,
-            Instant.parse("2026-01-12T10:15:00Z"), null
+            Instant.parse("2024-04-12T10:15:00Z"), null
         );
         ensureWorkspaceMemberTimeline(
             workspace.getId(), rotatingDev.getId(), WorkspaceMember.WorkspaceRole.EMPLOYEE,
-            Instant.parse("2026-02-06T08:45:00Z"), Instant.parse("2026-03-02T18:00:00Z")
+            Instant.parse("2025-02-06T08:45:00Z"), Instant.parse("2026-01-15T18:00:00Z")
         );
         ensureWorkspaceMemberTimeline(
             workspace.getId(), analyst.getId(), WorkspaceMember.WorkspaceRole.VIEWER,
-            Instant.parse("2026-04-01T09:30:00Z"), null
+            Instant.parse("2026-04-17T09:30:00Z"), null
         );
 
         ensureProjectTimeline(
             chronosCore.getId(), Project.ProjectStatus.ACTIVE, Project.Visibility.PRIVATE,
-            Instant.parse("2026-01-10T08:00:00Z"), null
+            Instant.parse("2024-03-10T08:00:00Z"), null
         );
         ensureProjectTimeline(
             legacySunset.getId(), Project.ProjectStatus.COMPLETED, Project.Visibility.PRIVATE,
-            Instant.parse("2026-02-01T12:00:00Z"), Instant.parse("2026-03-20T20:00:00Z")
+            Instant.parse("2024-09-01T12:00:00Z"), Instant.parse("2025-06-20T20:00:00Z")
         );
         ensureProjectTimeline(
             portalReboot.getId(), Project.ProjectStatus.ACTIVE, Project.Visibility.PUBLIC,
-            Instant.parse("2026-03-25T14:00:00Z"), null
+            Instant.parse("2025-09-05T14:00:00Z"), null
         );
         ensureProjectTimeline(
             growthAnalytics.getId(), Project.ProjectStatus.PLANNING, Project.Visibility.PRIVATE,
-            Instant.parse("2026-04-08T16:00:00Z"), null
+            Instant.parse("2026-02-28T16:00:00Z"), null
+        );
+        ensureProjectTimeline(
+            managerDelivery.getId(), Project.ProjectStatus.ACTIVE, Project.Visibility.PUBLIC,
+            Instant.parse("2026-04-18T11:15:00Z"), null
+        );
+        ensureProjectTimeline(
+            managerAcademicBridge.getId(), Project.ProjectStatus.PLANNING, Project.Visibility.PRIVATE,
+            Instant.parse("2026-04-19T10:45:00Z"), null
         );
     }
 
@@ -1164,12 +1881,443 @@ public class M2DevSeedService {
 
     private List<String> timeMachineSuggestedDates() {
         return List.of(
-            "2026-01-11T23:59:59Z",
-            "2026-02-10T23:59:59Z",
-            "2026-03-05T23:59:59Z",
-            "2026-03-22T23:59:59Z",
-            "2026-04-09T23:59:59Z"
+            "2024-01-02T23:59:59Z",
+            "2024-09-01T23:59:59Z",
+            "2025-09-05T23:59:59Z",
+            "2026-02-28T23:59:59Z",
+            "2026-04-18T23:59:59Z",
+            "2026-04-19T23:59:59Z"
         );
+    }
+
+    private void ensureSeedProjectTimelines(List<SeedProjectTimelineSpec> specs) {
+        for (SeedProjectTimelineSpec spec : specs) {
+            if (spec == null || spec.project() == null || spec.owner() == null) {
+                continue;
+            }
+
+            try {
+                ensureProjectTimelineSeed(spec.project(), spec.owner(), spec.template());
+            } catch (Exception ex) {
+                log.warn(
+                    "[M2DevSeedService] Timeline seed skipped for project '{}': {}",
+                    spec.project().getName(),
+                    ex.getMessage()
+                );
+            }
+        }
+    }
+
+    private void ensureProjectTimelineSeed(Project project, User owner, ProjectTemplate template) {
+        List<Milestone> existingMilestones = milestoneRepository.findByProject_Id(project.getId());
+        List<Task> existingTasks = taskRepository.findByProject_Id(project.getId());
+
+        if (!existingMilestones.isEmpty() && !existingTasks.isEmpty()) {
+            return;
+        }
+
+        TemplateStructureService.NormalizedTemplateStructure structure = resolveTimelineStructure(project, template);
+        LocalDate projectStartDate = resolveProjectStartDate(project);
+
+        Map<String, Milestone> milestonesByKey = new LinkedHashMap<>();
+        List<Milestone> milestonePool = new ArrayList<>(existingMilestones);
+
+        if (existingMilestones.isEmpty()) {
+            milestonesByKey = createSeedMilestones(project, owner, structure, projectStartDate);
+            milestonePool = new ArrayList<>(milestonesByKey.values());
+        } else {
+            milestonePool.sort(
+                Comparator.comparing(Milestone::getDueDate, Comparator.nullsLast(Comparator.naturalOrder()))
+                    .thenComparing(Milestone::getId)
+            );
+        }
+
+        if (existingTasks.isEmpty()) {
+            createSeedTasks(project, owner, structure, projectStartDate, milestonePool, milestonesByKey);
+        }
+    }
+
+    private TemplateStructureService.NormalizedTemplateStructure resolveTimelineStructure(Project project,
+                                                                                          ProjectTemplate template) {
+        String phasesJson = firstNonBlank(
+            project.getPhasesJson(),
+            template != null ? template.getDefaultPhasesJson() : null
+        );
+        String milestonesJson = template != null ? template.getDefaultMilestonesJson() : null;
+        String tasksJson = template != null ? template.getDefaultTasksJson() : null;
+
+        SeedTemplateStructure generated = buildTemplateStructureDefaults(phasesJson, project.getName());
+
+        String normalizedPhasesJson = hasText(phasesJson) ? phasesJson : generated.phasesJson();
+        String normalizedMilestonesJson = hasNonEmptyJsonArray(milestonesJson)
+            ? milestonesJson
+            : generated.milestonesJson();
+        String normalizedTasksJson = hasNonEmptyJsonArray(tasksJson)
+            ? tasksJson
+            : generated.tasksJson();
+
+        try {
+            return templateStructureService.normalizeTemplateStructure(
+                normalizedPhasesJson,
+                normalizedMilestonesJson,
+                normalizedTasksJson,
+                "M2 seed timeline"
+            );
+        } catch (Module2Exception ex) {
+            return templateStructureService.normalizeTemplateStructure(
+                generated.phasesJson(),
+                generated.milestonesJson(),
+                generated.tasksJson(),
+                "M2 seed timeline fallback"
+            );
+        }
+    }
+
+    private Map<String, Milestone> createSeedMilestones(Project project,
+                                                        User owner,
+                                                        TemplateStructureService.NormalizedTemplateStructure structure,
+                                                        LocalDate projectStartDate) {
+        List<TemplateStructureService.MilestoneSpec> specs = structure.milestones().stream()
+            .filter(TemplateStructureService.MilestoneSpec::enabled)
+            .sorted(Comparator.comparingInt(TemplateStructureService.MilestoneSpec::offsetDays))
+            .limit(18)
+            .toList();
+
+        Map<String, Milestone> created = new LinkedHashMap<>();
+
+        if (specs.isEmpty()) {
+            List<String> fallbackNames = List.of("Kickoff", "Execution Checkpoint", "Release");
+            for (int i = 0; i < fallbackNames.size(); i++) {
+                Milestone.MilestoneStatus status = resolveSeedMilestoneStatus(
+                    project.getStatus(),
+                    i,
+                    fallbackNames.size(),
+                    "pending"
+                );
+
+                Milestone milestone = milestoneRepository.save(Milestone.builder()
+                    .project(project)
+                    .name(project.getName() + " " + fallbackNames.get(i))
+                    .description("Seeded milestone for README coverage.")
+                    .dueDate(projectStartDate.plusDays((long) i * 14L))
+                    .status(status)
+                    .completionPct(resolveSeedMilestoneCompletion(status, 0f))
+                    .createdBy(owner)
+                    .build());
+                created.put("fallback-ms-" + (i + 1), milestone);
+            }
+            return created;
+        }
+
+        for (int i = 0; i < specs.size(); i++) {
+            TemplateStructureService.MilestoneSpec spec = specs.get(i);
+            Milestone.MilestoneStatus status = resolveSeedMilestoneStatus(
+                project.getStatus(),
+                i,
+                specs.size(),
+                spec.status()
+            );
+
+            Milestone milestone = milestoneRepository.save(Milestone.builder()
+                .project(project)
+                .name(spec.name())
+                .description(spec.description())
+                .dueDate(resolveSeedDateFromOffset(projectStartDate, spec.offsetDays()))
+                .status(status)
+                .completionPct(resolveSeedMilestoneCompletion(status, spec.completionPct()))
+                .createdBy(owner)
+                .build());
+
+            created.put(spec.key(), milestone);
+        }
+
+        return created;
+    }
+
+    private void createSeedTasks(Project project,
+                                 User owner,
+                                 TemplateStructureService.NormalizedTemplateStructure structure,
+                                 LocalDate projectStartDate,
+                                 List<Milestone> milestonePool,
+                                 Map<String, Milestone> milestonesByKey) {
+        List<User> assignableUsers = resolveAssignableProjectUsers(project, owner);
+
+        Map<String, Integer> milestoneOffsetByKey = new LinkedHashMap<>();
+        for (TemplateStructureService.MilestoneSpec milestoneSpec : structure.milestones()) {
+            milestoneOffsetByKey.put(milestoneSpec.key(), milestoneSpec.offsetDays());
+        }
+
+        List<TemplateStructureService.TaskSpec> specs = structure.tasks().stream()
+            .filter(TemplateStructureService.TaskSpec::enabled)
+            .limit(36)
+            .toList();
+
+        Map<String, Task> tasksByKey = new LinkedHashMap<>();
+        Map<String, String> parentReferences = new LinkedHashMap<>();
+
+        if (specs.isEmpty()) {
+            int fallbackCount = Math.max(3, milestonePool.isEmpty() ? 3 : Math.min(6, milestonePool.size() * 2));
+            for (int i = 0; i < fallbackCount; i++) {
+                Milestone milestone = milestonePool.isEmpty() ? null : milestonePool.get(i % milestonePool.size());
+                User assignedTo = assignableUsers.isEmpty() ? null : assignableUsers.get(i % assignableUsers.size());
+                Task.TaskStatus status = resolveSeedTaskStatus(project.getStatus(), i, fallbackCount, "todo");
+
+                LocalDate startDate = projectStartDate.plusDays((long) i * 5L);
+                LocalDate dueDate = startDate.plusDays(4L);
+
+                taskRepository.save(Task.builder()
+                    .project(project)
+                    .milestone(milestone)
+                    .title((milestone != null ? milestone.getName() : project.getName()) + " Task " + (i + 1))
+                    .description("Seeded delivery task for README timeline coverage.")
+                    .taskType(Task.TaskType.task)
+                    .status(status)
+                    .priority(i == fallbackCount - 1 ? Task.TaskPriority.high : Task.TaskPriority.medium)
+                    .estimatedHours(6f + i)
+                    .createdBy(owner)
+                    .assignedTo(assignedTo)
+                    .startDate(startDate)
+                    .dueDate(dueDate)
+                    .build());
+            }
+            return;
+        }
+
+        for (int i = 0; i < specs.size(); i++) {
+            TemplateStructureService.TaskSpec spec = specs.get(i);
+
+            Milestone milestone = spec.milestoneKey() != null ? milestonesByKey.get(spec.milestoneKey()) : null;
+            if (milestone == null && !milestonePool.isEmpty()) {
+                milestone = milestonePool.get(i % milestonePool.size());
+            }
+
+            User assignedTo = assignableUsers.isEmpty() ? null : assignableUsers.get(i % assignableUsers.size());
+            Task.TaskStatus status = resolveSeedTaskStatus(project.getStatus(), i, specs.size(), spec.status());
+
+            Task task = Task.builder()
+                .project(project)
+                .milestone(milestone)
+                .title(spec.title())
+                .description(spec.description())
+                .taskType(parseTaskType(spec.taskType(), Task.TaskType.task))
+                .status(status)
+                .priority(parseTaskPriority(spec.priority(), Task.TaskPriority.medium))
+                .estimatedHours(spec.estimatedHours() != null ? spec.estimatedHours() : (6f + (i % 6)))
+                .createdBy(owner)
+                .assignedTo(assignedTo)
+                .startDate(resolveSeedTaskStartDate(projectStartDate, spec, milestoneOffsetByKey))
+                .dueDate(resolveSeedTaskDueDate(projectStartDate, spec, milestoneOffsetByKey))
+                .build();
+
+            Task saved = taskRepository.save(task);
+            tasksByKey.put(spec.key(), saved);
+
+            if (hasText(spec.parentTaskKey())) {
+                parentReferences.put(spec.key(), spec.parentTaskKey());
+            }
+        }
+
+        for (Map.Entry<String, String> parentRef : parentReferences.entrySet()) {
+            Task child = tasksByKey.get(parentRef.getKey());
+            Task parent = tasksByKey.get(parentRef.getValue());
+            if (child == null || parent == null || Objects.equals(child.getId(), parent.getId())) {
+                continue;
+            }
+
+            child.setParentTask(parent);
+            taskRepository.save(child);
+        }
+    }
+
+    private List<User> resolveAssignableProjectUsers(Project project, User owner) {
+        LinkedHashSet<Long> userIds = new LinkedHashSet<>();
+        for (ProjectMember member : projectMemberRepository.findAllByProjectId(project.getId())) {
+            userIds.add(member.getUserId());
+        }
+        if (owner != null && owner.getId() != null) {
+            userIds.add(owner.getId());
+        }
+
+        if (userIds.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, User> usersById = new LinkedHashMap<>();
+        userRepository.findAllById(userIds).forEach(user -> usersById.put(user.getId(), user));
+
+        List<User> users = new ArrayList<>();
+        for (Long userId : userIds) {
+            User user = usersById.get(userId);
+            if (user != null) {
+                users.add(user);
+            }
+        }
+
+        return users;
+    }
+
+    private LocalDate resolveProjectStartDate(Project project) {
+        if (project.getStartDate() != null) {
+            return project.getStartDate();
+        }
+        if (project.getCreatedAt() != null) {
+            return project.getCreatedAt().atZone(ZoneId.systemDefault()).toLocalDate();
+        }
+        return LocalDate.now();
+    }
+
+    private LocalDate resolveSeedDateFromOffset(LocalDate projectStartDate, Integer offsetDays) {
+        if (projectStartDate == null || offsetDays == null) {
+            return null;
+        }
+        return projectStartDate.plusDays(Math.max(0, offsetDays));
+    }
+
+    private LocalDate resolveSeedTaskStartDate(LocalDate projectStartDate,
+                                               TemplateStructureService.TaskSpec spec,
+                                               Map<String, Integer> milestoneOffsetByKey) {
+        Integer startOffset = spec.startOffsetDays();
+        if (startOffset == null && spec.milestoneKey() != null) {
+            startOffset = milestoneOffsetByKey.get(spec.milestoneKey());
+        }
+        return resolveSeedDateFromOffset(projectStartDate, startOffset);
+    }
+
+    private LocalDate resolveSeedTaskDueDate(LocalDate projectStartDate,
+                                             TemplateStructureService.TaskSpec spec,
+                                             Map<String, Integer> milestoneOffsetByKey) {
+        Integer dueOffset = spec.dueOffsetDays();
+        Integer inferredStartOffset = spec.startOffsetDays();
+
+        if (inferredStartOffset == null && spec.milestoneKey() != null) {
+            inferredStartOffset = milestoneOffsetByKey.get(spec.milestoneKey());
+        }
+
+        if (dueOffset == null && inferredStartOffset != null && spec.estimatedHours() != null && spec.estimatedHours() > 0f) {
+            int estimatedDays = Math.max(1, (int) Math.ceil(spec.estimatedHours() / 8.0));
+            dueOffset = inferredStartOffset + estimatedDays;
+        }
+
+        if (dueOffset == null) {
+            dueOffset = inferredStartOffset;
+        }
+
+        return resolveSeedDateFromOffset(projectStartDate, dueOffset);
+    }
+
+    private Milestone.MilestoneStatus resolveSeedMilestoneStatus(Project.ProjectStatus projectStatus,
+                                                                 int index,
+                                                                 int total,
+                                                                 String fallbackStatus) {
+        Milestone.MilestoneStatus fallback = parseMilestoneStatus(fallbackStatus, Milestone.MilestoneStatus.pending);
+        if (projectStatus == null) {
+            return fallback;
+        }
+
+        return switch (projectStatus) {
+            case COMPLETED, ARCHIVED -> Milestone.MilestoneStatus.completed;
+            case ACTIVE -> index < Math.max(1, total / 2)
+                ? Milestone.MilestoneStatus.completed
+                : Milestone.MilestoneStatus.in_progress;
+            case ON_HOLD -> index == 0
+                ? Milestone.MilestoneStatus.completed
+                : Milestone.MilestoneStatus.at_risk;
+            case CANCELLED -> index == 0
+                ? Milestone.MilestoneStatus.completed
+                : Milestone.MilestoneStatus.missed;
+            case PLANNING -> fallback;
+        };
+    }
+
+    private float resolveSeedMilestoneCompletion(Milestone.MilestoneStatus status, float fallbackCompletion) {
+        return switch (status) {
+            case completed -> 100f;
+            case in_progress -> Math.max(40f, Math.min(95f, fallbackCompletion > 0f ? fallbackCompletion : 65f));
+            case at_risk -> Math.max(20f, Math.min(80f, fallbackCompletion > 0f ? fallbackCompletion : 45f));
+            case missed -> Math.max(5f, Math.min(60f, fallbackCompletion > 0f ? fallbackCompletion : 20f));
+            case pending -> Math.max(0f, Math.min(35f, fallbackCompletion));
+        };
+    }
+
+    private Task.TaskStatus resolveSeedTaskStatus(Project.ProjectStatus projectStatus,
+                                                  int index,
+                                                  int total,
+                                                  String fallbackStatus) {
+        Task.TaskStatus fallback = parseTaskStatus(fallbackStatus, Task.TaskStatus.todo);
+        if (projectStatus == null) {
+            return fallback;
+        }
+
+        return switch (projectStatus) {
+            case COMPLETED, ARCHIVED -> Task.TaskStatus.done;
+            case ACTIVE -> {
+                int doneThreshold = Math.max(1, total / 3);
+                int progressThreshold = Math.max(doneThreshold + 1, (total * 2) / 3);
+                if (index < doneThreshold) {
+                    yield Task.TaskStatus.done;
+                }
+                if (index < progressThreshold) {
+                    yield Task.TaskStatus.in_progress;
+                }
+                yield fallback;
+            }
+            case ON_HOLD -> {
+                if (index == 0) {
+                    yield Task.TaskStatus.done;
+                }
+                if (index == 1) {
+                    yield Task.TaskStatus.blocked;
+                }
+                yield fallback;
+            }
+            case CANCELLED -> Task.TaskStatus.blocked;
+            case PLANNING -> fallback;
+        };
+    }
+
+    private Milestone.MilestoneStatus parseMilestoneStatus(String rawStatus,
+                                                           Milestone.MilestoneStatus fallback) {
+        if (!hasText(rawStatus)) {
+            return fallback;
+        }
+        try {
+            return Milestone.MilestoneStatus.valueOf(rawStatus.trim().toLowerCase(Locale.ROOT));
+        } catch (Exception ex) {
+            return fallback;
+        }
+    }
+
+    private Task.TaskType parseTaskType(String rawType, Task.TaskType fallback) {
+        if (!hasText(rawType)) {
+            return fallback;
+        }
+        try {
+            return Task.TaskType.valueOf(rawType.trim().toLowerCase(Locale.ROOT));
+        } catch (Exception ex) {
+            return fallback;
+        }
+    }
+
+    private Task.TaskStatus parseTaskStatus(String rawStatus, Task.TaskStatus fallback) {
+        if (!hasText(rawStatus)) {
+            return fallback;
+        }
+        try {
+            return Task.TaskStatus.valueOf(rawStatus.trim().toLowerCase(Locale.ROOT));
+        } catch (Exception ex) {
+            return fallback;
+        }
+    }
+
+    private Task.TaskPriority parseTaskPriority(String rawPriority, Task.TaskPriority fallback) {
+        if (!hasText(rawPriority)) {
+            return fallback;
+        }
+        try {
+            return Task.TaskPriority.valueOf(rawPriority.trim().toLowerCase(Locale.ROOT));
+        } catch (Exception ex) {
+            return fallback;
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1216,6 +2364,37 @@ public class M2DevSeedService {
     private ProjectTemplate ensureTemplateFork(ProjectTemplate sourceTemplate,
                                                 Long requesterId,
                                                 String customName) {
+        Optional<ProjectTemplate> existingFork = projectTemplateRepository.findAll().stream()
+            .filter(t -> Objects.equals(t.getParentTemplateId(), sourceTemplate.getId())
+                && customName.equalsIgnoreCase(t.getName()))
+            .findFirst();
+
+        if (existingFork.isPresent()) {
+            ProjectTemplate fork = existingFork.get();
+            boolean changed = false;
+
+            if (!Boolean.TRUE.equals(fork.getIsPublic())) {
+                fork.setIsPublic(true);
+                changed = true;
+            }
+            if (fork.getStatus() != TemplateStatus.APPROVED) {
+                fork.setStatus(TemplateStatus.APPROVED);
+                changed = true;
+            }
+            if (fork.getDefaultVisibility() != DefaultVisibility.PUBLIC) {
+                fork.setDefaultVisibility(DefaultVisibility.PUBLIC);
+                changed = true;
+            }
+            if (!Objects.equals(fork.getVersion(), 1)) {
+                fork.setVersion(1);
+                changed = true;
+            }
+            if (ensureTemplateHasStructure(fork, customName, sourceTemplate.getDefaultPhasesJson())) {
+                changed = true;
+            }
+            return changed ? projectTemplateRepository.save(fork) : fork;
+        }
+
         // Use service to fork (sets parentTemplateId, status=DRAFT, etc.)
         ProjectTemplate fork = projectTemplateService.forkTemplate(sourceTemplate.getId(), requesterId);
         
@@ -1226,9 +2405,252 @@ public class M2DevSeedService {
         fork.setIsPublic(true);
         fork.setStatus(ProjectTemplate.TemplateStatus.APPROVED);
         fork.setDefaultVisibility(ProjectTemplate.DefaultVisibility.PUBLIC);
+        ensureTemplateHasStructure(fork, customName, sourceTemplate.getDefaultPhasesJson());
         
         // Save with custom name and public visibility
         return projectTemplateRepository.save(fork);
+    }
+
+    private boolean ensureTemplateHasStructure(ProjectTemplate template,
+                                               String templateName,
+                                               String preferredPhasesJson) {
+        String sourcePhasesJson = isJsonArray(template.getDefaultPhasesJson())
+            ? template.getDefaultPhasesJson()
+            : preferredPhasesJson;
+        SeedTemplateStructure generated = buildTemplateStructureDefaults(sourcePhasesJson, templateName);
+        boolean changed = false;
+
+        if (!isJsonArray(template.getDefaultPhasesJson())) {
+            template.setDefaultPhasesJson(generated.phasesJson());
+            changed = true;
+        }
+        if (!hasNonEmptyJsonArray(template.getDefaultMilestonesJson())) {
+            template.setDefaultMilestonesJson(generated.milestonesJson());
+            changed = true;
+        }
+        if (!hasNonEmptyJsonArray(template.getDefaultTasksJson())) {
+            template.setDefaultTasksJson(generated.tasksJson());
+            changed = true;
+        }
+        if (!hasText(template.getDefaultRolesJson())) {
+            template.setDefaultRolesJson("[]");
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    private SeedTemplateStructure buildTemplateStructureDefaults(String phasesJson, String templateName) {
+        List<SeedPhaseSpec> phases = parseSeedPhases(phasesJson, templateName);
+
+        List<Map<String, Object>> phaseRows = new ArrayList<>();
+        List<Map<String, Object>> milestones = new ArrayList<>();
+        List<Map<String, Object>> tasks = new ArrayList<>();
+
+        int runningOffset = 0;
+        for (int i = 0; i < phases.size(); i++) {
+            SeedPhaseSpec phase = phases.get(i);
+            int phaseDuration = Math.max(1, phase.durationDays());
+            int phaseStartOffset = runningOffset;
+            int phaseEndOffset = phaseStartOffset + phaseDuration;
+
+            Map<String, Object> phaseRow = new LinkedHashMap<>();
+            phaseRow.put("key", phase.key());
+            phaseRow.put("name", phase.name());
+            phaseRow.put("durationDays", phase.durationDays());
+            phaseRow.put("order", i + 1);
+            phaseRow.put("enabled", phase.enabled());
+            phaseRows.add(phaseRow);
+
+            String kickoffMilestoneKey = phase.key() + "-ms-kickoff";
+            String completionMilestoneKey = phase.key() + "-ms-complete";
+
+            Map<String, Object> kickoffMilestone = new LinkedHashMap<>();
+            kickoffMilestone.put("key", kickoffMilestoneKey);
+            kickoffMilestone.put("name", phase.name() + " Kickoff");
+            kickoffMilestone.put("description", "Kickoff checkpoint for " + phase.name() + ".");
+            kickoffMilestone.put("phaseKey", phase.key());
+            kickoffMilestone.put("offsetDays", phaseStartOffset);
+            kickoffMilestone.put("status", "pending");
+            kickoffMilestone.put("completionPct", 0f);
+            kickoffMilestone.put("enabled", phase.enabled());
+            milestones.add(kickoffMilestone);
+
+            Map<String, Object> completionMilestone = new LinkedHashMap<>();
+            completionMilestone.put("key", completionMilestoneKey);
+            completionMilestone.put("name", phase.name() + " Complete");
+            completionMilestone.put("description", "Completion checkpoint for " + phase.name() + ".");
+            completionMilestone.put("phaseKey", phase.key());
+            completionMilestone.put("offsetDays", Math.max(phaseStartOffset, phaseEndOffset - 1));
+            completionMilestone.put("status", "pending");
+            completionMilestone.put("completionPct", 0f);
+            completionMilestone.put("enabled", phase.enabled());
+            milestones.add(completionMilestone);
+
+            int planningDueOffset = Math.max(phaseStartOffset, phaseStartOffset + Math.max(1, phaseDuration / 2));
+            int executionStartOffset = Math.min(planningDueOffset, Math.max(phaseStartOffset, phaseEndOffset - 1));
+            int executionDueOffset = Math.max(executionStartOffset, phaseEndOffset);
+
+            Map<String, Object> planningTask = new LinkedHashMap<>();
+            planningTask.put("key", phase.key() + "-task-plan");
+            planningTask.put("title", "Plan " + phase.name());
+            planningTask.put("description", "Define scope and acceptance criteria for " + phase.name() + ".");
+            planningTask.put("phaseKey", phase.key());
+            planningTask.put("milestoneKey", kickoffMilestoneKey);
+            planningTask.put("taskType", "task");
+            planningTask.put("status", "todo");
+            planningTask.put("priority", "medium");
+            planningTask.put("estimatedHours", 6f + i);
+            planningTask.put("startOffsetDays", phaseStartOffset);
+            planningTask.put("dueOffsetDays", planningDueOffset);
+            planningTask.put("enabled", phase.enabled());
+            tasks.add(planningTask);
+
+            Map<String, Object> executionTask = new LinkedHashMap<>();
+            executionTask.put("key", phase.key() + "-task-deliver");
+            executionTask.put("title", "Deliver " + phase.name());
+            executionTask.put("description", "Execute and deliver the outputs for " + phase.name() + ".");
+            executionTask.put("phaseKey", phase.key());
+            executionTask.put("milestoneKey", completionMilestoneKey);
+            executionTask.put("taskType", "task");
+            executionTask.put("status", "todo");
+            executionTask.put("priority", i >= phases.size() - 1 ? "high" : "medium");
+            executionTask.put("estimatedHours", 10f + i);
+            executionTask.put("startOffsetDays", executionStartOffset);
+            executionTask.put("dueOffsetDays", executionDueOffset);
+            executionTask.put("enabled", phase.enabled());
+            tasks.add(executionTask);
+
+            if (phase.enabled()) {
+                runningOffset += phaseDuration;
+            }
+        }
+
+        return new SeedTemplateStructure(toJson(phaseRows), toJson(milestones), toJson(tasks));
+    }
+
+    private List<SeedPhaseSpec> parseSeedPhases(String phasesJson, String templateName) {
+        List<SeedPhaseSpec> phases = new ArrayList<>();
+        Set<String> usedKeys = new HashSet<>();
+
+        if (hasText(phasesJson)) {
+            try {
+                JsonNode root = objectMapper.readTree(phasesJson);
+                if (root.isArray()) {
+                    for (int i = 0; i < root.size(); i++) {
+                        JsonNode item = root.get(i);
+                        String name = null;
+                        String keyCandidate = null;
+                        int durationDays = 14;
+                        boolean enabled = true;
+
+                        if (item != null && item.isObject()) {
+                            name = optionalText(item, "name", "title");
+                            keyCandidate = optionalText(item, "key");
+                            durationDays = optionalInt(item, 14, "durationDays", "duration");
+                            enabled = item.path("enabled").asBoolean(true);
+                        } else if (item != null && item.isTextual()) {
+                            name = item.asText();
+                        }
+
+                        if (!hasText(name)) {
+                            name = "Phase " + (i + 1);
+                        }
+
+                        String key = uniqueKey(hasText(keyCandidate) ? keyCandidate : name, usedKeys);
+                        int boundedDuration = Math.max(0, Math.min(3650, durationDays));
+                        phases.add(new SeedPhaseSpec(key, name.trim(), boundedDuration, enabled));
+                    }
+                }
+            } catch (Exception ex) {
+                log.debug("[M2DevSeedService] Could not parse phases JSON for template '{}': {}", templateName, ex.getMessage());
+            }
+        }
+
+        if (phases.isEmpty()) {
+            phases.add(new SeedPhaseSpec("phase-1", "Planning", 7, true));
+            phases.add(new SeedPhaseSpec("phase-2", "Execution", 14, true));
+            phases.add(new SeedPhaseSpec("phase-3", "Validation", 7, true));
+        }
+
+        return phases;
+    }
+
+    private String optionalText(JsonNode node, String... fields) {
+        if (node == null) return null;
+        for (String field : fields) {
+            JsonNode value = node.get(field);
+            if (value == null || value.isNull()) continue;
+            String text = value.asText("").trim();
+            if (!text.isEmpty()) return text;
+        }
+        return null;
+    }
+
+    private int optionalInt(JsonNode node, int fallback, String... fields) {
+        if (node == null) return fallback;
+        for (String field : fields) {
+            JsonNode value = node.get(field);
+            if (value == null || value.isNull()) continue;
+            if (value.isInt() || value.isLong()) return value.asInt();
+            if (value.isTextual()) {
+                try {
+                    return Integer.parseInt(value.asText().trim());
+                } catch (NumberFormatException ignored) {
+                    // keep fallback
+                }
+            }
+        }
+        return fallback;
+    }
+
+    private String uniqueKey(String candidate, Set<String> usedKeys) {
+        String base = sanitizeKey(candidate);
+        if (!hasText(base)) base = "phase";
+
+        String key = base;
+        int suffix = 2;
+        while (usedKeys.contains(key)) {
+            key = base + "-" + suffix;
+            suffix++;
+        }
+        usedKeys.add(key);
+        return key;
+    }
+
+    private String sanitizeKey(String value) {
+        if (!hasText(value)) return "";
+        String normalized = value.trim().toLowerCase(Locale.ROOT)
+            .replaceAll("[^a-z0-9]+", "-")
+            .replaceAll("(^-+|-+$)", "");
+        return normalized;
+    }
+
+    private boolean hasNonEmptyJsonArray(String rawJson) {
+        if (!hasText(rawJson)) return false;
+        try {
+            JsonNode root = objectMapper.readTree(rawJson);
+            return root.isArray() && root.size() > 0;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    private boolean isJsonArray(String rawJson) {
+        if (!hasText(rawJson)) return false;
+        try {
+            return objectMapper.readTree(rawJson).isArray();
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    private String firstNonBlank(String primary, String fallback) {
+        return hasText(primary) ? primary : fallback;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 
     private User requireUser(String email) {

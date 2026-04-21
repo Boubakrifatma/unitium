@@ -15,7 +15,7 @@ import { provideNativeDateAdapter } from "@angular/material/core";
 import { Router } from "@angular/router";
 import { forkJoin, of, from } from "rxjs";
 import { catchError, concatMap, toArray } from "rxjs/operators";
-import { M2TemplateService, M2TemplateSummary } from "./m2-template.service";
+import { M2AcademicSourceItem, M2TemplateService, M2TemplateSummary } from "./m2-template.service";
 import { M2WorkspaceService, M2Workspace, M2WorkspaceMember } from "../m2-workspaces/m2-workspace.service";
 import { M2ProjectService } from "../m2-projects/m2-project.service";
 import { AuthService } from "../../../auth/auth.service";
@@ -43,6 +43,17 @@ interface ParsedPhase {
     enabled: boolean;
 }
 
+interface ParsedMilestone {
+    id: string;
+    name: string;
+    description?: string;
+    phaseKey?: string;
+    offsetDays: number;
+    status: string;
+    completionPct: number;
+    enabled: boolean;
+}
+
 interface RoleSlot { userId: number | null; userName?: string; }
 
 interface ParsedRole {
@@ -61,9 +72,28 @@ interface ParsedTask {
     id: string;
     title: string;
     description?: string;
+    phaseKey?: string;
+    milestoneKey?: string;
     phase?: string;
+    taskType: string;
+    status: string;
     priority: string;
     estimatedHours?: number;
+    startOffsetDays?: number;
+    dueOffsetDays?: number;
+    parentTaskKey?: string;
+    selected: boolean;
+}
+
+interface AcademicSourceCandidate {
+    key: string;
+    id?: string;
+    title: string;
+    publicationYear?: number | null;
+    citedByCount?: number | null;
+    openAccessUrl?: string | null;
+    landingPageUrl?: string | null;
+    firstAuthor?: string | null;
     selected: boolean;
 }
 
@@ -225,7 +255,7 @@ function safeParse(json?: string | null): unknown[] {
 
             <!-- ═══════════════════════════ STEP: PICK ═══════════════════════════ -->
             @if (currentStep() === 'pick') {
-                <p class="small text-secondary mb-3">Choose an approved template to start your project from.</p>
+                <p class="small text-secondary mb-3">Choose a template to start your project from (approved public templates and templates created by you).</p>
                 <!-- Search + filter -->
                 <div class="row gx-2 mb-3">
                     <div class="col">
@@ -257,7 +287,7 @@ function safeParse(json?: string | null): unknown[] {
                     } @else if (filteredPick().length === 0) {
                         <div class="text-center py-4">
                             <mat-icon class="material-icons-outlined text-secondary">layers</mat-icon>
-                            <p class="text-secondary small mt-1 mb-0">No approved templates found.</p>
+                            <p class="text-secondary small mt-1 mb-0">No matching templates found.</p>
                         </div>
                     } @else {
                         @for (t of filteredPick(); track t.id) {
@@ -271,6 +301,12 @@ function safeParse(json?: string | null): unknown[] {
                                     </div>
                                     <div class="d-flex align-items-center gap-2 mt-1">
                                         <span class="badge badge-light" style="font-size:9px;">{{ t.templateType }}</span>
+                                        @if (isMyTemplate(t)) {
+                                            <span class="badge" style="background:rgba(34,197,94,0.16);color:#166534;font-size:9px;">Mine</span>
+                                            @if (t.status !== 'APPROVED') {
+                                                <span class="badge" style="background:rgba(251,191,36,0.2);color:#92400e;font-size:9px;">{{ t.status }}</span>
+                                            }
+                                        }
                                         @if (t.estimatedDurationDays) { <span class="text-secondary" style="font-size:10px;">{{ t.estimatedDurationDays }}d</span> }
                                         <span class="text-secondary ms-auto" style="font-size:10px;">{{ t.rating | number:'1.1-1' }} ★ · {{ t.usageCount }} uses</span>
                                     </div>
@@ -539,6 +575,75 @@ function safeParse(json?: string | null): unknown[] {
                     </div>
                 </div>
 
+                @if (isAcademicWorkspace()) {
+                    <div class="p-3 rounded-3 mb-3" style="background:rgba(14,165,233,0.08);border:1px solid rgba(14,165,233,0.24);">
+                        <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                            <div>
+                                <p class="fw-medium mb-0" style="font-size:13px;">
+                                    <mat-icon class="material-icons-outlined align-middle me-1" style="font-size:14px;width:14px;height:14px;color:#0369a1;">library_books</mat-icon>
+                                    Academic Source Pack (OpenAlex)
+                                </p>
+                                <p class="small text-secondary mb-0">Search academic papers and inject selected references as project tasks.</p>
+                            </div>
+                            <span class="badge" style="background:rgba(3,105,161,0.12);color:#0369a1;font-size:10px;">
+                                {{ selectedAcademicSourceCount() }} selected
+                            </span>
+                        </div>
+
+                        <div class="d-flex gap-2 flex-wrap align-items-start mb-2">
+                            <mat-form-field appearance="outline" class="inline-small" style="min-width:280px;flex:1;">
+                                <mat-label>Paper topic</mat-label>
+                                <input matInput [(ngModel)]="academicSourceQuery" placeholder="e.g. machine learning fairness" />
+                            </mat-form-field>
+                            <button matButton="filled" (click)="searchAcademicSources()" [disabled]="academicSourcesLoading()" style="height:40px;">
+                                <mat-icon class="material-icons-outlined">search</mat-icon>
+                                {{ academicSourcesLoading() ? 'Searching...' : 'Search Papers' }}
+                            </button>
+                            <button matButton (click)="injectSelectedAcademicSources()" [disabled]="selectedAcademicSourceCount() === 0" style="height:40px;">
+                                <mat-icon class="material-icons-outlined">playlist_add</mat-icon>
+                                Inject Selected
+                            </button>
+                        </div>
+
+                        @if (academicSourceWarning()) {
+                            <p class="small mb-2" style="color:#92400e;">{{ academicSourceWarning() }}</p>
+                        }
+                        @if (academicSourceError()) {
+                            <p class="small mb-2" style="color:#991b1b;">{{ academicSourceError() }}</p>
+                        }
+
+                        @if (academicSourcesLoading()) {
+                            <div class="small text-secondary py-1">Searching OpenAlex...</div>
+                        } @else if (academicSources().length > 0) {
+                            <div style="max-height:220px;overflow-y:auto;border:1px solid rgba(0,0,0,0.08);border-radius:8px;background:#fff;">
+                                @for (source of academicSources(); track source.key) {
+                                    <div style="padding:10px 12px;border-bottom:1px solid rgba(0,0,0,0.06);">
+                                        <div class="d-flex align-items-start gap-2">
+                                            <input type="checkbox" [checked]="source.selected" (change)="toggleAcademicSourceSelection(source.key)" style="margin-top:2px;" />
+                                            <div class="flex-grow-1">
+                                                <p class="mb-1" style="font-size:12px;font-weight:600;line-height:1.35;">{{ source.title }}</p>
+                                                <p class="text-secondary mb-1" style="font-size:10px;line-height:1.3;">
+                                                    @if (source.firstAuthor) { {{ source.firstAuthor }} · }
+                                                    @if (source.publicationYear) { {{ source.publicationYear }} · }
+                                                    @if (source.citedByCount !== null && source.citedByCount !== undefined) { {{ source.citedByCount }} citations }
+                                                </p>
+                                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                    @if (source.openAccessUrl) {
+                                                        <a [href]="source.openAccessUrl" target="_blank" rel="noopener" style="font-size:10px;color:#0369a1;" (click)="$event.stopPropagation()">Open access</a>
+                                                    }
+                                                    @if (!source.openAccessUrl && source.landingPageUrl) {
+                                                        <a [href]="source.landingPageUrl" target="_blank" rel="noopener" style="font-size:10px;color:#0369a1;" (click)="$event.stopPropagation()">Source page</a>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+
                 @for (group of taskGroups(); track group.name) {
                     @if (group.tasks.length > 0) {
                         <div class="task-group-header d-flex align-items-center justify-content-between">
@@ -714,6 +819,7 @@ export class UseTemplateWizardDialogComponent implements OnInit {
     // ── Template data ──
     readonly template = signal<M2TemplateSummary | null>(null);
     readonly parsedPhases = signal<ParsedPhase[]>([]);
+    readonly parsedMilestones = signal<ParsedMilestone[]>([]);
     readonly parsedRoles = signal<ParsedRole[]>([]);
     readonly parsedTasks = signal<ParsedTask[]>([]);
 
@@ -732,6 +838,7 @@ export class UseTemplateWizardDialogComponent implements OnInit {
     // ── Workspace data ──
     readonly workspaces = signal<M2Workspace[]>([]);
     readonly workspaceMembers = signal<M2WorkspaceMember[]>([]);
+    readonly workspaceOrgTypeOverride = signal("");
 
     // ── Template picker state (step: pick) ──
     readonly allPublicTemplates = signal<M2TemplateSummary[]>([]);
@@ -740,16 +847,47 @@ export class UseTemplateWizardDialogComponent implements OnInit {
     pickSearch = "";
     pickType = "";
 
+    // ── Academic source pack (OpenAlex) ──
+    academicSourceQuery = "";
+    readonly academicSources = signal<AcademicSourceCandidate[]>([]);
+    readonly academicSourcesLoading = signal(false);
+    readonly academicSourceError = signal("");
+    readonly academicSourceWarning = signal("");
+
     // ── Computed helpers ──
     readonly enabledPhaseCount = computed(() => this.parsedPhases().filter(p => p.enabled).length);
     readonly totalDays = computed(() => this.parsedPhases().filter(p => p.enabled).reduce((s, p) => s + p.durationDays, 0));
-    readonly selectedTaskCount = computed(() => this.parsedTasks().filter(t => t.selected).length);
+    readonly selectedMilestoneCount = computed(() => this.selectedMilestonesForLaunch().length);
+    readonly selectedTaskCount = computed(() => this.selectedTasksForLaunch().length);
     readonly filledSlots = computed(() => this.parsedRoles().flatMap(r => r.slots).filter(s => s.userId !== null).length);
     readonly totalSlots = computed(() => this.parsedRoles().reduce((s, r) => s + r.slots.length, 0));
+    readonly currentUserId = computed(() => this.authService.currentUser()?.id ?? 0);
+    readonly selectedWorkspaceOrgType = computed(() => {
+        const workspaceId = this.data.workspaceId || this.selectedWorkspaceId;
+        if (!workspaceId) {
+            const fallback = this.authService.currentOrganization()?.organizationType || "";
+            return String(fallback).toLowerCase();
+        }
+
+        const row = this.workspaces().find((workspace) => workspace.id === workspaceId);
+        const rawOrgType = row?.orgType
+            || row?.organization?.orgType
+            || this.workspaceOrgTypeOverride()
+            || this.authService.currentOrganization()?.organizationType
+            || "";
+        return String(rawOrgType).toLowerCase();
+    });
+    readonly isAcademicWorkspace = computed(() => this.selectedWorkspaceOrgType() === "academic");
+    readonly selectedAcademicSourceCount = computed(() => this.academicSources().filter((item) => item.selected).length);
     readonly taskGroups = computed(() => {
+        const visibleTasks = this.visibleTasksForSelection();
+        const milestonesById = new Map(this.parsedMilestones().map(m => [m.id, m.name]));
+        const phasesById = new Map(this.parsedPhases().map(p => [p.id, p.name]));
         const groups = new Map<string, ParsedTask[]>();
-        for (const task of this.parsedTasks()) {
-            const g = task.phase || "General";
+        for (const task of visibleTasks) {
+            const g = task.milestoneKey
+                ? (milestonesById.get(task.milestoneKey) || task.phase || "General")
+                : (task.phaseKey ? (phasesById.get(task.phaseKey) || task.phase || "General") : (task.phase || "General"));
             if (!groups.has(g)) groups.set(g, []);
             groups.get(g)!.push(task);
         }
@@ -773,6 +911,15 @@ export class UseTemplateWizardDialogComponent implements OnInit {
             });
         } else {
             this.selectedWorkspaceId = this.data.workspaceId;
+            this.workspaceService.getWorkspaceById(this.data.workspaceId).subscribe({
+                next: (workspace) => {
+                    const rawOrgType = workspace?.orgType || workspace?.organization?.orgType || "";
+                    this.workspaceOrgTypeOverride.set(String(rawOrgType).toLowerCase());
+                },
+                error: () => {
+                    this.workspaceOrgTypeOverride.set("");
+                },
+            });
         }
 
         // Load template or public templates for picker
@@ -793,13 +940,37 @@ export class UseTemplateWizardDialogComponent implements OnInit {
             this.activeStepIndex.set(0);
             this.loadingTemplate.set(false);
             this.loadingPick.set(true);
-            this.templateService.getPublic(0, 200).subscribe({
-                next: (page) => {
-                    const sorted = (page.content || []).sort((a, b) => {
+            const userId = this.currentUserId();
+            const publicTemplates$ = this.templateService.getPublic(0, 200).pipe(
+                catchError(() => of({ content: [] as M2TemplateSummary[] }))
+            );
+            const myTemplates$ = userId
+                ? this.templateService.getMyTemplates(userId, 0, 200).pipe(
+                    catchError(() => of({ content: [] as M2TemplateSummary[] }))
+                )
+                : of({ content: [] as M2TemplateSummary[] });
+
+            forkJoin([publicTemplates$, myTemplates$]).subscribe({
+                next: ([publicPage, myPage]) => {
+                    const mergedById = new Map<string, M2TemplateSummary>();
+                    for (const template of (myPage.content || [])) {
+                        mergedById.set(template.id, template);
+                    }
+                    for (const template of (publicPage.content || [])) {
+                        if (!mergedById.has(template.id)) {
+                            mergedById.set(template.id, template);
+                        }
+                    }
+
+                    const sorted = [...mergedById.values()].sort((a, b) => {
+                        const aMine = userId > 0 && a.createdBy === userId;
+                        const bMine = userId > 0 && b.createdBy === userId;
+                        if (aMine !== bMine) return aMine ? -1 : 1;
                         if (a.isTrending && !b.isTrending) return -1;
                         if (!a.isTrending && b.isTrending) return 1;
-                        return b.usageCount - a.usageCount;
+                        return (b.usageCount || 0) - (a.usageCount || 0);
                     });
+
                     this.allPublicTemplates.set(sorted);
                     this.filteredPick.set(sorted);
                     this.loadingPick.set(false);
@@ -817,13 +988,43 @@ export class UseTemplateWizardDialogComponent implements OnInit {
         // Parse phases
         const rawPhases = safeParse(t.defaultPhasesJson) as Array<Record<string, unknown>>;
         const phases: ParsedPhase[] = rawPhases.map((p, i) => ({
-            id: String(i),
+            id: String(p["key"] || `phase-${i + 1}`),
             name: String(p["name"] || `Phase ${i + 1}`),
             description: p["description"] ? String(p["description"]) : undefined,
             durationDays: Number(p["durationDays"] || p["duration"] || 14),
-            order: i,
-            enabled: true,
+            order: Number(p["order"] ?? (i + 1)),
+            enabled: p["enabled"] !== false,
         }));
+
+        const phaseOffsets = new Map<string, number>();
+        let runningOffset = 0;
+        [...phases]
+            .sort((a, b) => a.order - b.order)
+            .forEach((phase) => {
+                phaseOffsets.set(phase.id, runningOffset);
+                if (phase.enabled) {
+                    runningOffset += Math.max(phase.durationDays, 0);
+                }
+            });
+
+        // Parse milestones
+        const rawMilestones = safeParse(t.defaultMilestonesJson) as Array<Record<string, unknown>>;
+        const milestones: ParsedMilestone[] = rawMilestones.map((m, i) => {
+            const phaseKey = m["phaseKey"] ? String(m["phaseKey"]) : (m["phase"] ? String(m["phase"]) : undefined);
+            const fallbackOffset = phaseKey ? (phaseOffsets.get(phaseKey) ?? 0) : 0;
+            return {
+                id: String(m["key"] || `milestone-${i + 1}`),
+                name: String(m["name"] || m["title"] || `Milestone ${i + 1}`),
+                description: m["description"] ? String(m["description"]) : undefined,
+                phaseKey,
+                offsetDays: Number(m["offsetDays"] ?? fallbackOffset),
+                status: String(m["status"] || "pending").toLowerCase(),
+                completionPct: Number(m["completionPct"] ?? 0),
+                enabled: m["enabled"] !== false,
+            };
+        });
+
+        const milestoneById = new Map(milestones.map(m => [m.id, m]));
 
         // Parse roles
         const rawRoles = safeParse(t.defaultRolesJson) as Array<Record<string, unknown>>;
@@ -846,16 +1047,34 @@ export class UseTemplateWizardDialogComponent implements OnInit {
         // Parse tasks
         const rawTasks = safeParse(t.defaultTasksJson) as Array<Record<string, unknown>>;
         const tasks: ParsedTask[] = rawTasks.map((task, i) => ({
-            id: String(i),
+            id: String(task["key"] || `task-${i + 1}`),
             title: String(task["title"] || task["name"] || `Task ${i + 1}`),
             description: task["description"] ? String(task["description"]) : undefined,
+            phaseKey: task["phaseKey"] ? String(task["phaseKey"]) : (task["phase"] ? String(task["phase"]) : undefined),
+            milestoneKey: task["milestoneKey"] ? String(task["milestoneKey"]) : (task["milestone"] ? String(task["milestone"]) : undefined),
             phase: task["phase"] ? String(task["phase"]) : undefined,
+            taskType: String(task["taskType"] || task["type"] || "task").toLowerCase(),
+            status: String(task["status"] || "todo").toLowerCase(),
             priority: String(task["priority"] || "MEDIUM").toUpperCase(),
             estimatedHours: task["estimatedHours"] ? Number(task["estimatedHours"]) : undefined,
+            startOffsetDays: task["startOffsetDays"] !== undefined ? Number(task["startOffsetDays"]) : undefined,
+            dueOffsetDays: task["dueOffsetDays"] !== undefined ? Number(task["dueOffsetDays"]) : undefined,
+            parentTaskKey: task["parentTaskKey"] ? String(task["parentTaskKey"]) : undefined,
             selected: true,
         }));
 
+        // Backfill task phase from milestone if needed so grouping/filtering remains consistent.
+        tasks.forEach((task) => {
+            if (!task.phaseKey && task.milestoneKey) {
+                const milestone = milestoneById.get(task.milestoneKey);
+                if (milestone?.phaseKey) {
+                    task.phaseKey = milestone.phaseKey;
+                }
+            }
+        });
+
         this.parsedPhases.set(phases);
+        this.parsedMilestones.set(milestones);
         this.parsedRoles.set(roles);
         this.parsedTasks.set(tasks);
 
@@ -878,6 +1097,7 @@ export class UseTemplateWizardDialogComponent implements OnInit {
         }
 
         this.loadingTemplate.set(false);
+        this.resetAcademicSources();
 
         // Load members if workspaceId is already known
         if (this.data.workspaceId) {
@@ -901,6 +1121,11 @@ export class UseTemplateWizardDialogComponent implements OnInit {
         this.filteredPick.set(items);
     }
 
+    isMyTemplate(template: M2TemplateSummary): boolean {
+        const userId = this.currentUserId();
+        return userId > 0 && template.createdBy === userId;
+    }
+
     pickTemplate(t: M2TemplateSummary): void {
         this.selectedPickId.set(t.id);
         if (t.defaultPhasesJson !== undefined) {
@@ -917,7 +1142,10 @@ export class UseTemplateWizardDialogComponent implements OnInit {
     // ── Workspace members ────────────────────────────────────────────────────
 
     onWorkspaceChange(): void {
-        if (this.selectedWorkspaceId) this.loadWorkspaceMembers(this.selectedWorkspaceId);
+        if (this.selectedWorkspaceId) {
+            this.loadWorkspaceMembers(this.selectedWorkspaceId);
+        }
+        this.resetAcademicSources();
     }
 
     private loadWorkspaceMembers(wsId: string): void {
@@ -992,23 +1220,27 @@ export class UseTemplateWizardDialogComponent implements OnInit {
     togglePhase(phase: ParsedPhase): void {
         phase.enabled = !phase.enabled;
         this.parsedPhases.set([...this.parsedPhases()]);
+        this.recalcEndDate();
     }
 
     addPhase(): void {
         const phases = this.parsedPhases();
+        const nextOrder = phases.length > 0 ? Math.max(...phases.map(p => p.order)) + 1 : 1;
         const next: ParsedPhase = {
             id: String(Date.now()),
             name: `Phase ${phases.length + 1}`,
             durationDays: 14,
-            order: phases.length,
+            order: nextOrder,
             enabled: true,
         };
         this.parsedPhases.set([...phases, next]);
+        this.recalcEndDate();
     }
 
     removePhase(index: number): void {
         const phases = this.parsedPhases().filter((_, i) => i !== index);
         this.parsedPhases.set(phases);
+        this.recalcEndDate();
     }
 
     phaseStart(index: number): Date {
@@ -1032,19 +1264,111 @@ export class UseTemplateWizardDialogComponent implements OnInit {
 
     recalcEndDate(): void {
         const t = this.template();
-        if (!this.startDateObj || !t?.estimatedDurationDays) return;
+        if (!this.startDateObj) return;
+
+        const selectedDurationDays = this.totalDays();
+        const fallbackDurationDays = Number(t?.estimatedDurationDays || 0);
+        const effectiveDuration = selectedDurationDays > 0 ? selectedDurationDays : fallbackDurationDays;
+        if (!effectiveDuration) return;
+
         const d = new Date(this.startDateObj);
-        d.setDate(d.getDate() + t.estimatedDurationDays);
+        d.setDate(d.getDate() + effectiveDuration);
         this.endDateObj = d;
     }
 
     // ── Task helpers ─────────────────────────────────────────────────────────
 
+    private visibleTasksForSelection(): ParsedTask[] {
+        const activePhaseKeys = new Set(this.parsedPhases().filter(p => p.enabled).map(p => p.id));
+        const activeMilestoneKeys = new Set(
+            this.parsedMilestones()
+                .filter(m => m.enabled && (!m.phaseKey || activePhaseKeys.has(m.phaseKey)))
+                .map(m => m.id)
+        );
+
+        return this.parsedTasks().filter(task => {
+            if (task.milestoneKey) return activeMilestoneKeys.has(task.milestoneKey);
+            if (task.phaseKey) return activePhaseKeys.has(task.phaseKey);
+            return true;
+        });
+    }
+
+    private selectedPhasesForLaunch(): Array<Record<string, unknown>> {
+        return [...this.parsedPhases()]
+            .filter(phase => phase.enabled)
+            .sort((a, b) => a.order - b.order)
+            .map((phase) => ({
+                key: phase.id,
+                name: phase.name,
+                durationDays: Math.max(0, phase.durationDays),
+                order: phase.order,
+                enabled: true,
+            }));
+    }
+
+    private selectedMilestonesForLaunch(selectedPhases?: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
+        const phases = selectedPhases ?? this.selectedPhasesForLaunch();
+        const activePhaseKeys = new Set(phases.map(p => String(p["key"])));
+
+        return this.parsedMilestones()
+            .filter(milestone => milestone.enabled)
+            .filter(milestone => !milestone.phaseKey || activePhaseKeys.has(milestone.phaseKey))
+            .map(milestone => ({
+                key: milestone.id,
+                name: milestone.name,
+                description: milestone.description || undefined,
+                phaseKey: milestone.phaseKey || undefined,
+                offsetDays: Math.max(0, milestone.offsetDays),
+                status: milestone.status.toLowerCase(),
+                completionPct: Math.max(0, Math.min(100, milestone.completionPct)),
+                enabled: true,
+            }));
+    }
+
+    private selectedTasksForLaunch(selectedPhases?: Array<Record<string, unknown>>,
+                                   selectedMilestones?: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
+        const phases = selectedPhases ?? this.selectedPhasesForLaunch();
+        const milestones = selectedMilestones ?? this.selectedMilestonesForLaunch(phases);
+
+        const activePhaseKeys = new Set(phases.map(p => String(p["key"])));
+        const activeMilestoneKeys = new Set(milestones.map(m => String(m["key"])));
+
+        return this.parsedTasks()
+            .filter(task => task.selected)
+            .filter(task => {
+                if (task.milestoneKey) return activeMilestoneKeys.has(task.milestoneKey);
+                if (task.phaseKey) return activePhaseKeys.has(task.phaseKey);
+                return true;
+            })
+            .map(task => ({
+                key: task.id,
+                title: task.title,
+                description: task.description || undefined,
+                phaseKey: task.phaseKey || undefined,
+                milestoneKey: task.milestoneKey || undefined,
+                taskType: task.taskType.toLowerCase(),
+                status: task.status.toLowerCase(),
+                priority: task.priority.toLowerCase(),
+                estimatedHours: task.estimatedHours ?? undefined,
+                startOffsetDays: task.startOffsetDays ?? undefined,
+                dueOffsetDays: task.dueOffsetDays ?? undefined,
+                parentTaskKey: task.parentTaskKey || undefined,
+                enabled: true,
+            }));
+    }
+
     priorityDot(priority: string): string { return priorityColor(priority); }
 
     toggleAllTasks(): void {
-        const allSelected = this.selectedTaskCount() === this.parsedTasks().length;
-        this.parsedTasks.set(this.parsedTasks().map(t => ({ ...t, selected: !allSelected })));
+        const visibleIds = new Set(this.visibleTasksForSelection().map(t => t.id));
+        if (visibleIds.size === 0) return;
+
+        const visibleSelectedCount = this.visibleTasksForSelection().filter(t => t.selected).length;
+        const allVisibleSelected = visibleSelectedCount === visibleIds.size;
+
+        this.parsedTasks.set(this.parsedTasks().map(task =>
+            visibleIds.has(task.id) ? { ...task, selected: !allVisibleSelected } : task
+        ));
     }
 
     toggleGroup(group: { name: string; tasks: ParsedTask[] }): void {
@@ -1059,7 +1383,151 @@ export class UseTemplateWizardDialogComponent implements OnInit {
     }
 
     taskCountByPriority(p: string): number {
-        return this.parsedTasks().filter(t => t.selected && t.priority === p).length;
+        return this.selectedTasksForLaunch().filter(t => String(t["priority"]).toUpperCase() === p).length;
+    }
+
+    resetAcademicSources(): void {
+        this.academicSources.set([]);
+        this.academicSourcesLoading.set(false);
+        this.academicSourceError.set("");
+        this.academicSourceWarning.set("");
+    }
+
+    searchAcademicSources(): void {
+        if (!this.isAcademicWorkspace()) {
+            this.academicSourceError.set("Academic source pack is only available for academic workspaces.");
+            return;
+        }
+
+        const query = (this.academicSourceQuery || this.template()?.name || this.projectName || "").trim();
+        if (!query) {
+            this.academicSourceError.set("Enter a topic to search academic sources.");
+            this.academicSourceWarning.set("");
+            this.academicSources.set([]);
+            return;
+        }
+
+        this.academicSourceQuery = query;
+        this.academicSourcesLoading.set(true);
+        this.academicSourceError.set("");
+        this.academicSourceWarning.set("");
+
+        const workspaceId = this.data.workspaceId || this.selectedWorkspaceId || undefined;
+
+        this.templateService.getAcademicSources(query, { perPage: 8, workspaceId }).subscribe({
+            next: (response) => {
+                const items = (response.items || []).map((item, index) => this.toAcademicSourceCandidate(item, index));
+                this.academicSources.set(items);
+                this.academicSourceWarning.set(response.warning || "");
+                this.academicSourcesLoading.set(false);
+            },
+            error: (error: any) => {
+                this.academicSources.set([]);
+                this.academicSourcesLoading.set(false);
+                this.academicSourceWarning.set("");
+                this.academicSourceError.set(error?.error?.message || error?.message || "Unable to fetch academic sources.");
+            },
+        });
+    }
+
+    toggleAcademicSourceSelection(key: string): void {
+        this.academicSources.update((items) =>
+            items.map((item) => (item.key === key ? { ...item, selected: !item.selected } : item))
+        );
+    }
+
+    injectSelectedAcademicSources(): void {
+        const selectedSources = this.academicSources().filter((item) => item.selected);
+        if (selectedSources.length === 0) {
+            this.snackBar.open("Select at least one paper to inject.", "Close", { duration: 2500 });
+            return;
+        }
+
+        const enabledPhase = this.parsedPhases().find((phase) => phase.enabled) || this.parsedPhases()[0];
+        const activePhaseKeys = new Set(this.parsedPhases().filter((phase) => phase.enabled).map((phase) => phase.id));
+        const enabledMilestone = this.parsedMilestones().find((milestone) => {
+            if (!milestone.enabled) return false;
+            if (!milestone.phaseKey) return true;
+            return activePhaseKeys.size === 0 || activePhaseKeys.has(milestone.phaseKey);
+        }) || this.parsedMilestones()[0];
+
+        const targetPhaseKey = enabledPhase?.id;
+        const targetMilestoneKey = enabledMilestone?.id;
+
+        const existingTasks = this.parsedTasks();
+        const additions: ParsedTask[] = [];
+        let skippedDuplicates = 0;
+        const now = Date.now();
+
+        for (let i = 0; i < selectedSources.length; i++) {
+            const source = selectedSources[i];
+            const marker = this.openAlexMarker(source);
+            const alreadyPresent = existingTasks.some((task) => (task.description || "").includes(marker));
+            if (alreadyPresent) {
+                skippedDuplicates += 1;
+                continue;
+            }
+
+            const sourceTitle = source.title || "Untitled paper";
+            const taskTitle = `Read paper: ${sourceTitle.length > 86 ? `${sourceTitle.slice(0, 83)}...` : sourceTitle}`;
+            const description = [
+                marker,
+                source.firstAuthor ? `Author: ${source.firstAuthor}` : null,
+                source.publicationYear ? `Year: ${source.publicationYear}` : null,
+                source.citedByCount !== null && source.citedByCount !== undefined ? `Citations: ${source.citedByCount}` : null,
+                source.openAccessUrl
+                    ? `Open access: ${source.openAccessUrl}`
+                    : (source.landingPageUrl ? `Source: ${source.landingPageUrl}` : null),
+            ]
+                .filter((line): line is string => !!line)
+                .join("\n");
+
+            additions.push({
+                id: `task-openalex-${now}-${i}`,
+                title: taskTitle,
+                description,
+                phaseKey: targetPhaseKey,
+                milestoneKey: targetMilestoneKey,
+                phase: enabledPhase?.name,
+                taskType: "task",
+                status: "todo",
+                priority: "MEDIUM",
+                estimatedHours: 2,
+                selected: true,
+            });
+        }
+
+        if (additions.length === 0) {
+            this.snackBar.open("All selected papers were already injected.", "Close", { duration: 2800 });
+            return;
+        }
+
+        this.parsedTasks.update((tasks) => [...tasks, ...additions]);
+        this.academicSources.update((items) => items.map((item) => ({ ...item, selected: false })));
+
+        const suffix = skippedDuplicates > 0 ? ` (${skippedDuplicates} duplicates skipped)` : "";
+        this.snackBar.open(`${additions.length} academic source task(s) injected${suffix}.`, "Close", { duration: 3600 });
+    }
+
+    private toAcademicSourceCandidate(item: M2AcademicSourceItem, index: number): AcademicSourceCandidate {
+        const id = item.id ? String(item.id) : undefined;
+        const fallbackTitle = item.title ? String(item.title) : "Untitled paper";
+        return {
+            key: id || `openalex-${index}`,
+            id,
+            title: fallbackTitle,
+            publicationYear: item.publicationYear ?? null,
+            citedByCount: item.citedByCount ?? null,
+            openAccessUrl: item.openAccessUrl ?? null,
+            landingPageUrl: item.landingPageUrl ?? null,
+            firstAuthor: item.firstAuthor ?? null,
+            selected: false,
+        };
+    }
+
+    private openAlexMarker(source: AcademicSourceCandidate): string {
+        const token = source.id || source.title;
+        return `[OpenAlex:${token}]`;
     }
 
     // ── Type color helper ────────────────────────────────────────────────────
@@ -1087,11 +1555,22 @@ export class UseTemplateWizardDialogComponent implements OnInit {
         this.launching.set(true);
         this.errorMsg.set("");
 
+        const phases = this.selectedPhasesForLaunch();
+        const milestones = this.selectedMilestonesForLaunch(phases);
+        const tasks = this.selectedTasksForLaunch(phases, milestones);
+
         // Step 1: Create project from template
         const toIso = (d: Date | null) => d
             ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
             : undefined;
-        this.templateService.createProjectFromTemplate(wsId, tId, name, toIso(this.startDateObj), toIso(this.endDateObj))
+        this.templateService.createProjectFromTemplate(
+            wsId,
+            tId,
+            name,
+            toIso(this.startDateObj),
+            toIso(this.endDateObj),
+            { phases, milestones, tasks }
+        )
             .pipe(
                 // Step 2: Assign members (chain sequentially)
                 concatMap((project) => {

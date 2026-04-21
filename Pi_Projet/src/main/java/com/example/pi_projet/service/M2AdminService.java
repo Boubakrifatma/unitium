@@ -48,7 +48,7 @@ public class M2AdminService {
                            (SELECT COUNT(*) FROM workspaces w2
                             WHERE w2.organization_id = o.id AND w2.deleted_at IS NULL) AS ws_count
                     FROM organizations o
-                    LEFT JOIN subscriptions s ON s.org_id = o.id AND s.status IN ('ACTIVE','TRIALING')
+                    LEFT JOIN subscriptions s ON s.organization_id = o.id AND s.status IN ('ACTIVE','TRIALING')
                     LEFT JOIN plans p ON p.id = s.plan_id
                     WHERE o.deleted_at IS NULL
                 ) sub
@@ -87,7 +87,7 @@ public class M2AdminService {
             FROM workspaces w
             JOIN organizations o ON o.id = w.organization_id
             LEFT JOIN subscriptions s
-                ON s.org_id = o.id AND s.status IN ('ACTIVE','TRIALING')
+                ON s.organization_id = o.id AND s.status IN ('ACTIVE','TRIALING')
             LEFT JOIN plans p ON p.id = s.plan_id
             ORDER BY w.created_at DESC
             """);
@@ -162,10 +162,12 @@ public class M2AdminService {
                  WHERE w.organization_id = o.id AND w.deleted_at IS NULL)  AS ws_count,
                 (SELECT COUNT(*) FROM projects pr
                  JOIN workspaces w2 ON pr.workspace_id = w2.id
-                 WHERE w2.organization_id = o.id AND pr.deleted_at IS NULL) AS project_count
+                                 WHERE w2.organization_id = o.id
+                                     AND pr.deleted_at IS NULL
+                                     AND UPPER(pr.status) = 'ACTIVE') AS project_count
             FROM organizations o
             LEFT JOIN subscriptions s
-                ON s.org_id = o.id AND s.status IN ('ACTIVE','TRIALING')
+                ON s.organization_id = o.id AND s.status IN ('ACTIVE','TRIALING')
             LEFT JOIN plans p ON p.id = s.plan_id
             WHERE o.deleted_at IS NULL
             ORDER BY o.name

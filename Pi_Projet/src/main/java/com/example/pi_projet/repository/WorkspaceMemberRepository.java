@@ -2,6 +2,7 @@ package com.example.pi_projet.repository;
 
 import com.example.pi_projet.entity.WorkspaceMember;
 import com.example.pi_projet.entity.WorkspaceMember.WorkspaceRole;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -19,6 +20,16 @@ public interface WorkspaceMemberRepository extends JpaRepository<WorkspaceMember
     Optional<WorkspaceMember> findByWorkspaceIdAndUserId(UUID workspaceId, Long userId);
     boolean existsByWorkspaceIdAndUserId(UUID workspaceId, Long userId);
     List<WorkspaceMember> findAllByWorkspaceId(UUID workspaceId);
+
+        @EntityGraph(attributePaths = {"user"})
+        @Query("""
+                SELECT wm
+                FROM WorkspaceMember wm
+                WHERE wm.workspace.id = :workspaceId
+                    AND wm.deletedAt IS NULL
+                """)
+        List<WorkspaceMember> findActiveByWorkspaceIdWithUser(@Param("workspaceId") UUID workspaceId);
+
     long countByWorkspaceIdAndDeletedAtIsNull(UUID workspaceId);
     long countByWorkspaceIdAndRole(UUID workspaceId, WorkspaceRole role);
 

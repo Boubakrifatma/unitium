@@ -7,18 +7,28 @@ import com.example.pi_projet.entity.Project.Visibility;
 import com.example.pi_projet.entity.ProjectMember;
 import com.example.pi_projet.entity.User;
 import com.example.pi_projet.exception.Module2Exception;
+import com.example.pi_projet.service.M2AuditLogService;
 import com.example.pi_projet.service.ProjectIntelligenceService;
 import com.example.pi_projet.service.ProjectMemberService;
 import com.example.pi_projet.service.ProjectService;
+import com.example.pi_projet.service.TemplateStructureService;
+import com.example.pi_projet.service.readme.ProjectReadmeService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.util.DigestUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +45,9 @@ public class ProjectController {
     private final ProjectService projectService;
     private final ProjectMemberService projectMemberService;
     private final ProjectIntelligenceService projectIntelligenceService;
+    private final TemplateStructureService templateStructureService;
+    private final ProjectReadmeService projectReadmeService;
+    private final M2AuditLogService auditLogService;
 
     @GetMapping
     public Page<Project> getAll(@PathVariable UUID workspaceId,
@@ -52,6 +65,14 @@ public class ProjectController {
         return projectService.getById(projectId, currentUser.getId());
     }
 
+    @GetMapping("/{projectId}/health")
+    public Map<String, Object> getProjectHealth(@PathVariable UUID workspaceId,
+                                                @PathVariable UUID projectId,
+                                                HttpServletRequest request) {
+        User currentUser = requireCurrentUser(request);
+        return projectService.getProjectHealth(workspaceId, projectId, currentUser.getId());
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Project create(@PathVariable UUID workspaceId,
@@ -63,8 +84,9 @@ public class ProjectController {
         LocalDate endDate = parseOptionalDate(body.get("endDate"), "endDate");
         validateDateRange(startDate, endDate);
         Visibility visibility = parseOptionalVisibility(body.get("visibility"));
+        String githubRepoUrl = parseOptionalRepoUrl(body.get("githubRepoUrl"));
         return projectService.create(workspaceId, name, (String) body.get("description"),
-                visibility, startDate, endDate, currentUser.getId());
+            visibility, startDate, endDate, githubRepoUrl, currentUser.getId());
     }
 
     @PostMapping("/from-template/{templateId}")
@@ -78,7 +100,40 @@ public class ProjectController {
         LocalDate startDate = parseOptionalDate(body.get("startDate"), "startDate");
         LocalDate endDate = parseOptionalDate(body.get("endDate"), "endDate");
         validateDateRange(startDate, endDate);
-        return projectService.createProjectFromTemplate(workspaceId, templateId, nameOverride, startDate, endDate, currentUser.getId());
+
+        String phasesOverrideJson = pickFirstJson(body,
+            "phases",
+            "phasesJson",
+            "selectedPhases",
+            "selectedPhasesJson",
+            "defaultPhasesJson"
+        );
+        String milestonesOverrideJson = pickFirstJson(body,
+            "milestones",
+            "milestonesJson",
+            "selectedMilestones",
+            "selectedMilestonesJson",
+            "defaultMilestonesJson"
+        );
+        String tasksOverrideJson = pickFirstJson(body,
+            "tasks",
+            "tasksJson",
+            "selectedTasks",
+            "selectedTasksJson",
+            "defaultTasksJson"
+        );
+
+        return projectService.createProjectFromTemplate(
+            workspaceId,
+            templateId,
+            nameOverride,
+            startDate,
+            endDate,
+            currentUser.getId(),
+            phasesOverrideJson,
+            milestonesOverrideJson,
+            tasksOverrideJson
+        );
     }
 
     @PostMapping("/pib/bootstrap")
@@ -129,9 +184,19 @@ public class ProjectController {
         LocalDate endDate = parseOptionalDate(body.get("endDate"), "endDate");
         validateDateRange(startDate, endDate);
         Visibility visibility = body.get("visibility") != null ? parseOptionalVisibility(body.get("visibility")) : null;
+        boolean githubRepoProvided = body.containsKey("githubRepoUrl");
+        String githubRepoUrl = parseOptionalRepoUrl(body.get("githubRepoUrl"));
         return projectService.update(projectId, nameRaw, (String) body.get("description"),
-                visibility, startDate, endDate, currentUser.getId());
+            visibility, startDate, endDate, githubRepoProvided, githubRepoUrl, currentUser.getId());
     }
+
+        @GetMapping("/{projectId}/repo-insights")
+        public Map<String, Object> getProjectRepoInsights(@PathVariable UUID workspaceId,
+                                  @PathVariable UUID projectId,
+                                  HttpServletRequest request) {
+        User currentUser = requireCurrentUser(request);
+        return projectService.getProjectRepoInsights(workspaceId, projectId, currentUser.getId());
+        }
 
     @PatchMapping("/{projectId}/status")
     public Project changeStatus(@PathVariable UUID workspaceId,
@@ -200,6 +265,61 @@ public class ProjectController {
                            HttpServletRequest request) {
         User currentUser = requireCurrentUser(request);
         projectService.hardDelete(projectId, currentUser.getId());
+    }
+
+    @GetMapping(value = "/{projectId}/readme", produces = "text/markdown")
+    public ResponseEntity<byte[]> downloadReadme(@PathVariable UUID workspaceId,
+                                                 @PathVariable UUID projectId,
+                                                 @RequestParam(defaultValue = "fast") String mode,
+                                                 @RequestParam(defaultValue = "true") boolean download,
+                                                 HttpServletRequest request) {
+        User currentUser = requireCurrentUser(request);
+
+        ProjectReadmeService.GeneratedReadme generated =
+            projectReadmeService.generate(workspaceId, projectId, currentUser.getId(), mode);
+
+        byte[] payload = generated.markdown().getBytes(StandardCharsets.UTF_8);
+        String eTag = "\"" + DigestUtils.md5DigestAsHex(payload) + "\"";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType("text/markdown; charset=UTF-8"));
+        headers.setETag(eTag);
+        headers.setLastModified(generated.lastModified().toEpochMilli());
+        headers.set("X-Readme-Mode", generated.mode());
+        headers.add(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS,
+            "Content-Disposition,ETag,Last-Modified,X-Readme-Mode");
+
+        if (download) {
+            headers.setContentDisposition(
+                ContentDisposition.attachment().filename(generated.fileName()).build()
+            );
+        } else {
+            headers.setContentDisposition(
+                ContentDisposition.inline().filename(generated.fileName()).build()
+            );
+        }
+
+        if (etagMatches(request.getHeader(HttpHeaders.IF_NONE_MATCH), eTag)) {
+            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).headers(headers).build();
+        }
+
+        if (generated.orgId() != null) {
+            auditLogService.writeAudit(
+                currentUser.getId(),
+                generated.orgId(),
+                "PROJECT_README_GENERATED",
+                "project",
+                projectId.toString(),
+                generated.projectName(),
+                workspaceId,
+                request.getRemoteAddr()
+            );
+        }
+
+        return ResponseEntity.ok()
+            .headers(headers)
+            .contentLength(payload.length)
+            .body(payload);
     }
 
     // ── Project Members ───────────────────────────────────────────────────────
@@ -314,5 +434,39 @@ public class ProjectController {
             throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION,
                     "Invalid visibility value. Use PUBLIC or PRIVATE.");
         }
+    }
+
+    private String parseOptionalRepoUrl(Object raw) {
+        if (raw == null) return null;
+        String value = raw.toString().trim();
+        return value.isBlank() ? null : value;
+    }
+
+    private String pickFirstJson(Map<String, Object> body, String... candidateKeys) {
+        for (String key : candidateKeys) {
+            if (!body.containsKey(key)) continue;
+            String json = templateStructureService.toOptionalJson(body.get(key), key);
+            if (json != null) return json;
+        }
+        return null;
+    }
+
+    private boolean etagMatches(String ifNoneMatch, String currentEtag) {
+        if (ifNoneMatch == null || ifNoneMatch.isBlank()) {
+            return false;
+        }
+        if (ifNoneMatch.contains("*")) {
+            return true;
+        }
+        for (String token : ifNoneMatch.split(",")) {
+            String normalized = token.trim();
+            if (normalized.startsWith("W/")) {
+                normalized = normalized.substring(2).trim();
+            }
+            if (normalized.equals(currentEtag)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
