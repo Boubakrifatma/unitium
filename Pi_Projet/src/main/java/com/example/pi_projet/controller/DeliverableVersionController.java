@@ -4,6 +4,8 @@ import com.example.pi_projet.dto.CreateDeliverableVersionRequest;
 import com.example.pi_projet.dto.DeliverableVersionDto;
 import com.example.pi_projet.dto.DeliverableVersionHistoryDto;
 import com.example.pi_projet.dto.DeliverableWithVersionsDto;
+import com.example.pi_projet.dto.ScanResult;
+import com.example.pi_projet.service.DeliverableUploadGuard;
 import com.example.pi_projet.service.DeliverableVersionService;
 import com.example.pi_projet.service.FileStorageService;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ public class DeliverableVersionController {
 
     private final DeliverableVersionService versionService;
     private final FileStorageService fileStorageService;
+    private final DeliverableUploadGuard uploadGuard;
 
     // ─── POST /api/deliverable-versions/{deliverableId} ────────────────────────
     // Create a new version for an existing deliverable (JSON body — fileUrl already uploaded)
@@ -47,16 +50,22 @@ public class DeliverableVersionController {
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "changeSummary", required = false) String changeSummary
     ) throws IOException {
-        if (file.isEmpty()) return ResponseEntity.badRequest().build();
+        // 1. Whitelist + size check + ClamAV scan. Throws 4xx if rejected → no file is stored.
+        ScanResult scan = uploadGuard.validateAndScan(file);
 
+        // 2. Persist the file only after the scanner cleared (or returned "unverified" in permissive mode).
         String storedName = fileStorageService.store1(file);
         String fileUrl = "/api/files/deliverables/" + storedName;
+
+        String scanStatus = scan.isUnverified() ? "unverified" : "clean";
 
         CreateDeliverableVersionRequest request = CreateDeliverableVersionRequest.builder()
                 .deliverableId(deliverableId)
                 .fileUrl(fileUrl)
                 .fileSizeKb(Math.max(1L, file.getSize() / 1024))
                 .changeSummary(changeSummary)
+                .virusScanStatus(scanStatus)
+                .virusName(scan.getVirusName())
                 .build();
 
         return ResponseEntity.ok(versionService.createVersion(deliverableId, submittedById, request));

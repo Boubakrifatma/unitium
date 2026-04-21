@@ -17,7 +17,7 @@ export interface DeliverableVersion {
   submittedById: number;
   submittedByName: string | null;
   submittedAt: string;
-  virusScanStatus: 'pending' | 'clean' | 'infected';
+  virusScanStatus: 'pending' | 'clean' | 'infected' | 'unverified';
 }
 
 export interface CreateDeliverableVersionRequest {
@@ -25,6 +25,20 @@ export interface CreateDeliverableVersionRequest {
   fileUrl: string;
   fileSizeKb?: number;
   changeSummary?: string;
+  // Forwarded from /api/files/upload so the version row stores the antivirus verdict.
+  virusScanStatus?: 'clean' | 'unverified' | 'infected' | 'pending';
+  virusName?: string | null;
+}
+
+export interface FileUploadResponse {
+  fileUrl: string;
+  fileName?: string;
+  originalName: string;
+  fileType: string;
+  fileSizeKb: number;
+  scanStatus?: 'clean' | 'unverified';
+  virusName?: string | null;
+  status?: string;
 }
 
 export interface DeliverableWithVersions {
@@ -331,10 +345,10 @@ export class DeliverableService {
    * POST /api/files/upload
    * Upload un fichier et retourne l'URL de téléchargement
    */
-  uploadFile(file: File): Observable<{ fileUrl: string; fileName: string; originalName: string }> {
+  uploadFile(file: File): Observable<FileUploadResponse> {
     const formData = new FormData();
     formData.append('file', file);
-    return this.http.post<{ fileUrl: string; fileName: string; originalName: string }>(
+    return this.http.post<FileUploadResponse>(
       'http://localhost:8084/api/files/upload',
       formData
     );

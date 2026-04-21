@@ -59,6 +59,7 @@ export interface TaskItem {
   selector: "app-kanban",
   standalone: true,
   templateUrl: "./kanban.component.html",
+  styleUrls: ["./kanban.component.scss"],
   imports: [
     CommonModule, RouterLink, MatCardModule, MatIconModule, MatMenuModule,
     MatProgressBarModule, MatProgressSpinnerModule, MatTableModule,
@@ -120,13 +121,93 @@ export class KanbanComponent implements OnInit {
   });
 
   // ── Colonnes Kanban ────────────────────────────────────────────
-  kanbanColumns = [
-    { id: 'new',           title: 'To Do',         icon: 'assignment', titleClass: 'theme-violet' },
-    { id: 'in-progress',   title: 'In Progress',   icon: 'autorenew',  titleClass: 'theme-blue'   },
-    { id: 'ready to test', title: 'Ready to Test', icon: 'verified',   titleClass: 'theme-red'    },
-    { id: 'completed',     title: 'Completed',     icon: 'done_all',   titleClass: 'theme-green'  },
+  kanbanColumns: { id: TaskStatus; title: string; icon: string; accent: string }[] = [
+    { id: 'new',           title: 'To Do',         icon: 'assignment', accent: '#8b5cf6' },
+    { id: 'in-progress',   title: 'In Progress',   icon: 'autorenew',  accent: '#3b82f6' },
+    { id: 'ready to test', title: 'Ready to Test', icon: 'verified',   accent: '#f59e0b' },
+    { id: 'completed',     title: 'Completed',     icon: 'done_all',   accent: '#10b981' },
   ];
   columnIds = this.kanbanColumns.map(c => c.id);
+
+  // ── View state ─────────────────────────────────────────────────
+  viewMode = signal<'comfortable' | 'compact'>('comfortable');
+  searchText = signal<string>('');
+  priorityFilter = signal<TaskPriority | 'all'>('all');
+
+  toggleView() {
+    this.viewMode.update(v => v === 'comfortable' ? 'compact' : 'comfortable');
+  }
+
+  onSearchChange(value: string) {
+    this.searchText.set(value || '');
+  }
+
+  setPriorityFilter(p: TaskPriority | 'all') {
+    this.priorityFilter.set(p);
+  }
+
+  // Column tasks filtered by search + priority
+  getTasksForColumn(status: TaskStatus): TaskItem[] {
+    const q = this.searchText().trim().toLowerCase();
+    const pr = this.priorityFilter();
+    return this.filteredTasks().filter(t =>
+      t.status === status &&
+      (pr === 'all' || t.priority === pr) &&
+      (!q ||
+        t.title.toLowerCase().includes(q) ||
+        t.assignedTo.toLowerCase().includes(q) ||
+        t.description.toLowerCase().includes(q))
+    );
+  }
+
+  // ── UI helpers for card rendering ──────────────────────────────
+  getInitials(name: string): string {
+    if (!name) return '?';
+    const parts = name.trim().split(/\s+/).slice(0, 2);
+    return parts.map(p => p.charAt(0).toUpperCase()).join('') || '?';
+  }
+
+  getAvatarColor(name: string): string {
+    const palette = ['#6366f1', '#0ea5e9', '#14b8a6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#10b981'];
+    const key = name || '?';
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+    return palette[hash % palette.length];
+  }
+
+  getPriorityColor(priority: TaskPriority): string {
+    const map: Record<TaskPriority, string> = {
+      critical: '#dc2626',
+      high: '#f97316',
+      medium: '#f59e0b',
+      low: '#10b981',
+    };
+    return map[priority] ?? '#94a3b8';
+  }
+
+  private toHours(val: string | number | undefined | null): number {
+    if (val == null) return 0;
+    if (typeof val === 'number') return val;
+    const n = parseFloat(String(val).replace(/[^0-9.]/g, ''));
+    return isNaN(n) ? 0 : n;
+  }
+
+  getHoursProgress(task: TaskItem): number {
+    const est = this.toHours(task.assignHours);
+    const done = this.toHours(task.loggedHours);
+    if (est <= 0) return 0;
+    return Math.min(100, Math.round((done / est) * 100));
+  }
+
+  getDueUrgency(dueDate: string): 'overdue' | 'soon' | 'normal' | '' {
+    if (!dueDate) return '';
+    const due = new Date(dueDate);
+    const now = new Date();
+    const diffDays = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) return 'overdue';
+    if (diffDays <= 3) return 'soon';
+    return 'normal';
+  }
 
   // ── Lifecycle ──────────────────────────────────────────────────
   ngOnInit() {

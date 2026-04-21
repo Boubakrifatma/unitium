@@ -136,7 +136,7 @@
       <button type="button" mat-stroked-button color="primary" class="w-100" (click)="fileInput.click()" [disabled]="uploading">
         @if (uploading) {
           <mat-progress-spinner diameter="18" mode="indeterminate" style="display:inline-block; margin-right:8px;"></mat-progress-spinner>
-          Upload en cours...
+          Analyse antivirus en cours…
         } @else {
           <ng-container>
             <mat-icon class="me-2">upload_file</mat-icon>
@@ -148,6 +148,27 @@
         <span style="font-size:12px; margin-top:4px; display:block; color: #f44336;">
           Veuillez sélectionner un fichier
         </span>
+      }
+
+      <!-- Antivirus scan badge -->
+      @if (scanState() !== 'idle') {
+        <div class="mt-2 d-flex align-items-center gap-2"
+             [style.color]="scanState() === 'clean' ? '#2e7d32'
+                           : scanState() === 'unverified' ? '#ef6c00'
+                           : scanState() === 'rejected' ? '#c62828'
+                           : '#1565c0'"
+             style="font-size: 13px; font-weight: 500;">
+          @if (scanState() === 'scanning') {
+            <mat-progress-spinner diameter="16" mode="indeterminate"></mat-progress-spinner>
+          } @else if (scanState() === 'clean') {
+            <mat-icon style="font-size:18px; height:18px; width:18px;">verified_user</mat-icon>
+          } @else if (scanState() === 'unverified') {
+            <mat-icon style="font-size:18px; height:18px; width:18px;">help_outline</mat-icon>
+          } @else if (scanState() === 'rejected') {
+            <mat-icon style="font-size:18px; height:18px; width:18px;">gpp_bad</mat-icon>
+          }
+          <span>{{ scanMessage() }}</span>
+        </div>
       }
     </div>
 

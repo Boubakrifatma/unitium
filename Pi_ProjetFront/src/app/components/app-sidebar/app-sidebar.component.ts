@@ -235,10 +235,24 @@ export class AppSidebarComponent {
                 icon: "verified",
                 children: [
                     { name: "Livrables à valider", route: "/app/po-deliverables", icon: "fact_check" },
+                    { name: "Analyse décisions", route: "/app/po-analytics", icon: "insights" },
                     { name: "Notifications", route: "/app/notifications", icon: "notifications" },
                 ],
             });
            }
+
+        // TUTOR-only: compare two students' deliverable files
+        if (this.isTutor) {
+            all.push({
+                name: "Tutor",
+                icon: "school",
+                children: [
+                    { name: "Comparer livrables", route: "/app/tutor-compare-deliverables", icon: "compare_arrows" },
+                ],
+            });
+        }
+        // ADMIN + above — billing
+        if (this.isAdmin) {
         // SUPER_ADMIN — platform billing management
         if (this.isSuperAdmin) {
             all.push({

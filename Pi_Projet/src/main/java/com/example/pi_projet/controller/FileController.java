@@ -1,6 +1,8 @@
 package com.example.pi_projet.controller;
 
 import com.example.pi_projet.dto.FileUploadResponse;
+import com.example.pi_projet.dto.ScanResult;
+import com.example.pi_projet.service.DeliverableUploadGuard;
 import com.example.pi_projet.service.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
@@ -30,18 +32,22 @@ import java.nio.file.Files;
 public class FileController {
 
     private final FileStorageService fileStorageService;
+    private final DeliverableUploadGuard uploadGuard;
 
     // ─── POST /api/files/upload ───────────────────────────────────────────────
-    // Accepts a multipart file, stores it, returns URL + metadata.
-    // The returned fileUrl is what should be sent in DeliverableCreateDto.fileUrl
-    // or CreateDeliverableVersionRequest.fileUrl.
+    // Accepts a multipart file, validates type/size, runs ClamAV scan, stores it,
+    // and returns URL + metadata + scan verdict so the next call (createDeliverable
+    // / createVersion) can persist the scan status on the version row.
+    //
+    // Infected files are rejected with HTTP 422 and never written to disk.
+    // Oversized / wrong type → HTTP 400.
+    // Scanner unreachable in strict mode → HTTP 503.
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<FileUploadResponse> upload(
             @RequestParam("file") MultipartFile file) throws IOException {
 
-        if (file.isEmpty()) {
-            return ResponseEntity.badRequest().build();
-        }
+        // Whitelist + size check + ClamAV scan. Throws 4xx/5xx on rejection.
+        ScanResult scan = uploadGuard.validateAndScan(file);
 
         String storedName = fileStorageService.store1(file);
         String fileUrl = "/api/files/deliverables/" + storedName;
@@ -52,6 +58,9 @@ public class FileController {
                 .originalName(file.getOriginalFilename())
                 .fileType(file.getContentType())
                 .fileSizeKb(sizeKb)
+                .scanStatus(scan.isUnverified() ? "unverified" : "clean")
+                .virusName(scan.getVirusName())
+                .status("uploaded")
                 .build());
     }
 

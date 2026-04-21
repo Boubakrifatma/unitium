@@ -15,6 +15,8 @@ import { DeliverableDialogComponent } from './deliverable-dialog.component';
 import { NotificationService } from '../../../services/notification.service';
 import { TaskService } from '../../../services/TaskService/task.service';
 import { AuthService } from '../../../auth/auth.service';
+import { DeliverableIntelligenceService } from '../../../services/deliverable-intelligence.service';
+import { DuplicateWarningDialogComponent } from '../intelligence/duplicate-warning-dialog.component';
 
 const STATUS_CHANGE_EVENTS = new Set([
   'ACCEPTED_BY_MANAGER',
@@ -87,7 +89,8 @@ export class EmployeeDeliverablesComponent implements OnInit, OnDestroy {
     private notificationService: NotificationService,
     private snackBar: MatSnackBar,
     private taskService: TaskService,
-    private authService: AuthService
+    private authService: AuthService,
+    private intelligence: DeliverableIntelligenceService,
   ) {}
 
   ngOnInit(): void {
@@ -196,7 +199,10 @@ export class EmployeeDeliverablesComponent implements OnInit, OnDestroy {
         });
 
         ref.afterClosed().subscribe(result => {
-          if (result) this.loadDeliverables();
+          if (result) {
+            this.loadDeliverables();
+            this.checkDuplicatesOnLatest();
+          }
         });
       },
       error: () => {
@@ -256,7 +262,67 @@ export class EmployeeDeliverablesComponent implements OnInit, OnDestroy {
     return icons[status] || 'assignment';
   }
 
-  editDeliverable(id: number): void {
-    console.log('Modifier livrable ID:', id);
+  editDeliverable(deliverable: Deliverable): void {
+    const currentUser = this.authService.currentUser();
+    if (!currentUser) {
+      this.snackBar.open('Utilisateur non authentifié.', 'OK', { duration: 4000 });
+      return;
+    }
+
+    const taskStub = {
+      id: deliverable.taskId,
+      title: deliverable.taskTitle ?? 'Tâche',
+      taskType: '',
+      projectName: deliverable.projectName ?? '',
+    };
+
+    const ref = this.dialog.open(DeliverableDialogComponent, {
+      width: '600px',
+      maxWidth: '95vw',
+      autoFocus: false,
+      panelClass: 'custom-dialog-container',
+      data: {
+        mode: 'add-version',
+        deliverable: deliverable,
+        tasks: [taskStub],
+        users: [currentUser],
+        projects: [{ id: deliverable.projectId, name: deliverable.projectName ?? '' }],
+        currentUserId: currentUser.id,
+        currentProjectId: deliverable.projectId,
+        deliverableId: deliverable.id,
+        hasExistingDeliverable: true,
+      },
+    });
+
+    ref.afterClosed().subscribe(result => {
+      if (result) {
+        this.loadDeliverables();
+        this.snackBar.open('Nouvelle version soumise avec succès.', 'OK', {
+          duration: 4000,
+          panelClass: 'snack-success',
+          verticalPosition: 'top',
+        });
+      }
+    });
+  }
+
+  /** After a successful submit, fetch the newest deliverable and warn if it looks like a duplicate. */
+  private checkDuplicatesOnLatest(): void {
+    this.deliverableService.getMyDeliverables().subscribe({
+      next: (data) => {
+        if (!data.length) return;
+        const latest = data.reduce((a, b) => (a.id > b.id ? a : b));
+        this.intelligence.duplicates(latest.id).subscribe({
+          next: (report) => {
+            if (report.duplicateWarning) {
+              this.dialog.open(DuplicateWarningDialogComponent, {
+                data: report,
+                width: '520px',
+              });
+            }
+          },
+        });
+      },
+    });
   }
 }

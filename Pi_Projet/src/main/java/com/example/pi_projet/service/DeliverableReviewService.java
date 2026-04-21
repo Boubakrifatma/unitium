@@ -5,6 +5,7 @@ import com.example.pi_projet.entity.*;
 import com.example.pi_projet.entity.PoDecisionAndDelivrable.Deliverable;
 import com.example.pi_projet.entity.PoDecisionAndDelivrable.DeliverableReview;
 import com.example.pi_projet.entity.PoDecisionAndDelivrable.DeliverableVersion;
+import com.example.pi_projet.entity.TimeLineAndDeadLine.Task;
 import com.example.pi_projet.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,13 +26,18 @@ public class DeliverableReviewService {
     private final DeliverableVersionRepository versionRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final TaskRepository taskRepository;
 
     /**
-     * Manager submits review with score and feedback
+     * Manager submits review with score and feedback.
      *
-     * ✅ WORKFLOW:
-     * Score >= 7 → ACCEPTED → Deliverable to PO dashboard
-     * Score < 7  → REVISION_REQUIRED → Back to Employee Todo
+     * ✅ WORKFLOW (mis à jour) :
+     *   Score = 10  → ACCEPTED            → livrable transmis au PO
+     *   Score 7..9  → REVISION_REQUIRED   → "encore une itération" — tâche retourne à TODO
+     *   Score 1..6  → REVISION_REQUIRED   → révision majeure        — tâche retourne à TODO
+     *
+     * Dans les deux cas de révision, la tâche associée est remise à TODO
+     * pour que l'employé la retrouve dans son Kanban / sa liste à faire.
      */
     public DeliverableWithReviewDto submitManagerReview(
             Long deliverableId,
@@ -77,12 +83,18 @@ public class DeliverableReviewService {
             throw new IllegalArgumentException("Feedback required (minimum 10 characters)");
         }
 
-        // ✅ Business Logic: Auto-decide based on score
+        // ✅ Business Logic: only a perfect score (10) is auto-accepted.
+        // 1-6  → révision majeure
+        // 7-9  → "encore une itération" (révision mineure)
+        // 10   → accepté
         DeliverableReview.ReviewDecision decision;
-        if (request.getScore() >= 7.0f) {
+        boolean minorRevision = false;
+        float score = request.getScore();
+        if (score >= 10.0f) {
             decision = DeliverableReview.ReviewDecision.ACCEPTED;
         } else {
             decision = DeliverableReview.ReviewDecision.REVISION_REQUIRED;
+            minorRevision = score >= 7.0f; // 7..9 = minor, 1..6 = major
         }
 
         // Create review record
@@ -107,7 +119,23 @@ public class DeliverableReviewService {
             notificationService.notifyPOsOnManagerAccepted(deliverable, manager);
         } else {
             deliverable.setStatus(Deliverable.DeliverableStatus.revision_required);
-            notificationService.notifyEmployeeOnRevisionRequired(deliverable, manager, request.getFeedbackText());
+
+            // 🔁 La tâche associée doit retourner à TODO afin que l'employé
+            // la retrouve dans son Kanban et puisse soumettre une nouvelle version.
+            Task task = deliverable.getTask();
+            if (task != null) {
+                task.setStatus(Task.TaskStatus.todo);
+                task.setCompletedAt(null);
+                taskRepository.save(task);
+            }
+
+            // Préfixe le feedback pour distinguer une révision mineure (7-9)
+            // d'une révision majeure (1-6) — utile pour l'employé.
+            String feedbackPrefix = minorRevision
+                    ? "[Révision mineure — encore une itération] "
+                    : "[Révision majeure] ";
+            notificationService.notifyEmployeeOnRevisionRequired(
+                    deliverable, manager, feedbackPrefix + request.getFeedbackText());
         }
 
         deliverableRepository.save(deliverable);
@@ -193,6 +221,14 @@ public class DeliverableReviewService {
             deliverable.setPoDecisionField(Deliverable.PoDecisionField.rejected);
         } else {
             deliverable.setPoDecisionField(Deliverable.PoDecisionField.major_rework);
+
+            // 🔁 Idem côté PO : si révision demandée, la tâche retourne à TODO.
+            Task task = deliverable.getTask();
+            if (task != null) {
+                task.setStatus(Task.TaskStatus.todo);
+                task.setCompletedAt(null);
+                taskRepository.save(task);
+            }
         }
         deliverableRepository.save(deliverable);
 

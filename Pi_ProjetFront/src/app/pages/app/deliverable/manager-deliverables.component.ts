@@ -29,6 +29,10 @@ import {
   ManagerReviewDialogComponent,
   ReviewDialogData
 } from './manager-review-dialog.component';
+import {
+  VersionCompareDialogComponent,
+  VersionCompareDialogData,
+} from '../intelligence/version-compare-dialog.component';
 
 @Component({
   selector: 'app-manager-deliverables',
@@ -271,6 +275,22 @@ export class ManagerDeliverablesComponent implements OnInit, OnDestroy {
 
   isVersionsExpanded(deliverableId: number): boolean {
     return this.expandedVersions().has(deliverableId);
+  }
+
+  /** Open the Version Compare dialog (Deliverable Intelligence). */
+  openVersionCompare(deliverable: DeliverableWithVersions): void {
+    this.dialog.open(VersionCompareDialogComponent, {
+      width: '760px',
+      maxWidth: '95vw',
+      data: {
+        deliverableTitle: deliverable.title,
+        versions: deliverable.versions.map(v => ({
+          id: v.id,
+          versionNumber: v.versionNumber,
+          submittedAt: v.submittedAt,
+        })),
+      } as VersionCompareDialogData,
+    });
   }
 
   // ── Label / Color helpers ───────────────────────────────────────────────────

@@ -260,6 +260,14 @@
                                 {{ isVersionsExpanded(deliverable.deliverableId) ? 'expand_less' : 'expand_more' }}
                               </mat-icon>
                             </button>
+                            <button mat-stroked-button
+                                    class="versions-compare"
+                                    color="primary"
+                                    (click)="openVersionCompare(deliverable)"
+                                    matTooltip="Comparer deux versions (diff intelligent)">
+                              <mat-icon>difference</mat-icon>
+                              Comparer
+                            </button>
                           } @else {
                             <span class="single-version-tag">
                               <mat-icon>history</mat-icon>

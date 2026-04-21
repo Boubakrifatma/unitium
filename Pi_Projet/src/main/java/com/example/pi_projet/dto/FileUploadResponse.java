@@ -15,4 +15,10 @@ public class FileUploadResponse {
     private String originalName;
     private String fileType;
     private Long fileSizeKb;
+
+    // Antivirus result so the frontend can display the badge AND the next call
+    // to createDeliverable/createVersion can persist it on the version row.
+    private String scanStatus;   // "clean" | "unverified"
+    private String virusName;    // null on success
+    private String status;       // "uploaded"   (matches the spec's API contract)
 }

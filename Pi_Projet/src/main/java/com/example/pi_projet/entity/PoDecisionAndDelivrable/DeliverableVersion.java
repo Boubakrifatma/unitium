@@ -41,6 +41,12 @@ public class DeliverableVersion {
     @Column(name = "virus_scan_status")
     private VirusScanStatus virusScanStatus;
 
+    @Column(name = "scanned_at")
+    private LocalDateTime scannedAt;
+
+    @Column(name = "virus_name")
+    private String virusName;
+
     @PrePersist
     protected void onCreate() {
         submittedAt = LocalDateTime.now();
@@ -48,6 +54,6 @@ public class DeliverableVersion {
     }
 
     public enum VirusScanStatus {
-        pending, clean, infected
+        pending, clean, infected, unverified
     }
 }

@@ -246,9 +246,9 @@
             }
 
             @if (deliverable.status === 'revision_required') {
-              <button mat-flat-button color="warn" (click)="$event.stopImmediatePropagation(); editDeliverable(deliverable.id)">
-                <mat-icon>edit</mat-icon>
-                Modifier
+              <button mat-flat-button color="warn" (click)="$event.stopImmediatePropagation(); editDeliverable(deliverable)">
+                <mat-icon>upload</mat-icon>
+                Soumettre une nouvelle version
               </button>
             }
           </mat-card-actions>
