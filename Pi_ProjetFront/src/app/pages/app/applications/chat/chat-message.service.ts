@@ -90,7 +90,6 @@ export class ChatMessageService {
   readonly connectionError$ = new BehaviorSubject<string>('');
 
   constructor(private http: HttpClient) {}
-int cx;
   /**
    * Create and activate a STOMP client using native WebSocket.
    * Spring's SockJS endpoint also accepts native WS at /ws/websocket.

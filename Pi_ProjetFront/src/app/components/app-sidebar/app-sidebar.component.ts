@@ -218,6 +218,7 @@ export class AppSidebarComponent {
         if (!this.isManager) {
             applicationsChildren.unshift({ name: "Task Kanban", route: "/app/kanban", icon: "view_kanban" });
         }
+        applicationsChildren.push({ name: "Chat", route: "/app/chat", icon: "chat" });
         all.push({
             name: "Applications",
             icon: "apps",

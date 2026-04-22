@@ -2963,26 +2963,30 @@ interface MessageGroup {
     ],
     template: `
         <!-- ══ Page breadcrumb header ══════════════════════════════════════ -->
-        <div class="container-fluid fade-in mb-3 mb-lg-4">
-            <mat-card class="bg-light-theme shadow-none pt-3 pb-lg-3 px-3">
-                <div class="row gx-3 align-items-center">
-                    <div class="col mb-3 mb-xl-0 py-1">
-                        <h3 class="mb-1 fw-bold">Chat Rooms</h3>
-                        <p class="text-secondary small mb-0">Collaborate with your team in real time</p>
-                    </div>
-                    @if (canManageMembers) {
-                        <div class="col-auto mb-3 mb-xl-0">
-                            <button mat-icon-button (click)="openDashboard()"
-                                    matTooltip="My Dashboard">
-                                <mat-icon>bar_chart</mat-icon>
-                            </button>
+        <div class="container-fluid fade-in mb-4">
+            <div class="chat-header-card">
+                <div class="chat-header-content">
+                    <div class="chat-header-left">
+                        <div class="chat-header-icon-wrapper">
+                            <mat-icon class="chat-header-main-icon">forum</mat-icon>
                         </div>
-                    }
-                    <div class="col-auto mb-3 mb-xl-0">
+                        <div class="chat-header-text">
+                            <h2 class="chat-header-title">Chat Rooms</h2>
+                            <p class="chat-header-subtitle">Collaborate with your team in real time</p>
+                        </div>
+                    </div>
+                    <div class="chat-header-actions">
+                        @if (canManageMembers) {
+                            <button mat-icon-button (click)="openDashboard()"
+                                    matTooltip="My Dashboard"
+                                    class="chat-header-btn">
+                                <mat-icon class="material-icons-outlined">bar_chart</mat-icon>
+                            </button>
+                        }
                         <app-page-right></app-page-right>
                     </div>
                 </div>
-            </mat-card>
+            </div>
         </div>
 
         <!-- ══ Main chat layout ════════════════════════════════════════════ -->
@@ -2999,7 +3003,7 @@ interface MessageGroup {
                                     (click)="innersidebar()" matTooltip="Back">
                                 <mat-icon class="material-icons-outlined">arrow_back</mat-icon>
                             </button>
-                            <span class="wa-sidebar-title">Channels</span>
+                            <span class="wa-sidebar-title">Chats</span>
                         </div>
                         <div class="wa-sidebar-actions">
                             @if (canManageMembers) {
@@ -3007,9 +3011,9 @@ interface MessageGroup {
                                         (click)="openMeetingCalendar()" matTooltip="Meeting calendar">
                                     <mat-icon>calendar_month</mat-icon>
                                 </button>
-                                <button matIconButton class="wa-icon-btn"
+                                <button class="wa-create-btn"
                                         (click)="openCreate()" matTooltip="New channel">
-                                    <mat-icon>add_circle_outline</mat-icon>
+                                    <mat-icon style="font-size:18px;width:18px;height:18px">add</mat-icon>
                                 </button>
                             }
                             <button matIconButton class="wa-icon-btn"
@@ -3119,10 +3123,15 @@ interface MessageGroup {
                                                               [matTooltip]="getMeetingStatus(room)">
                                                         </span>
                                                     }
-                                                    <span class="wa-room-type-tag"
-                                                          [class.wa-room-type-tag-unread]="(unreadCounts().get(room.id) ?? 0) > 0">
-                                                        <mat-icon class="material-icons-outlined wa-type-icon">{{ getRoomTypeIcon(room.roomType ?? 'general') }}</mat-icon>
-                                                    </span>
+                                                    <!-- Timestamp slot: meeting time or type icon -->
+                                                    @if (room.roomType === 'meeting' && room.startTime) {
+                                                        <span class="wa-room-timestamp">{{ room.startTime | date:'h:mm a' }}</span>
+                                                    } @else {
+                                                        <span class="wa-room-type-tag"
+                                                              [class.wa-room-type-tag-unread]="(unreadCounts().get(room.id) ?? 0) > 0">
+                                                            <mat-icon class="material-icons-outlined wa-type-icon">{{ getRoomTypeIcon(room.roomType ?? 'general') }}</mat-icon>
+                                                        </span>
+                                                    }
                                                 </div>
                                                 <div class="wa-room-bottom-row">
                                                     <span class="wa-room-preview">
@@ -3192,21 +3201,29 @@ interface MessageGroup {
                             </div>
                             <div class="chat-empty-body">
                                 <div class="chat-empty-icon-wrap">
-                                    <mat-icon class="material-icons-outlined chat-empty-icon">forum</mat-icon>
+                                    <div class="chat-empty-icon-circle">
+                                        <mat-icon class="material-icons-outlined chat-empty-icon">forum</mat-icon>
+                                    </div>
                                 </div>
                                 <h4 class="chat-empty-title">Ready when you are</h4>
                                 <p class="chat-empty-sub mb-3">Choose a channel from the sidebar<br>to jump into the conversation.</p>
                                 <div class="chat-empty-hints">
                                     <div class="chat-empty-hint">
-                                        <mat-icon class="material-icons-outlined" style="font-size:14px;width:14px;height:14px">tag</mat-icon>
+                                        <div class="chat-empty-hint-icon">
+                                            <mat-icon class="material-icons-outlined" style="font-size:14px;width:14px;height:14px">tag</mat-icon>
+                                        </div>
                                         <span>Team discussions</span>
                                     </div>
                                     <div class="chat-empty-hint">
-                                        <mat-icon class="material-icons-outlined" style="font-size:14px;width:14px;height:14px">check_circle_outline</mat-icon>
+                                        <div class="chat-empty-hint-icon">
+                                            <mat-icon class="material-icons-outlined" style="font-size:14px;width:14px;height:14px">check_circle_outline</mat-icon>
+                                        </div>
                                         <span>Task follow-ups</span>
                                     </div>
                                     <div class="chat-empty-hint">
-                                        <mat-icon class="material-icons-outlined" style="font-size:14px;width:14px;height:14px">videocam</mat-icon>
+                                        <div class="chat-empty-hint-icon">
+                                            <mat-icon class="material-icons-outlined" style="font-size:14px;width:14px;height:14px">videocam</mat-icon>
+                                        </div>
                                         <span>Meeting catch-ups</span>
                                     </div>
                                 </div>
@@ -3223,32 +3240,41 @@ interface MessageGroup {
                                 <div class="chat-header-accent-bar"></div>
                                 <div class="chat-header-row">
                                     <button matIconButton (click)="innersidebar()" matTooltip="Toggle sidebar"
-                                            class="me-1">
+                                            class="me-1 d-lg-none">
                                         <mat-icon class="material-icons-outlined">notes</mat-icon>
                                     </button>
 
-                                    <div class="chat-header-type-icon">
-                                        <mat-icon class="material-icons-outlined"
-                                                  style="font-size:20px;width:20px;height:20px">
-                                            {{ getRoomTypeIcon(activeRoom()?.roomType ?? 'general') }}
-                                        </mat-icon>
+                                    <!-- Room avatar (replaces type-icon) -->
+                                    <div class="chat-header-room-avatar"
+                                         [ngStyle]="getAvatarGradient(activeRoom()?.name ?? '')"
+                                         [class.chat-header-avatar-meeting-live]="activeRoom()?.roomType === 'meeting' && getMeetingStatus(activeRoom()!) === 'IN_PROGRESS'">
+                                        {{ getInitials(activeRoom()?.name ?? '') }}
                                     </div>
 
                                     <div class="chat-header-info">
-                                        <div class="d-flex align-items-center gap-2">
-                                            <span class="fw-bold chat-room-title">{{ activeRoom()?.name }}</span>
-                                            <span class="room-type-pill">{{ getRoomTypeLabel(activeRoom()?.roomType ?? '') }}</span>
-                                        </div>
-                                        @if (activeRoom()?.projectId) {
-                                            <span class="chat-room-subtitle text-secondary small">
-                                                <mat-icon class="material-icons-outlined align-middle"
-                                                          style="font-size:13px;width:13px;height:13px">folder_open</mat-icon>
+                                        <span class="chat-room-title">{{ activeRoom()?.name }}</span>
+                                        <span class="chat-header-subtitle">
+                                            @if (activeRoom()?.roomType === 'meeting' && activeRoom()?.startTime) {
+                                                <mat-icon class="material-icons-outlined" style="font-size:11px;width:11px;height:11px;vertical-align:middle">schedule</mat-icon>
+                                                {{ activeRoom()!.startTime | date:'MMM d · h:mm a' }}
+                                            } @else if (activeRoom()?.projectId) {
+                                                <mat-icon class="material-icons-outlined" style="font-size:11px;width:11px;height:11px;vertical-align:middle">folder_open</mat-icon>
                                                 {{ getProjectName(activeRoom()!.projectId) }}
-                                            </span>
-                                        }
+                                            } @else {
+                                                <mat-icon class="material-icons-outlined" style="font-size:11px;width:11px;height:11px;vertical-align:middle">{{ getRoomTypeIcon(activeRoom()?.roomType ?? 'general') }}</mat-icon>
+                                                {{ getRoomTypeLabel(activeRoom()?.roomType ?? '') }} · {{ members().length }} members
+                                            }
+                                        </span>
                                     </div>
 
                                     <div class="chat-header-actions ms-auto d-flex align-items-center gap-1">
+                                        <!-- Call / Video shortcut buttons matching screenshot -->
+                                        <button matIconButton matTooltip="Voice call" class="header-call-btn">
+                                            <mat-icon class="material-icons-outlined" style="font-size:19px;width:19px;height:19px">call</mat-icon>
+                                        </button>
+                                        <button matIconButton matTooltip="Video call" class="header-call-btn">
+                                            <mat-icon class="material-icons-outlined" style="font-size:19px;width:19px;height:19px">videocam</mat-icon>
+                                        </button>
                                         @if (pinnedCount() > 0) {
                                             <button matIconButton matTooltip="Pinned messages"
                                                     (click)="togglePinnedPanel()"
@@ -3325,6 +3351,12 @@ interface MessageGroup {
                                                 </button>
                                             </mat-menu>
                                         }
+                                        <button matIconButton
+                                                matTooltip="{{ rightPanelOpen() ? 'Hide side panel' : 'Show side panel' }}"
+                                                (click)="rightPanelOpen.update(v => !v)"
+                                                [class.header-btn-active]="rightPanelOpen()">
+                                            <mat-icon style="font-size:19px;width:19px;height:19px">view_sidebar</mat-icon>
+                                        </button>
                                     </div>
                                 </div>
 
@@ -5107,6 +5139,154 @@ interface MessageGroup {
                 </div>
                 <!-- ══ /RIGHT chat main ════════════════════════════════════ -->
 
+                <!-- ══ FAR-RIGHT PANEL: Notifications + Members ══════════ -->
+                <div class="chat-right-panel"
+                     [class.chat-right-panel-hidden]="!rightPanelOpen()"
+                     [@rightPanelSlide]="rightPanelOpen() ? 'open' : 'closed'">
+
+                    <!-- ── Notifications section ── -->
+                    <div class="rp-section">
+                        <div class="rp-section-header">
+                            <span class="rp-section-title">Notifications</span>
+                            @if (notifService.unreadCount() > 0) {
+                                <span class="rp-notif-badge">{{ notifService.unreadCount() }}</span>
+                            }
+                            @if (notifService.unreadCount() > 0) {
+                                <button class="rp-mark-read-btn" (click)="notifService.markAllRead()">Mark all read</button>
+                            }
+                        </div>
+                        <div class="rp-notif-list">
+                            @if (notifService.notifications().length === 0) {
+                                <div class="rp-empty">
+                                    <mat-icon class="material-icons-outlined rp-empty-icon">notifications_none</mat-icon>
+                                    <span>No notifications yet</span>
+                                </div>
+                            } @else {
+                                @for (n of notifService.notifications().slice(0, 5); track n.id; let i = $index) {
+                                    <div class="rp-notif-item" [class.rp-notif-unread]="!n.read"
+                                         [@rpItemEnter] [style.animation-delay]="i * 60 + 'ms'"
+                                         (click)="notifService.markAllRead(); selectRoomById(n.roomId)">
+                                        <div class="rp-notif-avatar" [ngStyle]="getAvatarGradient(n.roomName)">
+                                            <mat-icon style="font-size:13px;width:13px;height:13px;color:#fff">{{ n.icon }}</mat-icon>
+                                        </div>
+                                        <div class="rp-notif-info">
+                                            <span class="rp-notif-text">
+                                                <span class="rp-notif-room">{{ n.roomName }}</span>
+                                                — {{ n.message }}
+                                            </span>
+                                            <span class="rp-notif-time">{{ formatMessageTime(n.timestamp.toString()) }}</span>
+                                        </div>
+                                        @if (!n.read) { <span class="rp-notif-dot"></span> }
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+
+                    <!-- ── Members / Suggestions section ── -->
+                    <div class="rp-section rp-section-members">
+                        <div class="rp-section-header">
+                            <div class="rp-section-title-row">
+                                <mat-icon class="rp-section-icon material-icons-outlined">group</mat-icon>
+                                <span class="rp-section-title">{{ activeRoom() ? 'Members' : 'Suggestions' }}</span>
+                            </div>
+                            @if (activeRoom() && members().length > 0) {
+                                <span class="rp-member-count">{{ members().length }}</span>
+                            }
+                            @if (activeRoom() && canManageMembers) {
+                                <button class="rp-section-add-btn" (click)="membersPanelOpen.set(true)" matTooltip="Add member">
+                                    <mat-icon style="font-size:13px;width:13px;height:13px">person_add</mat-icon>
+                                    Add
+                                </button>
+                            }
+                        </div>
+
+                        @if (activeRoom() && members().length > 0) {
+                            <!-- Online count bar -->
+                            <div class="rp-online-bar">
+                                <span class="rp-online-dot-live"></span>
+                                <span class="rp-online-label">
+                                    {{ members().length }} member{{ members().length !== 1 ? 's' : '' }}
+                                </span>
+                            </div>
+                        }
+
+                        <div class="rp-member-list">
+                            @if (!activeRoom()) {
+                                <div class="rp-empty">
+                                    <div class="rp-empty-icon-wrap">
+                                        <mat-icon class="material-icons-outlined">group</mat-icon>
+                                    </div>
+                                    <span class="rp-empty-title">No channel selected</span>
+                                    <span class="rp-empty-sub">Select a channel to view its members</span>
+                                </div>
+                            } @else if (membersLoading()) {
+                                <div class="rp-loading-wrap">
+                                    @for (sk of [1,2,3]; track sk) {
+                                        <div class="rp-member-skeleton">
+                                            <div class="rp-sk-avatar"></div>
+                                            <div class="rp-sk-lines">
+                                                <div class="rp-sk-line rp-sk-name"></div>
+                                                <div class="rp-sk-line rp-sk-role"></div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            } @else if (members().length === 0) {
+                                <div class="rp-empty">
+                                    <div class="rp-empty-icon-wrap">
+                                        <mat-icon class="material-icons-outlined">person_off</mat-icon>
+                                    </div>
+                                    <span class="rp-empty-title">No members yet</span>
+                                    <span class="rp-empty-sub">Invite people to this channel</span>
+                                </div>
+                            } @else {
+                                @for (m of members(); track m.id; let i = $index) {
+                                    <div class="rp-member-item" [@rpItemEnter] [style.animation-delay]="i * 45 + 'ms'">
+                                        <!-- Avatar with presence ring -->
+                                        <div class="rp-member-avatar-wrap">
+                                            <div class="rp-member-avatar" [ngStyle]="getAvatarGradient(m.userFullName)">
+                                                {{ getInitials(m.userFullName) }}
+                                            </div>
+                                            <span class="rp-member-presence"
+                                                  [class.rp-presence-online]="(m.id % 4) !== 0"
+                                                  [class.rp-presence-away]="(m.id % 4) === 0"
+                                                  [matTooltip]="(m.id % 4) !== 0 ? 'Online' : 'Away'">
+                                            </span>
+                                        </div>
+
+                                        <!-- Info column -->
+                                        <div class="rp-member-info">
+                                            <span class="rp-member-name">{{ m.userFullName }}</span>
+                                            <div class="rp-member-meta">
+                                                <span class="rp-member-role-badge"
+                                                      [class.rp-role-admin]="m.userRole?.toLowerCase() === 'admin'"
+                                                      [class.rp-role-owner]="m.userRole?.toLowerCase() === 'owner'">
+                                                    {{ m.userRole || 'Member' }}
+                                                </span>
+                                                <span class="rp-member-status-text"
+                                                      [class.rp-status-online]="(m.id % 4) !== 0">
+                                                    {{ (m.id % 4) !== 0 ? 'Online' : 'Away' }}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Action button (visible on hover) -->
+                                        @if (canManageMembers) {
+                                            <button class="rp-member-action-btn"
+                                                    (click)="removeMember(m)"
+                                                    matTooltip="Remove member">
+                                                <mat-icon style="font-size:14px;width:14px;height:14px">person_remove</mat-icon>
+                                            </button>
+                                        }
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+                <!-- ══ /FAR-RIGHT PANEL ═══════════════════════════════════ -->
+
             </div>
         </div>
 
@@ -5428,6 +5608,11 @@ interface MessageGroup {
                 0 1px 2px rgba(0,0,0,0.04),
                 0 6px 24px rgba(0,0,0,0.07),
                 0 0 0 0.5px var(--mat-sys-outline-variant);
+            /* Override global inner-sidebar-content max-width so the right panel is visible */
+            max-width: none !important;
+            flex: 1 1 0 !important;
+            width: 0 !important;
+            min-width: 0 !important;
         }
 
         /* ── Sidebar brand / workspace ───────────────────────────────── */
@@ -6042,89 +6227,124 @@ interface MessageGroup {
         }
 
         .msg-bubble {
-            border-radius: 18px;
-            padding: 11px 16px 8px;
+            border-radius: 20px;
+            padding: 12px 18px 10px;
             position: relative;
             word-break: break-word;
             line-height: 1.65;
-            transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1),
-                        box-shadow 0.18s ease;
+            transition: all 0.28s cubic-bezier(0.34,1.56,0.64,1);
             min-width: 60px;
+            backdrop-filter: blur(6px);
         }
         .msg-row:hover .msg-bubble {
-            transform: translateY(-2px);
+            transform: translateY(-3px) scale(1.02);
         }
         .msg-row:hover .msg-bubble-own {
             box-shadow:
-                0 6px 20px color-mix(in srgb, var(--mat-sys-primary) 28%, transparent),
-                0 2px 6px rgba(0,0,0,0.08),
-                inset 0 1px 0 rgba(255,255,255,0.35);
+                0 12px 32px color-mix(in srgb, var(--mat-sys-primary) 38%, transparent),
+                0 4px 12px color-mix(in srgb, var(--mat-sys-primary) 20%, transparent),
+                0 2px 6px rgba(0,0,0,0.12),
+                inset 0 1px 0 rgba(255,255,255,0.4);
         }
         .msg-row:hover .msg-bubble-other {
             box-shadow:
-                0 4px 14px color-mix(in srgb, var(--mat-sys-on-surface) 9%, transparent),
-                0 1px 3px rgba(0,0,0,0.06);
+                0 8px 24px color-mix(in srgb, var(--mat-sys-on-surface) 14%, transparent),
+                0 2px 6px rgba(0,0,0,0.08);
+            border-color: color-mix(in srgb, var(--mat-sys-primary) 20%, var(--mat-sys-outline-variant));
         }
 
-        /* Own message — right side, coloured tail */
+        /* Own message — premium gradient right side */
         .msg-bubble-own {
-            background: linear-gradient(140deg,
-                var(--mat-sys-primary-container) 0%,
-                color-mix(in srgb, var(--mat-sys-primary-container) 50%, var(--mat-sys-tertiary-container)) 100%);
-            color: var(--mat-sys-on-surface);
-            border-radius: 18px 18px 4px 18px;
+            background: linear-gradient(135deg,
+                var(--mat-sys-primary) 0%,
+                color-mix(in srgb, var(--mat-sys-primary) 70%, var(--mat-sys-tertiary)) 100%);
+            color: var(--mat-sys-on-primary);
+            border-radius: 20px 20px 6px 20px;
             box-shadow:
-                0 3px 14px color-mix(in srgb, var(--mat-sys-primary) 22%, transparent),
-                0 1px 4px rgba(0,0,0,0.07),
-                inset 0 1px 0 rgba(255,255,255,0.35);
+                0 6px 20px color-mix(in srgb, var(--mat-sys-primary) 32%, transparent),
+                0 2px 8px rgba(0,0,0,0.1),
+                inset 0 1px 0 rgba(255,255,255,0.25);
+            animation: msg-own-enter 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+        }
+        @keyframes msg-own-enter {
+            from {
+                opacity: 0;
+                transform: translateX(20px) scale(0.96);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0) scale(1);
+            }
         }
         .msg-bubble-own::after {
             content: '';
             position: absolute;
             bottom: 0;
-            right: -7px;
-            width: 14px;
-            height: 14px;
-            background: color-mix(in srgb, var(--mat-sys-primary-container) 50%, var(--mat-sys-tertiary-container));
+            right: -8px;
+            width: 16px;
+            height: 16px;
+            background: var(--mat-sys-primary);
             clip-path: polygon(0 0, 0 100%, 100% 100%);
-            border-bottom-right-radius: 2px;
+            border-bottom-right-radius: 1px;
+            box-shadow: -2px 2px 4px rgba(0,0,0,0.1);
         }
 
-        /* Other message — left side, neutral tail */
+        /* Other message — premium styling left side */
         .msg-bubble-other {
-            background: var(--mat-sys-surface-container);
+            background: linear-gradient(135deg,
+                var(--mat-sys-surface-container-low) 0%,
+                color-mix(in srgb, var(--mat-sys-surface-container) 60%, var(--mat-sys-primary-container) 10%) 100%);
             color: var(--mat-sys-on-surface);
-            border-radius: 18px 18px 18px 4px;
-            border: 1px solid var(--mat-sys-outline-variant);
+            border-radius: 20px 20px 20px 6px;
+            border: 1.5px solid color-mix(in srgb, var(--mat-sys-primary) 12%, var(--mat-sys-outline-variant));
             box-shadow:
-                0 2px 8px color-mix(in srgb, var(--mat-sys-on-surface) 7%, transparent),
-                0 1px 2px rgba(0,0,0,0.04);
+                0 4px 14px color-mix(in srgb, var(--mat-sys-on-surface) 10%, transparent),
+                0 2px 4px rgba(0,0,0,0.05),
+                inset 0 1px 0 rgba(255,255,255,0.1);
+            animation: msg-other-enter 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+        }
+        @keyframes msg-other-enter {
+            from {
+                opacity: 0;
+                transform: translateX(-20px) scale(0.96);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0) scale(1);
+            }
         }
         .msg-bubble-other::after {
             content: '';
             position: absolute;
             bottom: 0;
-            left: -7px;
-            width: 14px;
-            height: 14px;
-            background: var(--mat-sys-surface-container);
+            left: -8px;
+            width: 16px;
+            height: 16px;
+            background: var(--mat-sys-surface-container-low);
             clip-path: polygon(100% 0, 0 100%, 100% 100%);
-            border-bottom-left-radius: 2px;
-            border-left: 1px solid var(--mat-sys-outline-variant);
+            border-bottom-left-radius: 1px;
+            border-left: 1.5px solid color-mix(in srgb, var(--mat-sys-primary) 12%, var(--mat-sys-outline-variant));
         }
 
-        /* Consecutive bubbles — no tail, fully rounded */
-        .msg-consecutive .msg-bubble-own  { border-radius: 18px 18px 18px 18px; }
+        /* Consecutive bubbles — no tail, fully rounded with special spacing */
+        .msg-consecutive { margin-top: 2px !important; }
+        .msg-consecutive .msg-bubble-own  { border-radius: 20px 20px 20px 20px; }
         .msg-consecutive .msg-bubble-own::after  { display: none; }
-        .msg-consecutive .msg-bubble-other { border-radius: 18px 18px 18px 18px; }
+        .msg-consecutive .msg-bubble-other { border-radius: 20px 20px 20px 20px; }
         .msg-consecutive .msg-bubble-other::after { display: none; }
 
         .msg-sender-name {
             font-size: 12px;
             font-weight: 700;
-            letter-spacing: 0.01em;
+            letter-spacing: 0.02em;
             color: var(--mat-sys-primary);
-            margin-bottom: 3px !important;
+            margin-bottom: 4px !important;
+            text-transform: capitalize;
+            animation: fadeIn 0.3s ease forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
         .msg-text {
             font-size: 14.5px;
@@ -6132,58 +6352,48 @@ interface MessageGroup {
             letter-spacing: 0.01em;
         }
         .msg-time {
-            display: block;
-            font-size: 10.5px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
             color: var(--mat-sys-on-surface-variant);
-            margin-top: 5px;
+            margin-top: 6px;
             text-align: right;
             opacity: 0;
             max-height: 0;
             overflow: hidden;
-            transition: opacity 0.22s ease, max-height 0.22s ease;
+            transition: all 0.28s cubic-bezier(0.34,1.56,0.64,1);
             letter-spacing: 0.02em;
             font-variant-numeric: tabular-nums;
+            font-weight: 500;
         }
         .msg-row:hover .msg-time {
-            opacity: 0.85;
-            max-height: 20px;
+            opacity: 0.9;
+            max-height: 24px;
         }
-        .msg-bubble-other .msg-time { text-align: left; }
+        .msg-bubble-own .msg-time {
+            color: rgba(255,255,255,0.85);
+            justify-content: flex-end;
+        }
+        .msg-bubble-other .msg-time {
+            text-align: left;
+            justify-content: flex-start;
+        }
+        .msg-time::after {
+            content: '✓';
+            font-size: 11px;
+            font-weight: 700;
+            display: inline-block;
+        }
 
-        /* ── System messages ─────────────────────────────────────────── */
+        /* ── System messages ─ premium animated styling ─────────────── */
         .sys-msg {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 3px;
-            margin: 8px 0;
-            padding: 0 18px;
-        }
-        .sys-msg-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 14px 4px 10px;
-            border-radius: 20px;
-            background: color-mix(in srgb, var(--mat-sys-primary) 8%, var(--mat-sys-surface-container));
-            border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 14%, var(--mat-sys-outline-variant));
-            max-width: 480px;
-        }
-        .sys-msg-icon {
-            font-size: 14px !important;
-            width: 14px !important;
-            height: 14px !important;
-            color: var(--mat-sys-primary);
-            flex-shrink: 0;
-        }
-        .sys-msg-text {
-            font-size: 12px;
-            font-style: italic;
-            color: var(--mat-sys-on-surface-variant);
-            line-height: 1.4;
-        }
-        .sys-msg-time {
-            font-size: 10px;
+            gap: 4px;
+            margin: 12px 0;
+            padding: 0 18px;\n            animation: sysMsg-enter 0.5s cubic-bezier(0.34,1.56,0.64,1) both;\n        }\n        @keyframes sysMsg-enter {\n            from {\n                opacity: 0;\n                transform: scale(0.92);\n            }\n            to {\n                opacity: 1;\n                transform: scale(1);\n            }\n        }\n        .sys-msg-pill {\n            display: inline-flex;\n            align-items: center;\n            gap: 8px;\n            padding: 8px 16px;\n            border-radius: 24px;\n            background: linear-gradient(135deg,\n                color-mix(in srgb, var(--mat-sys-primary-container) 30%, transparent),\n                color-mix(in srgb, var(--mat-sys-tertiary-container) 20%, transparent));\n            border: 1.5px solid color-mix(in srgb, var(--mat-sys-primary) 20%, var(--mat-sys-outline-variant));\n            max-width: 480px;\n            box-shadow:\n                0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 15%, transparent),\n                inset 0 1px 0 rgba(255,255,255,0.1);\n            backdrop-filter: blur(8px);\n            transition: all 0.28s cubic-bezier(0.34,1.56,0.64,1);\n        }\n        .sys-msg-pill:hover {\n            border-color: var(--mat-sys-primary);\n            box-shadow:\n                0 4px 12px color-mix(in srgb, var(--mat-sys-primary) 25%, transparent),\n                inset 0 1px 0 rgba(255,255,255,0.15);\n        }\n        .sys-msg-icon {\n            font-size: 16px !important;\n            width: 16px !important;\n            height: 16px !important;\n            color: var(--mat-sys-primary);\n            flex-shrink: 0;\n            animation: icon-wobble 0.6s ease-in-out infinite;\n        }\n        @keyframes icon-wobble {\n            0%, 100% { transform: rotate(0deg); }\n            25% { transform: rotate(-3deg); }\n            75% { transform: rotate(3deg); }\n        }\n        .sys-msg-text {\n            font-size: 13px;\n            font-weight: 500;\n            color: var(--mat-sys-on-surface-variant);\n            line-height: 1.5;\n            letter-spacing: 0.01em;\n        }\n        .sys-msg-time {\n            font-size: 10px;
             color: var(--mat-sys-on-surface-variant);
             opacity: 0.5;
             letter-spacing: 0.02em;
@@ -10916,6 +11126,4311 @@ interface MessageGroup {
             gap: 4px !important;
         }
 
+        /* ── Right panel (Notifications + Members) ───────────────────── */
+        .chat-right-panel {
+            width: 280px;
+            flex-shrink: 0;
+            background: var(--mat-sys-surface-container-lowest);
+            border: 1px solid var(--mat-sys-outline-variant);
+            border-radius: 18px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            height: calc(100vh - 250px);
+            min-height: 0;
+            box-shadow:
+                0 1px 2px rgba(0,0,0,0.04),
+                0 4px 16px rgba(0,0,0,0.06),
+                0 0 0 0.5px var(--mat-sys-outline-variant);
+            transition: box-shadow 0.3s ease, width 0.3s cubic-bezier(0.16,1,0.3,1);
+        }
+        .chat-right-panel.chat-right-panel-hidden {
+            width: 0;
+            overflow: hidden;
+            border: none;
+            box-shadow: none;
+        }
+        .rp-section {
+            flex-shrink: 0;
+        }
+        .rp-section-members {
+            flex: 1;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--mat-sys-outline-variant) transparent;
+        }
+        .rp-section:not(:last-child) {
+            border-bottom: 1px solid var(--mat-sys-outline-variant);
+        }
+        .rp-section-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 16px 10px;
+            position: sticky;
+            top: 0;
+            background: var(--mat-sys-surface-container-lowest);
+            z-index: 1;
+        }
+        .rp-section-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--mat-sys-on-surface);
+            flex: 1;
+        }
+        .rp-notif-badge {
+            min-width: 18px;
+            height: 18px;
+            border-radius: 9px;
+            background: var(--mat-sys-primary);
+            color: var(--mat-sys-on-primary);
+            font-size: 10px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 5px;
+            flex-shrink: 0;
+        }
+        .rp-member-count {
+            min-width: 18px;
+            height: 18px;
+            border-radius: 9px;
+            background: var(--mat-sys-primary-container);
+            color: var(--mat-sys-primary);
+            font-size: 10px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 5px;
+            flex-shrink: 0;
+        }
+        .rp-mark-read-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 10px;
+            color: var(--mat-sys-primary);
+            padding: 2px 6px;
+            border-radius: 6px;
+            white-space: nowrap;
+            transition: background 0.12s;
+            font-family: inherit;
+        }
+        .rp-mark-read-btn:hover {
+            background: var(--mat-sys-primary-container);
+        }
+        .rp-notif-list {
+            padding: 2px 0 8px;
+        }
+        .rp-notif-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 8px 14px;
+            cursor: pointer;
+            transition: background 0.12s ease;
+            position: relative;
+        }
+        .rp-notif-item:hover {
+            background: var(--mat-sys-surface-container);
+        }
+        .rp-notif-unread {
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 22%, transparent);
+        }
+        .rp-notif-unread:hover {
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 32%, transparent);
+        }
+        .rp-notif-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--mat-sys-primary), var(--mat-sys-tertiary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .rp-notif-info {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .rp-notif-text {
+            font-size: 12px;
+            line-height: 1.45;
+            color: var(--mat-sys-on-surface);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .rp-notif-room {
+            font-weight: 700;
+            color: var(--mat-sys-primary);
+        }
+        .rp-notif-time {
+            font-size: 10px;
+            color: var(--mat-sys-on-surface-variant);
+            opacity: 0.7;
+        }
+        .rp-notif-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--mat-sys-primary);
+            flex-shrink: 0;
+            margin-top: 5px;
+        }
+        .rp-member-list {
+            padding: 2px 0 10px;
+        }
+        .rp-member-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 14px;
+            transition: background 0.12s ease;
+        }
+        .rp-member-item:hover {
+            background: var(--mat-sys-surface-container);
+        }
+        .rp-member-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--mat-sys-primary), var(--mat-sys-tertiary));
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 800;
+            flex-shrink: 0;
+            letter-spacing: -0.5px;
+        }
+        .rp-member-info {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+        .rp-member-name {
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--mat-sys-on-surface);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .rp-member-role {
+            font-size: 10.5px;
+            color: var(--mat-sys-on-surface-variant);
+            opacity: 0.75;
+            text-transform: capitalize;
+            font-weight: 500;
+        }
+        .rp-action-btn {
+            width: 26px;
+            height: 26px;
+            border-radius: 8px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            color: var(--mat-sys-on-surface-variant);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            opacity: 0;
+            transition: opacity 0.12s, background 0.12s, color 0.12s;
+            padding: 0;
+        }
+        .rp-member-item:hover .rp-action-btn {
+            opacity: 1;
+        }
+        .rp-action-btn:hover {
+            background: color-mix(in srgb, var(--mat-sys-error) 15%, var(--mat-sys-surface-container));
+            color: var(--mat-sys-error);
+        }
+        .rp-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 24px 16px;
+            text-align: center;
+        }
+        .rp-empty-icon {
+            font-size: 28px !important;
+            width: 28px !important;
+            height: 28px !important;
+            opacity: 0.3;
+            color: var(--mat-sys-on-surface-variant);
+        }
+        .rp-empty span {
+            font-size: 12px;
+            color: var(--mat-sys-on-surface-variant);
+            opacity: 0.65;
+        }
+        @media (max-width: 1279px) {
+            .chat-right-panel { display: none !important; }
+        }
+
+        /* ╔══════════════════════════════════════════════════════════════╗
+           ║   MAGIC DESIGN ENHANCEMENT — Screenshot-matching overrides  ║
+           ╚══════════════════════════════════════════════════════════════╝ */
+
+        /* ── 1. Own message bubbles: solid primary (not gradient) ─────── */
+        .msg-bubble-own {
+            background: var(--mat-sys-primary) !important;
+            color: var(--mat-sys-on-primary) !important;
+            border-radius: 18px 18px 4px 18px !important;
+            box-shadow:
+                0 4px 18px color-mix(in srgb, var(--mat-sys-primary) 38%, transparent),
+                0 2px 6px rgba(0,0,0,0.1),
+                inset 0 1px 0 rgba(255,255,255,0.18) !important;
+        }
+        .msg-bubble-own::after {
+            background: var(--mat-sys-primary) !important;
+        }
+        .msg-bubble-own .msg-sender-name,
+        .msg-bubble-own .msg-text,
+        .msg-bubble-own .msg-time,
+        .msg-bubble-own .msg-edited-label {
+            color: var(--mat-sys-on-primary) !important;
+        }
+        .msg-bubble-own .msg-time { opacity: 0.72 !important; }
+        .msg-row:hover .msg-bubble-own {
+            box-shadow:
+                0 8px 28px color-mix(in srgb, var(--mat-sys-primary) 48%, transparent),
+                0 2px 8px rgba(0,0,0,0.12),
+                inset 0 1px 0 rgba(255,255,255,0.25) !important;
+        }
+        /* Links inside own bubble */
+        .msg-bubble-own a { color: var(--mat-sys-on-primary) !important; text-decoration: underline; }
+
+        /* ── 2. Active room item: dark filled (matches screenshot) ────── */
+        .wa-room-active {
+            background: color-mix(in srgb, var(--mat-sys-on-surface) 88%, var(--mat-sys-surface-container-lowest)) !important;
+            border-radius: 12px !important;
+        }
+        .wa-room-active:hover {
+            background: color-mix(in srgb, var(--mat-sys-on-surface) 82%, var(--mat-sys-surface-container-lowest)) !important;
+        }
+        .wa-room-active .wa-room-name {
+            color: var(--mat-sys-surface) !important;
+            font-weight: 700 !important;
+        }
+        .wa-room-active .wa-room-preview {
+            color: color-mix(in srgb, var(--mat-sys-surface) 70%, transparent) !important;
+        }
+        .wa-room-active .wa-room-type-tag { color: color-mix(in srgb, var(--mat-sys-surface) 60%, transparent) !important; }
+        .wa-room-active .wa-meeting-dot { border-color: var(--mat-sys-surface) !important; }
+        /* Active item: hide the left border indicator (replaced by bg) */
+        .wa-room-active::before { display: none !important; }
+        /* Active item avatar: white ring */
+        .wa-room-active .wa-avatar {
+            box-shadow: 0 0 0 2.5px var(--mat-sys-surface), 0 4px 12px rgba(0,0,0,0.25) !important;
+        }
+
+        /* ── 3. Room item: richer avatar with animated ring on hover ─── */
+        .wa-avatar {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.20), 0 0 0 2px transparent !important;
+            transition:
+                transform 0.22s cubic-bezier(0.34,1.56,0.64,1),
+                box-shadow 0.22s ease !important;
+        }
+        .wa-room-item:hover .wa-avatar {
+            transform: scale(1.09) !important;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.22),
+                0 0 0 2.5px color-mix(in srgb, var(--mat-sys-primary) 50%, transparent) !important;
+        }
+
+        /* ── 4. Room item: timestamp on top row ──────────────────────── */
+        .wa-meeting-dot {
+            width: 8px;
+            height: 8px;
+        }
+        /* Unread badge: pulse animation */
+        .wa-unread-badge {
+            animation: badge-pop 0.4s cubic-bezier(0.34,1.56,0.64,1);
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 45%, transparent) !important;
+        }
+        @keyframes badge-pop {
+            0%   { transform: scale(0.4); }
+            60%  { transform: scale(1.18); }
+            100% { transform: scale(1); }
+        }
+
+        /* ── 5. Chat header: glassmorphism + avatar-style type icon ──── */
+        .chat-header {
+            background: color-mix(in srgb, var(--mat-sys-surface-container-lowest) 88%, var(--mat-sys-primary-container)) !important;
+            backdrop-filter: blur(18px) saturate(1.5) !important;
+            border-bottom: 1px solid color-mix(in srgb, var(--mat-sys-primary) 12%, var(--mat-sys-outline-variant)) !important;
+            box-shadow:
+                0 1px 0 color-mix(in srgb, var(--mat-sys-primary) 8%, var(--mat-sys-outline-variant)),
+                0 4px 20px color-mix(in srgb, var(--mat-sys-primary) 7%, rgba(0,0,0,0.05)) !important;
+        }
+        /* Type icon → circular avatar chip */
+        .chat-header-type-icon {
+            width: 42px !important;
+            height: 42px !important;
+            min-width: 42px !important;
+            border-radius: 50% !important;
+            background: linear-gradient(135deg, var(--mat-sys-primary), color-mix(in srgb, var(--mat-sys-primary) 60%, var(--mat-sys-tertiary))) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            color: var(--mat-sys-on-primary) !important;
+            box-shadow:
+                0 3px 10px color-mix(in srgb, var(--mat-sys-primary) 35%, transparent),
+                0 0 0 3px color-mix(in srgb, var(--mat-sys-primary) 18%, transparent) !important;
+            transition: box-shadow 0.3s ease, transform 0.22s cubic-bezier(0.34,1.56,0.64,1) !important;
+        }
+        .chat-header-type-icon:hover {
+            transform: scale(1.08) !important;
+            box-shadow:
+                0 5px 16px color-mix(in srgb, var(--mat-sys-primary) 45%, transparent),
+                0 0 0 4px color-mix(in srgb, var(--mat-sys-primary) 22%, transparent) !important;
+        }
+        .chat-header-type-icon mat-icon {
+            color: var(--mat-sys-on-primary) !important;
+            font-size: 20px !important;
+            width: 20px !important;
+            height: 20px !important;
+        }
+
+        /* ── 6. Room title gradient text ─────────────────────────────── */
+        .chat-room-title {
+            background: linear-gradient(120deg, var(--mat-sys-on-surface) 30%, var(--mat-sys-primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* ── 7. Sidebar title: animated gradient ─────────────────────── */
+        .wa-sidebar-title {
+            background: linear-gradient(110deg,
+                var(--mat-sys-on-surface) 0%,
+                var(--mat-sys-primary) 45%,
+                var(--mat-sys-tertiary) 80%,
+                var(--mat-sys-on-surface) 100%);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: title-shimmer 4s linear infinite;
+        }
+        @keyframes title-shimmer {
+            0%   { background-position: 0% center; }
+            100% { background-position: 200% center; }
+        }
+
+        /* ── 8. Message area: subtle radial glow backdrop ─────────────── */
+        .messages-scroll {
+            background-image:
+                radial-gradient(ellipse 80% 50% at 50% 0%, color-mix(in srgb, var(--mat-sys-primary-container) 12%, transparent), transparent 70%),
+                radial-gradient(circle, color-mix(in srgb, var(--mat-sys-on-surface) 3.5%, transparent) 1px, transparent 1px) !important;
+            background-size: 100% 100%, 24px 24px !important;
+        }
+
+        /* ── 9. Other bubble: elevated card style ───────────────────── */
+        .msg-bubble-other {
+            background: var(--mat-sys-surface-container-low) !important;
+            border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 8%, var(--mat-sys-outline-variant)) !important;
+            box-shadow:
+                0 2px 10px color-mix(in srgb, var(--mat-sys-on-surface) 6%, transparent),
+                0 1px 3px rgba(0,0,0,0.04) !important;
+        }
+
+        /* ── 10. Input card: premium pill style ─────────────────────── */
+        .input-card {
+            border-radius: 22px !important;
+            background: var(--mat-sys-surface-container-low) !important;
+            border: 1.5px solid var(--mat-sys-outline-variant) !important;
+            box-shadow:
+                0 -1px 0 rgba(0,0,0,0.03),
+                0 4px 24px rgba(0,0,0,0.05),
+                inset 0 1px 0 rgba(255,255,255,0.06) !important;
+            transition: border-color 0.28s cubic-bezier(0.4,0,0.2,1), box-shadow 0.28s cubic-bezier(0.4,0,0.2,1) !important;
+        }
+        .input-card:focus-within {
+            border-color: var(--mat-sys-primary) !important;
+            box-shadow:
+                0 -1px 0 rgba(0,0,0,0.03),
+                0 6px 32px rgba(0,0,0,0.08),
+                0 0 0 3.5px color-mix(in srgb, var(--mat-sys-primary) 14%, transparent) !important;
+        }
+
+        /* ── 11. Send FAB: neon glow ring ────────────────────────────── */
+        .send-fab {
+            background: var(--mat-sys-primary) !important;
+            width: 42px !important;
+            height: 42px !important;
+            box-shadow:
+                0 3px 12px color-mix(in srgb, var(--mat-sys-primary) 50%, transparent),
+                0 0 0 3px color-mix(in srgb, var(--mat-sys-primary) 18%, transparent) !important;
+        }
+        .send-fab:not(:disabled):hover {
+            transform: scale(1.14) translateY(-2px) !important;
+            box-shadow:
+                0 6px 22px color-mix(in srgb, var(--mat-sys-primary) 60%, transparent),
+                0 0 0 5px color-mix(in srgb, var(--mat-sys-primary) 22%, transparent) !important;
+        }
+
+        /* ── 12. Room list item: micro-animation enter ────────────────── */
+        @keyframes wa-item-enter {
+            from { transform: translateX(-12px) scale(0.98); opacity: 0; }
+            to   { transform: translateX(0)  scale(1);    opacity: 1; }
+        }
+        .wa-room-item {
+            animation: wa-item-enter 0.36s cubic-bezier(0.34,1.56,0.64,1) both !important;
+            animation-delay: var(--wa-item-delay, 0ms) !important;
+        }
+
+        /* ── 13. Chat body: new-message slide-up animation ───────────── */
+        @keyframes msg-slide-up {
+            from { transform: translateY(10px); opacity: 0; }
+            to   { transform: translateY(0);    opacity: 1; }
+        }
+        .msg-row { animation: msg-slide-up 250ms cubic-bezier(0.34,1.56,0.64,1) both; }
+
+        /* ── 14. Empty state floating icon ──────────────────────────── */
+        @keyframes icon-float {
+            0%, 100% { transform: translateY(0px); }
+            50%       { transform: translateY(-10px); }
+        }
+        .chat-empty-icon-wrap {
+            animation: icon-float 3.8s ease-in-out infinite !important;
+        }
+
+        /* ── 15. Reaction pill: enhanced pop ─────────────────────────── */
+        .reaction-pill {
+            backdrop-filter: blur(8px) !important;
+        }
+        .reaction-pill.my-reaction {
+            background: var(--mat-sys-primary) !important;
+            color: var(--mat-sys-on-primary) !important;
+            border-color: var(--mat-sys-primary) !important;
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 40%, transparent) !important;
+        }
+
+        /* ── 16. Section header: animated gradient line ───────────────── */
+        .wa-section-header {
+            position: relative;
+        }
+        .wa-section-header::after {
+            content: '';
+            position: absolute;
+            left: 14px;
+            right: 14px;
+            bottom: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--mat-sys-primary), transparent);
+            opacity: 0.25;
+        }
+
+        /* ── 17. Header accent bar: animated gradient ─────────────────── */
+        .chat-header-accent-bar {
+            background: linear-gradient(90deg,
+                var(--mat-sys-primary) 0%,
+                var(--mat-sys-tertiary) 50%,
+                var(--mat-sys-primary) 100%) !important;
+            background-size: 200% auto !important;
+            animation: accent-flow 3s linear infinite !important;
+            opacity: 1 !important;
+            height: 3px !important;
+        }
+        @keyframes accent-flow {
+            0%   { background-position: 0% center; }
+            100% { background-position: 200% center; }
+        }
+
+        /* ── 18. Chip: active chip glow ──────────────────────────────── */
+        .wa-chip-active {
+            box-shadow:
+                0 3px 12px color-mix(in srgb, var(--mat-sys-primary) 40%, transparent),
+                0 0 0 2px color-mix(in srgb, var(--mat-sys-primary) 20%, transparent) !important;
+        }
+
+        /* ── 19. Sidebar card: enhanced depth ─────────────────────────── */
+        .chat-sidebar {
+            box-shadow:
+                0 0 0 0.5px var(--mat-sys-outline-variant),
+                0 4px 24px rgba(0,0,0,0.07),
+                0 1px 4px rgba(0,0,0,0.04) !important;
+        }
+
+        /* ── 20. Room pill badge: better typography ───────────────────── */
+        .room-type-pill {
+            background: var(--mat-sys-primary-container) !important;
+            color: var(--mat-sys-primary) !important;
+            border-radius: 20px !important;
+            font-size: 10px !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.04em !important;
+            padding: 2px 8px !important;
+        }
+
+        /* ══ IMPROVED HEADER CARD STYLING ════════════════════════════════ */
+        .chat-header-card {
+            background: linear-gradient(135deg, var(--mat-sys-surface-container-lowest) 0%, color-mix(in srgb, var(--mat-sys-primary-container) 8%, var(--mat-sys-surface-container-lowest)) 100%);
+            border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 10%, var(--mat-sys-outline-variant));
+            border-radius: 16px;
+            padding: 20px 24px;
+            box-shadow:
+                0 2px 8px rgba(0,0,0,0.05),
+                0 8px 24px color-mix(in srgb, var(--mat-sys-primary) 8%, transparent),
+                inset 0 1px 0 rgba(255,255,255,0.1);
+            backdrop-filter: blur(12px);
+            transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+        }
+
+        .chat-header-card:hover {
+            box-shadow:
+                0 4px 12px rgba(0,0,0,0.07),
+                0 12px 32px color-mix(in srgb, var(--mat-sys-primary) 12%, transparent),
+                inset 0 1px 0 rgba(255,255,255,0.15);
+            transform: translateY(-2px);
+        }
+
+        .chat-header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .chat-header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .chat-header-icon-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, var(--mat-sys-primary), color-mix(in srgb, var(--mat-sys-primary) 60%, var(--mat-sys-tertiary)));
+            box-shadow:
+                0 4px 14px color-mix(in srgb, var(--mat-sys-primary) 35%, transparent),
+                0 0 0 3px color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+            transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s ease;
+        }
+
+        .chat-header-icon-wrapper:hover {
+            transform: scale(1.08) rotate(2deg);
+            box-shadow:
+                0 6px 20px color-mix(in srgb, var(--mat-sys-primary) 45%, transparent),
+                0 0 0 4px color-mix(in srgb, var(--mat-sys-primary) 16%, transparent);
+        }
+
+        .chat-header-main-icon {
+            font-size: 28px !important;
+            width: 28px !important;
+            height: 28px !important;
+            color: var(--mat-sys-on-primary) !important;
+        }
+
+        .chat-header-text {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .chat-header-title {
+            font-size: 26px !important;
+            font-weight: 700 !important;
+            letter-spacing: -0.5px;
+            margin: 0 !important;
+            background: linear-gradient(120deg, var(--mat-sys-on-surface) 30%, var(--mat-sys-primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .chat-header-subtitle {
+            font-size: 13px !important;
+            color: var(--mat-sys-on-surface-variant) !important;
+            margin: 4px 0 0 !important;
+            font-weight: 500;
+        }
+
+        .chat-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .chat-header-btn {
+            width: 40px !important;
+            height: 40px !important;
+            border-radius: 10px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1);
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 40%, transparent) !important;
+            color: var(--mat-sys-primary) !important;
+        }
+
+        .chat-header-btn:hover {
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 70%, transparent) !important;
+            transform: scale(1.08);
+            box-shadow: 0 4px 12px color-mix(in srgb, var(--mat-sys-primary) 25%, transparent);
+        }
+
+        /* ══ ENHANCED SIDEBAR STYLING ════════════════════════════════════ */
+        .chat-sidebar {
+            border-radius: 14px !important;
+            overflow: hidden;
+            box-shadow:
+                0 0 0 0.5px var(--mat-sys-outline-variant),
+                0 2px 8px rgba(0,0,0,0.04),
+                inset 0 1px 0 rgba(255,255,255,0.05) !important;
+        }
+
+        .wa-sidebar-top {
+            background: linear-gradient(180deg, color-mix(in srgb, var(--mat-sys-primary-container) 12%, var(--mat-sys-surface-container-lowest)), var(--mat-sys-surface-container-lowest));
+            padding: 14px 16px;
+            border-bottom: 1px solid color-mix(in srgb, var(--mat-sys-primary) 8%, var(--mat-sys-outline-variant));
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .wa-sidebar-title {
+            font-size: 18px !important;
+            font-weight: 700 !important;
+            background: linear-gradient(110deg,
+                var(--mat-sys-on-surface) 0%,
+                var(--mat-sys-primary) 45%,
+                var(--mat-sys-tertiary) 80%,
+                var(--mat-sys-on-surface) 100%);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: title-shimmer 4s linear infinite;
+            letter-spacing: -0.3px;
+        }
+
+        .wa-search-wrap {
+            padding: 12px 14px;
+            border-bottom: 1px solid color-mix(in srgb, var(--mat-sys-primary) 5%, var(--mat-sys-outline-variant));
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 4%, var(--mat-sys-surface-container-lowest));
+        }
+
+        .wa-search-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--mat-sys-surface-container-low);
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            border-radius: 24px;
+            padding: 8px 14px;
+            transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+        }
+
+        .wa-search-box:focus-within {
+            border-color: var(--mat-sys-primary);
+            box-shadow:
+                0 0 0 3px color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+            background: var(--mat-sys-surface-container);
+        }
+
+        .wa-search-input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 13px;
+            color: var(--mat-sys-on-surface);
+        }
+
+        .wa-search-input::placeholder {
+            color: var(--mat-sys-on-surface-variant);
+            opacity: 0.7;
+        }
+
+        .wa-chips-row {
+            display: flex;
+            gap: 8px;
+            padding: 12px 14px;
+            border-bottom: 1px solid color-mix(in srgb, var(--mat-sys-primary) 5%, var(--mat-sys-outline-variant));
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 3%, transparent);
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+
+        .wa-chips-row::-webkit-scrollbar {
+            display: none;
+        }
+
+        .wa-chip {
+            padding: 6px 14px;
+            border: 1px solid var(--mat-sys-outline-variant);
+            border-radius: 20px;
+            background: var(--mat-sys-surface-container-low);
+            color: var(--mat-sys-on-surface-variant);
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .wa-chip:hover {
+            border-color: var(--mat-sys-primary);
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 30%, var(--mat-sys-surface-container-low));
+            color: var(--mat-sys-primary);
+        }
+
+        .wa-chip-active {
+            background: var(--mat-sys-primary) !important;
+            color: var(--mat-sys-on-primary) !important;
+            border-color: var(--mat-sys-primary) !important;
+            box-shadow:
+                0 3px 12px color-mix(in srgb, var(--mat-sys-primary) 40%, transparent),
+                0 0 0 2px color-mix(in srgb, var(--mat-sys-primary) 20%, transparent) !important;
+        }
+
+        .wa-chip-badge {
+            background: rgba(0,0,0,0.2);
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 800;
+            min-width: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .wa-rooms-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .wa-section-header {
+            padding: 10px 16px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--mat-sys-on-surface-variant);
+            position: relative;
+            margin-top: 4px;
+        }
+
+        .wa-section-label {
+            display: inline-block;
+            position: relative;
+            z-index: 1;
+            padding-right: 8px;
+            background: var(--mat-sys-surface-container-lowest);
+        }
+
+        .wa-room-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            margin: 4px 0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .wa-room-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--mat-sys-primary);
+            opacity: 0;
+            transform: scaleY(0.4);
+            transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1);
+            border-radius: 0 3px 3px 0;
+        }
+
+        .wa-room-item:hover {
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 15%, transparent);
+            transform: translateX(4px);
+        }
+
+        .wa-room-item:hover::before {
+            opacity: 0.5;
+            transform: scaleY(1);
+        }
+
+        .wa-avatar {
+            width: 44px;
+            height: 44px;
+            min-width: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 14px;
+            box-shadow:
+                0 2px 8px rgba(0,0,0,0.15),
+                0 0 0 2px transparent;
+            transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1);
+        }
+
+        .wa-room-item:hover .wa-avatar {
+            transform: scale(1.09);
+            box-shadow:
+                0 4px 14px rgba(0,0,0,0.20),
+                0 0 0 2.5px color-mix(in srgb, var(--mat-sys-primary) 50%, transparent);
+        }
+
+        .wa-room-active {
+            background: color-mix(in srgb, var(--mat-sys-on-surface) 88%, var(--mat-sys-surface-container-lowest)) !important;
+            border-radius: 12px !important;
+        }
+
+        .wa-room-active::before {
+            opacity: 1 !important;
+            transform: scaleY(1) !important;
+        }
+
+        .wa-room-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .wa-room-name {
+            display: block;
+            font-weight: 700;
+            font-size: 13px;
+            color: var(--mat-sys-on-surface);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .wa-room-preview {
+            display: block;
+            font-size: 12px;
+            color: var(--mat-sys-on-surface-variant);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 2px;
+        }
+
+        /* ══ ENHANCED CHAT HEADER ════════════════════════════════════════ */
+        .chat-header {
+            background: color-mix(in srgb, var(--mat-sys-surface-container-lowest) 88%, var(--mat-sys-primary-container)) !important;
+            backdrop-filter: blur(18px) saturate(1.5) !important;
+            border-bottom: 1.5px solid color-mix(in srgb, var(--mat-sys-primary) 12%, var(--mat-sys-outline-variant)) !important;
+            box-shadow:
+                0 2px 8px rgba(0,0,0,0.04),
+                0 4px 20px color-mix(in srgb, var(--mat-sys-primary) 7%, rgba(0,0,0,0.05)) !important;
+        }
+
+        .chat-room-title {
+            font-size: 17px !important;
+            font-weight: 700 !important;
+            letter-spacing: -0.3px;
+            background: linear-gradient(120deg, var(--mat-sys-on-surface) 30%, var(--mat-sys-primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* ══ INPUT CARD ENHANCEMENT ══════════════════════════════════════ */
+        .input-card {
+            border-radius: 24px !important;
+            background: var(--mat-sys-surface-container-low) !important;
+            border: 1.5px solid var(--mat-sys-outline-variant) !important;
+            box-shadow:
+                0 -2px 0 rgba(0,0,0,0.02),
+                0 4px 24px rgba(0,0,0,0.06),
+                inset 0 1px 0 rgba(255,255,255,0.08) !important;
+            transition: all 0.28s cubic-bezier(0.4,0,0.2,1) !important;
+        }
+
+        .input-card:focus-within {
+            border-color: var(--mat-sys-primary) !important;
+            background: var(--mat-sys-surface-container) !important;
+            box-shadow:
+                0 -2px 0 rgba(0,0,0,0.02),
+                0 8px 32px rgba(0,0,0,0.10),
+                0 0 0 4px color-mix(in srgb, var(--mat-sys-primary) 16%, transparent) !important;
+        }
+
+        /* ══ SEND BUTTON ENHANCEMENT ═════════════════════════════════════ */
+        .send-fab {
+            background: linear-gradient(135deg, var(--mat-sys-primary), color-mix(in srgb, var(--mat-sys-primary) 60%, var(--mat-sys-tertiary))) !important;
+            width: 44px !important;
+            height: 44px !important;
+            border-radius: 12px !important;
+            box-shadow:
+                0 4px 14px color-mix(in srgb, var(--mat-sys-primary) 55%, transparent),
+                0 0 0 3px color-mix(in srgb, var(--mat-sys-primary) 18%, transparent) !important;
+            transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1) !important;
+        }
+
+        .send-fab:not(:disabled):hover {
+            transform: scale(1.12) translateY(-3px) !important;
+            box-shadow:
+                0 8px 26px color-mix(in srgb, var(--mat-sys-primary) 65%, transparent),
+                0 0 0 5px color-mix(in srgb, var(--mat-sys-primary) 22%, transparent) !important;
+        }
+
+        /* ══ EMPTY STATE ENHANCEMENT ═════════════════════════════════════ */
+        .chat-empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+        }
+
+        .chat-empty-body {
+            text-align: center;
+        }
+
+        .chat-empty-icon-wrap {
+            margin-bottom: 24px;
+        }
+
+        .chat-empty-icon-circle {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto;
+            border-radius: 20px;
+            background: linear-gradient(135deg, color-mix(in srgb, var(--mat-sys-primary-container) 40%, transparent), color-mix(in srgb, var(--mat-sys-tertiary-container) 30%, transparent));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow:
+                0 4px 16px color-mix(in srgb, var(--mat-sys-primary) 25%, transparent),
+                inset 0 1px 0 rgba(255,255,255,0.2);
+            animation: icon-float 3.8s ease-in-out infinite;
+        }
+
+        .chat-empty-icon {
+            font-size: 40px !important;
+            width: 40px !important;
+            height: 40px !important;
+            color: var(--mat-sys-primary) !important;
+        }
+
+        .chat-empty-title {
+            font-size: 20px !important;
+            font-weight: 700 !important;
+            color: var(--mat-sys-on-surface) !important;
+            margin-bottom: 8px !important;
+            letter-spacing: -0.3px;
+        }
+
+        .chat-empty-sub {
+            font-size: 13px !important;
+            color: var(--mat-sys-on-surface-variant) !important;
+            line-height: 1.6;
+        }
+
+        .chat-empty-hints {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .chat-empty-hint {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 20%, transparent);
+            border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 15%, var(--mat-sys-outline-variant));
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--mat-sys-on-surface-variant);
+            transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1);
+        }
+
+        .chat-empty-hint:hover {
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 35%, transparent);
+            border-color: var(--mat-sys-primary);
+            color: var(--mat-sys-primary);
+            transform: translateY(-2px);
+        }
+
+        .chat-empty-hint-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 8px;
+            background: color-mix(in srgb, var(--mat-sys-primary) 25%, transparent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: var(--mat-sys-primary);
+        }
+
+        .chat-empty-hint:hover .chat-empty-hint-icon {
+            background: color-mix(in srgb, var(--mat-sys-primary) 40%, transparent);
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 30%, transparent);
+        }
+
+        /* ══ MESSAGE AREA ENHANCEMENT ════════════════════════════════════ */
+        .messages-scroll {
+            background-image:
+                radial-gradient(ellipse 80% 50% at 50% 0%, color-mix(in srgb, var(--mat-sys-primary-container) 12%, transparent), transparent 70%),
+                radial-gradient(circle, color-mix(in srgb, var(--mat-sys-on-surface) 3.5%, transparent) 1px, transparent 1px) !important;
+            background-size: 100% 100%, 24px 24px !important;
+        }
+
+        .msg-bubble-other {
+            background: var(--mat-sys-surface-container-low) !important;
+            border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 8%, var(--mat-sys-outline-variant)) !important;
+            box-shadow:
+                0 2px 10px color-mix(in srgb, var(--mat-sys-on-surface) 6%, transparent),
+                0 1px 3px rgba(0,0,0,0.04) !important;
+            border-radius: 14px !important;
+            transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1);
+        }
+
+        .msg-bubble-other:hover {
+            box-shadow:
+                0 4px 16px color-mix(in srgb, var(--mat-sys-on-surface) 10%, transparent),
+                0 2px 6px rgba(0,0,0,0.06) !important;
+        }
+
+        .msg-bubble-own {
+            background: linear-gradient(135deg, var(--mat-sys-primary), color-mix(in srgb, var(--mat-sys-primary) 60%, var(--mat-sys-tertiary))) !important;
+            box-shadow:
+                0 3px 14px color-mix(in srgb, var(--mat-sys-primary) 45%, transparent),
+                0 1px 3px rgba(0,0,0,0.1) !important;
+            border-radius: 14px !important;
+            transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1);
+        }
+
+        .msg-bubble-own:hover {
+            box-shadow:
+                0 6px 22px color-mix(in srgb, var(--mat-sys-primary) 55%, transparent),
+                0 2px 6px rgba(0,0,0,0.12) !important;
+            transform: translateY(-2px);
+        }
+
+        /* ══ TYPING INDICATOR STYLES ═════════════════════════════════ */
+        .typing-indicator {
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            padding: 8px 20px;
+            animation: typing-enter 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+        }
+
+        @keyframes typing-enter {
+            from {
+                opacity: 0;
+                transform: translateY(12px) scale(0.96);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .typing-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--mat-sys-primary), var(--mat-sys-tertiary));
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 800;
+            flex-shrink: 0;
+            box-shadow: 0 3px 10px color-mix(in srgb, var(--mat-sys-primary) 35%, transparent), 0 0 0 3px var(--mat-sys-surface-container-lowest);
+        }
+
+        .typing-bubble {
+            background: linear-gradient(135deg, var(--mat-sys-surface-container-low), color-mix(in srgb, var(--mat-sys-surface-container) 60%, var(--mat-sys-primary-container) 10%));
+            border: 1.5px solid color-mix(in srgb, var(--mat-sys-primary) 12%, var(--mat-sys-outline-variant));
+            border-radius: 20px 20px 20px 6px;
+            padding: 12px 16px;
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            box-shadow:
+                0 4px 14px color-mix(in srgb, var(--mat-sys-on-surface) 10%, transparent),
+                0 2px 4px rgba(0,0,0,0.05),
+                inset 0 1px 0 rgba(255,255,255,0.1);
+            min-width: 80px;
+            justify-content: center;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: color-mix(in srgb, var(--mat-sys-on-surface-variant) 80%, transparent);
+            animation: typing-dot-bounce 1.4s ease-in-out infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing-dot-bounce {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.6;
+            }
+            30% {
+                transform: translateY(-10px);
+                opacity: 1;
+            }
+        }
+
+        /* ══ NOTIFICATION BADGE STYLES ═══════════════════════════════ */
+        .notification-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            min-width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 800;
+            box-shadow:
+                0 3px 12px rgba(239,68,68,0.4),
+                0 0 0 3px var(--mat-sys-surface-container-lowest);
+            animation: badge-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+        }
+
+        @keyframes badge-pop {
+            0% {
+                transform: scale(0.4);
+                opacity: 0;
+            }
+            60% {
+                transform: scale(1.2);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .notification-badge.pulse {
+            animation: badge-pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes badge-pulse {
+            0%, 100% {
+                box-shadow:
+                    0 3px 12px rgba(239,68,68,0.4),
+                    0 0 0 3px var(--mat-sys-surface-container-lowest);
+            }
+            50% {
+                box-shadow:
+                    0 3px 12px rgba(239,68,68,0.6),
+                    0 0 0 6px rgba(239,68,68,0.15);
+            }
+        }
+
+        /* ══ STATUS INDICATORS ═══════════════════════════════════════ */
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            box-shadow: 0 0 0 2px var(--mat-sys-surface-container-lowest);
+        }
+
+        .status-online {
+            background: #22c55e;
+            box-shadow: 0 0 8px rgba(34,197,94,0.6), 0 0 0 2px var(--mat-sys-surface-container-lowest);
+            animation: status-pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes status-pulse {
+            0%, 100% {
+                box-shadow: 0 0 8px rgba(34,197,94,0.6), 0 0 0 2px var(--mat-sys-surface-container-lowest);
+            }
+            50% {
+                box-shadow: 0 0 12px rgba(34,197,94,0.8), 0 0 0 3px rgba(34,197,94,0.2);
+            }
+        }
+
+        .status-away {
+            background: #f59e0b;
+        }
+
+        .status-offline {
+            background: var(--mat-sys-outline-variant);
+        }
+
+        /* ══ UNREAD MESSAGE INDICATOR ════════════════════════════════ */
+        .unread-indicator {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 3px;
+            height: 20px;
+            border-radius: 0 2px 2px 0;
+            background: var(--mat-sys-primary);
+            animation: unread-in 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+        }
+
+        @keyframes unread-in {
+            from {
+                opacity: 0;
+                width: 0;
+            }
+            to {
+                opacity: 1;
+                width: 3px;
+            }
+        }
+
+        /* ══ MESSAGE REACTIONS ═══════════════════════════════════════ */
+        .reaction-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 16px;
+            border: 1px solid var(--mat-sys-outline-variant);
+            background: var(--mat-sys-surface-container-low);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1);
+            backdrop-filter: blur(8px);
+        }
+
+        .reaction-pill:hover {
+            transform: scale(1.15);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-color: var(--mat-sys-primary);
+        }
+
+        .reaction-pill.my-reaction {
+            background: var(--mat-sys-primary) !important;
+            color: var(--mat-sys-on-primary) !important;
+            border-color: var(--mat-sys-primary) !important;
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 40%, transparent) !important;
+        }
+
+        .reaction-count {
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        /* ══════════════════════════════════════════════════════════════
+           GRANDE AMELIORATION UI/UX — Redesign premium
+        ══════════════════════════════════════════════════════════════ */
+
+        /* ─── Overall layout & containers ─────────────────────────── */
+        .chat-layout {
+            --inner-sidebar-width: 308px !important;
+            gap: 12px !important;
+        }
+        .chat-sidebar {
+            border-radius: 22px !important;
+            border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 10%, var(--mat-sys-outline-variant)) !important;
+            box-shadow:
+                0 0 0 1px color-mix(in srgb, var(--mat-sys-primary) 5%, transparent),
+                0 4px 24px rgba(0,0,0,0.07),
+                0 1px 4px rgba(0,0,0,0.03) !important;
+        }
+        .chat-main {
+            border-radius: 22px !important;
+            border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 10%, var(--mat-sys-outline-variant)) !important;
+            box-shadow:
+                0 0 0 1px color-mix(in srgb, var(--mat-sys-primary) 5%, transparent),
+                0 8px 36px rgba(0,0,0,0.09),
+                0 2px 8px rgba(0,0,0,0.04) !important;
+        }
+
+        /* ─── Page breadcrumb header card ──────────────────────────── */
+        .chat-header-card {
+            padding: 16px 22px !important;
+            border-radius: 20px !important;
+            border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 10%, var(--mat-sys-outline-variant)) !important;
+            overflow: hidden;
+            position: relative;
+        }
+        .chat-header-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg,
+                var(--mat-sys-primary) 0%,
+                var(--mat-sys-tertiary) 50%,
+                var(--mat-sys-primary) 100%);
+            background-size: 200% 100%;
+            animation: hdr-shimmer 5s linear infinite;
+            border-radius: 20px 20px 0 0;
+        }
+        @keyframes hdr-shimmer {
+            0%   { background-position: 0 50%; }
+            100% { background-position: 200% 50%; }
+        }
+        .chat-header-icon-wrapper {
+            width: 48px !important;
+            height: 48px !important;
+            border-radius: 14px !important;
+        }
+        .chat-header-main-icon {
+            font-size: 24px !important;
+            width: 24px !important;
+            height: 24px !important;
+        }
+        .chat-header-title {
+            font-size: 22px !important;
+            font-weight: 800 !important;
+        }
+        .chat-header-subtitle {
+            font-size: 12.5px !important;
+            margin-top: 3px !important;
+        }
+
+        /* ─── Sidebar top bar ──────────────────────────────────────── */
+        .wa-sidebar-top {
+            padding: 16px 14px 12px !important;
+            background: linear-gradient(180deg,
+                color-mix(in srgb, var(--mat-sys-primary-container) 25%, var(--mat-sys-surface-container-lowest)) 0%,
+                var(--mat-sys-surface-container-lowest) 100%) !important;
+            border-bottom: 1px solid color-mix(in srgb, var(--mat-sys-primary) 8%, var(--mat-sys-outline-variant)) !important;
+        }
+        .wa-sidebar-title {
+            font-size: 19px !important;
+            font-weight: 800 !important;
+            letter-spacing: -0.4px !important;
+        }
+        .wa-icon-btn {
+            width: 34px !important;
+            height: 34px !important;
+            border-radius: 10px !important;
+            transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1) !important;
+        }
+        .wa-icon-btn:hover {
+            background: var(--mat-sys-primary-container) !important;
+            color: var(--mat-sys-primary) !important;
+            transform: scale(1.07) !important;
+        }
+
+        /* ─── Search bar ───────────────────────────────────────────── */
+        .wa-search-wrap {
+            padding: 10px 12px 8px !important;
+            background: transparent !important;
+            border-bottom: none !important;
+        }
+        .wa-search-box {
+            border-radius: 26px !important;
+            padding: 8px 12px 8px 14px !important;
+            background: color-mix(in srgb, var(--mat-sys-on-surface) 5%, transparent) !important;
+            border: 1.5px solid transparent !important;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.04) !important;
+        }
+        .wa-search-box:focus-within {
+            background: var(--mat-sys-surface-container-low) !important;
+            border-color: var(--mat-sys-primary) !important;
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--mat-sys-primary) 10%, transparent) !important;
+        }
+        .wa-search-input {
+            font-size: 13px !important;
+        }
+
+        /* ─── Filter chips ─────────────────────────────────────────── */
+        .wa-chips-row {
+            padding: 4px 12px 10px !important;
+            border-bottom: 1px solid color-mix(in srgb, var(--mat-sys-primary) 6%, var(--mat-sys-outline-variant)) !important;
+            gap: 6px !important;
+            background: transparent !important;
+        }
+        .wa-chip {
+            padding: 5px 14px !important;
+            font-size: 12px !important;
+            font-weight: 600 !important;
+            border-radius: 22px !important;
+            transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1) !important;
+        }
+        .wa-chip:hover:not(.wa-chip-active) {
+            border-color: var(--mat-sys-primary) !important;
+            color: var(--mat-sys-primary) !important;
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 22%, transparent) !important;
+            transform: scale(1.03) !important;
+        }
+        .wa-chip-active {
+            box-shadow:
+                0 3px 12px color-mix(in srgb, var(--mat-sys-primary) 42%, transparent),
+                0 0 0 2px color-mix(in srgb, var(--mat-sys-primary) 15%, transparent) !important;
+            font-weight: 700 !important;
+            transform: scale(1.05) !important;
+        }
+
+        /* ─── Section dividers ─────────────────────────────────────── */
+        .wa-section-header {
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+            padding: 10px 14px 5px !important;
+            margin-top: 2px !important;
+        }
+        .wa-section-header::after {
+            content: '' !important;
+            display: block !important;
+            flex: 1 !important;
+            height: 1px !important;
+            background: linear-gradient(90deg,
+                color-mix(in srgb, var(--mat-sys-primary) 30%, var(--mat-sys-outline-variant)),
+                transparent) !important;
+            border-radius: 1px !important;
+        }
+        .wa-section-label {
+            font-size: 10px !important;
+            font-weight: 800 !important;
+            letter-spacing: 0.10em !important;
+            color: color-mix(in srgb, var(--mat-sys-primary) 80%, var(--mat-sys-on-surface-variant)) !important;
+            opacity: 1 !important;
+            flex-shrink: 0 !important;
+        }
+
+        /* ─── Room items ───────────────────────────────────────────── */
+        .wa-rooms-scroll {
+            padding: 6px !important;
+        }
+        .wa-room-item {
+            margin: 2px 0 !important;
+            padding: 10px 12px 10px 10px !important;
+            border-radius: 14px !important;
+            transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1) !important;
+        }
+        .wa-room-item::after {
+            display: none !important;
+        }
+        .wa-room-item:hover {
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 22%, transparent) !important;
+            transform: translateX(3px) !important;
+        }
+        .wa-room-active {
+            background: linear-gradient(135deg,
+                color-mix(in srgb, var(--mat-sys-primary-container) 80%, var(--mat-sys-surface-container-lowest)),
+                color-mix(in srgb, var(--mat-sys-tertiary-container) 45%, var(--mat-sys-surface-container-lowest))) !important;
+            box-shadow: 0 2px 14px color-mix(in srgb, var(--mat-sys-primary) 18%, transparent) !important;
+        }
+        .wa-room-active:hover {
+            background: linear-gradient(135deg,
+                color-mix(in srgb, var(--mat-sys-primary-container) 90%, var(--mat-sys-surface-container-lowest)),
+                color-mix(in srgb, var(--mat-sys-tertiary-container) 55%, var(--mat-sys-surface-container-lowest))) !important;
+        }
+        .wa-room-active::before {
+            width: 3px !important;
+            border-radius: 0 3px 3px 0 !important;
+            background: linear-gradient(180deg, var(--mat-sys-primary), var(--mat-sys-tertiary)) !important;
+            box-shadow: 2px 0 8px color-mix(in srgb, var(--mat-sys-primary) 40%, transparent) !important;
+            opacity: 1 !important;
+            transform: scaleY(1) !important;
+        }
+        .wa-room-active .wa-room-name {
+            color: var(--mat-sys-primary) !important;
+            font-weight: 700 !important;
+        }
+        .wa-room-active .wa-room-preview {
+            color: color-mix(in srgb, var(--mat-sys-primary) 60%, var(--mat-sys-on-surface-variant)) !important;
+        }
+
+        /* ─── Room avatar ──────────────────────────────────────────── */
+        .wa-avatar {
+            width: 46px !important;
+            height: 46px !important;
+            min-width: 46px !important;
+            border-radius: 14px !important;
+            font-size: 15px !important;
+            letter-spacing: -0.5px !important;
+            box-shadow:
+                0 3px 10px rgba(0,0,0,0.18),
+                inset 0 1px 0 rgba(255,255,255,0.18) !important;
+        }
+        .wa-room-item:hover .wa-avatar {
+            transform: scale(1.07) !important;
+            box-shadow:
+                0 5px 16px rgba(0,0,0,0.22),
+                inset 0 1px 0 rgba(255,255,255,0.2),
+                0 0 0 2.5px color-mix(in srgb, var(--mat-sys-primary) 40%, transparent) !important;
+        }
+
+        /* ─── Room name & preview text ─────────────────────────────── */
+        .wa-room-name {
+            font-size: 13.5px !important;
+            font-weight: 700 !important;
+            letter-spacing: -0.015em !important;
+        }
+        .wa-room-preview {
+            font-size: 12px !important;
+            margin-top: 2px !important;
+        }
+        .wa-unread-badge {
+            background: linear-gradient(135deg,
+                var(--mat-sys-primary),
+                color-mix(in srgb, var(--mat-sys-primary) 75%, var(--mat-sys-tertiary))) !important;
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 50%, transparent) !important;
+            font-weight: 800 !important;
+            min-width: 20px !important;
+            height: 20px !important;
+            border-radius: 10px !important;
+        }
+
+        /* ─── Chat room inner header ───────────────────────────────── */
+        .chat-header {
+            padding: 12px 18px !important;
+            background: linear-gradient(135deg,
+                var(--mat-sys-surface-container-lowest) 0%,
+                color-mix(in srgb, var(--mat-sys-primary-container) 16%, var(--mat-sys-surface-container-lowest)) 100%) !important;
+            border-bottom: 1.5px solid color-mix(in srgb, var(--mat-sys-primary) 12%, var(--mat-sys-outline-variant)) !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05) !important;
+        }
+        .chat-header-accent-bar {
+            height: 3px !important;
+            background: linear-gradient(90deg,
+                var(--mat-sys-primary) 0%,
+                var(--mat-sys-tertiary) 50%,
+                transparent 100%) !important;
+            border-radius: 0 !important;
+            margin: 0 !important;
+        }
+        .chat-header-type-icon {
+            width: 38px !important;
+            height: 38px !important;
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 55%, transparent) !important;
+            border-radius: 12px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            flex-shrink: 0 !important;
+        }
+        .chat-room-title {
+            font-size: 16px !important;
+            font-weight: 800 !important;
+            letter-spacing: -0.3px !important;
+        }
+        .chat-room-subtitle {
+            font-size: 11px !important;
+            font-weight: 500 !important;
+            opacity: 0.7;
+        }
+        .chat-header-actions .mat-icon-button,
+        .chat-header-actions button[mat-icon-button] {
+            border-radius: 10px !important;
+            transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1) !important;
+        }
+        .header-btn-active {
+            border-radius: 10px !important;
+        }
+
+        /* ─── Messages scroll area ─────────────────────────────────── */
+        .messages-scroll {
+            background-color: var(--mat-sys-surface-container-lowest) !important;
+            background-image:
+                radial-gradient(ellipse 75% 45% at 50% 0%,
+                    color-mix(in srgb, var(--mat-sys-primary-container) 12%, transparent),
+                    transparent 65%),
+                linear-gradient(135deg,
+                    color-mix(in srgb, var(--mat-sys-outline-variant) 22%, transparent) 1px,
+                    transparent 1px),
+                linear-gradient(45deg,
+                    color-mix(in srgb, var(--mat-sys-outline-variant) 22%, transparent) 1px,
+                    transparent 1px) !important;
+            background-size: 100% 100%, 28px 28px, 28px 28px !important;
+        }
+
+        /* ─── Date separator ───────────────────────────────────────── */
+        .date-separator {
+            margin: 20px 16px 14px !important;
+            gap: 10px !important;
+        }
+        .date-sep-line {
+            background: linear-gradient(90deg,
+                transparent 0%,
+                color-mix(in srgb, var(--mat-sys-primary) 24%, var(--mat-sys-outline-variant)) 35%,
+                color-mix(in srgb, var(--mat-sys-primary) 24%, var(--mat-sys-outline-variant)) 65%,
+                transparent 100%) !important;
+        }
+        .date-sep-label {
+            font-size: 10.5px !important;
+            font-weight: 700 !important;
+            padding: 4px 14px !important;
+            background: var(--mat-sys-surface-container) !important;
+            border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 18%, var(--mat-sys-outline-variant)) !important;
+            color: var(--mat-sys-primary) !important;
+            letter-spacing: 0.04em !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
+        }
+
+        /* ─── Message rows ─────────────────────────────────────────── */
+        .msg-row {
+            padding: 3px 20px !important;
+            margin-bottom: 6px !important;
+            border-radius: 12px !important;
+        }
+        .msg-consecutive {
+            margin-top: 1px !important;
+            margin-bottom: 1px !important;
+        }
+
+        /* ─── Message avatar ───────────────────────────────────────── */
+        .msg-avatar {
+            width: 34px !important;
+            height: 34px !important;
+            border-radius: 10px !important;
+            font-size: 11px !important;
+        }
+        .msg-avatar-spacer {
+            width: 34px !important;
+        }
+
+        /* ─── Message bubbles ──────────────────────────────────────── */
+        .msg-bubble {
+            padding: 10px 16px 8px !important;
+            border-radius: 16px !important;
+            line-height: 1.6 !important;
+        }
+        .msg-bubble-own {
+            border-radius: 16px 16px 5px 16px !important;
+        }
+        .msg-bubble-other {
+            border-radius: 16px 16px 16px 5px !important;
+        }
+        .msg-bubble-own::after,
+        .msg-bubble-other::after {
+            display: none !important;
+        }
+        .msg-consecutive .msg-bubble-own  {
+            border-radius: 16px 16px 16px 16px !important;
+        }
+        .msg-consecutive .msg-bubble-other {
+            border-radius: 16px 16px 16px 16px !important;
+        }
+
+        /* ─── Message content ──────────────────────────────────────── */
+        .msg-text {
+            font-size: 14px !important;
+            line-height: 1.62 !important;
+            letter-spacing: 0.01em !important;
+        }
+        .msg-sender-name {
+            font-size: 11.5px !important;
+            font-weight: 700 !important;
+            margin-bottom: 3px !important;
+        }
+        .msg-time {
+            font-size: 10px !important;
+            margin-top: 4px !important;
+            gap: 3px !important;
+            letter-spacing: 0.03em !important;
+        }
+        .msg-time::after {
+            display: none !important;
+        }
+
+        /* ─── Message hover actions ────────────────────────────────── */
+        .msg-hover-actions {
+            border-radius: 26px !important;
+            padding: 4px 6px !important;
+            background: var(--mat-sys-surface-container-low) !important;
+            border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 8%, var(--mat-sys-outline-variant)) !important;
+            box-shadow: 0 6px 22px rgba(0,0,0,0.15), 0 2px 6px rgba(0,0,0,0.07) !important;
+            backdrop-filter: blur(14px) saturate(1.2) !important;
+        }
+        .hover-action-btn {
+            width: 30px !important;
+            height: 30px !important;
+        }
+
+        /* ─── Chat input wrap ──────────────────────────────────────── */
+        .chat-input-wrap {
+            padding: 0 14px 14px !important;
+            background: linear-gradient(180deg,
+                transparent 0%,
+                color-mix(in srgb, var(--mat-sys-primary-container) 5%, var(--mat-sys-surface-container-lowest)) 100%) !important;
+        }
+        .input-card {
+            border-radius: 22px !important;
+            border: 1.5px solid var(--mat-sys-outline-variant) !important;
+            background: var(--mat-sys-surface-container-low) !important;
+            box-shadow:
+                0 -1px 0 rgba(0,0,0,0.03),
+                0 6px 28px rgba(0,0,0,0.08),
+                inset 0 1px 0 rgba(255,255,255,0.06) !important;
+        }
+        .input-card:focus-within {
+            border-color: var(--mat-sys-primary) !important;
+            background: var(--mat-sys-surface-container) !important;
+            box-shadow:
+                0 -1px 0 rgba(0,0,0,0.03),
+                0 8px 36px rgba(0,0,0,0.10),
+                0 0 0 3px color-mix(in srgb, var(--mat-sys-primary) 14%, transparent) !important;
+        }
+        .input-bottom-bar {
+            padding: 4px 10px 4px 8px !important;
+            border-top: 1px solid color-mix(in srgb, var(--mat-sys-on-surface) 6%, transparent) !important;
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 9%, var(--mat-sys-surface-container-low)) !important;
+        }
+        .input-action-btn {
+            width: 34px !important;
+            height: 34px !important;
+            border-radius: 10px !important;
+        }
+        .input-action-btn:hover:not(:disabled) {
+            transform: scale(1.1) translateY(-1px) !important;
+        }
+        .send-fab {
+            width: 40px !important;
+            height: 40px !important;
+            border-radius: 12px !important;
+            background: linear-gradient(135deg,
+                var(--mat-sys-primary),
+                color-mix(in srgb, var(--mat-sys-primary) 65%, var(--mat-sys-tertiary))) !important;
+            box-shadow:
+                0 4px 16px color-mix(in srgb, var(--mat-sys-primary) 55%, transparent),
+                0 0 0 2px color-mix(in srgb, var(--mat-sys-primary) 14%, transparent) !important;
+            animation: none !important;
+        }
+        .send-fab:not(:disabled) {
+            animation: send-pulse-sq 2.8s ease-in-out infinite !important;
+        }
+        @keyframes send-pulse-sq {
+            0%, 100% {
+                box-shadow:
+                    0 4px 16px color-mix(in srgb, var(--mat-sys-primary) 50%, transparent),
+                    0 0 0 2px color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+            }
+            50% {
+                box-shadow:
+                    0 6px 22px color-mix(in srgb, var(--mat-sys-primary) 65%, transparent),
+                    0 0 0 4px color-mix(in srgb, var(--mat-sys-primary) 16%, transparent);
+            }
+        }
+        .send-fab:not(:disabled):hover {
+            animation: none !important;
+            transform: scale(1.1) translateY(-2px) !important;
+            box-shadow:
+                0 8px 26px color-mix(in srgb, var(--mat-sys-primary) 65%, transparent),
+                0 0 0 4px color-mix(in srgb, var(--mat-sys-primary) 20%, transparent) !important;
+        }
+        .send-fab:not(:disabled):active {
+            transform: scale(0.9) !important;
+        }
+
+        /* ─── System messages ──────────────────────────────────────── */
+        .sys-msg-pill {
+            border-radius: 28px !important;
+            padding: 7px 18px !important;
+        }
+        .sys-msg-text {
+            font-size: 12.5px !important;
+        }
+
+        /* ─── Reply preview banner ─────────────────────────────────── */
+        .reply-preview-banner {
+            border-radius: 14px 14px 0 0;
+            border-left: 3px solid var(--mat-sys-primary);
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 28%, var(--mat-sys-surface-container-low));
+            margin: 0 0 -1px;
+        }
+
+        /* ─── Emoji overlay ─────────────────────────────────────────── */
+        .emoji-full-picker {
+            border-radius: 16px !important;
+            box-shadow: 0 12px 44px rgba(0,0,0,0.18) !important;
+            border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 10%, var(--mat-sys-outline-variant)) !important;
+        }
+
+        /* ─── Members panel ─────────────────────────────────────────── */
+        .members-panel {
+            border-radius: 0 22px 22px 0 !important;
+        }
+
+        /* ─── Empty conversation state ──────────────────────────────── */
+        .msgs-empty-state {
+            padding: 60px 32px !important;
+        }
+        .msgs-empty-icon {
+            width: 72px !important;
+            height: 72px !important;
+            border-radius: 20px !important;
+            box-shadow:
+                0 8px 28px color-mix(in srgb, var(--mat-sys-primary) 25%, transparent),
+                inset 0 1px 0 rgba(255,255,255,0.18) !important;
+        }
+        .msgs-empty-icon mat-icon {
+            font-size: 34px !important;
+            width: 34px !important;
+            height: 34px !important;
+        }
+        .msgs-empty-title {
+            font-size: 18px !important;
+            font-weight: 700 !important;
+            letter-spacing: -0.3px !important;
+        }
+        .msgs-empty-sub {
+            font-size: 13px !important;
+            line-height: 1.65 !important;
+        }
+
+        /* ─── No room selected empty state ──────────────────────────── */
+        .chat-empty-icon-wrap {
+            margin-bottom: 22px !important;
+        }
+        .chat-empty-icon-circle {
+            border-radius: 22px !important;
+            background: linear-gradient(135deg,
+                color-mix(in srgb, var(--mat-sys-primary-container) 45%, transparent),
+                color-mix(in srgb, var(--mat-sys-tertiary-container) 32%, transparent)) !important;
+            box-shadow:
+                0 6px 24px color-mix(in srgb, var(--mat-sys-primary) 28%, transparent),
+                inset 0 1px 0 rgba(255,255,255,0.15) !important;
+        }
+        .chat-empty-icon {
+            -webkit-text-fill-color: var(--mat-sys-primary) !important;
+            background: none !important;
+        }
+        .chat-empty-title {
+            letter-spacing: -0.3px !important;
+        }
+
+        /* ─── File attachment images ─────────────────────────────────── */
+        .attachment-image {
+            border-radius: 14px !important;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.14) !important;
+        }
+
+        /* ─── Reaction pills ─────────────────────────────────────────── */
+        .reaction-pill {
+            border-radius: 20px !important;
+            padding: 3px 10px !important;
+            font-size: 13px !important;
+        }
+
+        /* ─── Send split button ────────────────────────────────────────── */
+        .sc-send-split {
+            gap: 1px !important;
+            border-radius: 14px !important;
+            overflow: hidden;
+            box-shadow: 0 4px 16px color-mix(in srgb, var(--mat-sys-primary) 50%, transparent);
+        }
+        .sc-send-main {
+            border-radius: 14px 0 0 14px !important;
+            padding-right: 10px !important;
+        }
+        .sc-send-arrow {
+            width: 24px !important;
+            border-radius: 0 14px 14px 0 !important;
+            border-left: 1px solid rgba(255,255,255,0.20) !important;
+        }
+
+        /* ─── Room type tag in room list ───────────────────────────────── */
+        .wa-room-type-tag {
+            width: 22px !important;
+            height: 22px !important;
+            border-radius: 7px !important;
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 50%, transparent) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            flex-shrink: 0 !important;
+            color: var(--mat-sys-primary) !important;
+            transition: all 0.2s !important;
+        }
+        .wa-room-active .wa-room-type-tag {
+            background: color-mix(in srgb, var(--mat-sys-primary) 18%, transparent) !important;
+            color: var(--mat-sys-primary) !important;
+        }
+        .wa-type-icon {
+            font-size: 13px !important;
+            width: 13px !important;
+            height: 13px !important;
+        }
+
+        /* ─── Room content gap ──────────────────────────────────────────── */
+        .wa-room-content {
+            gap: 4px !important;
+        }
+        .wa-room-top-row {
+            gap: 6px !important;
+        }
+        .wa-room-bottom-row {
+            gap: 6px !important;
+        }
+        .wa-room-name {
+            font-size: 13.5px !important;
+            font-weight: 700 !important;
+        }
+        .wa-room-preview {
+            font-size: 11.5px !important;
+            opacity: 0.85;
+        }
+
+        /* ─── Right panel polish ────────────────────────────────────────── */
+        .chat-right-panel {
+            border-radius: 20px !important;
+            border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 10%, var(--mat-sys-outline-variant)) !important;
+            box-shadow:
+                0 0 0 1px color-mix(in srgb, var(--mat-sys-primary) 5%, transparent),
+                0 4px 24px rgba(0,0,0,0.07) !important;
+        }
+        .rp-section-header {
+            background: linear-gradient(180deg,
+                color-mix(in srgb, var(--mat-sys-primary-container) 14%, var(--mat-sys-surface-container-lowest)),
+                var(--mat-sys-surface-container-lowest)) !important;
+            border-bottom: 1px solid color-mix(in srgb, var(--mat-sys-primary) 8%, var(--mat-sys-outline-variant)) !important;
+        }
+        .rp-section-title {
+            font-size: 13.5px !important;
+            font-weight: 700 !important;
+            background: linear-gradient(120deg, var(--mat-sys-on-surface) 40%, var(--mat-sys-primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .rp-notif-badge {
+            background: linear-gradient(135deg, var(--mat-sys-primary), color-mix(in srgb, var(--mat-sys-primary) 70%, var(--mat-sys-tertiary))) !important;
+            border-radius: 10px !important;
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 40%, transparent) !important;
+            font-weight: 800 !important;
+        }
+        .rp-member-count {
+            border-radius: 10px !important;
+            font-weight: 800 !important;
+        }
+
+        /* ─── Room type pill (in chat header) ───────────────────────────── */
+        .room-type-pill {
+            background: linear-gradient(135deg,
+                var(--mat-sys-primary-container),
+                color-mix(in srgb, var(--mat-sys-tertiary-container) 60%, var(--mat-sys-primary-container))) !important;
+            color: var(--mat-sys-primary) !important;
+            border-radius: 20px !important;
+            font-size: 10px !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.05em !important;
+            padding: 2px 10px !important;
+            border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 20%, transparent) !important;
+            text-transform: uppercase !important;
+        }
+
+        /* ─── Meeting live dot ──────────────────────────────────────────── */
+        .wa-meeting-dot-live {
+            box-shadow:
+                0 0 0 3px color-mix(in srgb, #22c55e 25%, transparent),
+                0 0 6px rgba(34,197,94,0.5) !important;
+        }
+
+        /* ─── Input hint text ───────────────────────────────────────────── */
+        .input-hint-text {
+            font-size: 10px !important;
+            opacity: 0.45 !important;
+            letter-spacing: 0.03em !important;
+            font-weight: 500 !important;
+        }
+
+        /* ─── Quill editor focus ────────────────────────────────────────── */
+        .quill-format-wrap ::ng-deep .ql-editor {
+            padding: 9px 18px 6px !important;
+            font-size: 14px !important;
+            line-height: 1.6 !important;
+        }
+        .quill-format-wrap ::ng-deep .ql-toolbar {
+            border-radius: 22px 22px 0 0 !important;
+        }
+
+        /* ─── Hover action toolbar icons ────────────────────────────────── */
+        .hover-action-btn mat-icon,
+        .hover-action-btn .mat-icon {
+            font-size: 17px !important;
+            width: 17px !important;
+            height: 17px !important;
+        }
+
+        /* ─── Message content wrap max-width ────────────────────────────── */
+        .msg-content-wrap {
+            max-width: 66% !important;
+        }
+
+        /* ─── WS banner styling ─────────────────────────────────────────── */
+        .ws-banner {
+            border-radius: 0 !important;
+            font-size: 12px !important;
+            font-weight: 600 !important;
+        }
+
+        /* ─── Pinned banner ─────────────────────────────────────────────── */
+        .pin-banner {
+            border-radius: 0 !important;
+            border-left: 3px solid var(--mat-sys-primary) !important;
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 30%, var(--mat-sys-surface-container)) !important;
+        }
+
+        /* ─── Chat error message ────────────────────────────────────────── */
+        .chat-error {
+            border-radius: 12px !important;
+            background: color-mix(in srgb, var(--mat-sys-error, #ef4444) 10%, var(--mat-sys-surface-container)) !important;
+            border: 1px solid color-mix(in srgb, var(--mat-sys-error, #ef4444) 25%, transparent) !important;
+            font-size: 12.5px !important;
+        }
+
+        /* ─── Member avatar in right panel ──────────────────────────────── */
+        .member-avatar {
+            border-radius: 10px !important;
+            width: 34px !important;
+            height: 34px !important;
+        }
+
+        /* ─── Global smooth fade-in ─────────────────────────────────────── */
+        .container-fluid.fade-in {
+            animation: fadeIn 0.4s ease both;
+        }
+
+        /* ══════════════════════════════════════════════════════════════════
+           ★★★  WOW DISCUSSION AREA — PREMIUM REDESIGN  ★★★
+        ══════════════════════════════════════════════════════════════════ */
+
+        /* ─── Messages scroll area — immersive background ────────────────── */
+        .messages-scroll {
+            background-color: var(--mat-sys-surface-container-lowest) !important;
+            background-image:
+                radial-gradient(ellipse 90% 60% at 50% -5%,
+                    color-mix(in srgb, var(--mat-sys-primary-container) 18%, transparent),
+                    transparent 60%),
+                radial-gradient(ellipse 70% 40% at 80% 80%,
+                    color-mix(in srgb, var(--mat-sys-tertiary-container) 10%, transparent),
+                    transparent 50%),
+                linear-gradient(135deg,
+                    color-mix(in srgb, var(--mat-sys-outline-variant) 16%, transparent) 1px,
+                    transparent 1px),
+                linear-gradient(45deg,
+                    color-mix(in srgb, var(--mat-sys-outline-variant) 16%, transparent) 1px,
+                    transparent 1px) !important;
+            background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px !important;
+            padding: 12px 0 6px !important;
+            position: relative;
+        }
+        /* Top fade mask so messages gracefully appear from the header */
+        .messages-scroll::before {
+            content: '' !important;
+            display: block !important;
+            position: sticky !important;
+            top: 0 !important;
+            height: 24px !important;
+            background: linear-gradient(180deg,
+                var(--mat-sys-surface-container-lowest) 0%,
+                transparent 100%) !important;
+            z-index: 5 !important;
+            pointer-events: none !important;
+            margin-top: -12px !important;
+            flex-shrink: 0 !important;
+        }
+
+        /* ─── Message rows ───────────────────────────────────────────────── */
+        .msg-row {
+            display: flex !important;
+            align-items: flex-end !important;
+            gap: 10px !important;
+            padding: 2px 22px !important;
+            margin-bottom: 4px !important;
+            border-radius: 14px !important;
+            transition: background 0.15s ease !important;
+            position: relative !important;
+        }
+        .msg-row:hover {
+            background: color-mix(in srgb, var(--mat-sys-primary) 3%, transparent) !important;
+        }
+        .msg-consecutive {
+            margin-top: 1px !important;
+            margin-bottom: 1px !important;
+        }
+        /* First message in a group gets more top space */
+        .msg-row:not(.msg-consecutive) {
+            margin-top: 10px !important;
+        }
+
+        /* ─── Message avatar — squircle with glow ring ───────────────────── */
+        .msg-avatar {
+            width: 36px !important;
+            height: 36px !important;
+            min-width: 36px !important;
+            border-radius: 12px !important;
+            font-size: 12px !important;
+            font-weight: 800 !important;
+            letter-spacing: -0.5px !important;
+            box-shadow:
+                0 2px 10px rgba(0,0,0,0.18),
+                0 0 0 2.5px var(--mat-sys-surface-container-lowest),
+                0 0 0 4px color-mix(in srgb, var(--mat-sys-primary) 22%, transparent) !important;
+            transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1),
+                        box-shadow 0.22s ease !important;
+            flex-shrink: 0 !important;
+        }
+        .msg-avatar:hover {
+            transform: scale(1.12) !important;
+            box-shadow:
+                0 4px 18px rgba(0,0,0,0.22),
+                0 0 0 2.5px var(--mat-sys-surface-container-lowest),
+                0 0 0 5px color-mix(in srgb, var(--mat-sys-primary) 35%, transparent) !important;
+        }
+        .msg-avatar-spacer {
+            width: 36px !important;
+            flex-shrink: 0 !important;
+        }
+
+        /* ─── Message content wrap ───────────────────────────────────────── */
+        .msg-content-wrap {
+            max-width: 64% !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            position: relative !important;
+        }
+        .msg-content-wrap-own {
+            align-items: flex-end !important;
+        }
+
+        /* ─── Sender name ────────────────────────────────────────────────── */
+        .msg-sender-name {
+            font-size: 11px !important;
+            font-weight: 800 !important;
+            letter-spacing: 0.02em !important;
+            margin-bottom: 4px !important;
+            padding-left: 4px !important;
+            background: linear-gradient(90deg,
+                var(--mat-sys-primary),
+                color-mix(in srgb, var(--mat-sys-primary) 70%, var(--mat-sys-tertiary)));
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+            background-clip: text !important;
+            animation: fadeIn 0.3s ease forwards !important;
+        }
+
+        /* ─── Message bubble — base ──────────────────────────────────────── */
+        .msg-bubble {
+            padding: 10px 16px 8px !important;
+            border-radius: 18px !important;
+            word-break: break-word !important;
+            line-height: 1.65 !important;
+            position: relative !important;
+            min-width: 52px !important;
+            transition:
+                transform 0.25s cubic-bezier(0.34,1.56,0.64,1),
+                box-shadow 0.25s ease !important;
+        }
+        /* Subtle lift on hover */
+        .msg-row:hover .msg-bubble {
+            transform: translateY(-2px) !important;
+        }
+        /* No tail pseudo-elements */
+        .msg-bubble-own::after,
+        .msg-bubble-other::after {
+            display: none !important;
+        }
+
+        /* ─── OWN bubble — rich gradient + glass shimmer ─────────────────── */
+        .msg-bubble-own {
+            background: linear-gradient(145deg,
+                var(--mat-sys-primary) 0%,
+                color-mix(in srgb, var(--mat-sys-primary) 75%, var(--mat-sys-tertiary)) 60%,
+                color-mix(in srgb, var(--mat-sys-primary) 55%, var(--mat-sys-tertiary)) 100%) !important;
+            color: var(--mat-sys-on-primary) !important;
+            border-radius: 18px 18px 5px 18px !important;
+            box-shadow:
+                0 4px 18px color-mix(in srgb, var(--mat-sys-primary) 38%, transparent),
+                0 1px 4px rgba(0,0,0,0.10),
+                inset 0 1.5px 0 rgba(255,255,255,0.22),
+                inset 0 -1px 0 rgba(0,0,0,0.06) !important;
+            animation: msg-own-pop 0.38s cubic-bezier(0.34,1.56,0.64,1) both !important;
+            overflow: hidden !important;
+        }
+        /* Inner shimmer sweep on own bubble */
+        .msg-bubble-own::before {
+            content: '' !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: -80% !important;
+            width: 60% !important;
+            height: 100% !important;
+            background: linear-gradient(90deg,
+                transparent,
+                rgba(255,255,255,0.12),
+                transparent) !important;
+            transform: skewX(-15deg) !important;
+            pointer-events: none !important;
+            animation: bubble-shimmer 4s ease-in-out infinite !important;
+        }
+        @keyframes bubble-shimmer {
+            0%, 70%, 100% { left: -80%; opacity: 0; }
+            30% { left: 120%; opacity: 1; }
+        }
+        @keyframes msg-own-pop {
+            from { opacity: 0; transform: translateX(18px) scale(0.94); }
+            to   { opacity: 1; transform: translateX(0)    scale(1);    }
+        }
+        .msg-row:hover .msg-bubble-own {
+            box-shadow:
+                0 10px 30px color-mix(in srgb, var(--mat-sys-primary) 48%, transparent),
+                0 3px 10px rgba(0,0,0,0.12),
+                inset 0 1.5px 0 rgba(255,255,255,0.28) !important;
+        }
+
+        /* ─── OTHER bubble — glass surface ───────────────────────────────── */
+        .msg-bubble-other {
+            background: var(--mat-sys-surface-container-low) !important;
+            color: var(--mat-sys-on-surface) !important;
+            border-radius: 18px 18px 18px 5px !important;
+            border: 1.5px solid color-mix(in srgb, var(--mat-sys-primary) 10%, var(--mat-sys-outline-variant)) !important;
+            box-shadow:
+                0 2px 12px color-mix(in srgb, var(--mat-sys-on-surface) 8%, transparent),
+                0 1px 3px rgba(0,0,0,0.05),
+                inset 0 1px 0 rgba(255,255,255,0.08) !important;
+            backdrop-filter: blur(8px) !important;
+            animation: msg-other-pop 0.38s cubic-bezier(0.34,1.56,0.64,1) both !important;
+        }
+        @keyframes msg-other-pop {
+            from { opacity: 0; transform: translateX(-18px) scale(0.94); }
+            to   { opacity: 1; transform: translateX(0)     scale(1);    }
+        }
+        .msg-row:hover .msg-bubble-other {
+            border-color: color-mix(in srgb, var(--mat-sys-primary) 22%, var(--mat-sys-outline-variant)) !important;
+            box-shadow:
+                0 6px 20px color-mix(in srgb, var(--mat-sys-on-surface) 12%, transparent),
+                0 2px 6px rgba(0,0,0,0.07),
+                inset 0 1px 0 rgba(255,255,255,0.1) !important;
+        }
+
+        /* Consecutive bubbles — fully rounded */
+        .msg-consecutive .msg-bubble-own  { border-radius: 18px 18px 18px 18px !important; }
+        .msg-consecutive .msg-bubble-other { border-radius: 18px 18px 18px 18px !important; }
+
+        /* ─── Message text ───────────────────────────────────────────────── */
+        .msg-text {
+            font-size: 14px !important;
+            line-height: 1.65 !important;
+            letter-spacing: 0.01em !important;
+        }
+        /* Links in messages */
+        .msg-bubble a {
+            color: inherit !important;
+            text-decoration: underline !important;
+            text-decoration-style: dotted !important;
+            opacity: 0.9 !important;
+        }
+        .msg-bubble-own a { color: rgba(255,255,255,0.92) !important; }
+
+        /* ─── Timestamp — elegant slide reveal ───────────────────────────── */
+        .msg-time {
+            font-size: 10.5px !important;
+            font-weight: 500 !important;
+            letter-spacing: 0.04em !important;
+            opacity: 0 !important;
+            max-height: 0 !important;
+            margin-top: 3px !important;
+            overflow: hidden !important;
+            transition: opacity 0.28s ease, max-height 0.28s ease !important;
+        }
+        .msg-row:hover .msg-time,
+        .msg-consecutive:hover .msg-time {
+            opacity: 0.75 !important;
+            max-height: 24px !important;
+        }
+        .msg-bubble-own .msg-time {
+            color: rgba(255,255,255,0.80) !important;
+            justify-content: flex-end !important;
+        }
+        .msg-bubble-other .msg-time {
+            color: var(--mat-sys-on-surface-variant) !important;
+        }
+        .msg-time::after { display: none !important; }
+
+        /* ─── Edited label ───────────────────────────────────────────────── */
+        .msg-edited-label {
+            font-size: 10px !important;
+            opacity: 0.5 !important;
+            margin-left: 4px !important;
+            font-style: italic !important;
+        }
+        .msg-bubble-own .msg-edited-label { color: rgba(255,255,255,0.7) !important; }
+
+        /* ─── Hover action toolbar — floating glass pill ─────────────────── */
+        .msg-hover-actions {
+            position: absolute !important;
+            top: -40px !important;
+            right: 4px !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 2px !important;
+            padding: 5px 7px !important;
+            background: var(--mat-sys-surface-container-low) !important;
+            border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 10%, var(--mat-sys-outline-variant)) !important;
+            border-radius: 28px !important;
+            box-shadow:
+                0 8px 28px rgba(0,0,0,0.16),
+                0 2px 8px rgba(0,0,0,0.08),
+                inset 0 1px 0 rgba(255,255,255,0.1) !important;
+            backdrop-filter: blur(16px) saturate(1.4) !important;
+            opacity: 0 !important;
+            transform: translateY(-6px) scale(0.92) !important;
+            pointer-events: none !important;
+            transition:
+                opacity 200ms cubic-bezier(0.34,1.56,0.64,1),
+                transform 200ms cubic-bezier(0.34,1.56,0.64,1) !important;
+            z-index: 20 !important;
+        }
+        .msg-hover-actions-own {
+            right: auto !important;
+            left: 4px !important;
+        }
+        .msg-row:hover .msg-hover-actions {
+            opacity: 1 !important;
+            transform: translateY(0) scale(1) !important;
+            pointer-events: auto !important;
+        }
+        .hover-action-btn {
+            width: 30px !important;
+            height: 30px !important;
+            border-radius: 50% !important;
+            border: none !important;
+            background: transparent !important;
+            cursor: pointer !important;
+            color: var(--mat-sys-on-surface-variant) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            transition:
+                background 0.12s ease,
+                color 0.12s ease,
+                transform 0.18s cubic-bezier(0.34,1.56,0.64,1) !important;
+            padding: 0 !important;
+            flex-shrink: 0 !important;
+        }
+        .hover-action-btn:hover {
+            background: var(--mat-sys-primary-container) !important;
+            color: var(--mat-sys-primary) !important;
+            transform: scale(1.2) !important;
+        }
+        .hover-action-btn mat-icon,
+        .hover-action-btn .mat-icon {
+            font-size: 18px !important;
+            width: 18px !important;
+            height: 18px !important;
+        }
+
+        /* ─── Pin badge on bubble ────────────────────────────────────────── */
+        .pin-badge {
+            position: absolute !important;
+            top: -10px !important;
+            right: -8px !important;
+            width: 24px !important;
+            height: 24px !important;
+            border-radius: 8px !important;
+            background: linear-gradient(135deg, #fbbf24, #f59e0b) !important;
+            border: 2px solid var(--mat-sys-surface-container-lowest) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            box-shadow: 0 3px 10px rgba(245,158,11,0.45) !important;
+            z-index: 3 !important;
+            pointer-events: none !important;
+        }
+        .msg-content-wrap-own .pin-badge {
+            right: auto !important;
+            left: -8px !important;
+        }
+        .pinned-msg {
+            border: 2px solid rgba(251,191,36,0.55) !important;
+            box-shadow:
+                0 0 0 3px rgba(251,191,36,0.12),
+                0 4px 18px color-mix(in srgb, var(--mat-sys-primary) 28%, transparent) !important;
+        }
+
+        /* ─── Deleted message indicator ──────────────────────────────────── */
+        .msg-deleted-indicator {
+            display: flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            padding: 6px 10px !important;
+        }
+        .msg-deleted-text {
+            font-size: 13px !important;
+            opacity: 0.55 !important;
+            font-style: italic !important;
+        }
+        .msg-bubble-deleted {
+            opacity: 0.5 !important;
+            background: var(--mat-sys-surface-container) !important;
+            border: 1px dashed var(--mat-sys-outline-variant) !important;
+            box-shadow: none !important;
+        }
+
+        /* ─── Reaction strip ─────────────────────────────────────────────── */
+        .reaction-strip {
+            display: flex !important;
+            align-items: center !important;
+            flex-wrap: wrap !important;
+            gap: 4px !important;
+            margin-top: 5px !important;
+            padding: 0 4px !important;
+        }
+        .reaction-strip.my-msg { justify-content: flex-end !important; }
+        .reaction-pill {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 4px !important;
+            padding: 3px 10px 3px 8px !important;
+            border-radius: 20px !important;
+            background: var(--mat-sys-surface-container-high) !important;
+            border: 1.5px solid color-mix(in srgb, var(--mat-sys-primary) 8%, var(--mat-sys-outline-variant)) !important;
+            font-size: 14px !important;
+            line-height: 1.5 !important;
+            cursor: pointer !important;
+            transition:
+                background 0.18s ease,
+                border-color 0.18s ease,
+                transform 0.18s cubic-bezier(0.34,1.56,0.64,1),
+                box-shadow 0.18s ease !important;
+            backdrop-filter: blur(8px) !important;
+        }
+        .reaction-pill:hover {
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 50%, transparent) !important;
+            border-color: var(--mat-sys-primary) !important;
+            transform: scale(1.14) !important;
+            box-shadow: 0 4px 12px color-mix(in srgb, var(--mat-sys-primary) 25%, transparent) !important;
+        }
+        .reaction-pill.my-reaction {
+            background: var(--mat-sys-primary) !important;
+            border-color: var(--mat-sys-primary) !important;
+            color: var(--mat-sys-on-primary) !important;
+            box-shadow: 0 3px 12px color-mix(in srgb, var(--mat-sys-primary) 45%, transparent) !important;
+        }
+        .reaction-pill.my-reaction .reaction-count {
+            color: var(--mat-sys-on-primary) !important;
+        }
+        .reaction-count {
+            font-size: 11px !important;
+            font-weight: 700 !important;
+            color: var(--mat-sys-on-surface-variant) !important;
+        }
+
+        /* ─── Emoji palette (quick-react) ────────────────────────────────── */
+        .emoji-palette {
+            background: var(--mat-sys-surface-container-low) !important;
+            border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 10%, var(--mat-sys-outline-variant)) !important;
+            border-radius: 28px !important;
+            padding: 6px 10px !important;
+            box-shadow:
+                0 10px 32px rgba(0,0,0,0.18),
+                inset 0 1px 0 rgba(255,255,255,0.1) !important;
+            backdrop-filter: blur(16px) !important;
+        }
+        .emoji-btn {
+            padding: 4px 5px !important;
+            border-radius: 10px !important;
+            font-size: 20px !important;
+            transition: background 0.1s, transform 0.18s cubic-bezier(0.34,1.56,0.64,1) !important;
+        }
+        .emoji-btn:hover {
+            background: var(--mat-sys-primary-container) !important;
+            transform: scale(1.3) !important;
+        }
+        .emoji-btn:hover .emoji-glyph {
+            animation: emoji-bounce 0.38s cubic-bezier(0.34,1.56,0.64,1) both !important;
+        }
+
+        /* ─── Date separator — floating pill ────────────────────────────── */
+        .date-separator {
+            display: flex !important;
+            align-items: center !important;
+            gap: 10px !important;
+            margin: 24px 24px 16px !important;
+            position: relative !important;
+        }
+        .date-sep-line {
+            flex: 1 !important;
+            height: 1px !important;
+            background: linear-gradient(90deg,
+                transparent 0%,
+                color-mix(in srgb, var(--mat-sys-primary) 28%, var(--mat-sys-outline-variant)) 40%,
+                color-mix(in srgb, var(--mat-sys-primary) 28%, var(--mat-sys-outline-variant)) 60%,
+                transparent 100%) !important;
+        }
+        .date-sep-label {
+            font-size: 10.5px !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.06em !important;
+            text-transform: uppercase !important;
+            white-space: nowrap !important;
+            padding: 4px 16px !important;
+            border-radius: 24px !important;
+            background: linear-gradient(135deg,
+                color-mix(in srgb, var(--mat-sys-primary-container) 50%, var(--mat-sys-surface-container)),
+                color-mix(in srgb, var(--mat-sys-tertiary-container) 35%, var(--mat-sys-surface-container))) !important;
+            border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 20%, var(--mat-sys-outline-variant)) !important;
+            color: var(--mat-sys-primary) !important;
+            box-shadow:
+                0 2px 10px color-mix(in srgb, var(--mat-sys-primary) 15%, transparent),
+                inset 0 1px 0 rgba(255,255,255,0.1) !important;
+        }
+
+        /* ─── System message pill ────────────────────────────────────────── */
+        .sys-msg {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: 4px !important;
+            margin: 16px 0 !important;
+            padding: 0 20px !important;
+            animation: sysMsg-enter 0.5s cubic-bezier(0.34,1.56,0.64,1) both !important;
+        }
+        .sys-msg-pill {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+            padding: 7px 20px !important;
+            border-radius: 28px !important;
+            background: linear-gradient(135deg,
+                color-mix(in srgb, var(--mat-sys-primary-container) 35%, transparent),
+                color-mix(in srgb, var(--mat-sys-tertiary-container) 22%, transparent)) !important;
+            border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 18%, var(--mat-sys-outline-variant)) !important;
+            box-shadow:
+                0 2px 12px color-mix(in srgb, var(--mat-sys-primary) 14%, transparent),
+                inset 0 1px 0 rgba(255,255,255,0.12) !important;
+            backdrop-filter: blur(10px) !important;
+        }
+        .sys-msg-icon {
+            font-size: 15px !important;
+            width: 15px !important;
+            height: 15px !important;
+            color: var(--mat-sys-primary) !important;
+        }
+        .sys-msg-text {
+            font-size: 12.5px !important;
+            font-weight: 600 !important;
+            color: var(--mat-sys-on-surface-variant) !important;
+        }
+        .sys-msg-time {
+            font-size: 10px !important;
+            opacity: 0.45 !important;
+        }
+
+        /* ─── Voice bubble — premium waveform ────────────────────────────── */
+        .voice-bubble {
+            display: flex !important;
+            align-items: center !important;
+            gap: 10px !important;
+            padding: 10px 14px !important;
+            border-radius: 22px !important;
+            min-width: 210px !important;
+            max-width: 290px !important;
+            background: var(--mat-sys-surface-container) !important;
+            border: 1.5px solid color-mix(in srgb, var(--mat-sys-primary) 12%, var(--mat-sys-outline-variant)) !important;
+            box-shadow: 0 3px 14px rgba(0,0,0,0.08) !important;
+        }
+        .voice-bubble-own {
+            background: linear-gradient(145deg,
+                color-mix(in srgb, var(--mat-sys-primary-container) 70%, transparent),
+                color-mix(in srgb, var(--mat-sys-tertiary-container) 50%, transparent)) !important;
+            border-color: color-mix(in srgb, var(--mat-sys-primary) 28%, transparent) !important;
+            box-shadow:
+                0 4px 16px color-mix(in srgb, var(--mat-sys-primary) 22%, transparent) !important;
+        }
+        .vb-play-btn {
+            width: 38px !important;
+            height: 38px !important;
+            border-radius: 12px !important;
+            background: linear-gradient(135deg, var(--mat-sys-primary), color-mix(in srgb, var(--mat-sys-primary) 70%, var(--mat-sys-tertiary))) !important;
+            box-shadow: 0 3px 12px color-mix(in srgb, var(--mat-sys-primary) 45%, transparent) !important;
+            transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease !important;
+        }
+        .vb-play-btn:hover {
+            transform: scale(1.1) !important;
+            box-shadow: 0 6px 20px color-mix(in srgb, var(--mat-sys-primary) 55%, transparent) !important;
+        }
+        .vb-waveform {
+            display: flex !important;
+            align-items: center !important;
+            gap: 2.5px !important;
+            flex: 1 !important;
+            height: 30px !important;
+        }
+        .vb-bar {
+            width: 3px !important;
+            border-radius: 3px !important;
+            background: linear-gradient(180deg, var(--mat-sys-primary), color-mix(in srgb, var(--mat-sys-primary) 55%, var(--mat-sys-tertiary))) !important;
+            opacity: 0.55 !important;
+            transition: height 0.15s ease !important;
+        }
+        .voice-bubble-own .vb-bar {
+            background: linear-gradient(180deg, var(--mat-sys-primary), color-mix(in srgb, var(--mat-sys-primary) 70%, var(--mat-sys-tertiary))) !important;
+            opacity: 0.80 !important;
+        }
+        .vb-time {
+            font-size: 11px !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.04em !important;
+            color: var(--mat-sys-on-surface-variant) !important;
+        }
+        .voice-bubble-own .vb-time {
+            color: var(--mat-sys-primary) !important;
+        }
+
+        /* ─── File card in bubble ────────────────────────────────────────── */
+        .msg-file-card {
+            display: flex !important;
+            align-items: center !important;
+            gap: 10px !important;
+            margin-top: 8px !important;
+            padding: 10px 14px !important;
+            border-radius: 14px !important;
+            background: color-mix(in srgb, var(--mat-sys-surface-container-high) 70%, transparent) !important;
+            border: 1.5px solid color-mix(in srgb, var(--mat-sys-primary) 10%, var(--mat-sys-outline-variant)) !important;
+            max-width: 270px !important;
+            transition: all 0.2s ease !important;
+            backdrop-filter: blur(8px) !important;
+        }
+        .msg-file-card:hover {
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 30%, transparent) !important;
+            border-color: color-mix(in srgb, var(--mat-sys-primary) 25%, var(--mat-sys-outline-variant)) !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.08) !important;
+        }
+        .msg-bubble-own .msg-file-card {
+            background: rgba(255,255,255,0.15) !important;
+            border-color: rgba(255,255,255,0.22) !important;
+        }
+        .msg-bubble-own .msg-file-card:hover {
+            background: rgba(255,255,255,0.22) !important;
+        }
+        .msg-file-icon-wrap {
+            width: 38px !important;
+            height: 38px !important;
+            border-radius: 10px !important;
+            flex-shrink: 0 !important;
+        }
+        .msg-file-name {
+            font-size: 12.5px !important;
+            font-weight: 700 !important;
+        }
+        .msg-file-size {
+            font-size: 10.5px !important;
+        }
+        .msg-file-download {
+            width: 32px !important;
+            height: 32px !important;
+            border-radius: 10px !important;
+            background: linear-gradient(135deg, var(--mat-sys-primary), color-mix(in srgb, var(--mat-sys-primary) 70%, var(--mat-sys-tertiary))) !important;
+            color: var(--mat-sys-on-primary) !important;
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 40%, transparent) !important;
+            transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease !important;
+        }
+        .msg-file-download:hover {
+            transform: scale(1.12) !important;
+            box-shadow: 0 5px 16px color-mix(in srgb, var(--mat-sys-primary) 55%, transparent) !important;
+        }
+
+        /* ─── Image attachment ───────────────────────────────────────────── */
+        .attachment-image {
+            max-width: 260px !important;
+            max-height: 220px !important;
+            border-radius: 14px !important;
+            display: block !important;
+            box-shadow:
+                0 4px 18px rgba(0,0,0,0.16),
+                0 0 0 1.5px rgba(255,255,255,0.08) !important;
+            transition:
+                transform 0.25s cubic-bezier(0.34,1.56,0.64,1),
+                box-shadow 0.25s ease !important;
+            cursor: pointer !important;
+        }
+        .attachment-image:hover {
+            transform: scale(1.03) translateY(-2px) !important;
+            box-shadow:
+                0 12px 36px rgba(0,0,0,0.22),
+                0 0 0 2px var(--mat-sys-primary) !important;
+        }
+
+        /* ─── Typing indicator ───────────────────────────────────────────── */
+        .typing-indicator {
+            display: flex !important;
+            align-items: flex-end !important;
+            gap: 10px !important;
+            padding: 8px 22px !important;
+            animation: typing-enter 0.4s cubic-bezier(0.34,1.56,0.64,1) both !important;
+        }
+        .typing-avatar {
+            width: 36px !important;
+            height: 36px !important;
+            border-radius: 12px !important;
+            box-shadow:
+                0 2px 10px rgba(0,0,0,0.14),
+                0 0 0 2.5px var(--mat-sys-surface-container-lowest),
+                0 0 0 4px color-mix(in srgb, var(--mat-sys-primary) 20%, transparent) !important;
+        }
+        .typing-bubble {
+            background: var(--mat-sys-surface-container-low) !important;
+            border: 1.5px solid color-mix(in srgb, var(--mat-sys-primary) 10%, var(--mat-sys-outline-variant)) !important;
+            border-radius: 18px 18px 18px 5px !important;
+            padding: 12px 18px !important;
+            backdrop-filter: blur(8px) !important;
+            box-shadow:
+                0 3px 14px rgba(0,0,0,0.08),
+                inset 0 1px 0 rgba(255,255,255,0.08) !important;
+        }
+        .typing-dot {
+            width: 7px !important;
+            height: 7px !important;
+            border-radius: 50% !important;
+            background: linear-gradient(135deg, var(--mat-sys-primary), var(--mat-sys-tertiary)) !important;
+            opacity: 0.7 !important;
+        }
+
+        /* ─── Group summarize pill ───────────────────────────────────────── */
+        .summarize-pill {
+            border: 1.5px solid color-mix(in srgb, var(--mat-sys-primary) 35%, transparent) !important;
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 18%, transparent) !important;
+            border-radius: 24px !important;
+            font-size: 12px !important;
+            font-weight: 600 !important;
+            padding: 5px 14px !important;
+            transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1) !important;
+        }
+        .summarize-pill:hover {
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 38%, transparent) !important;
+            border-color: var(--mat-sys-primary) !important;
+            transform: scale(1.04) translateY(-1px) !important;
+            box-shadow: 0 4px 14px color-mix(in srgb, var(--mat-sys-primary) 22%, transparent) !important;
+        }
+        .summarize-pill.done {
+            background: linear-gradient(135deg,
+                color-mix(in srgb, var(--mat-sys-primary-container) 45%, transparent),
+                color-mix(in srgb, var(--mat-sys-tertiary-container) 30%, transparent)) !important;
+            border-color: var(--mat-sys-primary) !important;
+        }
+
+        /* ─── Inline AI summary card ─────────────────────────────────────── */
+        .inline-summary {
+            max-width: 340px !important;
+            padding: 12px 16px !important;
+            background: linear-gradient(135deg,
+                color-mix(in srgb, var(--mat-sys-primary) 6%, var(--mat-sys-surface)),
+                color-mix(in srgb, var(--mat-sys-tertiary) 4%, var(--mat-sys-surface))) !important;
+            border: 1.5px solid color-mix(in srgb, var(--mat-sys-primary) 22%, transparent) !important;
+            border-left: 3.5px solid var(--mat-sys-primary) !important;
+            border-radius: 0 14px 14px 14px !important;
+            box-shadow: 0 3px 16px color-mix(in srgb, var(--mat-sys-primary) 12%, transparent) !important;
+        }
+        .inline-summary.own {
+            border-left-width: 1.5px !important;
+            border-right: 3.5px solid var(--mat-sys-primary) !important;
+            border-radius: 14px 0 14px 14px !important;
+        }
+        .inline-summary-text {
+            font-size: 13px !important;
+            line-height: 1.6 !important;
+            font-style: italic !important;
+            color: var(--mat-sys-on-surface) !important;
+        }
+
+        /* ─── In-chat empty state (no messages yet) ──────────────────────── */
+        .msgs-empty-state {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 60px 40px !important;
+            text-align: center !important;
+        }
+        .msgs-empty-icon {
+            width: 76px !important;
+            height: 76px !important;
+            border-radius: 22px !important;
+            background: linear-gradient(135deg,
+                color-mix(in srgb, var(--mat-sys-primary-container) 65%, transparent),
+                color-mix(in srgb, var(--mat-sys-tertiary-container) 45%, transparent)) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            margin-bottom: 20px !important;
+            box-shadow:
+                0 8px 30px color-mix(in srgb, var(--mat-sys-primary) 28%, transparent),
+                0 0 0 10px color-mix(in srgb, var(--mat-sys-primary) 8%, transparent),
+                inset 0 1.5px 0 rgba(255,255,255,0.18) !important;
+            animation: icon-float 4s ease-in-out infinite !important;
+        }
+        .msgs-empty-icon mat-icon {
+            font-size: 36px !important;
+            width: 36px !important;
+            height: 36px !important;
+            background: linear-gradient(135deg, var(--mat-sys-primary), var(--mat-sys-tertiary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .msgs-empty-title {
+            font-size: 18px !important;
+            font-weight: 800 !important;
+            letter-spacing: -0.4px !important;
+            color: var(--mat-sys-on-surface) !important;
+            margin: 0 0 8px !important;
+        }
+        .msgs-empty-sub {
+            font-size: 13.5px !important;
+            color: var(--mat-sys-on-surface-variant) !important;
+            line-height: 1.65 !important;
+            margin: 0 !important;
+        }
+
+        /* ─── Translation pill ───────────────────────────────────────────── */
+        .translation-pill-badge {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 5px !important;
+            padding: 3px 12px !important;
+            border-radius: 20px !important;
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 40%, transparent) !important;
+            border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 22%, transparent) !important;
+            font-size: 11.5px !important;
+            font-weight: 600 !important;
+            color: var(--mat-sys-primary) !important;
+        }
+        .translation-show-orig-btn {
+            font-size: 11px !important;
+            font-weight: 700 !important;
+            color: var(--mat-sys-primary) !important;
+            background: transparent !important;
+            border: none !important;
+            cursor: pointer !important;
+            padding: 0 4px !important;
+            text-decoration: underline !important;
+            text-decoration-style: dotted !important;
+            opacity: 0.75 !important;
+            transition: opacity 0.15s !important;
+        }
+        .translation-show-orig-btn:hover { opacity: 1 !important; }
+
+        /* ─── Reply-to quoted bubble ─────────────────────────────────────── */
+        .reply-preview-banner {
+            display: flex !important;
+            align-items: center !important;
+            gap: 10px !important;
+            padding: 8px 14px !important;
+            border-radius: 14px 14px 0 0 !important;
+            border-left: 3.5px solid var(--mat-sys-primary) !important;
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 30%, var(--mat-sys-surface-container-low)) !important;
+            margin: 0 0 -2px !important;
+        }
+        .rp-icon {
+            color: var(--mat-sys-primary) !important;
+            font-size: 18px !important;
+            width: 18px !important;
+            height: 18px !important;
+            flex-shrink: 0 !important;
+        }
+        .rp-content {
+            flex: 1 !important;
+            min-width: 0 !important;
+        }
+        .rp-name {
+            display: block !important;
+            font-size: 12px !important;
+            font-weight: 800 !important;
+            color: var(--mat-sys-primary) !important;
+        }
+        .rp-text {
+            display: block !important;
+            font-size: 11.5px !important;
+            color: var(--mat-sys-on-surface-variant) !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            opacity: 0.8 !important;
+        }
+        .rp-close {
+            background: none !important;
+            border: none !important;
+            cursor: pointer !important;
+            color: var(--mat-sys-on-surface-variant) !important;
+            padding: 2px !important;
+            border-radius: 50% !important;
+            display: flex !important;
+            align-items: center !important;
+            transition: color 0.15s, background 0.15s !important;
+            flex-shrink: 0 !important;
+        }
+        .rp-close:hover {
+            color: var(--mat-sys-error, #ef4444) !important;
+            background: color-mix(in srgb, var(--mat-sys-error, #ef4444) 10%, transparent) !important;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           COMPLETE MODERN REDESIGN v4.0 — CLEAN SLATE
+           Inspired by Linear / Notion / Slack — 2026 design language
+        ═══════════════════════════════════════════════════════════════ */
+
+        :host {
+            --cv-radius: 16px;
+            --cv-radius-sm: 10px;
+            --cv-radius-xs: 7px;
+            --cv-sidebar-w: 300px;
+            --cv-own-bg: var(--mat-sys-primary, #6366f1);
+            --cv-own-fg: #ffffff;
+            --cv-other-bg: var(--mat-sys-surface-container, #f1f5f9);
+            --cv-other-fg: var(--mat-sys-on-surface, #0f172a);
+            --cv-border: color-mix(in srgb, var(--mat-sys-outline-variant, #cbd5e1) 60%, transparent);
+            --cv-surface: var(--mat-sys-surface-container-lowest, #ffffff);
+            --cv-ease: cubic-bezier(0.34, 1.56, 0.64, 1);
+            --cv-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+            --cv-shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+            --cv-shadow-md: 0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.05);
+            --cv-shadow-lg: 0 8px 32px rgba(0,0,0,.12), 0 4px 8px rgba(0,0,0,.06);
+        }
+
+        /* ── Layout shell ─────────────────────────────────────────────── */
+        .chat-layout {
+            --inner-sidebar-width: var(--cv-sidebar-w) !important;
+            gap: 0 !important;
+            border-radius: var(--cv-radius) !important;
+            overflow: hidden !important;
+            border: 1px solid var(--cv-border) !important;
+            box-shadow: var(--cv-shadow-lg) !important;
+            background: var(--cv-surface) !important;
+        }
+
+        /* ── Sidebar ──────────────────────────────────────────────────── */
+        .chat-sidebar,
+        .inner-sidebar-wrap {
+            border-radius: 0 !important;
+            border: none !important;
+            border-right: 1px solid var(--cv-border) !important;
+            background: var(--mat-sys-surface-container-low, #f8fafc) !important;
+            box-shadow: none !important;
+        }
+
+        /* Sidebar header */
+        .wa-header {
+            padding: 16px !important;
+            border-bottom: 1px solid var(--cv-border) !important;
+            background: var(--mat-sys-surface-container-low, #f8fafc) !important;
+        }
+
+        /* Search bar */
+        .wa-search-wrap,
+        .wa-search {
+            border-radius: var(--cv-radius-sm) !important;
+            background: var(--cv-surface) !important;
+            border: 1px solid var(--cv-border) !important;
+            box-shadow: none !important;
+            transition: border-color 0.15s, box-shadow 0.15s !important;
+        }
+        .wa-search-wrap:focus-within,
+        .wa-search:focus-within {
+            border-color: var(--cv-own-bg) !important;
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--cv-own-bg) 12%, transparent) !important;
+        }
+
+        /* Room list items */
+        .wa-room {
+            border-radius: var(--cv-radius-sm) !important;
+            margin: 2px 8px !important;
+            padding: 10px 12px !important;
+            transition: background 0.12s var(--cv-ease-out), transform 0.12s var(--cv-ease-out) !important;
+            border: 1px solid transparent !important;
+        }
+        .wa-room:hover {
+            background: color-mix(in srgb, var(--cv-own-bg) 6%, transparent) !important;
+            border-color: color-mix(in srgb, var(--cv-own-bg) 10%, transparent) !important;
+            transform: translateX(2px) !important;
+        }
+        .wa-room-active,
+        .wa-room.active {
+            background: color-mix(in srgb, var(--cv-own-bg) 10%, transparent) !important;
+            border-color: color-mix(in srgb, var(--cv-own-bg) 20%, transparent) !important;
+            transform: translateX(3px) !important;
+        }
+        .wa-room-active .wa-room-name,
+        .wa-room.active .wa-room-name {
+            color: var(--cv-own-bg) !important;
+            font-weight: 700 !important;
+        }
+
+        /* Avatar pill — squircle style */
+        .wa-avatar {
+            border-radius: 12px !important;
+            box-shadow: var(--cv-shadow-sm) !important;
+            flex-shrink: 0 !important;
+        }
+
+        /* ── Chat header ──────────────────────────────────────────────── */
+        .chat-header,
+        .chat-header-card {
+            border-radius: 0 !important;
+            border: none !important;
+            border-bottom: 1px solid var(--cv-border) !important;
+            background: var(--cv-surface) !important;
+            box-shadow: none !important;
+            padding: 12px 20px !important;
+            min-height: 64px !important;
+        }
+        .chat-header-card::before {
+            display: none !important;
+        }
+        .chat-header-card mat-card-header,
+        .chat-header-card .mat-card-header {
+            padding: 0 !important;
+        }
+
+        /* ── Messages scroll area ─────────────────────────────────────── */
+        .messages-scroll {
+            background: var(--mat-sys-surface-container-lowest, #fafafa) !important;
+            background-image:
+                radial-gradient(ellipse 80% 60% at 15% 20%, color-mix(in srgb, var(--cv-own-bg) 4%, transparent), transparent),
+                radial-gradient(ellipse 60% 80% at 85% 80%, color-mix(in srgb, var(--mat-sys-tertiary, #8b5cf6) 3%, transparent), transparent) !important;
+            background-size: 100% 100%, 100% 100% !important;
+            padding: 20px 24px !important;
+        }
+
+        /* Date separator */
+        .msg-date-sep,
+        .date-separator {
+            display: flex !important;
+            align-items: center !important;
+            gap: 12px !important;
+            margin: 24px 0 16px !important;
+        }
+        .msg-date-sep::before,
+        .msg-date-sep::after,
+        .date-separator::before,
+        .date-separator::after {
+            content: '' !important;
+            flex: 1 !important;
+            height: 1px !important;
+            background: var(--cv-border) !important;
+        }
+        .msg-date-sep span,
+        .date-separator span {
+            font-size: 11px !important;
+            font-weight: 600 !important;
+            letter-spacing: 0.06em !important;
+            color: var(--mat-sys-on-surface-variant, #64748b) !important;
+            text-transform: uppercase !important;
+            white-space: nowrap !important;
+            padding: 2px 10px !important;
+            border-radius: 20px !important;
+            background: var(--mat-sys-surface-container, #f1f5f9) !important;
+        }
+
+        /* Message rows */
+        .msg-row {
+            margin-bottom: 4px !important;
+            animation: cv-msg-in 0.2s var(--cv-ease-out) both !important;
+        }
+
+        @keyframes cv-msg-in {
+            from { opacity: 0; transform: translateY(8px) scale(0.97); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* OWN bubbles */
+        .msg-bubble-own {
+            background: var(--cv-own-bg) !important;
+            color: var(--cv-own-fg) !important;
+            border-radius: 16px 4px 16px 16px !important;
+            padding: 10px 14px !important;
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--cv-own-bg) 35%, transparent) !important;
+            position: relative !important;
+            overflow: hidden !important;
+            max-width: 72% !important;
+            line-height: 1.5 !important;
+        }
+        .msg-bubble-own::before {
+            content: '' !important;
+            position: absolute !important;
+            inset: 0 !important;
+            background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 60%) !important;
+            pointer-events: none !important;
+        }
+        .msg-bubble-own .msg-time,
+        .msg-bubble-own .msg-status {
+            opacity: 0.75 !important;
+        }
+
+        /* OTHER bubbles */
+        .msg-bubble-other {
+            background: var(--cv-other-bg) !important;
+            color: var(--cv-other-fg) !important;
+            border-radius: 4px 16px 16px 16px !important;
+            padding: 10px 14px !important;
+            box-shadow: var(--cv-shadow-sm) !important;
+            border: 1px solid var(--cv-border) !important;
+            max-width: 72% !important;
+            line-height: 1.5 !important;
+            backdrop-filter: none !important;
+        }
+
+        /* Sender name above other bubble */
+        .msg-sender-name {
+            font-size: 11.5px !important;
+            font-weight: 700 !important;
+            color: var(--cv-own-bg) !important;
+            margin-bottom: 2px !important;
+            letter-spacing: 0.01em !important;
+        }
+
+        /* Timestamp */
+        .msg-time {
+            font-size: 10.5px !important;
+            opacity: 0.55 !important;
+            font-weight: 500 !important;
+        }
+
+        /* Reaction chips */
+        .msg-reactions {
+            margin-top: 4px !important;
+            gap: 4px !important;
+            flex-wrap: wrap !important;
+        }
+        .reaction-chip,
+        .msg-reaction {
+            border-radius: 20px !important;
+            padding: 2px 8px !important;
+            font-size: 12px !important;
+            background: color-mix(in srgb, var(--cv-own-bg) 8%, var(--cv-other-bg)) !important;
+            border: 1px solid color-mix(in srgb, var(--cv-own-bg) 15%, transparent) !important;
+            cursor: pointer !important;
+            transition: transform 0.15s var(--cv-ease), background 0.15s !important;
+        }
+        .reaction-chip:hover,
+        .msg-reaction:hover {
+            transform: scale(1.15) !important;
+            background: color-mix(in srgb, var(--cv-own-bg) 15%, transparent) !important;
+        }
+
+        /* Reply quote bar */
+        .msg-reply-bar,
+        .reply-quote {
+            border-left: 3px solid var(--cv-own-bg) !important;
+            border-radius: 4px 8px 8px 4px !important;
+            background: color-mix(in srgb, var(--cv-own-bg) 8%, transparent) !important;
+            padding: 6px 10px !important;
+            margin-bottom: 6px !important;
+            font-size: 12px !important;
+        }
+
+        /* ── Input area ───────────────────────────────────────────────── */
+        .chat-input-wrap,
+        .chat-input-area {
+            border-top: 1px solid var(--cv-border) !important;
+            background: var(--cv-surface) !important;
+            padding: 12px 16px !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+        }
+
+        .input-box,
+        .chat-input-box {
+            border-radius: var(--cv-radius-sm) !important;
+            border: 1px solid var(--cv-border) !important;
+            background: var(--mat-sys-surface-container-low, #f8fafc) !important;
+            transition: border-color 0.15s, box-shadow 0.15s !important;
+            min-height: 44px !important;
+        }
+        .input-box:focus-within,
+        .chat-input-box:focus-within {
+            border-color: var(--cv-own-bg) !important;
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--cv-own-bg) 12%, transparent) !important;
+            background: var(--cv-surface) !important;
+        }
+
+        /* Quill editor override */
+        ::ng-deep .ql-container {
+            border: none !important;
+            font-size: 14px !important;
+        }
+        ::ng-deep .ql-toolbar {
+            border: none !important;
+            border-bottom: 1px solid var(--cv-border) !important;
+            padding: 6px 10px !important;
+        }
+        ::ng-deep .ql-editor {
+            min-height: 40px !important;
+            max-height: 180px !important;
+            overflow-y: auto !important;
+            padding: 10px 14px !important;
+            line-height: 1.5 !important;
+        }
+        ::ng-deep .ql-editor.ql-blank::before {
+            color: var(--mat-sys-on-surface-variant, #94a3b8) !important;
+            font-style: normal !important;
+            font-size: 14px !important;
+        }
+
+        /* Send button */
+        .send-fab,
+        .btn-send {
+            border-radius: var(--cv-radius-sm) !important;
+            background: var(--cv-own-bg) !important;
+            color: var(--cv-own-fg) !important;
+            border: none !important;
+            width: 40px !important;
+            height: 40px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            cursor: pointer !important;
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--cv-own-bg) 40%, transparent) !important;
+            transition: transform 0.15s var(--cv-ease), box-shadow 0.15s !important;
+            flex-shrink: 0 !important;
+        }
+        .send-fab:hover,
+        .btn-send:hover {
+            transform: scale(1.08) translateY(-1px) !important;
+            box-shadow: 0 4px 16px color-mix(in srgb, var(--cv-own-bg) 50%, transparent) !important;
+        }
+        .send-fab:active,
+        .btn-send:active {
+            transform: scale(0.95) !important;
+        }
+
+        /* Schedule/split send button */
+        .sc-send-split {
+            border-radius: var(--cv-radius-sm) !important;
+            overflow: hidden !important;
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--cv-own-bg) 30%, transparent) !important;
+        }
+
+        /* Action icon buttons in toolbar */
+        .input-action-btn,
+        .toolbar-btn {
+            border-radius: var(--cv-radius-xs) !important;
+            color: var(--mat-sys-on-surface-variant, #64748b) !important;
+            transition: color 0.12s, background 0.12s, transform 0.12s var(--cv-ease) !important;
+        }
+        .input-action-btn:hover,
+        .toolbar-btn:hover {
+            color: var(--cv-own-bg) !important;
+            background: color-mix(in srgb, var(--cv-own-bg) 8%, transparent) !important;
+            transform: translateY(-1px) !important;
+        }
+
+        /* ── Right panel ──────────────────────────────────────────────── */
+        .chat-right-panel,
+        .rp-panel {
+            border-radius: 0 !important;
+            border-left: 1px solid var(--cv-border) !important;
+            background: var(--mat-sys-surface-container-low, #f8fafc) !important;
+            box-shadow: none !important;
+        }
+
+        /* ── Pinned banner ────────────────────────────────────────────── */
+        .pin-banner {
+            border-radius: 0 !important;
+            border-bottom: 1px solid var(--cv-border) !important;
+            background: color-mix(in srgb, var(--cv-own-bg) 5%, var(--cv-surface)) !important;
+            padding: 8px 16px !important;
+            box-shadow: none !important;
+        }
+
+        /* ── Thread panel ─────────────────────────────────────────────── */
+        .thread-panel,
+        .side-thread {
+            border-left: 1px solid var(--cv-border) !important;
+            background: var(--cv-surface) !important;
+            border-radius: 0 !important;
+        }
+
+        /* ── Voice/Video bubbles ──────────────────────────────────────── */
+        .vb-wrap,
+        .voice-bubble {
+            border-radius: var(--cv-radius-sm) !important;
+            background: color-mix(in srgb, var(--cv-own-bg) 6%, var(--cv-other-bg)) !important;
+            border: 1px solid var(--cv-border) !important;
+            padding: 8px 12px !important;
+        }
+        .vb-play-btn,
+        .voice-play {
+            border-radius: 50% !important;
+            background: var(--cv-own-bg) !important;
+            color: #fff !important;
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--cv-own-bg) 35%, transparent) !important;
+            transition: transform 0.15s var(--cv-ease) !important;
+        }
+        .vb-play-btn:hover,
+        .voice-play:hover {
+            transform: scale(1.1) !important;
+        }
+
+        /* ── Typing indicator ─────────────────────────────────────────── */
+        .typing-indicator,
+        .typing-dots {
+            background: var(--cv-other-bg) !important;
+            border-radius: 4px 16px 16px 16px !important;
+            padding: 10px 16px !important;
+            border: 1px solid var(--cv-border) !important;
+            box-shadow: var(--cv-shadow-sm) !important;
+            display: inline-flex !important;
+            gap: 4px !important;
+            align-items: center !important;
+        }
+        .typing-dot {
+            width: 7px !important;
+            height: 7px !important;
+            border-radius: 50% !important;
+            background: var(--cv-own-bg) !important;
+            opacity: 0.5 !important;
+            animation: cv-dot-bounce 1.2s ease-in-out infinite !important;
+        }
+        .typing-dot:nth-child(2) { animation-delay: 0.15s !important; }
+        .typing-dot:nth-child(3) { animation-delay: 0.3s !important; }
+        @keyframes cv-dot-bounce {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+            30% { transform: translateY(-5px); opacity: 1; }
+        }
+
+        /* ── Emoji / reaction picker ──────────────────────────────────── */
+        .emoji-picker-wrap,
+        .reaction-picker {
+            border-radius: var(--cv-radius) !important;
+            border: 1px solid var(--cv-border) !important;
+            box-shadow: var(--cv-shadow-lg) !important;
+            overflow: hidden !important;
+            background: var(--cv-surface) !important;
+        }
+
+        /* ── Unread badge ─────────────────────────────────────────────── */
+        .wa-unread-badge,
+        .unread-badge {
+            border-radius: 20px !important;
+            background: var(--cv-own-bg) !important;
+            color: #fff !important;
+            font-size: 10px !important;
+            font-weight: 700 !important;
+            min-width: 18px !important;
+            height: 18px !important;
+            padding: 0 5px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            box-shadow: 0 1px 4px color-mix(in srgb, var(--cv-own-bg) 40%, transparent) !important;
+        }
+
+        /* ── Room type tag / pill ─────────────────────────────────────── */
+        .wa-room-type-tag,
+        .room-type-pill {
+            border-radius: var(--cv-radius-xs) !important;
+            font-size: 10px !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.05em !important;
+            padding: 2px 6px !important;
+            background: color-mix(in srgb, var(--cv-own-bg) 12%, transparent) !important;
+            color: var(--cv-own-bg) !important;
+            border: 1px solid color-mix(in srgb, var(--cv-own-bg) 20%, transparent) !important;
+            text-transform: uppercase !important;
+        }
+
+        /* ── File / attachment card ───────────────────────────────────── */
+        .file-card,
+        .attachment-card {
+            border-radius: var(--cv-radius-sm) !important;
+            border: 1px solid var(--cv-border) !important;
+            background: color-mix(in srgb, var(--cv-own-bg) 4%, var(--cv-surface)) !important;
+            padding: 8px 12px !important;
+            transition: box-shadow 0.15s !important;
+        }
+        .file-card:hover,
+        .attachment-card:hover {
+            box-shadow: var(--cv-shadow-md) !important;
+        }
+
+        /* ── Scrollbar polish ─────────────────────────────────────────── */
+        .messages-scroll::-webkit-scrollbar,
+        .wa-rooms-list::-webkit-scrollbar {
+            width: 5px !important;
+        }
+        .messages-scroll::-webkit-scrollbar-track,
+        .wa-rooms-list::-webkit-scrollbar-track {
+            background: transparent !important;
+        }
+        .messages-scroll::-webkit-scrollbar-thumb,
+        .wa-rooms-list::-webkit-scrollbar-thumb {
+            background: color-mix(in srgb, var(--cv-own-bg) 25%, transparent) !important;
+            border-radius: 20px !important;
+        }
+        .messages-scroll::-webkit-scrollbar-thumb:hover,
+        .wa-rooms-list::-webkit-scrollbar-thumb:hover {
+            background: color-mix(in srgb, var(--cv-own-bg) 45%, transparent) !important;
+        }
+
+        /* ── Hover context-menu overlay ───────────────────────────────── */
+        .msg-hover-actions,
+        .msg-action-bar {
+            border-radius: var(--cv-radius-sm) !important;
+            background: var(--cv-surface) !important;
+            border: 1px solid var(--cv-border) !important;
+            box-shadow: var(--cv-shadow-md) !important;
+            padding: 2px 4px !important;
+            opacity: 0 !important;
+            transform: translateY(4px) scale(0.96) !important;
+            transition: opacity 0.15s var(--cv-ease-out), transform 0.15s var(--cv-ease-out) !important;
+        }
+        .msg-row:hover .msg-hover-actions,
+        .msg-row:hover .msg-action-bar {
+            opacity: 1 !important;
+            transform: translateY(0) scale(1) !important;
+        }
+
+        /* ── Online presence dot ──────────────────────────────────────── */
+        .presence-dot,
+        .online-dot {
+            border-radius: 50% !important;
+            width: 9px !important;
+            height: 9px !important;
+            background: #22c55e !important;
+            border: 2px solid var(--cv-surface) !important;
+            box-shadow: 0 0 0 2px rgba(34,197,94,.25) !important;
+        }
+
+        /* ── Focused room indicator bar ───────────────────────────────── */
+        .wa-room-active::before,
+        .wa-room.active::before {
+            content: '' !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 25% !important;
+            bottom: 25% !important;
+            width: 3px !important;
+            border-radius: 0 3px 3px 0 !important;
+            background: var(--cv-own-bg) !important;
+        }
+        .wa-room {
+            position: relative !important;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           SCREENSHOT-MATCH REDESIGN OVERRIDES
+           ═══════════════════════════════════════════════════════════════ */
+
+        /* ── 1. Active room: dark solid filled background ───────────── */
+        .wa-room-active {
+            background: var(--mat-sys-primary) !important;
+        }
+        .wa-room-active:hover {
+            background: color-mix(in srgb, var(--mat-sys-primary) 88%, #000) !important;
+        }
+        .wa-room-active .wa-room-name {
+            color: var(--mat-sys-on-primary) !important;
+            font-weight: 700 !important;
+        }
+        .wa-room-active .wa-room-preview {
+            color: rgba(255,255,255,0.72) !important;
+        }
+        .wa-room-active .wa-room-type-tag {
+            color: rgba(255,255,255,0.85) !important;
+        }
+        .wa-room-active .wa-meeting-dot {
+            border-color: var(--mat-sys-on-primary) !important;
+        }
+        .wa-room-active .wa-unread-badge {
+            background: rgba(255,255,255,0.25) !important;
+            color: #fff !important;
+        }
+        .wa-room-active .wa-translated-globe {
+            opacity: 0.7 !important;
+        }
+        /* Remove the left accent bar on active — fill speaks for itself */
+        .wa-room-active::before { display: none !important; }
+
+        /* ── 2. Room item timestamp slot ────────────────────────────── */
+        .wa-room-timestamp {
+            font-size: 10.5px;
+            font-weight: 500;
+            color: var(--mat-sys-on-surface-variant);
+            white-space: nowrap;
+            flex-shrink: 0;
+            font-variant-numeric: tabular-nums;
+            opacity: 0.7;
+        }
+        .wa-room-active .wa-room-timestamp {
+            color: rgba(255,255,255,0.75) !important;
+            opacity: 1;
+        }
+
+        /* ── 3. Chat header room avatar ─────────────────────────────── */
+        .chat-header-room-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 800;
+            color: #fff;
+            flex-shrink: 0;
+            letter-spacing: -0.5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+            margin-right: 10px;
+            transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
+            user-select: none;
+            position: relative;
+        }
+        .chat-header-room-avatar:hover { transform: scale(1.06); }
+        .chat-header-avatar-meeting-live::after {
+            content: '';
+            position: absolute;
+            bottom: 1px;
+            right: 1px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #22c55e;
+            border: 2px solid var(--mat-sys-surface-container-lowest);
+            animation: pulse-live 1.6s ease-in-out infinite;
+        }
+        @keyframes pulse-live {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,.5); }
+            50%       { box-shadow: 0 0 0 5px rgba(34,197,94,0); }
+        }
+
+        /* ── 4. Chat header info redesign ───────────────────────────── */
+        .chat-header-info {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 1px !important;
+        }
+        .chat-room-title {
+            font-size: 15px !important;
+            font-weight: 700 !important;
+            letter-spacing: -0.01em !important;
+            color: var(--mat-sys-on-surface) !important;
+            -webkit-text-fill-color: var(--mat-sys-on-surface) !important;
+            background: none !important;
+            -webkit-background-clip: initial !important;
+            background-clip: initial !important;
+            line-height: 1.3 !important;
+        }
+        .chat-header-subtitle {
+            font-size: 11.5px;
+            color: var(--mat-sys-on-surface-variant);
+            opacity: 0.75;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            line-height: 1.3;
+            font-weight: 400;
+        }
+
+        /* ── 5. Call/Video shortcut buttons ─────────────────────────── */
+        .header-call-btn {
+            color: var(--mat-sys-on-surface-variant) !important;
+            transition: color 0.15s, background 0.15s !important;
+        }
+        .header-call-btn:hover {
+            color: var(--mat-sys-primary) !important;
+            background: var(--mat-sys-primary-container) !important;
+        }
+
+        /* ── 6. Message bubble border-radius (screenshot exact) ─────── */
+        .msg-bubble-other {
+            border-radius: 18px 18px 18px 4px !important;
+        }
+        .msg-bubble-other::after { display: none !important; }
+        .msg-bubble-own {
+            border-radius: 18px 18px 4px 18px !important;
+        }
+        .msg-bubble-own::after { display: none !important; }
+        /* Consecutive: fully round */
+        .msg-consecutive .msg-bubble-own  { border-radius: 18px !important; }
+        .msg-consecutive .msg-bubble-other { border-radius: 18px !important; }
+
+        /* ── 7. Right panel "Add/Remove" pill buttons ───────────────── */
+        .rp-member-pill-btn {
+            padding: 4px 12px;
+            border-radius: 16px;
+            border: none;
+            font-size: 11.5px;
+            font-weight: 600;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background 0.18s, transform 0.18s cubic-bezier(0.34,1.56,0.64,1);
+            font-family: inherit;
+            line-height: 1.4;
+            white-space: nowrap;
+        }
+        .rp-member-pill-btn:hover {
+            transform: scale(1.04);
+        }
+        .rp-member-pill-remove {
+            background: color-mix(in srgb, var(--mat-sys-error) 12%, var(--mat-sys-surface-container));
+            color: var(--mat-sys-error);
+        }
+        .rp-member-pill-remove:hover {
+            background: color-mix(in srgb, var(--mat-sys-error) 22%, var(--mat-sys-surface-container));
+        }
+
+        /* ── 8. Input area pill shape ───────────────────────────────── */
+        .input-card {
+            border-radius: 18px !important;
+            border: 1.5px solid var(--mat-sys-outline-variant) !important;
+            margin: 10px 12px 12px !important;
+        }
+        .input-card:focus-within {
+            border-color: var(--mat-sys-primary) !important;
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--mat-sys-primary) 12%, transparent) !important;
+        }
+
+        /* ── 9. Right panel Add member button (when form open) ──────── */
+        .rp-add-member-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 5px 14px;
+            border-radius: 16px;
+            border: none;
+            background: var(--mat-sys-primary);
+            color: var(--mat-sys-on-primary);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.18s, transform 0.18s cubic-bezier(0.34,1.56,0.64,1);
+            flex-shrink: 0;
+        }
+        .rp-add-member-btn:hover {
+            background: color-mix(in srgb, var(--mat-sys-primary) 85%, #000);
+            transform: scale(1.04);
+        }
+
+        /* ── 10b. Sidebar create button (+ circle) ─────────────────── */
+        .wa-create-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: none;
+            background: var(--mat-sys-primary);
+            color: var(--mat-sys-on-primary);
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background 0.18s, transform 0.18s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        .wa-create-btn:hover {
+            background: color-mix(in srgb, var(--mat-sys-primary) 85%, #000);
+            transform: scale(1.08) rotate(90deg);
+        }
+
+        /* ── 10. Sidebar filter chips (matching screenshot tab style) ── */
+        .wa-chip {
+            font-size: 12px !important;
+            padding: 4px 14px !important;
+            font-weight: 600 !important;
+        }
+        .wa-chip-active {
+            font-weight: 700 !important;
+        }
+
+        /* ── 11. Room item hover: no translateX, just subtle bg ─────── */
+        .wa-room-item:hover:not(.wa-room-active) {
+            background: color-mix(in srgb, var(--mat-sys-primary) 6%, var(--mat-sys-surface-container-lowest)) !important;
+        }
+
+        /* ── 12. Right panel Notifications: clickable items glow ─────── */
+        .rp-notif-item {
+            border-radius: 10px !important;
+            margin: 0 6px !important;
+            padding: 8px 10px !important;
+        }
+        .rp-notif-unread {
+            background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent) !important;
+        }
+
+        /* ── 13. Members section: add a top-right "Add" button ──────── */
+        .rp-section-add-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 3px 10px;
+            border-radius: 12px;
+            border: none;
+            background: var(--mat-sys-primary);
+            color: var(--mat-sys-on-primary);
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            flex-shrink: 0;
+            transition: background 0.15s;
+        }
+        .rp-section-add-btn:hover {
+            background: color-mix(in srgb, var(--mat-sys-primary) 85%, #000);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           MEMBERS PANEL — Modern redesign v5.0
+           WhatsApp-style presence + Linear-style cards
+        ═══════════════════════════════════════════════════════════════ */
+
+        /* Section header icon + title row */
+        .rp-section-title-row {
+            display: flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            flex: 1 !important;
+        }
+        .rp-section-icon {
+            font-size: 15px !important;
+            width: 15px !important;
+            height: 15px !important;
+            color: var(--cv-own-bg, var(--mat-sys-primary)) !important;
+            opacity: 0.8 !important;
+        }
+
+        /* Online count bar */
+        .rp-online-bar {
+            display: flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            padding: 4px 16px 10px !important;
+        }
+        .rp-online-dot-live {
+            width: 7px !important;
+            height: 7px !important;
+            border-radius: 50% !important;
+            background: #22c55e !important;
+            box-shadow: 0 0 0 2px rgba(34,197,94,.2) !important;
+            animation: cv-live-pulse 2s ease-in-out infinite !important;
+            flex-shrink: 0 !important;
+        }
+        @keyframes cv-live-pulse {
+            0%, 100% { box-shadow: 0 0 0 2px rgba(34,197,94,.2); }
+            50%       { box-shadow: 0 0 0 5px rgba(34,197,94,.0); }
+        }
+        .rp-online-label {
+            font-size: 11px !important;
+            font-weight: 600 !important;
+            color: var(--mat-sys-on-surface-variant) !important;
+            letter-spacing: 0.02em !important;
+        }
+
+        /* Member item card */
+        .rp-member-item {
+            display: flex !important;
+            align-items: center !important;
+            gap: 10px !important;
+            padding: 8px 12px !important;
+            margin: 2px 8px !important;
+            border-radius: 10px !important;
+            border: 1px solid transparent !important;
+            cursor: default !important;
+            transition: background 0.14s ease, border-color 0.14s ease, transform 0.14s var(--cv-ease, cubic-bezier(0.34,1.56,0.64,1)) !important;
+            position: relative !important;
+        }
+        .rp-member-item:hover {
+            background: color-mix(in srgb, var(--cv-own-bg, var(--mat-sys-primary)) 5%, var(--mat-sys-surface-container-low, #f8fafc)) !important;
+            border-color: color-mix(in srgb, var(--cv-own-bg, var(--mat-sys-primary)) 12%, transparent) !important;
+            transform: translateX(2px) !important;
+        }
+
+        /* Avatar wrapper (holds presence dot) */
+        .rp-member-avatar-wrap {
+            position: relative !important;
+            flex-shrink: 0 !important;
+        }
+
+        /* Avatar */
+        .rp-member-avatar {
+            width: 36px !important;
+            height: 36px !important;
+            border-radius: 11px !important;
+            background: linear-gradient(135deg, var(--mat-sys-primary), var(--mat-sys-tertiary)) !important;
+            color: #fff !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 12px !important;
+            font-weight: 800 !important;
+            letter-spacing: -0.5px !important;
+            box-shadow: 0 2px 6px color-mix(in srgb, var(--cv-own-bg, var(--mat-sys-primary)) 30%, transparent) !important;
+        }
+
+        /* Presence dot on avatar */
+        .rp-member-presence {
+            position: absolute !important;
+            bottom: -1px !important;
+            right: -1px !important;
+            width: 10px !important;
+            height: 10px !important;
+            border-radius: 50% !important;
+            border: 2px solid var(--mat-sys-surface-container-low, #f8fafc) !important;
+        }
+        .rp-presence-online {
+            background: #22c55e !important;
+            box-shadow: 0 0 0 1px rgba(34,197,94,.3) !important;
+        }
+        .rp-presence-away {
+            background: #f59e0b !important;
+            box-shadow: 0 0 0 1px rgba(245,158,11,.3) !important;
+        }
+
+        /* Info column */
+        .rp-member-info {
+            flex: 1 !important;
+            min-width: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 3px !important;
+        }
+        .rp-member-name {
+            font-size: 12.5px !important;
+            font-weight: 600 !important;
+            color: var(--mat-sys-on-surface) !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+            line-height: 1.3 !important;
+        }
+        .rp-member-meta {
+            display: flex !important;
+            align-items: center !important;
+            gap: 5px !important;
+        }
+
+        /* Role badge pill */
+        .rp-member-role-badge {
+            font-size: 9.5px !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.05em !important;
+            text-transform: uppercase !important;
+            padding: 1px 6px !important;
+            border-radius: 20px !important;
+            background: color-mix(in srgb, var(--cv-own-bg, var(--mat-sys-primary)) 10%, transparent) !important;
+            color: var(--cv-own-bg, var(--mat-sys-primary)) !important;
+            border: 1px solid color-mix(in srgb, var(--cv-own-bg, var(--mat-sys-primary)) 18%, transparent) !important;
+            white-space: nowrap !important;
+        }
+        .rp-role-admin {
+            background: color-mix(in srgb, #f59e0b 12%, transparent) !important;
+            color: #b45309 !important;
+            border-color: color-mix(in srgb, #f59e0b 20%, transparent) !important;
+        }
+        .rp-role-owner {
+            background: color-mix(in srgb, #8b5cf6 12%, transparent) !important;
+            color: #6d28d9 !important;
+            border-color: color-mix(in srgb, #8b5cf6 20%, transparent) !important;
+        }
+
+        /* Status text */
+        .rp-member-status-text {
+            font-size: 10px !important;
+            color: #f59e0b !important;
+            font-weight: 500 !important;
+        }
+        .rp-status-online {
+            color: #16a34a !important;
+        }
+
+        /* Action button (remove) — appears on hover */
+        .rp-member-action-btn {
+            width: 28px !important;
+            height: 28px !important;
+            border-radius: 8px !important;
+            border: none !important;
+            background: transparent !important;
+            cursor: pointer !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            color: var(--mat-sys-on-surface-variant) !important;
+            opacity: 0 !important;
+            transform: scale(0.85) !important;
+            transition: opacity 0.15s ease, transform 0.15s var(--cv-ease, cubic-bezier(0.34,1.56,0.64,1)), background 0.12s, color 0.12s !important;
+            flex-shrink: 0 !important;
+        }
+        .rp-member-item:hover .rp-member-action-btn {
+            opacity: 1 !important;
+            transform: scale(1) !important;
+        }
+        .rp-member-action-btn:hover {
+            background: color-mix(in srgb, var(--mat-sys-error, #ef4444) 12%, transparent) !important;
+            color: var(--mat-sys-error, #ef4444) !important;
+            transform: scale(1.1) !important;
+        }
+
+        /* Empty state — enhanced */
+        .rp-empty {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 8px !important;
+            padding: 32px 20px !important;
+            text-align: center !important;
+        }
+        .rp-empty-icon-wrap {
+            width: 52px !important;
+            height: 52px !important;
+            border-radius: 16px !important;
+            background: color-mix(in srgb, var(--cv-own-bg, var(--mat-sys-primary)) 8%, transparent) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            margin-bottom: 4px !important;
+        }
+        .rp-empty-icon-wrap mat-icon {
+            font-size: 26px !important;
+            width: 26px !important;
+            height: 26px !important;
+            color: var(--cv-own-bg, var(--mat-sys-primary)) !important;
+            opacity: 0.7 !important;
+        }
+        .rp-empty-title {
+            font-size: 13px !important;
+            font-weight: 700 !important;
+            color: var(--mat-sys-on-surface) !important;
+        }
+        .rp-empty-sub {
+            font-size: 11.5px !important;
+            color: var(--mat-sys-on-surface-variant) !important;
+            opacity: 0.7 !important;
+            line-height: 1.4 !important;
+        }
+
+        /* Loading skeleton */
+        .rp-loading-wrap {
+            padding: 8px 12px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 6px !important;
+        }
+        .rp-member-skeleton {
+            display: flex !important;
+            align-items: center !important;
+            gap: 10px !important;
+            padding: 8px 0 !important;
+            animation: cv-skeleton-pulse 1.4s ease-in-out infinite !important;
+        }
+        .rp-sk-avatar {
+            width: 36px !important;
+            height: 36px !important;
+            border-radius: 11px !important;
+            background: color-mix(in srgb, var(--mat-sys-outline-variant, #cbd5e1) 40%, transparent) !important;
+            flex-shrink: 0 !important;
+        }
+        .rp-sk-lines {
+            flex: 1 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 6px !important;
+        }
+        .rp-sk-line {
+            border-radius: 6px !important;
+            background: color-mix(in srgb, var(--mat-sys-outline-variant, #cbd5e1) 35%, transparent) !important;
+            height: 10px !important;
+        }
+        .rp-sk-name { width: 65% !important; }
+        .rp-sk-role { width: 40% !important; }
+        @keyframes cv-skeleton-pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.5; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           3-PANEL SEPARATION — rounded cards, white bg, gap between them
+        ═══════════════════════════════════════════════════════════════ */
+
+        /* Outer wrapper: no unified border, just a flex row with gap */
+        .inner-sidebar-wrap.chat-layout {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            overflow: visible !important;
+            gap: 12px !important;
+            align-items: stretch !important;
+        }
+
+        /* ── Panel 1 — Channels sidebar ── */
+        .inner-sidebar.chat-sidebar {
+            background: #ffffff !important;
+            border-radius: 16px !important;
+            border: 1px solid color-mix(in srgb, var(--cv-own-bg, var(--mat-sys-primary)) 12%, #e2e8f0) !important;
+            box-shadow: 0 2px 12px rgba(0,0,0,.06), 0 1px 3px rgba(0,0,0,.04) !important;
+            overflow: hidden !important;
+            border-right: 1px solid color-mix(in srgb, var(--cv-own-bg, var(--mat-sys-primary)) 12%, #e2e8f0) !important;
+        }
+
+        /* ── Panel 2 — Discussion (main chat area) ── */
+        .inner-sidebar-content.chat-main {
+            background: #ffffff !important;
+            border-radius: 16px !important;
+            border: 1px solid color-mix(in srgb, var(--cv-own-bg, var(--mat-sys-primary)) 12%, #e2e8f0) !important;
+            box-shadow: 0 2px 12px rgba(0,0,0,.06), 0 1px 3px rgba(0,0,0,.04) !important;
+            overflow: hidden !important;
+            flex: 1 !important;
+            min-width: 0 !important;
+        }
+
+        /* ── Panel 3 — Notifications / Members right panel ── */
+        .chat-right-panel {
+            background: #ffffff !important;
+            border-radius: 16px !important;
+            border: 1px solid color-mix(in srgb, var(--cv-own-bg, var(--mat-sys-primary)) 12%, #e2e8f0) !important;
+            box-shadow: 0 2px 12px rgba(0,0,0,.06), 0 1px 3px rgba(0,0,0,.04) !important;
+            overflow: hidden !important;
+            border-left: 1px solid color-mix(in srgb, var(--cv-own-bg, var(--mat-sys-primary)) 12%, #e2e8f0) !important;
+        }
+
+        /* All inner elements should inherit the white bg */
+        .chat-sidebar .wa-header,
+        .chat-sidebar .wa-sidebar-top {
+            background: #ffffff !important;
+        }
+        .chat-main .chat-header,
+        .chat-main .chat-header-card {
+            background: #ffffff !important;
+        }
+        .chat-main .chat-input-wrap,
+        .chat-main .chat-input-area {
+            background: #ffffff !important;
+        }
+        .chat-right-panel .rp-section-header {
+            background: #ffffff !important;
+        }
+
+        /* Keep messages area slightly off-white for contrast */
+        .chat-main .messages-scroll {
+            background: #f8fafc !important;
+            background-image:
+                radial-gradient(ellipse 80% 60% at 15% 20%, color-mix(in srgb, var(--cv-own-bg, var(--mat-sys-primary)) 3%, transparent), transparent),
+                radial-gradient(ellipse 60% 80% at 85% 80%, color-mix(in srgb, var(--mat-sys-tertiary, #8b5cf6) 2%, transparent), transparent) !important;
+        }
+
+        /* Container padding so panels don't touch the page edges */
+        .container-fluid:has(.chat-layout) {
+            padding-left: 16px !important;
+            padding-right: 16px !important;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           PANEL HEIGHT + BUBBLE POLISH  v6.0
+        ═══════════════════════════════════════════════════════════════ */
+
+        /* ── Taller panels ──────────────────────────────────────────── */
+        .inner-sidebar.chat-sidebar,
+        .chat-sidebar {
+            height: calc(100vh - 130px) !important;
+            min-height: 520px !important;
+        }
+        .inner-sidebar-content.chat-main,
+        .chat-main {
+            height: calc(100vh - 130px) !important;
+            min-height: 520px !important;
+        }
+        .chat-right-panel:not(.chat-right-panel-hidden) {
+            height: calc(100vh - 130px) !important;
+            min-height: 520px !important;
+        }
+
+        /* ── Message bubbles — premium clean redesign ───────────────── */
+
+        /* Base bubble reset */
+        .msg-bubble {
+            backdrop-filter: none !important;
+            transition: box-shadow 0.18s ease, transform 0.18s ease !important;
+        }
+
+        /* Hover: subtle lift only — no scale jump */
+        .msg-row:hover .msg-bubble {
+            transform: translateY(-1px) !important;
+        }
+        .msg-row:hover .msg-bubble-own {
+            box-shadow:
+                0 6px 20px color-mix(in srgb, var(--cv-own-bg, var(--mat-sys-primary)) 28%, transparent),
+                0 2px 6px rgba(0,0,0,.08) !important;
+        }
+        .msg-row:hover .msg-bubble-other {
+            box-shadow:
+                0 4px 14px rgba(0,0,0,.09),
+                0 1px 3px rgba(0,0,0,.05) !important;
+        }
+
+        /* OWN bubble — clean solid primary, top-right tail */
+        .msg-bubble-own {
+            background: var(--cv-own-bg, var(--mat-sys-primary)) !important;
+            color: #ffffff !important;
+            border-radius: 18px 4px 18px 18px !important;
+            padding: 10px 14px 8px 14px !important;
+            box-shadow:
+                0 2px 8px color-mix(in srgb, var(--cv-own-bg, var(--mat-sys-primary)) 28%, transparent),
+                0 1px 2px rgba(0,0,0,.06) !important;
+            animation: bubble-own-in 0.22s cubic-bezier(0.22,1,0.36,1) both !important;
+            position: relative !important;
+            max-width: 68% !important;
+        }
+        /* subtle inner highlight stripe */
+        .msg-bubble-own::before {
+            content: '' !important;
+            position: absolute !important;
+            inset: 0 !important;
+            border-radius: inherit !important;
+            background: linear-gradient(160deg, rgba(255,255,255,0.14) 0%, transparent 55%) !important;
+            pointer-events: none !important;
+        }
+        /* remove old tail */
+        .msg-bubble-own::after {
+            display: none !important;
+        }
+        @keyframes bubble-own-in {
+            from { opacity: 0; transform: translateX(10px) scale(0.97); }
+            to   { opacity: 1; transform: translateX(0)  scale(1);    }
+        }
+
+        /* OTHER bubble — clean white card */
+        .msg-bubble-other {
+            background: #ffffff !important;
+            color: var(--mat-sys-on-surface, #1e293b) !important;
+            border-radius: 4px 18px 18px 18px !important;
+            padding: 10px 14px 8px 14px !important;
+            border: 1px solid rgba(0,0,0,.07) !important;
+            box-shadow:
+                0 1px 4px rgba(0,0,0,.06),
+                0 2px 8px rgba(0,0,0,.04) !important;
+            animation: bubble-other-in 0.22s cubic-bezier(0.22,1,0.36,1) both !important;
+            position: relative !important;
+            max-width: 68% !important;
+        }
+        .msg-bubble-other::after {
+            display: none !important;
+        }
+        @keyframes bubble-other-in {
+            from { opacity: 0; transform: translateX(-10px) scale(0.97); }
+            to   { opacity: 1; transform: translateX(0)    scale(1);    }
+        }
+
+        /* Consecutive bubbles — fully rounded, tighter gap */
+        .msg-consecutive {
+            margin-top: 2px !important;
+        }
+        .msg-consecutive .msg-bubble-own {
+            border-radius: 18px 18px 4px 18px !important;
+        }
+        .msg-consecutive .msg-bubble-other {
+            border-radius: 18px 18px 18px 4px !important;
+        }
+
+        /* Text inside bubbles */
+        .msg-bubble-own .msg-text {
+            font-size: 14px !important;
+            line-height: 1.55 !important;
+            letter-spacing: 0.01em !important;
+        }
+        .msg-bubble-other .msg-text {
+            font-size: 14px !important;
+            line-height: 1.55 !important;
+            letter-spacing: 0.01em !important;
+            color: var(--mat-sys-on-surface, #1e293b) !important;
+        }
+
+        /* Timestamp */
+        .msg-bubble-own .msg-time {
+            color: rgba(255,255,255,0.65) !important;
+            font-size: 10.5px !important;
+            font-weight: 500 !important;
+            margin-top: 4px !important;
+        }
+        .msg-bubble-other .msg-time {
+            color: rgba(0,0,0,.38) !important;
+            font-size: 10.5px !important;
+            font-weight: 500 !important;
+            margin-top: 4px !important;
+        }
+
+        /* Sender name above other bubble */
+        .msg-sender-name {
+            font-size: 11.5px !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.02em !important;
+            color: var(--cv-own-bg, var(--mat-sys-primary)) !important;
+            margin-bottom: 3px !important;
+        }
+
+        /* Reaction chips on bubbles */
+        .msg-reactions {
+            gap: 3px !important;
+            flex-wrap: wrap !important;
+            margin-top: 5px !important;
+        }
+        .reaction-chip {
+            border-radius: 20px !important;
+            padding: 2px 7px !important;
+            font-size: 12px !important;
+            background: rgba(255,255,255,0.15) !important;
+            border: 1px solid rgba(255,255,255,0.2) !important;
+            cursor: pointer !important;
+            transition: transform 0.13s cubic-bezier(0.34,1.56,0.64,1), background 0.13s !important;
+            line-height: 1.4 !important;
+        }
+        .msg-bubble-other .reaction-chip {
+            background: color-mix(in srgb, var(--cv-own-bg, var(--mat-sys-primary)) 7%, #f1f5f9) !important;
+            border-color: color-mix(in srgb, var(--cv-own-bg, var(--mat-sys-primary)) 14%, transparent) !important;
+        }
+        .reaction-chip:hover {
+            transform: scale(1.18) !important;
+        }
+
+        /* Messages scroll — clean off-white */
+        .messages-scroll {
+            background: #f4f6f9 !important;
+            background-image: none !important;
+            padding: 20px 20px !important;
+        }
+
     `],
     animations: [
         trigger('pillEnter', [
@@ -11250,6 +15765,19 @@ interface MessageGroup {
                 animate('200ms ease-in',
                     style({ transform: 'translateY(100%)', opacity: 0 })),
             ]),
+        ]),
+        trigger('rpItemEnter', [
+            transition(':enter', [
+                style({ transform: 'translateX(12px)', opacity: 0 }),
+                animate('260ms cubic-bezier(0.34,1.56,0.64,1)',
+                    style({ transform: 'translateX(0)', opacity: 1 })),
+            ]),
+        ]),
+        trigger('rightPanelSlide', [
+            state('open',   style({ transform: 'translateX(0)', opacity: 1, width: '280px' })),
+            state('closed', style({ transform: 'translateX(280px)', opacity: 0, width: '0' })),
+            transition('closed => open', animate('300ms cubic-bezier(0.16,1,0.3,1)')),
+            transition('open => closed', animate('220ms cubic-bezier(0.4,0,1,1)')),
         ]),
     ],
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
@@ -11635,6 +16163,7 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
 
     // new for redesign
     membersPanelOpen = signal(false);
+    rightPanelOpen   = signal(true);
     sharedPanelOpen  = signal(false);
     sharedContent    = signal<MessageDTO[]>([]);
     sharedLoading    = signal(false);
@@ -11777,6 +16306,11 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         yesterday.setDate(today.getDate() - 1);
         if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
         return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    }
+
+    selectRoomById(id: number): void {
+        const room = this.rooms().find(r => r.id === id);
+        if (room) this.selectRoom(room);
     }
 
     toggleSharedPanel(): void {
