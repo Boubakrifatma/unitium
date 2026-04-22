@@ -69,6 +69,7 @@ export interface MessageDTO {
   category?: 'IMAGE' | 'FILE' | 'LINK';
   extractedUrl?: string;
   deleted?: boolean;
+  isDeleted?: boolean;
   isSystemMessage?: boolean;
   isEdited?: boolean;
   isAgendaItem?: boolean;

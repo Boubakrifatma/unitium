@@ -128,6 +128,17 @@ import { ScheduledNotificationService, ScheduledNotification } from "../../pages
                                 @if ($any(n).type === 'MENTION' && n.originalContent) {
                                     <div class="notif-msg-preview">"{{ (n.originalContent ?? '').slice(0, 60) }}..."</div>
                                 }
+                                @if ($any(n).type === 'NEW_REPORT') {
+                                    <button mat-stroked-button class="notif-action-btn"
+                                            style="color:#ef4444;border-color:#ef4444"
+                                            (click)="onReviewReport()">
+                                        <mat-icon style="font-size:14px;width:14px;height:14px;margin-right:3px;vertical-align:middle">shield</mat-icon>
+                                        Review Now
+                                    </button>
+                                    @if ($any(n).originalContent) {
+                                        <div class="notif-msg-preview" style="font-style:italic">"{{ ($any(n).originalContent ?? '').slice(0, 60) }}"</div>
+                                    }
+                                }
                                 <button mat-icon-button class="notif-tts-btn"
                                         [style.opacity]="speakingNotifId() === n.id ? '1' : '.4'"
                                         [style.color]="speakingNotifId() === n.id ? '#6366f1' : ''"
@@ -448,6 +459,10 @@ export class AppHeaderComponent {
     }
 
     onViewRoom(roomId: number): void {
+        this.router.navigate(['/app/chat']);
+    }
+
+    onReviewReport(): void {
         this.router.navigate(['/app/chat']);
     }
 

@@ -11,6 +11,7 @@ import com.example.pi_projet.repository.ChatRoomRepository;
 import com.example.pi_projet.repository.MessageReactionRepository;
 import com.example.pi_projet.repository.MessageRepository;
 import com.example.pi_projet.repository.RoomMemberRepository;
+import com.example.pi_projet.repository.UserMuteRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -35,6 +36,7 @@ public class MessageService {
     private final MessageRepository messageRepository;
     private final RoomMemberRepository roomMemberRepository;
     private final MessageReactionRepository reactionRepository;
+    private final UserMuteRepository userMuteRepository;
     private final FileStorageService fileStorageService;
     private final SimpMessagingTemplate messagingTemplate;
 
@@ -109,6 +111,7 @@ public class MessageService {
     // ── WebSocket text-only send (existing — unchanged) ────────────────────────
     public MessageDTO sendMessage(Long roomId, String content, User sender) {
         ChatRoom room = getAccessibleRoom(roomId, sender);
+        checkNotMuted(sender, room);
 
         Message message = Message.builder()
                 .room(room)
@@ -127,6 +130,7 @@ public class MessageService {
     // ── WebSocket send with agenda support ─────────────────────────────────────
     public MessageDTO sendMessage(Long roomId, MessageRequest request, User sender) {
         ChatRoom room = getAccessibleRoom(roomId, sender);
+        checkNotMuted(sender, room);
 
         Message message = Message.builder()
                 .room(room)
@@ -150,6 +154,7 @@ public class MessageService {
     public MessageDTO sendMessageWithFile(Long roomId, String content,
                                           MultipartFile file, User sender) {
         ChatRoom room = getAccessibleRoom(roomId, sender);
+        checkNotMuted(sender, room);
 
         Message.MessageBuilder builder = Message.builder()
                 .room(room)
@@ -292,6 +297,13 @@ public class MessageService {
                 .stream()
                 .map(this::buildDTO)
                 .toList();
+    }
+
+    // ── Mute check ─────────────────────────────────────────────────────────────
+    private void checkNotMuted(User sender, ChatRoom room) {
+        if (userMuteRepository.existsByMutedUserAndRoomAndExpiresAtAfter(sender, room, LocalDateTime.now())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are muted in this room.");
+        }
     }
 
     // ── Shared Media & Files ────────────────────────────────────────────────────
