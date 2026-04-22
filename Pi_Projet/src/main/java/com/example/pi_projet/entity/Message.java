@@ -73,6 +73,10 @@ public class Message {
     @Builder.Default
     private Boolean isSystemMessage = false;
 
+    @Column(name = "is_deleted")
+    @Builder.Default
+    private boolean isDeleted = false;
+
     @Column(name = "edited_at")
     private LocalDateTime editedAt;
     private LocalDateTime deletedAt;

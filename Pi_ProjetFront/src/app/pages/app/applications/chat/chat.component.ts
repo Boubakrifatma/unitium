@@ -37,6 +37,10 @@ import {
 import { QuillModule } from 'ngx-quill';
 import { SnackbarSuccessComponent } from '../calendar/snackbar-event.component';
 import { Router } from '@angular/router';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatBadgeModule } from '@angular/material/badge';
+import { ModerationService, ModerationReport, ReportRequest } from './moderation.service';
 
 /* ══ Room Creation / Edit Wizard Dialog ══════════════════════════════════ */
 @Component({
@@ -2572,6 +2576,356 @@ export class RemoveMemberDialogComponent {
     }
 }
 
+/* ══ Report Message Dialog (2-step wizard) ══════════════════════════════ */
+@Component({
+    selector: 'app-report-message-dialog',
+    standalone: true,
+    imports: [CommonModule, FormsModule, MatButtonModule, MatIconModule,
+              MatProgressSpinnerModule, MatDialogModule, MatFormFieldModule,
+              MatInputModule, MatSlideToggleModule, MatDividerModule],
+    template: `
+        <div class="rmd-wrap">
+            <button class="rmd-close-btn" mat-icon-button (click)="cancel()" aria-label="Close">
+                <mat-icon>close</mat-icon>
+            </button>
+
+            <!-- STEP 1 -->
+            @if (step() === 1) {
+                <div class="rmd-step" [@rmdStep]>
+                    <!-- Header -->
+                    <div class="rmd-header">
+                        <div class="rmd-header-icon">
+                            <mat-icon style="color:#ef4444;font-size:22px;width:22px;height:22px">flag</mat-icon>
+                        </div>
+                        <div>
+                            <h2 class="rmd-title">Report Message</h2>
+                            <p class="rmd-subtitle">Help us understand what's wrong</p>
+                        </div>
+                    </div>
+
+                    <!-- Quoted message -->
+                    <div class="rmd-quote">
+                        <span class="rmd-quote-sender">{{ data.message.senderName }}</span>
+                        <span class="rmd-quote-text">{{ stripHtml(data.message.contentText ?? '') | slice:0:120 }}{{ (data.message.contentText?.length ?? 0) > 120 ? '…' : '' }}</span>
+                    </div>
+
+                    <!-- Category grid -->
+                    <div class="rmd-categories">
+                        @for (cat of categories; track cat.key; let i = $index) {
+                            <div class="rmd-cat-card"
+                                 [class.rmd-cat-selected]="selectedCategory() === cat.key"
+                                 [style.animation-delay]="(i * 55) + 'ms'"
+                                 (click)="selectedCategory.set(cat.key)">
+                                <span class="rmd-cat-emoji">{{ cat.emoji }}</span>
+                                <span class="rmd-cat-name">{{ cat.name }}</span>
+                                <span class="rmd-cat-desc">{{ cat.desc }}</span>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="rmd-actions">
+                        <button mat-stroked-button (click)="cancel()">Cancel</button>
+                        <button mat-flat-button color="warn"
+                                [disabled]="!selectedCategory()"
+                                (click)="step.set(2)">
+                            Next
+                            <mat-icon>arrow_forward</mat-icon>
+                        </button>
+                    </div>
+                </div>
+            }
+
+            <!-- STEP 2 -->
+            @if (step() === 2) {
+                <div class="rmd-step" [@rmdStep]>
+                    <!-- Back + badge -->
+                    <div class="rmd-step2-top">
+                        <button mat-icon-button (click)="step.set(1)">
+                            <mat-icon>arrow_back</mat-icon>
+                        </button>
+                        <span class="rmd-selected-badge">{{ getCategoryLabel(selectedCategory()!) }}</span>
+                    </div>
+
+                    <div class="rmd-header" style="margin-top:8px">
+                        <div class="rmd-header-icon">
+                            <mat-icon style="color:#ef4444;font-size:22px;width:22px;height:22px">flag</mat-icon>
+                        </div>
+                        <div>
+                            <h2 class="rmd-title">Add Details</h2>
+                            <p class="rmd-subtitle">Optional — helps moderators act faster</p>
+                        </div>
+                    </div>
+
+                    <mat-form-field appearance="outline" class="w-100 mb-2">
+                        <mat-label>Describe the issue (optional)</mat-label>
+                        <textarea matInput [(ngModel)]="description" rows="3" maxlength="500"></textarea>
+                        <mat-hint align="end">{{ description.length }}/500</mat-hint>
+                    </mat-form-field>
+
+                    <div class="rmd-anon-row">
+                        <mat-slide-toggle [(ngModel)]="anonymous" color="primary">
+                            Report anonymously
+                        </mat-slide-toggle>
+                        @if (anonymous) {
+                            <p class="rmd-anon-hint">Your identity will not be shared with the moderator</p>
+                        }
+                    </div>
+
+                    @if (dialogError()) {
+                        <div class="rmd-error">{{ dialogError() }}</div>
+                    }
+
+                    <div class="rmd-actions">
+                        <button mat-stroked-button (click)="cancel()">Cancel</button>
+                        <button mat-flat-button color="warn"
+                                [disabled]="submitting()"
+                                (click)="submit()">
+                            @if (submitting()) {
+                                <mat-spinner diameter="16" style="display:inline-block;margin-right:6px"></mat-spinner>
+                            } @else {
+                                <mat-icon>send</mat-icon>
+                            }
+                            Submit Report
+                        </button>
+                    </div>
+                </div>
+            }
+
+            <!-- Success -->
+            @if (step() === 3) {
+                <div class="rmd-success" [@rmdStep]>
+                    <div class="rmd-success-icon">
+                        <mat-icon style="font-size:40px;width:40px;height:40px;color:#22c55e">check_circle</mat-icon>
+                    </div>
+                    <h2 class="rmd-title">Report Submitted</h2>
+                    <p class="rmd-subtitle">Thank you — a moderator will review this message.</p>
+                </div>
+            }
+        </div>
+    `,
+    styles: [`
+        .rmd-wrap { position:relative; padding:24px 24px 20px; min-width:400px; max-width:520px; }
+        .rmd-close-btn { position:absolute; top:8px; right:8px; }
+        .rmd-header { display:flex; align-items:center; gap:14px; margin-bottom:16px; }
+        .rmd-header-icon { width:44px; height:44px; border-radius:50%; background:color-mix(in srgb,#ef4444 12%,transparent); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .rmd-title { font-size:18px; font-weight:700; margin:0 0 2px; }
+        .rmd-subtitle { font-size:13px; color:var(--mat-sys-on-surface-variant,#64748b); margin:0; }
+        .rmd-quote { border-left:3px solid #ef4444; padding:8px 12px; background:color-mix(in srgb,#ef4444 6%,transparent); border-radius:0 8px 8px 0; margin-bottom:16px; }
+        .rmd-quote-sender { font-size:11px; font-weight:700; color:var(--mat-sys-on-surface-variant,#64748b); display:block; margin-bottom:3px; }
+        .rmd-quote-text { font-size:13px; color:var(--mat-sys-on-surface,#1e293b); }
+        .rmd-categories { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:20px; }
+        .rmd-cat-card { border:1.5px solid var(--mat-sys-outline-variant,#e2e8f0); border-radius:12px; padding:12px 8px; text-align:center; cursor:pointer; transition:border-color 200ms,background 200ms,transform 200ms cubic-bezier(0.34,1.56,0.64,1); animation:rmdCardIn 400ms cubic-bezier(0.34,1.56,0.64,1) both; }
+        @keyframes rmdCardIn { from { transform:scale(0.85);opacity:0; } to { transform:scale(1);opacity:1; } }
+        .rmd-cat-card:hover { border-color:var(--mat-sys-primary,#6366f1); background:color-mix(in srgb,var(--mat-sys-primary,#6366f1) 5%,transparent); }
+        .rmd-cat-selected { border-color:#ef4444 !important; background:color-mix(in srgb,#ef4444 8%,transparent) !important; transform:scale(1.02); }
+        .rmd-cat-emoji { font-size:22px; display:block; margin-bottom:4px; }
+        .rmd-cat-name { font-size:12px; font-weight:700; display:block; color:var(--mat-sys-on-surface,#1e293b); }
+        .rmd-cat-desc { font-size:10px; color:var(--mat-sys-on-surface-variant,#64748b); display:block; margin-top:2px; }
+        .rmd-step2-top { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+        .rmd-selected-badge { padding:4px 12px; border-radius:20px; background:color-mix(in srgb,#ef4444 12%,transparent); color:#ef4444; font-size:12px; font-weight:700; }
+        .rmd-anon-row { margin-bottom:16px; }
+        .rmd-anon-hint { font-size:11px; color:var(--mat-sys-on-surface-variant,#64748b); margin:6px 0 0; }
+        .rmd-error { color:#ef4444; font-size:12px; margin-bottom:12px; padding:8px 12px; background:color-mix(in srgb,#ef4444 8%,transparent); border-radius:8px; }
+        .rmd-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:16px; }
+        .rmd-success { text-align:center; padding:16px 0 8px; }
+        .rmd-success-icon { margin-bottom:12px; }
+    `],
+    animations: [
+        trigger('rmdStep', [
+            transition(':enter', [
+                style({ transform: 'translateX(30px)', opacity: 0 }),
+                animate('280ms cubic-bezier(0.16,1,0.3,1)', style({ transform: 'translateX(0)', opacity: 1 })),
+            ]),
+            transition(':leave', [
+                animate('180ms cubic-bezier(0.4,0,1,1)', style({ transform: 'translateX(-30px)', opacity: 0 })),
+            ]),
+        ]),
+    ],
+})
+export class ReportMessageDialogComponent {
+    step = signal<1 | 2 | 3>(1);
+    selectedCategory = signal<string | null>(null);
+    description = '';
+    anonymous = false;
+    submitting = signal(false);
+    dialogError = signal('');
+
+    readonly categories = [
+        { key: 'INAPPROPRIATE', emoji: '🔞', name: 'Inappropriate', desc: 'Adult or explicit' },
+        { key: 'HARASSMENT',    emoji: '🎯', name: 'Harassment',    desc: 'Targeting a person' },
+        { key: 'MISINFORMATION',emoji: '🤥', name: 'Misinformation',desc: 'False information' },
+        { key: 'HATE_SPEECH',   emoji: '💢', name: 'Hate Speech',   desc: 'Discriminatory content' },
+        { key: 'SPAM',          emoji: '🔗', name: 'Spam',          desc: 'Unsolicited content' },
+        { key: 'OTHER',         emoji: '⚠️', name: 'Other',         desc: 'Something else' },
+    ];
+
+    constructor(
+        public dialogRef: MatDialogRef<ReportMessageDialogComponent>,
+        @Inject(MAT_DIALOG_DATA) public data: { message: MessageDTO },
+        private moderationService: ModerationService,
+    ) {}
+
+    getCategoryLabel(key: string): string {
+        return this.categories.find(c => c.key === key)?.name ?? key;
+    }
+
+    stripHtml(html: string): string {
+        return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+
+    submit(): void {
+        const cat = this.selectedCategory();
+        if (!cat) return;
+        this.submitting.set(true);
+        this.dialogError.set('');
+        const req: ReportRequest = {
+            messageId: this.data.message.id,
+            roomId: this.data.message.roomId,
+            category: cat,
+            description: this.description || undefined,
+            anonymous: this.anonymous,
+        };
+        this.moderationService.createReport(req).subscribe({
+            next: () => {
+                this.submitting.set(false);
+                this.step.set(3);
+                setTimeout(() => this.dialogRef.close({ reported: true }), 1800);
+            },
+            error: (err) => {
+                this.submitting.set(false);
+                this.dialogError.set(err?.error?.message ?? 'Failed to submit report. Please try again.');
+            },
+        });
+    }
+
+    cancel(): void {
+        this.dialogRef.close();
+    }
+}
+
+/* ══ Moderation Action Confirm Dialog ═══════════════════════════════════ */
+@Component({
+    selector: 'app-mod-action-confirm-dialog',
+    standalone: true,
+    imports: [CommonModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatDialogModule],
+    template: `
+        <div class="drd-wrap">
+            <button class="drd-close-btn" mat-icon-button (click)="cancel()" aria-label="Close">
+                <mat-icon>close</mat-icon>
+            </button>
+            <div class="drd-icon-ring" [style.background]="actionBgColor" [style.border-color]="actionBorderColor">
+                <mat-icon class="drd-icon" [style.color]="actionColor">{{ actionIcon }}</mat-icon>
+            </div>
+            <h2 class="drd-title">{{ data.title }}</h2>
+            <p class="drd-subtitle">{{ data.description }}</p>
+            @if (dialogError()) {
+                <div class="drd-error">{{ dialogError() }}</div>
+            }
+            <div class="drd-actions">
+                <button mat-stroked-button class="drd-cancel-btn" (click)="cancel()" [disabled]="acting()">Cancel</button>
+                <button mat-flat-button class="drd-confirm-btn" [style.background]="actionColor"
+                        [disabled]="acting()" (click)="confirm()">
+                    @if (acting()) {
+                        <mat-spinner class="drd-spinner" diameter="16"></mat-spinner>
+                    } @else {
+                        <mat-icon style="font-size:16px;width:16px;height:16px;margin-right:5px">{{ actionIcon }}</mat-icon>
+                        {{ data.confirmLabel }}
+                    }
+                </button>
+            </div>
+        </div>
+    `,
+    styles: [`
+        .drd-wrap {
+            display: flex; flex-direction: column; align-items: center;
+            padding: 32px 28px 24px; text-align: center;
+            min-width: 320px; max-width: 420px; position: relative;
+        }
+        .drd-close-btn { position: absolute; top: 12px; right: 12px; }
+        @keyframes drd-icon-pulse {
+            0%,100% { box-shadow: 0 0 0 0 rgba(0,0,0,0.08); }
+            50%      { box-shadow: 0 0 0 10px rgba(0,0,0,0); }
+        }
+        .drd-icon-ring {
+            width: 64px; height: 64px; border-radius: 50%; border: 2px solid;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 20px; animation: drd-icon-pulse 2s ease-in-out infinite;
+        }
+        .drd-icon { font-size: 28px !important; width: 28px !important; height: 28px !important; }
+        .drd-title { font-size: 18px; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.02em; }
+        .drd-subtitle { font-size: 13px; color: var(--mat-sys-on-surface-variant); margin: 0 0 20px; line-height: 1.6; max-width: 320px; }
+        .drd-error {
+            font-size: 12.5px; color: #ef4444; background: rgba(239,68,68,0.08);
+            border: 1px solid rgba(239,68,68,0.25); border-radius: 8px;
+            padding: 8px 14px; margin: 0 0 16px; width: 100%; box-sizing: border-box;
+        }
+        .drd-actions { display: flex; gap: 10px; width: 100%; justify-content: center; }
+        .drd-cancel-btn { flex: 1; height: 40px; }
+        .drd-confirm-btn { flex: 1.5; height: 40px; color: #fff !important; border-radius: 10px !important; font-weight: 600 !important; }
+        .drd-spinner { display: inline-block; }
+        ::ng-deep .drd-spinner circle { stroke: #fff !important; }
+    `],
+})
+export class ModActionConfirmDialogComponent {
+    acting = signal(false);
+    dialogError = signal('');
+
+    constructor(
+        public dialogRef: MatDialogRef<ModActionConfirmDialogComponent>,
+        @Inject(MAT_DIALOG_DATA) public data: { title: string; description: string; confirmLabel: string; reportId: number; action: string; note?: string },
+        private moderationService: ModerationService,
+    ) {}
+
+    get actionIcon(): string {
+        const m: Record<string, string> = {
+            WARN: 'notifications_active', MUTE_1H: 'volume_off', MUTE_24H: 'volume_off',
+            MUTE_7D: 'volume_off', REMOVE_FROM_ROOM: 'exit_to_app',
+            DELETE_MESSAGE: 'delete_forever', BAN: 'block', DISMISS: 'check_circle',
+        };
+        return m[this.data.action] ?? 'gavel';
+    }
+
+    get actionColor(): string {
+        if (this.data.action === 'BAN') return '#ef4444';
+        if (this.data.action === 'REMOVE_FROM_ROOM' || this.data.action === 'DELETE_MESSAGE') return '#dc2626';
+        if (this.data.action === 'DISMISS') return '#16a34a';
+        return '#d97706';
+    }
+
+    get actionBgColor(): string {
+        if (this.data.action === 'BAN') return 'rgba(239,68,68,0.12)';
+        if (this.data.action === 'REMOVE_FROM_ROOM' || this.data.action === 'DELETE_MESSAGE') return 'rgba(220,38,38,0.10)';
+        if (this.data.action === 'DISMISS') return 'rgba(22,163,74,0.12)';
+        return 'rgba(217,119,6,0.12)';
+    }
+
+    get actionBorderColor(): string {
+        if (this.data.action === 'BAN') return 'rgba(239,68,68,0.3)';
+        if (this.data.action === 'REMOVE_FROM_ROOM' || this.data.action === 'DELETE_MESSAGE') return 'rgba(220,38,38,0.25)';
+        if (this.data.action === 'DISMISS') return 'rgba(22,163,74,0.3)';
+        return 'rgba(217,119,6,0.3)';
+    }
+
+    confirm(): void {
+        this.acting.set(true);
+        this.dialogError.set('');
+        const obs = this.data.action === 'DISMISS'
+            ? this.moderationService.dismissReport(this.data.reportId)
+            : this.moderationService.takeAction(this.data.reportId, this.data.action, this.data.note);
+        obs.subscribe({
+            next: () => this.dialogRef.close({ done: true }),
+            error: (err) => {
+                this.acting.set(false);
+                this.dialogError.set(err?.error?.message ?? 'Action failed. Please try again.');
+            },
+        });
+    }
+
+    cancel(): void {
+        if (!this.acting()) this.dialogRef.close();
+    }
+}
+
 interface MessageGroup {
     senderId: number;
     senderName: string;
@@ -2593,6 +2947,9 @@ interface MessageGroup {
         MatDialogModule,
         MatDatepickerModule, MatChipsModule,
         MatCheckboxModule,
+        MatSlideToggleModule,
+        MatTabsModule,
+        MatBadgeModule,
         QuillModule,
         RoomWizardDialogComponent,
         DeleteRoomDialogComponent,
@@ -2600,6 +2957,8 @@ interface MessageGroup {
         CancelScheduledDialogComponent,
         RemoveMemberDialogComponent,
         VoiceSendChoiceDialogComponent,
+        ReportMessageDialogComponent,
+        ModActionConfirmDialogComponent,
         SnackbarSuccessComponent,
     ],
     template: `
@@ -2921,6 +3280,17 @@ interface MessageGroup {
                                                     (click)="toggleAgendaPanel()"
                                                     [class.header-btn-active]="agendaPanelOpen()">
                                                 <mat-icon class="material-icons-outlined" style="font-size:19px;width:19px;height:19px">event_note</mat-icon>
+                                            </button>
+                                        }
+                                        @if (canManageMembers) {
+                                            <button matIconButton
+                                                    matTooltip="Moderation Center"
+                                                    (click)="toggleModerationPanel()"
+                                                    [class.header-btn-active]="moderationPanelOpen()"
+                                                    [matBadge]="pendingReportCount() > 0 ? pendingReportCount() : null"
+                                                    matBadgeColor="warn"
+                                                    matBadgeSize="small">
+                                                <mat-icon class="material-icons-outlined" style="font-size:19px;width:19px;height:19px">shield</mat-icon>
                                             </button>
                                         }
                                         <button matIconButton matTooltip="Summarize conversation"
@@ -3575,6 +3945,246 @@ interface MessageGroup {
                                     </div>
                                 }
 
+                                <!-- ── Moderation Center Panel ── -->
+                                @if (moderationPanelOpen() && canManageMembers) {
+                                    <div class="members-panel mod-panel" [@moderationPanelSlide] (click)="$event.stopPropagation()">
+
+                                        <!-- Shimmer gradient bar -->
+                                        <div class="mod-shimmer-bar"></div>
+
+                                        <!-- Header -->
+                                        <div class="mod-panel-header">
+                                            <div class="mod-header-left">
+                                                <div class="mod-header-icon-wrap">
+                                                    <mat-icon style="font-size:18px;width:18px;height:18px;color:#ef4444">shield</mat-icon>
+                                                </div>
+                                                <div>
+                                                    <div class="mod-header-title-row">
+                                                        <span class="mod-header-title">Moderation Center</span>
+                                                        @if (pendingReportCount() > 0) {
+                                                            <span class="mod-header-badge">{{ pendingReportCount() }}</span>
+                                                        }
+                                                    </div>
+                                                    <div class="mod-header-stats">
+                                                        {{ pendingReportCount() }} pending · {{ moderationHistory().length }} in history
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <button class="pp-close-btn" (click)="moderationPanelOpen.set(false)">
+                                                <mat-icon style="font-size:18px;width:18px;height:18px">close</mat-icon>
+                                            </button>
+                                        </div>
+
+                                        <mat-divider></mat-divider>
+
+                                        <!-- Pill tabs -->
+                                        <div class="mod-pill-tabs-row">
+                                            <div class="mod-pill-tabs">
+                                                <button class="mod-pill-tab" [class.mod-pill-active]="moderationTab() === 'pending'"
+                                                        (click)="moderationTab.set('pending'); loadModerationReports()">
+                                                    Pending
+                                                    <span class="mod-pill-count" [class.mod-pill-count-zero]="pendingReportCount() === 0">{{ pendingReportCount() }}</span>
+                                                </button>
+                                                <button class="mod-pill-tab" [class.mod-pill-active]="moderationTab() === 'history'"
+                                                        (click)="moderationTab.set('history'); loadModerationHistory()">
+                                                    History
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Body -->
+                                        <div class="mod-panel-body">
+                                            @if (moderationLoading()) {
+                                                <div class="d-flex justify-content-center py-4">
+                                                    <mat-spinner diameter="32"></mat-spinner>
+                                                </div>
+                                            } @else if (moderationError()) {
+                                                <div class="mod-error-state">
+                                                    <mat-icon style="font-size:20px;width:20px;height:20px;color:var(--mat-sys-error)">error_outline</mat-icon>
+                                                    <span>{{ moderationError() }}</span>
+                                                </div>
+                                            } @else if (moderationTab() === 'pending') {
+                                                @if (moderationReports().length === 0) {
+                                                    <!-- Empty state -->
+                                                    <div class="mod-empty-state">
+                                                        <div class="mod-empty-shield-wrap">
+                                                            <mat-icon class="material-icons-outlined mod-empty-shield-icon">shield</mat-icon>
+                                                        </div>
+                                                        <div class="mod-empty-title">No pending reports</div>
+                                                        <div class="mod-empty-sub">Your community is safe 🎉</div>
+                                                    </div>
+                                                } @else {
+                                                    @for (report of moderationReports(); track report.id; let i = $index) {
+                                                        <div class="mod-report-card mod-card-cat-{{ report.category.toLowerCase() }}"
+                                                             [style.animation-delay]="i * 80 + 'ms'"
+                                                             [@reportCardEnter]>
+                                                            <!-- Top row -->
+                                                            <div class="mod-card-top">
+                                                                <span class="mod-category-badge mod-cat-{{ report.category.toLowerCase() }}">{{ report.category.replace('_', ' ') }}</span>
+                                                                <span class="mod-status-dot"></span>
+                                                                <span class="mod-timestamp">{{ formatMessageTime(report.createdAt) }}</span>
+                                                            </div>
+                                                            <!-- Room -->
+                                                            <div class="mod-room-name" (click)="viewReportInChat(report)" style="cursor:pointer">
+                                                                <mat-icon style="font-size:13px;width:13px;height:13px;vertical-align:middle;margin-right:3px">chat_bubble_outline</mat-icon>
+                                                                #{{ report.roomName }}
+                                                            </div>
+                                                            <!-- Quoted message -->
+                                                            <div class="mod-quote mod-quote-cat-{{ report.category.toLowerCase() }}">
+                                                                <span class="mod-quote-author">{{ report.senderName }}</span>
+                                                                <span class="mod-quote-text">
+                                                                    {{ stripHtmlMod(report.messageContent) | slice:0:(expandedQuoteIds().has(report.id) ? 9999 : 160) }}
+                                                                    @if (!expandedQuoteIds().has(report.id) && (report.messageContent?.length ?? 0) > 160) {
+                                                                        <button class="mod-show-more-btn" (click)="toggleExpandQuote(report.id)">Show more</button>
+                                                                    }
+                                                                    @if (expandedQuoteIds().has(report.id)) {
+                                                                        <button class="mod-show-more-btn" (click)="toggleExpandQuote(report.id)">Show less</button>
+                                                                    }
+                                                                </span>
+                                                            </div>
+                                                            <!-- Reporter row -->
+                                                            <div class="mod-reporter-row">
+                                                                <mat-icon style="font-size:12px;width:12px;height:12px;opacity:0.55">{{ report.anonymous ? 'visibility_off' : 'flag' }}</mat-icon>
+                                                                <span class="mod-reporter-name">
+                                                                    @if (report.anonymous) {
+                                                                        <em>Reported anonymously</em>
+                                                                    } @else {
+                                                                        Reported by {{ report.reporterName }}
+                                                                    }
+                                                                </span>
+                                                            </div>
+                                                            <!-- AI suggestion -->
+                                                            @if (report.aiSuggestion && report.aiSuggestion !== 'NONE') {
+                                                                <div class="mod-ai-badge">
+                                                                    <mat-icon style="font-size:12px;width:12px;height:12px">auto_awesome</mat-icon>
+                                                                    AI suggests: {{ report.aiSuggestion }}
+                                                                </div>
+                                                            }
+                                                            <!-- Actions -->
+                                                            <div class="mod-card-actions">
+                                                                <button mat-stroked-button class="mod-view-btn" (click)="viewReportInChat(report)">
+                                                                    <mat-icon style="font-size:13px;width:13px;height:13px">open_in_new</mat-icon>
+                                                                    View in Chat
+                                                                </button>
+                                                                <button mat-flat-button color="warn" class="mod-action-btn" [matMenuTriggerFor]="actionMenu">
+                                                                    <mat-icon style="font-size:13px;width:13px;height:13px">gavel</mat-icon>
+                                                                    Take Action
+                                                                    <mat-icon style="font-size:13px;width:13px;height:13px">expand_more</mat-icon>
+                                                                </button>
+                                                                <mat-menu #actionMenu="matMenu" class="mod-action-menu">
+                                                                    <button mat-menu-item (click)="confirmModAction(report, 'WARN', 'Send a warning notification to this user')">
+                                                                        <mat-icon>notifications_active</mat-icon>
+                                                                        <span class="mod-menu-item-wrap">
+                                                                            <span>Warn User</span>
+                                                                            <span class="mod-menu-sub">Send a warning notification</span>
+                                                                        </span>
+                                                                    </button>
+                                                                    <button mat-menu-item (click)="confirmModAction(report, 'MUTE_1H', 'Mute user for 1 hour in this room')">
+                                                                        <mat-icon>volume_off</mat-icon>
+                                                                        <span class="mod-menu-item-wrap">
+                                                                            <span>Mute 1 hour</span>
+                                                                            <span class="mod-menu-sub">Temporarily silence this user</span>
+                                                                        </span>
+                                                                    </button>
+                                                                    <button mat-menu-item (click)="confirmModAction(report, 'MUTE_24H', 'Mute user for 24 hours in this room')">
+                                                                        <mat-icon>volume_off</mat-icon>
+                                                                        <span class="mod-menu-item-wrap">
+                                                                            <span>Mute 24 hours</span>
+                                                                            <span class="mod-menu-sub">Full day silence</span>
+                                                                        </span>
+                                                                    </button>
+                                                                    <button mat-menu-item (click)="confirmModAction(report, 'MUTE_7D', 'Mute user for 7 days in this room')">
+                                                                        <mat-icon>volume_off</mat-icon>
+                                                                        <span class="mod-menu-item-wrap">
+                                                                            <span>Mute 7 days</span>
+                                                                            <span class="mod-menu-sub">Extended silence</span>
+                                                                        </span>
+                                                                    </button>
+                                                                    <button mat-menu-item (click)="confirmModAction(report, 'REMOVE_FROM_ROOM', 'Remove this user from the chatroom')">
+                                                                        <mat-icon>exit_to_app</mat-icon>
+                                                                        <span class="mod-menu-item-wrap">
+                                                                            <span>Remove from Room</span>
+                                                                            <span class="mod-menu-sub">Remove access to this chatroom</span>
+                                                                        </span>
+                                                                    </button>
+                                                                    <button mat-menu-item (click)="confirmModAction(report, 'DELETE_MESSAGE', 'Permanently delete the reported message')">
+                                                                        <mat-icon>delete_forever</mat-icon>
+                                                                        <span class="mod-menu-item-wrap">
+                                                                            <span>Delete Message</span>
+                                                                            <span class="mod-menu-sub">Remove the reported message</span>
+                                                                        </span>
+                                                                    </button>
+                                                                    @if (currentUser?.role === 'MANAGER') {
+                                                                        <button mat-menu-item class="mod-ban-item" (click)="confirmModAction(report, 'BAN', 'Permanently ban this user from the platform')">
+                                                                            <mat-icon>block</mat-icon>
+                                                                            <span class="mod-menu-item-wrap">
+                                                                                <span>Ban User</span>
+                                                                                <span class="mod-menu-sub">Permanently disable account</span>
+                                                                            </span>
+                                                                        </button>
+                                                                    }
+                                                                    <mat-divider></mat-divider>
+                                                                    <button mat-menu-item (click)="confirmModAction(report, 'DISMISS', 'Dismiss this report — no action needed')">
+                                                                        <mat-icon>check_circle</mat-icon>
+                                                                        <span class="mod-menu-item-wrap">
+                                                                            <span>Dismiss</span>
+                                                                            <span class="mod-menu-sub">No action needed</span>
+                                                                        </span>
+                                                                    </button>
+                                                                </mat-menu>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                }
+                                            } @else {
+                                                <!-- History tab -->
+                                                <div class="mod-filter-chips-row">
+                                                    <button class="mod-filter-chip" [class.mod-filter-chip-active]="historyFilter() === 'all'" (click)="historyFilter.set('all')">All</button>
+                                                    <button class="mod-filter-chip" [class.mod-filter-chip-active]="historyFilter() === 'resolved'" (click)="historyFilter.set('resolved')">Resolved</button>
+                                                    <button class="mod-filter-chip" [class.mod-filter-chip-active]="historyFilter() === 'dismissed'" (click)="historyFilter.set('dismissed')">Dismissed</button>
+                                                </div>
+                                                @if (filteredHistory().length === 0) {
+                                                    <p class="pp-empty">No {{ historyFilter() === 'all' ? 'resolved' : historyFilter() }} reports yet.</p>
+                                                } @else {
+                                                    @for (report of filteredHistory(); track report.id; let i = $index) {
+                                                        <div class="mod-report-card mod-card-resolved mod-card-cat-{{ report.category.toLowerCase() }}"
+                                                             [style.animation-delay]="i * 50 + 'ms'" [@reportCardEnter]>
+                                                            <div class="mod-card-top">
+                                                                <span class="mod-category-badge mod-cat-{{ report.category.toLowerCase() }}">{{ report.category.replace('_', ' ') }}</span>
+                                                                <span class="mod-status-badge" [class.mod-status-resolved]="report.status === 'RESOLVED'" [class.mod-status-dismissed]="report.status === 'DISMISSED'">{{ report.status }}</span>
+                                                                <span class="mod-timestamp">{{ formatMessageTime(report.createdAt) }}</span>
+                                                            </div>
+                                                            <div class="mod-room-name">
+                                                                <mat-icon style="font-size:13px;width:13px;height:13px;vertical-align:middle;margin-right:3px">chat_bubble_outline</mat-icon>
+                                                                #{{ report.roomName }}
+                                                            </div>
+                                                            <div class="mod-quote mod-quote-cat-{{ report.category.toLowerCase() }}">
+                                                                <span class="mod-quote-author">{{ report.senderName }}</span>
+                                                                <span class="mod-quote-text">{{ stripHtmlMod(report.messageContent) | slice:0:80 }}{{ (report.messageContent?.length ?? 0) > 80 ? '…' : '' }}</span>
+                                                            </div>
+                                                            @if (report.actionTaken) {
+                                                                <div class="mod-action-taken">
+                                                                    <mat-icon style="font-size:11px;width:11px;height:11px">check</mat-icon>
+                                                                    Action: {{ report.actionTaken }}
+                                                                </div>
+                                                            }
+                                                        </div>
+                                                    }
+                                                }
+                                            }
+                                        </div>
+
+                                        <!-- Footer -->
+                                        <mat-divider></mat-divider>
+                                        <div class="mod-panel-footer">
+                                            <span class="mod-footer-text">Moderation keeps your community safe</span>
+                                            <button class="mod-refresh-btn" matTooltip="Refresh" (click)="refreshModeration()">
+                                                <mat-icon class="mod-refresh-icon" [class.mod-refresh-spinning]="refreshSpinning()">refresh</mat-icon>
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
+
                                 <!-- ── AI Summary Panel ── -->
                                 @if (showSummaryPanel()) {
                                     <div class="members-panel summary-panel" [@summaryPanelSlide] (click)="$event.stopPropagation()">
@@ -3760,7 +4370,8 @@ interface MessageGroup {
                                                 <div class="msg-content-wrap"
                                                      [class.msg-content-wrap-own]="message.senderId === currentUser?.id">
 
-                                                    <!-- Message action toolbar (hover) -->
+                                                    <!-- Message action toolbar (hover) — hidden for deleted messages -->
+                                                    @if (!message.isDeleted) {
                                                     <div class="msg-hover-actions"
                                                          [class.msg-hover-actions-own]="message.senderId === currentUser?.id">
                                                         <button class="hover-action-btn"
@@ -3824,8 +4435,16 @@ interface MessageGroup {
                                                                     </span>
                                                                 </button>
                                                             }
+                                                            @if (message.senderId !== currentUser?.id && !message.isSystemMessage && (currentUser?.role === 'EMPLOYEE' || currentUser?.role === 'STUDENT')) {
+                                                                <mat-divider></mat-divider>
+                                                                <button mat-menu-item (click)="openReportDialog(message)">
+                                                                    <mat-icon style="color:var(--mat-sys-error,#ef4444)">flag</mat-icon>
+                                                                    <span style="color:var(--mat-sys-error,#ef4444)">Report message</span>
+                                                                </button>
+                                                            }
                                                         </mat-menu>
                                                     </div>
+                                                    } <!-- /if not deleted hover-actions -->
 
                                                     @if (message.isPinned) {
                                                         <div class="pin-badge" [@pinBadgeEnter] title="Pinned">
@@ -3836,7 +4455,16 @@ interface MessageGroup {
                                                     <div class="msg-bubble"
                                                          [class.msg-bubble-own]="message.senderId === currentUser?.id"
                                                          [class.msg-bubble-other]="message.senderId !== currentUser?.id"
-                                                         [class.pinned-msg]="message.isPinned">
+                                                         [class.pinned-msg]="message.isPinned"
+                                                         [class.msg-bubble-deleted]="message.isDeleted">
+
+                                                        @if (message.isDeleted) {
+                                                            <!-- Moderator removed -->
+                                                            <div class="msg-deleted-indicator">
+                                                                <mat-icon style="font-size:14px;width:14px;height:14px;opacity:0.55;flex-shrink:0;margin-right:5px;vertical-align:middle">delete_sweep</mat-icon>
+                                                                <em class="msg-deleted-text">This message was removed by a moderator</em>
+                                                            </div>
+                                                        } @else {
 
                                                         <!-- Sender name (only for others, only on first in group) -->
                                                         @if (message.senderId !== currentUser?.id && shouldShowAvatar(i)) {
@@ -3966,6 +4594,7 @@ interface MessageGroup {
                                                         @if (message.isEdited) {
                                                             <span class="msg-edited-label">(edited)</span>
                                                         }
+                                                }
                                                     </div>
 
                                                     <!-- Reaction strip -->
@@ -4375,6 +5004,14 @@ interface MessageGroup {
                                                 </div>
                                             </div>
                                         }
+                                        <!-- Muted banner -->
+                                        @if (isMuted()) {
+                                            <div class="muted-banner" [@mutedBannerEnter]>
+                                                <mat-icon style="font-size:16px;width:16px;height:16px;flex-shrink:0">volume_off</mat-icon>
+                                                <span>You are muted in this room{{ mutedUntil() ? ' until ' + mutedUntil() : '' }}</span>
+                                            </div>
+                                        }
+
                                         <!-- Format toolbar always visible -->
                                         <div class="quill-format-wrap">
                                             <quill-editor
@@ -4441,7 +5078,7 @@ interface MessageGroup {
                                                 <!-- Split send button: left = send now, right = schedule -->
                                                 <div class="sc-send-split">
                                                     <button class="sc-send-main send-fab"
-                                                            [disabled]="!activeRoom() || (!hasText && !selectedFile)"
+                                                            [disabled]="!activeRoom() || (!hasText && !selectedFile) || isMuted()"
                                                             (click)="sendRichMessage()"
                                                             matTooltip="Send now (Ctrl+Enter)">
                                                         <mat-icon style="font-size:20px;width:20px;height:20px">send</mat-icon>
@@ -9089,6 +9726,249 @@ interface MessageGroup {
         }
         .sched-empty p { font-size: 13px; margin: 0; }
 
+        /* ══ MODERATION PANEL ════════════════════════════════════════ */
+        .mod-panel { min-width: 360px; max-width: 400px; display: flex; flex-direction: column; border-radius: 0 !important; }
+
+        /* Shimmer bar */
+        @keyframes modShimmer { 0%{background-position:0% 50%} 100%{background-position:200% 50%} }
+        .mod-shimmer-bar {
+            height: 3px; flex-shrink: 0;
+            background: linear-gradient(90deg, #ef4444, var(--mat-sys-primary), #ef4444);
+            background-size: 200% 100%;
+            animation: modShimmer 2s linear infinite;
+        }
+
+        /* Header */
+        .mod-panel-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 16px 12px; flex-shrink: 0;
+        }
+        .mod-header-left { display: flex; align-items: center; gap: 10px; }
+        .mod-header-icon-wrap {
+            width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+            background: color-mix(in srgb,#ef4444 12%,transparent);
+            border: 1px solid color-mix(in srgb,#ef4444 25%,transparent);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .mod-header-title-row { display: flex; align-items: center; gap: 7px; }
+        .mod-header-title { font-size: 14px; font-weight: 700; letter-spacing: -0.01em; }
+        .mod-header-badge {
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 20px; height: 20px; border-radius: 10px; padding: 0 6px;
+            background: #ef4444; color: #fff; font-size: 10px; font-weight: 700;
+        }
+        .mod-header-stats { font-size: 11px; color: var(--mat-sys-on-surface-variant); margin-top: 2px; }
+
+        /* Pill tabs */
+        .mod-pill-tabs-row { padding: 10px 14px 0; flex-shrink: 0; }
+        .mod-pill-tabs {
+            display: inline-flex; gap: 4px;
+            background: var(--mat-sys-surface-container-high);
+            border-radius: 12px; padding: 3px;
+        }
+        .mod-pill-tab {
+            display: flex; align-items: center; gap: 5px;
+            padding: 5px 14px; border-radius: 9px; font-size: 12px; font-weight: 600;
+            border: none; cursor: pointer; background: transparent;
+            color: var(--mat-sys-on-surface-variant);
+            transition: background 200ms ease, color 200ms ease;
+        }
+        .mod-pill-active { background: var(--mat-sys-surface) !important; color: var(--mat-sys-primary) !important; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+        .mod-pill-count {
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 17px; height: 17px; border-radius: 9px; padding: 0 4px;
+            background: #ef4444; color: #fff; font-size: 9px; font-weight: 700;
+        }
+        .mod-pill-count-zero { background: var(--mat-sys-outline-variant); color: var(--mat-sys-on-surface-variant); }
+
+        /* Body */
+        .mod-panel-body { flex: 1; overflow-y: auto; padding: 10px 0; }
+
+        /* Error state */
+        .mod-error-state {
+            display: flex; align-items: center; gap: 8px; padding: 16px 14px;
+            font-size: 13px; color: var(--mat-sys-error);
+        }
+
+        /* Empty state */
+        .mod-empty-state {
+            display: flex; flex-direction: column; align-items: center;
+            padding: 40px 16px; text-align: center;
+        }
+        @keyframes modShieldPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+        .mod-empty-shield-wrap {
+            width: 72px; height: 72px; border-radius: 20px;
+            background: color-mix(in srgb,var(--mat-sys-primary) 10%,transparent);
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 16px; animation: modShieldPulse 2s ease-in-out infinite;
+        }
+        .mod-empty-shield-icon {
+            font-size: 36px !important; width: 36px !important; height: 36px !important;
+            color: var(--mat-sys-primary); opacity: 0.7;
+        }
+        .mod-empty-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+        .mod-empty-sub { font-size: 12px; color: var(--mat-sys-on-surface-variant); }
+
+        /* Report cards */
+        .mod-report-card {
+            margin: 6px 12px; padding: 12px 12px 10px;
+            border: 0.5px solid var(--mat-sys-outline-variant);
+            border-radius: 16px;
+            background: var(--mat-sys-surface-container);
+            transition: box-shadow 150ms ease, transform 150ms ease;
+            border-left: 3px solid var(--mat-sys-outline-variant);
+        }
+        .mod-report-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,0.1); transform: translateY(-1px); }
+        .mod-card-resolved { opacity: 0.78; }
+
+        /* Category left-border accent */
+        .mod-card-cat-harassment    { border-left-color: #ef4444; }
+        .mod-card-cat-inappropriate { border-left-color: #f97316; }
+        .mod-card-cat-hate_speech   { border-left-color: #dc2626; }
+        .mod-card-cat-spam          { border-left-color: #f59e0b; }
+        .mod-card-cat-misinformation{ border-left-color: #8b5cf6; }
+        .mod-card-cat-other         { border-left-color: var(--mat-sys-outline-variant); }
+
+        .mod-card-top {
+            display: flex; align-items: center; gap: 7px; margin-bottom: 7px; flex-wrap: wrap;
+        }
+        .mod-category-badge {
+            padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.4px;
+        }
+        .mod-cat-harassment    { background: color-mix(in srgb,#ef4444 14%,transparent); color: #dc2626; }
+        .mod-cat-inappropriate { background: color-mix(in srgb,#f97316 14%,transparent); color: #ea580c; }
+        .mod-cat-hate_speech   { background: color-mix(in srgb,#dc2626 14%,transparent); color: #b91c1c; }
+        .mod-cat-spam          { background: color-mix(in srgb,#f59e0b 14%,transparent); color: #d97706; }
+        .mod-cat-misinformation{ background: color-mix(in srgb,#8b5cf6 14%,transparent); color: #7c3aed; }
+        .mod-cat-other         { background: var(--mat-sys-surface-container-high); color: var(--mat-sys-on-surface-variant); }
+
+        @keyframes modDotPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
+        .mod-status-dot {
+            width: 7px; height: 7px; border-radius: 50%; background: #ef4444; flex-shrink: 0;
+            animation: modDotPulse 1.4s ease-in-out infinite;
+        }
+        .mod-status-badge {
+            padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.3px;
+        }
+        .mod-status-resolved  { background: color-mix(in srgb,#22c55e 14%,transparent); color: #16a34a; }
+        .mod-status-dismissed { background: var(--mat-sys-surface-container-high); color: var(--mat-sys-on-surface-variant); }
+        .mod-timestamp { font-size: 11px; color: var(--mat-sys-on-surface-variant); margin-left: auto; }
+
+        .mod-room-name {
+            display: flex; align-items: center; font-size: 12px; font-weight: 700;
+            color: var(--mat-sys-primary); margin-bottom: 8px;
+        }
+        .mod-room-name:hover { opacity: 0.8; }
+
+        /* Quote block */
+        .mod-quote {
+            border-left: 3px solid var(--mat-sys-outline-variant);
+            padding: 7px 10px; border-radius: 0 10px 10px 0;
+            background: var(--mat-sys-surface-container-high);
+            margin-bottom: 8px;
+        }
+        .mod-quote-cat-harassment    { border-left-color: #ef4444; background: color-mix(in srgb,#ef4444 5%,var(--mat-sys-surface-container-high)); }
+        .mod-quote-cat-inappropriate { border-left-color: #f97316; background: color-mix(in srgb,#f97316 5%,var(--mat-sys-surface-container-high)); }
+        .mod-quote-cat-hate_speech   { border-left-color: #dc2626; background: color-mix(in srgb,#dc2626 5%,var(--mat-sys-surface-container-high)); }
+        .mod-quote-cat-spam          { border-left-color: #f59e0b; background: color-mix(in srgb,#f59e0b 5%,var(--mat-sys-surface-container-high)); }
+        .mod-quote-cat-misinformation{ border-left-color: #8b5cf6; background: color-mix(in srgb,#8b5cf6 5%,var(--mat-sys-surface-container-high)); }
+        .mod-quote-author { font-size: 10px; font-weight: 700; color: var(--mat-sys-on-surface-variant); display: block; margin-bottom: 3px; }
+        .mod-quote-text   { font-size: 12px; color: var(--mat-sys-on-surface); font-style: italic; line-height: 1.5; }
+        .mod-show-more-btn {
+            background: none; border: none; padding: 0; margin-left: 4px;
+            font-size: 11px; font-weight: 600; color: var(--mat-sys-primary);
+            cursor: pointer; text-decoration: underline;
+        }
+
+        /* Reporter row */
+        .mod-reporter-row {
+            display: flex; align-items: center; gap: 5px; font-size: 11px;
+            color: var(--mat-sys-on-surface-variant); margin-bottom: 7px;
+        }
+        .mod-reporter-name { font-weight: 600; }
+
+        /* AI badge */
+        .mod-ai-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600;
+            background: color-mix(in srgb,#8b5cf6 10%,transparent);
+            color: #7c3aed; margin-bottom: 9px;
+        }
+
+        /* Action row */
+        .mod-card-actions { display: flex; gap: 7px; margin-top: 9px; flex-wrap: wrap; }
+        .mod-view-btn { font-size: 11px !important; height: 30px !important; padding: 0 10px !important; border-radius: 8px !important; gap: 4px; }
+        .mod-action-btn { font-size: 11px !important; height: 30px !important; padding: 0 10px !important; border-radius: 8px !important; gap: 4px; }
+
+        /* Action menu */
+        .mod-menu-item-wrap { display: flex; flex-direction: column; line-height: 1.2; }
+        .mod-menu-sub { font-size: 10px; color: var(--mat-sys-on-surface-variant); font-weight: 400; margin-top: 2px; }
+        .mod-ban-item { color: #ef4444 !important; }
+        .mod-ban-item mat-icon { color: #ef4444 !important; }
+
+        /* Action taken (history) */
+        .mod-action-taken {
+            display: flex; align-items: center; gap: 4px;
+            font-size: 11px; color: var(--mat-sys-on-surface-variant);
+            margin-top: 5px; font-style: italic;
+        }
+
+        /* History filter chips */
+        .mod-filter-chips-row { display: flex; gap: 6px; padding: 6px 12px 4px; flex-wrap: wrap; }
+        .mod-filter-chip {
+            padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600;
+            border: 1px solid var(--mat-sys-outline-variant);
+            background: transparent; color: var(--mat-sys-on-surface-variant);
+            cursor: pointer; transition: background 180ms ease, color 180ms ease, border-color 180ms ease;
+        }
+        .mod-filter-chip-active {
+            background: color-mix(in srgb,var(--mat-sys-primary) 12%,transparent) !important;
+            color: var(--mat-sys-primary) !important;
+            border-color: var(--mat-sys-primary) !important;
+        }
+
+        /* Footer */
+        .mod-panel-footer {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 14px; flex-shrink: 0;
+        }
+        .mod-footer-text { font-size: 10px; color: var(--mat-sys-on-surface-variant); opacity: 0.7; }
+        .mod-refresh-btn {
+            display: flex; align-items: center; justify-content: center;
+            width: 28px; height: 28px; border-radius: 8px; border: none;
+            background: none; cursor: pointer; color: var(--mat-sys-on-surface-variant);
+            transition: background 150ms ease;
+        }
+        .mod-refresh-btn:hover { background: var(--mat-sys-surface-container-high); }
+        .mod-refresh-icon { font-size: 17px !important; width: 17px !important; height: 17px !important; transition: transform 800ms ease; }
+        @keyframes modRefreshSpin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        .mod-refresh-spinning { animation: modRefreshSpin 800ms linear; }
+
+        /* ══ DELETED MESSAGE ════════════════════════════════════════════ */
+        .msg-bubble-deleted {
+            background: color-mix(in srgb,var(--mat-sys-error,#ef4444) 6%,var(--mat-sys-surface-container,#f8fafc)) !important;
+            border-left: 3px solid color-mix(in srgb,var(--mat-sys-error,#ef4444) 40%,transparent) !important;
+            border-radius: 8px !important;
+            padding: 8px 12px !important;
+        }
+        .msg-deleted-indicator {
+            display: flex; align-items: center;
+            color: var(--mat-sys-on-surface-variant,#64748b);
+        }
+        .msg-deleted-text { font-style: italic; font-size: 13px; opacity: 0.7; }
+
+        /* ══ MUTED BANNER ═══════════════════════════════════════════════ */
+        .muted-banner {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 14px; margin: 0 0 6px;
+            background: color-mix(in srgb,#f59e0b 12%,transparent);
+            border: 1px solid color-mix(in srgb,#f59e0b 30%,transparent);
+            border-radius: 8px; font-size: 13px; font-weight: 600;
+            color: #b45309;
+        }
+
         /* ══ MEETING STATUS ══════════════════════════════════════════ */
         @keyframes meeting-live-pulse {
             0%, 100% { box-shadow: 0 0 0 0 rgba(22,163,74,0.45); }
@@ -10342,6 +11222,35 @@ interface MessageGroup {
                     style({ opacity: 0, transform: 'translateY(8px)' })),
             ]),
         ]),
+        trigger('moderationPanelSlide', [
+            transition(':enter', [
+                style({ transform: 'translateX(100%)', opacity: 0 }),
+                animate('320ms cubic-bezier(0.16,1,0.3,1)',
+                    style({ transform: 'translateX(0)', opacity: 1 })),
+            ]),
+            transition(':leave', [
+                animate('220ms cubic-bezier(0.4,0,1,1)',
+                    style({ transform: 'translateX(100%)', opacity: 0 })),
+            ]),
+        ]),
+        trigger('reportCardEnter', [
+            transition(':enter', [
+                style({ transform: 'translateY(12px)', opacity: 0 }),
+                animate('300ms cubic-bezier(0.34,1.56,0.64,1)',
+                    style({ transform: 'translateY(0)', opacity: 1 })),
+            ]),
+        ]),
+        trigger('mutedBannerEnter', [
+            transition(':enter', [
+                style({ transform: 'translateY(100%)', opacity: 0 }),
+                animate('300ms cubic-bezier(0.34,1.56,0.64,1)',
+                    style({ transform: 'translateY(0)', opacity: 1 })),
+            ]),
+            transition(':leave', [
+                animate('200ms ease-in',
+                    style({ transform: 'translateY(100%)', opacity: 0 })),
+            ]),
+        ]),
     ],
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
@@ -10760,6 +11669,27 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
     readonly CAL_OVL_DOW   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     meetingRooms = computed(() => this.rooms().filter(r => r.roomType === 'meeting' && r.startTime));
 
+    // ── Moderation ─────────────────────────────────────────────────
+    moderationPanelOpen   = signal(false);
+    moderationTab         = signal<'pending' | 'history'>('pending');
+    moderationReports     = signal<ModerationReport[]>([]);
+    moderationHistory     = signal<ModerationReport[]>([]);
+    moderationLoading     = signal(false);
+    moderationError       = signal('');
+    pendingReportCount    = signal(0);
+    historyFilter         = signal<'all' | 'resolved' | 'dismissed'>('all');
+    expandedQuoteIds      = signal<Set<number>>(new Set());
+    refreshSpinning       = signal(false);
+    filteredHistory       = computed(() => {
+        const f = this.historyFilter();
+        const h = this.moderationHistory();
+        if (f === 'all') return h;
+        return h.filter(r => r.status === (f === 'resolved' ? 'RESOLVED' : 'DISMISSED'));
+    });
+    // Mute feedback
+    isMuted               = signal(false);
+    mutedUntil            = signal<string | null>(null);
+
     // ── Inline group summarization ────────────────────────────────────────
     summarizingGroupId = signal<number | null>(null);
     groupSummaries     = signal<Map<number, { text: string; collapsed: boolean }>>(new Map());
@@ -11095,6 +12025,7 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         private dialog: MatDialog,
         private router: Router,
         readonly notifService: ScheduledNotificationService,
+        readonly moderationService: ModerationService,
         @Inject(DOCUMENT) private document: Document,
     ) {
         // Load room members for @mention autocomplete whenever active room changes
@@ -11138,6 +12069,7 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
     ngOnInit(): void {
         if (this.canManageMembers) {
             this.loadRooms();
+            this.loadPendingReportCount();
         } else if (this.isMember) {
             this.loadMyRooms();
         }
@@ -12456,6 +13388,9 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         if (event.type === 'MEETING_REMINDER') { this._handleMeetingReminderNotif(event); return; }
         if (event.type === 'ADDED_TO_ROOM') { this._handleAddedToRoomNotif(event); return; }
         if (event.type === 'REMOVED_FROM_ROOM') { this._handleRemovedFromRoomNotif(event); return; }
+        if (event.type === 'NEW_REPORT') { this._handleNewReportNotif(event); return; }
+        if (event.type === 'MODERATION_WARNING') { this._handleModerationWarningNotif(event); return; }
+        if (event.type === 'REPORT_RESOLVED') { this._handleReportResolvedNotif(event); return; }
 
         let notif: ScheduledNotification;
         if (event.type === 'SCHEDULED_SENT') {
@@ -12591,6 +13526,54 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         if (this.canManageMembers) { this.loadRooms(); } else { this.loadMyRooms(); }
         const shortText = `You have been removed from the chatroom ${event.roomName} by ${event.removedByName}`;
         const fullText = `${event.removedByName} removed you from the chatroom ${event.roomName}. You no longer have access to this chatroom.`;
+        this._voiceAnnounce(shortText, fullText);
+    }
+
+    private _handleNewReportNotif(event: any): void {
+        const reporter = event.anonymous ? 'Anonymous' : (event.reporterName ?? 'Someone');
+        const notif = {
+            id: crypto.randomUUID(), type: 'NEW_REPORT' as any,
+            icon: 'flag', iconColor: '#ef4444',
+            message: `New ${event.category ?? ''} report in #${event.roomName} by ${reporter}`,
+            roomId: event.roomId, roomName: event.roomName,
+            timestamp: new Date(), read: false,
+            originalContent: event.messagePreview ?? '',
+            reportId: event.reportId,
+            category: event.category,
+            reporterName: reporter,
+        } as unknown as ScheduledNotification;
+        this.notifService.push(notif);
+        this.pendingReportCount.update(c => c + 1);
+        const shortText = `New report received in ${event.roomName} — requires your attention`;
+        const fullText  = `A new ${event.category ?? ''} report was submitted in the chatroom ${event.roomName} by ${reporter}. Please review it in the Moderation Center.`;
+        this._voiceAnnounce(shortText, fullText);
+    }
+
+    private _handleModerationWarningNotif(event: any): void {
+        const notif = {
+            id: crypto.randomUUID(), type: 'MODERATION_WARNING' as any,
+            icon: 'warning', iconColor: '#f59e0b',
+            message: `Your message in #${event.roomName} was flagged by a moderator. Please follow community guidelines.`,
+            roomId: event.roomId, roomName: event.roomName,
+            timestamp: new Date(), read: false,
+        } as unknown as ScheduledNotification;
+        this.notifService.push(notif);
+        const shortText = `Warning: your message in ${event.roomName} was flagged by a moderator. Please follow community guidelines.`;
+        const fullText  = shortText;
+        this._voiceAnnounce(shortText, fullText);
+    }
+
+    private _handleReportResolvedNotif(event: any): void {
+        const notif = {
+            id: crypto.randomUUID(), type: 'REPORT_RESOLVED' as any,
+            icon: 'check_circle', iconColor: '#22c55e',
+            message: `Your report in #${event.roomName} has been reviewed and action has been taken.`,
+            roomId: event.roomId, roomName: event.roomName,
+            timestamp: new Date(), read: false,
+        } as unknown as ScheduledNotification;
+        this.notifService.push(notif);
+        const shortText = `Your report in ${event.roomName} has been reviewed and action has been taken.`;
+        const fullText  = shortText;
         this._voiceAnnounce(shortText, fullText);
     }
 
@@ -12867,7 +13850,13 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
             formData.append('file', this.selectedFile);
             this.chatMessageService.uploadMessage(roomId, formData).subscribe({
                 next: () => this.clearInput(),
-                error: (err) => this.notify(err?.error?.message ?? 'Upload failed.', true),
+                error: (err) => {
+                    if (err?.status === 403) {
+                        this.isMuted.set(true);
+                        this.mutedUntil.set(err?.error?.mutedUntil ?? null);
+                    }
+                    this.notify(err?.error?.message ?? 'Upload failed.', true);
+                },
             });
         } else {
             this.chatMessageService.sendMessage(roomId, this.richContent);
@@ -13616,5 +14605,131 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         } else {
             this.renderer.addClass(body, cls);
         }
+    }
+
+    // ══ Moderation Methods ══════════════════════════════════════════════
+
+    openReportDialog(message: MessageDTO): void {
+        const dialogRef = this.dialog.open(ReportMessageDialogComponent, {
+            data: { message },
+            panelClass: 'drd-dialog-panel',
+            maxWidth: '560px',
+            width: '100%',
+        });
+        dialogRef.afterClosed().subscribe((result) => {
+            if (result?.reported) {
+                this.snackBar.open('Report submitted successfully', 'Dismiss', {
+                    duration: 4000, panelClass: ['snack-success'], horizontalPosition: 'end',
+                });
+            }
+        });
+    }
+
+    toggleModerationPanel(): void {
+        const opening = !this.moderationPanelOpen();
+        this.moderationPanelOpen.set(opening);
+        if (opening) {
+            this.loadModerationReports();
+        }
+    }
+
+    loadPendingReportCount(): void {
+        this.moderationService.getPendingReportCount().subscribe({
+            next: (count) => {
+                this.pendingReportCount.set(count);
+                this.moderationService.pendingCount.set(count);
+            },
+            error: () => { /* silently ignore on non-moderator users */ },
+        });
+    }
+
+    loadModerationReports(): void {
+        this.moderationLoading.set(true);
+        this.moderationError.set('');
+        this.moderationService.getPendingReports().subscribe({
+            next: (reports) => {
+                this.moderationReports.set(reports);
+                this.moderationLoading.set(false);
+            },
+            error: (err) => {
+                this.moderationLoading.set(false);
+                this.moderationError.set(err?.error?.message ?? 'Failed to load reports.');
+            },
+        });
+    }
+
+    loadModerationHistory(): void {
+        this.moderationLoading.set(true);
+        this.moderationError.set('');
+        this.moderationService.getAllReports().subscribe({
+            next: (reports) => {
+                this.moderationHistory.set(reports.filter(r => r.status !== 'PENDING'));
+                this.moderationLoading.set(false);
+            },
+            error: (err) => {
+                this.moderationLoading.set(false);
+                this.moderationError.set(err?.error?.message ?? 'Failed to load history.');
+            },
+        });
+    }
+
+    confirmModAction(report: ModerationReport, action: string, description: string): void {
+        const actionLabels: Record<string, string> = {
+            WARN: 'Warn User', MUTE_1H: 'Mute 1 hour', MUTE_24H: 'Mute 24 hours',
+            MUTE_7D: 'Mute 7 days', REMOVE_FROM_ROOM: 'Remove from Room',
+            DELETE_MESSAGE: 'Delete Message', BAN: 'Ban User', DISMISS: 'Dismiss Report',
+        };
+        const dialogRef = this.dialog.open(ModActionConfirmDialogComponent, {
+            data: {
+                title: actionLabels[action] ?? action,
+                description,
+                confirmLabel: actionLabels[action] ?? action,
+                reportId: report.id,
+                action,
+            },
+            panelClass: 'drd-dialog-panel',
+            maxWidth: '440px',
+            width: '100%',
+        });
+        dialogRef.afterClosed().subscribe((result) => {
+            if (result?.done) {
+                this.snackBar.open('Action applied successfully', 'Dismiss', {
+                    duration: 4000, panelClass: ['snack-success'], horizontalPosition: 'end',
+                });
+                this.loadModerationReports();
+                this.loadPendingReportCount();
+            }
+        });
+    }
+
+    viewReportInChat(report: ModerationReport): void {
+        const room = this.rooms().find(r => r.id === report.roomId);
+        if (room) {
+            this.activeRoom.set(room);
+            this.moderationPanelOpen.set(false);
+        }
+    }
+
+    stripHtmlMod(html: string): string {
+        if (!html) return '';
+        return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+
+    toggleExpandQuote(id: number): void {
+        this.expandedQuoteIds.update(set => {
+            const next = new Set(set);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+    }
+
+    refreshModeration(): void {
+        this.refreshSpinning.set(true);
+        if (this.moderationTab() === 'pending') {
+            this.loadModerationReports();
+        } else {
+            this.loadModerationHistory();
+        }
+        setTimeout(() => this.refreshSpinning.set(false), 800);
     }
 }

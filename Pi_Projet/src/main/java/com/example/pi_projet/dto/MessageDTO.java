@@ -29,6 +29,8 @@ public record MessageDTO(
         String  extractedUrl,
         // ── deletion event marker ────────────────────────────────────────────────
         boolean deleted,
+        // ── moderation soft-delete ───────────────────────────────────────────────
+        boolean isDeleted,
         // ── system message flag ──────────────────────────────────────────────────
         boolean isSystemMessage,
         // ── edit tracking ────────────────────────────────────────────────────────
@@ -67,6 +69,7 @@ public record MessageDTO(
                 null,  // category — set only by getSharedContent
                 null,  // extractedUrl — set only by getSharedContent
                 false, // deleted
+                m.isDeleted(),
                 Boolean.TRUE.equals(m.getIsSystemMessage()),
                 m.isEdited(),
                 m.getEditedAt(),
@@ -100,6 +103,7 @@ public record MessageDTO(
                 category,
                 extractedUrl,
                 false, // deleted
+                m.isDeleted(),
                 Boolean.TRUE.equals(m.getIsSystemMessage()),
                 m.isEdited(),
                 m.getEditedAt(),
@@ -119,6 +123,7 @@ public record MessageDTO(
                 false, null, null, null,
                 null, null,
                 true,  // deleted
+                false, // isDeleted
                 false, // isSystemMessage
                 false, // isEdited
                 null,  // editedAt
