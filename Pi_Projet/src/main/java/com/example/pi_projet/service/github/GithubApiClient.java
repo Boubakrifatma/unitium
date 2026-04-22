@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestClient;
@@ -74,6 +75,26 @@ public class GithubApiClient {
         return get(token, "/repos/" + owner + "/" + repo + "/commits?per_page=" + perPage, JsonNode.class);
     }
 
+    /** GET /repos/{owner}/{repo}/branches?per_page=100 */
+    public JsonNode listBranches(String token, String owner, String repo) {
+        return get(token, "/repos/" + owner + "/" + repo + "/branches?per_page=100", JsonNode.class);
+    }
+
+    /** GET /repos/{owner}/{repo}/git/trees/{treeSha}?recursive=1 */
+    public JsonNode getFileTree(String token, String owner, String repo, String treeSha) {
+        return get(token, "/repos/" + owner + "/" + repo + "/git/trees/" + treeSha + "?recursive=1", JsonNode.class);
+    }
+
+    /** GET /repos/{owner}/{repo}/contents/{path}?ref={ref} */
+    public JsonNode getFileContent(String token, String owner, String repo, String path, String ref) {
+        return get(token, "/repos/" + owner + "/" + repo + "/contents/" + path + "?ref=" + ref, JsonNode.class);
+    }
+
+    /** GET /repos/{owner}/{repo}/commits?sha={ref}&per_page={limit} */
+    public JsonNode listCommitsOnRef(String token, String owner, String repo, String ref, int limit) {
+        return get(token, "/repos/" + owner + "/" + repo + "/commits?sha=" + ref + "&per_page=" + limit, JsonNode.class);
+    }
+
     // ---- HTTP plumbing ------------------------------------------------------
 
     private <T> T get(String token, String path, Class<T> type) {
@@ -84,6 +105,8 @@ public class GithubApiClient {
                     .body(type);
         } catch (HttpClientErrorException e) {
             throw rethrow(e);
+        } catch (RestClientException e) {
+            throw rethrowGeneric(e);
         }
     }
 
@@ -97,6 +120,8 @@ public class GithubApiClient {
                     .body(type);
         } catch (HttpClientErrorException e) {
             throw rethrow(e);
+        } catch (RestClientException e) {
+            throw rethrowGeneric(e);
         }
     }
 
@@ -110,6 +135,8 @@ public class GithubApiClient {
                     .body(type);
         } catch (HttpClientErrorException e) {
             throw rethrow(e);
+        } catch (RestClientException e) {
+            throw rethrowGeneric(e);
         }
     }
 
@@ -121,6 +148,8 @@ public class GithubApiClient {
                     .toBodilessEntity();
         } catch (HttpClientErrorException e) {
             throw rethrow(e);
+        } catch (RestClientException e) {
+            throw rethrowGeneric(e);
         }
     }
 
@@ -129,5 +158,10 @@ public class GithubApiClient {
         String body = e.getResponseBodyAsString();
         log.warn("[GitHub API] {} {}", status, body);
         return new GithubApiException(status.value(), body, e);
+    }
+
+    private RuntimeException rethrowGeneric(RestClientException e) {
+        log.warn("[GitHub API] Network/server error: {}", e.getMessage());
+        return new GithubApiException(503, "GitHub API unreachable: " + e.getMessage(), e);
     }
 }

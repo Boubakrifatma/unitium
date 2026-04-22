@@ -15,6 +15,7 @@ public class TaskService {
     private final TaskRepository repository;
     private final ProjectService projectService;
     private final PulseEventBus pulseEventBus;
+    private final SmartMilestoneService smartMilestoneService;
 
     public List<Task> getAll() {
         return repository.findAll();
@@ -31,6 +32,9 @@ public class TaskService {
         if (saved.getProject() != null) {
             projectService.updateStatusFromTasks(saved.getProject().getId());
             publishTaskEvent(saved, "TASK_CREATED", "Task \"" + saved.getTitle() + "\" created");
+        }
+        if (saved.getMilestone() != null) {
+            smartMilestoneService.recalculateOnTaskChange(saved.getMilestone().getId());
         }
         return saved;
     }
@@ -59,6 +63,9 @@ public class TaskService {
             projectService.updateStatusFromTasks(saved.getProject().getId());
             publishTaskEvent(saved, "TASK_UPDATED", "Task \"" + saved.getTitle() + "\" updated");
         }
+        if (saved.getMilestone() != null) {
+            smartMilestoneService.recalculateOnTaskChange(saved.getMilestone().getId());
+        }
 
         return saved;
     }
@@ -68,6 +75,7 @@ public class TaskService {
         UUID projectId = task.getProject() != null
                 ? task.getProject().getId()
                 : null;
+        Long milestoneId = task.getMilestone() != null ? task.getMilestone().getId() : null;
 
         // Détacher les sous-tâches avant de supprimer le parent
         List<Task> children = repository.findByParentTask_Id(id);
@@ -83,6 +91,9 @@ public class TaskService {
             projectService.updateStatusFromTasks(projectId);
             publishTaskDeleteEvent(projectId, task.getTitle());
         }
+        if (milestoneId != null) {
+            smartMilestoneService.recalculateOnTaskChange(milestoneId);
+        }
     }
 
     public List<Task> getTasksByMilestone(Long milestoneId) {
@@ -91,6 +102,12 @@ public class TaskService {
 
     public List<Task> getTasksByUser(Long userId) {
         return repository.findByAssignedTo_Id(userId);
+    }
+
+    public Task setVisibility(Long id, boolean visible) {
+        Task task = getById(id);
+        task.setVisibleToAssignees(visible);
+        return repository.save(task);
     }
 
     private void publishTaskEvent(Task task, String type, String message) {

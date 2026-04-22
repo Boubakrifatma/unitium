@@ -285,19 +285,20 @@ import { ProjectService, Project } from "../../../services/project-service";
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.35);
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
             z-index: 1000;
             animation: fadeIn 0.3s ease-out;
+            backdrop-filter: blur(2px);
         }
 
         .dialog-container {
-            background: var(--bg-primary);
+            background: #ffffff;
             border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2), 0 8px 16px rgba(0, 0, 0, 0.1);
             max-width: 700px;
             width: 100%;
             max-height: 90vh;
@@ -305,6 +306,7 @@ import { ProjectService, Project } from "../../../services/project-service";
             display: flex;
             flex-direction: column;
             animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(0, 0, 0, 0.05);
         }
 
         .dialog-header {
@@ -368,14 +370,14 @@ import { ProjectService, Project } from "../../../services/project-service";
             flex: 1;
             padding: 32px;
             overflow-y: auto;
-            background: var(--bg-primary);
-            color: var(--text-primary);
+            background: #ffffff;
+            color: #1f2937;
         }
 
         .form-section {
             margin-bottom: 32px;
             padding-bottom: 32px;
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid #e0f2fe;
         }
 
         .form-section:last-of-type {
@@ -387,7 +389,7 @@ import { ProjectService, Project } from "../../../services/project-service";
         .section-title {
             font-size: 1.1rem;
             font-weight: 700;
-            color: var(--text-primary);
+            color: #1f2937;
             margin: 0 0 20px 0;
             display: flex;
             align-items: center;
@@ -416,7 +418,7 @@ import { ProjectService, Project } from "../../../services/project-service";
 
         .suggest-hint {
             font-size: 0.8rem;
-            color: var(--text-secondary);
+            color: #6b7280;
         }
 
         .form-row {
@@ -439,35 +441,37 @@ import { ProjectService, Project } from "../../../services/project-service";
 
         /* Improve text visibility in form fields */
         ::ng-deep .mat-mdc-text-field-wrapper {
-            color: var(--text-primary) !important;
+            color: #1f2937 !important;
         }
 
         ::ng-deep .mat-mdc-form-field-infix {
-            color: var(--text-primary) !important;
+            color: #1f2937 !important;
         }
 
         ::ng-deep .mat-mdc-input-element {
-            color: var(--text-primary) !important;
+            color: #1f2937 !important;
             font-weight: 500;
             font-size: 0.95rem;
+            caret-color: #0ea5e9 !important;
         }
 
         ::ng-deep .mat-mdc-input-element::placeholder {
-            color: var(--text-secondary) !important;
-            opacity: 0.7;
+            color: #9ca3af !important;
+            opacity: 0.9;
         }
 
         ::ng-deep textarea.mat-mdc-input-element {
-            color: var(--text-primary) !important;
+            color: #1f2937 !important;
+            caret-color: #0ea5e9 !important;
         }
 
         ::ng-deep .mat-mdc-select-trigger {
-            color: var(--text-primary) !important;
+            color: #1f2937 !important;
             font-weight: 500;
         }
 
         ::ng-deep .mat-mdc-form-field-label {
-            color: var(--text-secondary) !important;
+            color: #6b7280 !important;
         }
 
         ::ng-deep .mat-mdc-form-field.mat-focused .mat-mdc-form-field-label {
@@ -475,7 +479,7 @@ import { ProjectService, Project } from "../../../services/project-service";
         }
 
         ::ng-deep .mat-mdc-option {
-            color: var(--text-primary) !important;
+            color: #1f2937 !important;
         }
 
         ::ng-deep .mat-mdc-option:hover {
@@ -483,7 +487,7 @@ import { ProjectService, Project } from "../../../services/project-service";
         }
 
         .completion-wrapper {
-            background: var(--bg-secondary);
+            background: #f0f9ff;
             border-radius: 12px;
             padding: 20px;
         }
@@ -497,7 +501,7 @@ import { ProjectService, Project } from "../../../services/project-service";
 
         .completion-label {
             font-weight: 600;
-            color: var(--text-primary);
+            color: #1f2937;
             font-size: 0.95rem;
         }
 
@@ -518,7 +522,7 @@ import { ProjectService, Project } from "../../../services/project-service";
             height: 6px;
             border-radius: 3px;
             margin-bottom: 12px;
-            background-color: var(--bg-tertiary);
+            background: #e0f2fe;
         }
 
         .progress-bar-visual ::ng-deep .mat-progress-bar-fill {
@@ -529,7 +533,7 @@ import { ProjectService, Project } from "../../../services/project-service";
             display: flex;
             justify-content: space-between;
             font-size: 0.75rem;
-            color: var(--text-secondary);
+            color: #6b7280;
             font-weight: 500;
         }
 
@@ -583,7 +587,7 @@ import { ProjectService, Project } from "../../../services/project-service";
         }
 
         .summary-card {
-            background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
             border: 2px dashed var(--accent-primary);
             border-radius: 12px;
             padding: 20px;
@@ -622,7 +626,7 @@ import { ProjectService, Project } from "../../../services/project-service";
 
         .summary-label {
             font-size: 0.75rem;
-            color: var(--text-secondary);
+            color: #6b7280;
             font-weight: 900;
             text-transform: uppercase;
             letter-spacing: 0.4px;
@@ -631,7 +635,7 @@ import { ProjectService, Project } from "../../../services/project-service";
         .summary-value-clear {
             font-size: 1.4rem;
             font-weight: 950;
-            color: var(--text-primary);
+            color: #1f2937;
             word-break: break-word;
             line-height: 1.4;
             letter-spacing: 0.3px;
@@ -639,21 +643,21 @@ import { ProjectService, Project } from "../../../services/project-service";
 
         .dialog-footer {
             padding: 20px 32px;
-            border-top: 1px solid var(--border-color);
+            border-top: 1px solid #e0f2fe;
             display: flex;
             gap: 12px;
             align-items: center;
-            background: var(--bg-secondary);
+            background: #f0f9ff;
             border-radius: 0 0 16px 16px;
         }
 
         .cancel-btn {
-            color: var(--text-secondary);
+            color: #6b7280;
             transition: all 0.3s;
         }
 
         .cancel-btn:hover {
-            background: var(--bg-tertiary);
+            background: #e0f2fe;
         }
 
         .action-spacer {
@@ -745,16 +749,77 @@ import { ProjectService, Project } from "../../../services/project-service";
 
         /* Date Picker */
         ::ng-deep .mat-datepicker-toggle {
-            color: var(--accent-primary);
+            color: #0ea5e9;
+        }
+
+        ::ng-deep .mat-datepicker-toggle-button {
+            color: #0ea5e9 !important;
+        }
+
+        ::ng-deep .mat-calendar {
+            background-color: #ffffff !important;
+        }
+
+        ::ng-deep .mat-calendar-body-cell {
+            color: #1f2937 !important;
+        }
+
+        ::ng-deep .mat-calendar-body-cell-content {
+            color: #1f2937 !important;
         }
 
         ::ng-deep .mat-calendar-body-selected {
-            background-color: var(--accent-primary) !important;
+            background-color: #0ea5e9 !important;
             color: white !important;
         }
 
+        ::ng-deep .mat-calendar-body-today:not(.mat-calendar-body-selected) {
+            border-color: #0ea5e9 !important;
+        }
+
         ::ng-deep .mat-calendar-header {
-            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%) !important;
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%) !important;
+            color: white !important;
+        }
+
+        ::ng-deep .mat-calendar-body-label {
+            color: #1f2937 !important;
+        }
+
+        ::ng-deep .mat-datepicker-content {
+            background-color: #ffffff !important;
+        }
+
+        ::ng-deep .mat-calendar-body-cell:hover:not(.mat-calendar-body-disabled) {
+            background-color: rgba(14, 165, 233, 0.08) !important;
+        }
+
+
+        /* Form Validation */
+        ::ng-deep .mat-mdc-form-field-error {
+            color: #ef4444 !important;
+            font-size: 0.85rem !important;
+            font-weight: 500;
+        }
+
+        ::ng-deep .mat-error {
+            color: #ef4444 !important;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 500;
+        }
+
+        ::ng-deep .mat-mdc-form-field.mat-form-field-invalid .mat-mdc-form-field-hint-wrapper {
+            color: #ef4444 !important;
+        }
+
+        ::ng-deep .mat-mdc-text-field-wrapper.mat-mdc-text-field-wrapper-invalid {
+            border-color: #ef4444 !important;
+        }
+
+        ::ng-deep .mat-mdc-form-field.mat-form-field-invalid .mdc-text-field__input {
+            border-color: #ef4444 !important;
         }
 
         @media (max-width: 600px) {

@@ -187,6 +187,23 @@ public class TaskController {
         taskService.delete(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PatchMapping("/{id}/visibility")
+    public ResponseEntity<Task> setVisibility(@PathVariable Long id,
+                                              @RequestParam boolean visible,
+                                              HttpServletRequest request) {
+        User currentUser = (User) request.getAttribute("currentUser");
+        if (currentUser == null) {
+            return ResponseEntity.status(401).build();
+        }
+        // Only manager or admin may change visibility
+        if (currentUser.getRole() != com.example.pi_projet.entity.User.RoleName.ADMIN
+                && currentUser.getRole() != com.example.pi_projet.entity.User.RoleName.MANAGER) {
+            return ResponseEntity.status(403).build();
+        }
+        Task updated = taskService.setVisibility(id, visible);
+        return ResponseEntity.ok(updated);
+    }
     @GetMapping("/my-tasks")
     public ResponseEntity<List<TaskResponseDto>> getMyTasks(HttpServletRequest request) {
         User currentUser = (User) request.getAttribute("currentUser");
@@ -241,6 +258,7 @@ public class TaskController {
                 .parentTaskTitle(t.getParentTask() != null ? t.getParentTask().getTitle() : null)
                 .milestoneId(t.getMilestone() != null ? t.getMilestone().getId() : null)
                 .milestoneName(t.getMilestone() != null ? t.getMilestone().getName() : null)
+                .isVisibleToAssignees(t.isVisibleToAssignees())
                 .build();
     }
 

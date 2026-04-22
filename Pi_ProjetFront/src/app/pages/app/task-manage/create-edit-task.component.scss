@@ -242,3 +242,51 @@ button {
     }
   }
 }
+
+// ── Visibility Toggle ──────────────────────────────────────────────────────
+.visibility-toggle-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: #f8fafc;
+  margin-top: 4px;
+  gap: 12px;
+}
+
+.visibility-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+}
+
+.vis-icon-on {
+  color: #10b981;
+  margin-top: 2px;
+}
+
+.vis-icon-off {
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+.visibility-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.visibility-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.visibility-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}

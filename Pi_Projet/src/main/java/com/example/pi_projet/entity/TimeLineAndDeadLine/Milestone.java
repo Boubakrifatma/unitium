@@ -52,6 +52,24 @@ public class Milestone {
     @Column(name = "source_milestone_key", length = 120)
     private String sourceMilestoneKey;
 
+    // ── Smart fields (computed by SmartMilestoneService) ─────────────────────
+
+    /** 0-100 risk score. >= 70 = high risk, 40-69 = medium, < 40 = low. */
+    @Column(name = "risk_score")
+    private Float riskScore;
+
+    /** AI-predicted delivery date based on task velocity. */
+    @Column(name = "predicted_due_date")
+    private LocalDate predictedDueDate;
+
+    /** Estimated delay in days (negative = ahead of schedule). */
+    @Column(name = "delay_days")
+    private Integer delayDays;
+
+    /** When smart analysis was last run. */
+    @Column(name = "last_computed_at")
+    private LocalDateTime lastComputedAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     private User createdBy;

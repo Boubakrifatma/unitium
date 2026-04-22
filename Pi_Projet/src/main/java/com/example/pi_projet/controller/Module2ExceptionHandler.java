@@ -65,6 +65,14 @@ public class Module2ExceptionHandler {
             "Invalid field type — check the request body.", null);
     }
 
+    /** Catch-all — prevents Spring from returning an empty 500 with no JSON body */
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Object> handleGeneric(Exception ex) {
+        log.error("Unhandled exception", ex);
+        return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL",
+                "An unexpected error occurred. Check server logs.", null);
+    }
+
     /* ── Helpers ──────────────────────────────────────────────── */
 
     private ResponseEntity<Object> errorResponse(HttpStatus status, String code,

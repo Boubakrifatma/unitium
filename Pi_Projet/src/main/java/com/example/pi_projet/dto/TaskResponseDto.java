@@ -38,4 +38,6 @@ public class TaskResponseDto {
 
     private LocalDateTime updatedAt;
     private LocalDateTime completedAt;
+
+    private boolean isVisibleToAssignees;
 }

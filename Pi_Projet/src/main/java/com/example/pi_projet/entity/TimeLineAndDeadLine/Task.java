@@ -74,6 +74,10 @@ public class Task {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Builder.Default
+    @Column(name = "is_visible_to_assignees", nullable = false)
+    private boolean isVisibleToAssignees = true;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

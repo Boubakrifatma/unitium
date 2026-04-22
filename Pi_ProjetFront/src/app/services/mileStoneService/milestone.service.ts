@@ -13,6 +13,11 @@ export interface Milestone {
   projectId?: string;
   /** Backend JPA renvoie souvent le projet imbriqué plutôt que projectId. */
   project?: { id: string; name?: string };
+  /** Smart milestone fields (populated by SmartMilestoneService) */
+  riskScore?: number;
+  predictedDueDate?: string;
+  delayDays?: number;
+  lastComputedAt?: string;
 }
 
 @Injectable({

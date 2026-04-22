@@ -3,6 +3,7 @@ package com.example.pi_projet.controller;
 import com.example.pi_projet.annotation.Authorized;
 import com.example.pi_projet.dto.github.CommitRequest;
 import com.example.pi_projet.entity.User;
+import com.example.pi_projet.entity.User.RoleName;
 import com.example.pi_projet.exception.Module2Exception;
 import com.example.pi_projet.service.github.JGitService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,6 +36,7 @@ public class GitOpsController {
                                       @Valid @RequestBody CommitRequest body,
                                       HttpServletRequest request) {
         User u = currentUser(request);
+        denyReadOnly(u);
         return safe(() -> jgit.commit(linkId, u.getId(), body.message(),
                 body.authorName(), body.authorEmail(),
                 body.stageAll() == null || body.stageAll()));
@@ -42,12 +44,16 @@ public class GitOpsController {
 
     @PostMapping("/push")
     public Map<String, Object> push(@PathVariable Long linkId, HttpServletRequest request) {
-        return safe(() -> jgit.push(linkId, currentUser(request).getId()));
+        User u = currentUser(request);
+        denyReadOnly(u);
+        return safe(() -> jgit.push(linkId, u.getId()));
     }
 
     @PostMapping("/pull")
     public Map<String, Object> pull(@PathVariable Long linkId, HttpServletRequest request) {
-        return safe(() -> jgit.pull(linkId, currentUser(request).getId()));
+        User u = currentUser(request);
+        denyReadOnly(u);
+        return safe(() -> jgit.pull(linkId, u.getId()));
     }
 
     @GetMapping("/history")
@@ -59,6 +65,14 @@ public class GitOpsController {
     @GetMapping("/branches")
     public Map<String, Object> branches(@PathVariable Long linkId) {
         return safe(() -> jgit.branches(linkId));
+    }
+
+    @PostMapping("/checkout")
+    public Map<String, Object> checkout(@PathVariable Long linkId,
+                                        @RequestParam String branch,
+                                        HttpServletRequest request) {
+        denyReadOnly(currentUser(request));
+        return safe(() -> jgit.checkout(linkId, branch));
     }
 
     // ---- helpers ------------------------------------------------------------
@@ -76,5 +90,13 @@ public class GitOpsController {
         Object attr = request.getAttribute("currentUser");
         if (attr instanceof User u) return u;
         throw new Module2Exception(Module2Exception.ErrorCode.FORBIDDEN, "Authentication required");
+    }
+
+    /** Blocks write operations for MANAGER and VIEWER roles. */
+    private void denyReadOnly(User user) {
+        if (user.getRole() == RoleName.MANAGER || user.getRole() == RoleName.VIEWER) {
+            throw new Module2Exception(Module2Exception.ErrorCode.FORBIDDEN,
+                    "Read-only access: managers cannot perform write operations (commit, push, pull, checkout).");
+        }
     }
 }

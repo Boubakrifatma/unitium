@@ -331,6 +331,22 @@ export const routes: Routes = [
                 path: "git/dashboard",
                 loadComponent: () => import("./pages/app/git/git-dashboard.component").then((c) => c.GitDashboardComponent),
             },
+            {
+                path: "git/quality",
+                loadComponent: () => import("./pages/app/git/code-quality-dashboard.component").then((c) => c.CodeQualityDashboardComponent),
+            },
+            {
+                path: "git/code-browser",
+                loadComponent: () => import("./pages/app/git/manager-code-browser.component").then((c) => c.ManagerCodeBrowserComponent),
+            },
+            {
+                path: "analytics/executive",
+                loadComponent: () => import("./pages/app/analytics/executive-dashboard.component").then((c) => c.ExecutiveDashboardComponent),
+            },
+            {
+                path: "brainstorming",
+                loadComponent: () => import("./pages/app/brainstorming/brainstorming.component").then((c) => c.BrainstormingComponent),
+            },
         ],
     },
     {

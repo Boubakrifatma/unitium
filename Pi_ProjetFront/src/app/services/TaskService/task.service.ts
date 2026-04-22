@@ -40,6 +40,7 @@ export interface TaskResponseDto {
   parentTaskTitle?: string | null;
   milestoneId: number | null;
   milestoneName: string | null;
+  isVisibleToAssignees: boolean;
   // used by AllTaskComponent which maps task.assignedTo?.fullName
   assignedTo?: AssignedTo;
   project?: ProjectRef;
@@ -59,6 +60,7 @@ export interface TaskWritePayload {
   parentTaskId?: number;
   startDate?: string;
   dueDate?: string;
+  isVisibleToAssignees?: boolean;
 }
 
 export interface UserDTO {
@@ -158,6 +160,15 @@ export class TaskService {
   delete(id: number): Observable<void> {
     return this.http.delete<void>(
       `${this.api}/${id}`,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  // ── Visibilité (manager/admin uniquement) ──────────────────────
+  setVisibility(id: number, visible: boolean): Observable<TaskResponseDto> {
+    return this.http.patch<TaskResponseDto>(
+      `${this.api}/${id}/visibility?visible=${visible}`,
+      null,
       { headers: this.getHeaders() }
     );
   }

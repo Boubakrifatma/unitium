@@ -1,4 +1,7 @@
-import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, signal, computed } from "@angular/core";
+import { Component, OnInit, AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef, signal, computed } from "@angular/core";
+import { Chart, registerables } from "chart.js";
+
+Chart.register(...registerables);
 import { CommonModule } from "@angular/common";
 import { ActivatedRoute } from "@angular/router";
 import { FormsModule } from "@angular/forms";
@@ -25,6 +28,7 @@ import { forkJoin } from "rxjs";
 import { GanttViewComponent } from "./gantt-view.component";
 import { CriticalPathComponent } from "./critical-path.component";
 import { WbsViewComponent } from "./wbs-view.component";
+import { DependencyImpactComponent } from "./dependency-impact.component";
 import { AuthService } from "../../../auth/auth.service";
 
 export interface TaskItem {
@@ -70,11 +74,12 @@ export interface TaskGroup {
     GanttViewComponent,
     CriticalPathComponent,
     WbsViewComponent,
+    DependencyImpactComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ["./all-task.component.scss"],
 })
-export class AllTaskComponent implements OnInit {
+export class AllTaskComponent implements OnInit, AfterViewInit {
 
   milestoneId = signal<number | null>(null);
   milestoneName = signal<string>("");
@@ -83,12 +88,16 @@ export class AllTaskComponent implements OnInit {
   expandedGroupIds = signal<Set<number>>(new Set());
   expandedTaskIds = signal<Set<number>>(new Set());
 
-  selectedPanel = signal<'tasks' | 'gantt' | 'wbs' | 'critical'>('tasks');
+  selectedPanel = signal<'tasks' | 'gantt' | 'wbs' | 'critical' | 'impact'>('tasks');
   dependencies = signal<TaskDependencyResponseDto[]>([]);
   searchFilter = signal<string>("");
   loading = signal<boolean>(true);
 
   projectMembers = signal<UserDTO[]>([]);
+
+  // Chart.js donut canvas
+  @ViewChild('taskDonutCanvas') taskDonutCanvas!: ElementRef<HTMLCanvasElement>;
+  private taskDonutChart: Chart | null = null;
 
   constructor(
     private route: ActivatedRoute,
@@ -169,6 +178,7 @@ export class AllTaskComponent implements OnInit {
         this.tasks.set(mapped);
         this.loading.set(false);
         this.cdr.markForCheck();
+        setTimeout(() => this.renderTaskDonut(), 80);
       },
       error: (err) => {
         console.error("Erreur chargement tâches", err);
@@ -524,7 +534,7 @@ export class AllTaskComponent implements OnInit {
     this.searchFilter.set(value);
   }
 
-  switchPanel(panel: 'tasks' | 'gantt' | 'wbs' | 'critical') {
+  switchPanel(panel: 'tasks' | 'gantt' | 'wbs' | 'critical' | 'impact') {
     this.selectedPanel.set(panel);
     if (panel === 'gantt' || panel === 'wbs') {
       setTimeout(() => this.refreshAdvancedView(panel as 'gantt' | 'wbs'), 80);
@@ -570,4 +580,68 @@ export class AllTaskComponent implements OnInit {
 
   renderGantt() { console.log("%c📊 Gantt activated", "color:#0ea5e9"); }
   renderWBS() { console.log("%c📋 WBS activated", "color:#0ea5e9"); }
+
+  // ── Chart.js / AfterViewInit ─────────────────────────────────────────────
+
+  ngAfterViewInit() {
+    // Defer so canvas is visible and signals have values
+    setTimeout(() => this.renderTaskDonut(), 200);
+  }
+
+  renderTaskDonut() {
+    if (!this.taskDonutCanvas) return;
+    const ctx = this.taskDonutCanvas.nativeElement.getContext('2d');
+    if (!ctx) return;
+
+    if (this.taskDonutChart) {
+      this.taskDonutChart.destroy();
+      this.taskDonutChart = null;
+    }
+
+    const s = this.taskStats();
+    this.taskDonutChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Terminées', 'En cours', 'À faire', 'Bloquées'],
+        datasets: [{
+          data: [s.done, s.inProgress, s.todo, s.blocked],
+          backgroundColor: ['#10b981', '#f59e0b', '#6366f1', '#ef4444'],
+          borderWidth: 2,
+          borderColor: '#ffffff',
+        }],
+      },
+      options: {
+        responsive: false,
+        cutout: '65%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => ` ${ctx.label}: ${ctx.parsed}`
+            }
+          }
+        },
+      },
+    });
+  }
+
+  // ── Due-date helpers used in the template ────────────────────────────────
+
+  isDueDateOverdue(dateStr: string, status: string): boolean {
+    if (!dateStr || dateStr === '-' || status === 'done') return false;
+    const due = new Date(dateStr);
+    due.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return due < today;
+  }
+
+  isDueDateToday(dateStr: string): boolean {
+    if (!dateStr || dateStr === '-') return false;
+    const due = new Date(dateStr);
+    due.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return due.getTime() === today.getTime();
+  }
 }

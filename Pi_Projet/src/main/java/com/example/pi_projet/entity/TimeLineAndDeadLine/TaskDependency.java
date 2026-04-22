@@ -39,6 +39,9 @@ public class TaskDependency {
     }
 
     public enum DependencyType {
-        finish_to_start, start_to_start, finish_to_finish
+        finish_to_start,   // FS — le plus courant
+        start_to_start,    // SS
+        finish_to_finish,  // FF
+        start_to_finish    // SF
     }
 }

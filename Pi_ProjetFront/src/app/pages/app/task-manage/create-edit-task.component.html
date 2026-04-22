@@ -155,6 +155,28 @@
       </div>
     </div>
 
+    <!-- Visibilité -->
+    <div class="visibility-toggle-section">
+      <div class="visibility-info">
+        <mat-icon [class]="taskForm.get('isVisibleToAssignees')?.value ? 'vis-icon-on' : 'vis-icon-off'">
+          {{ taskForm.get('isVisibleToAssignees')?.value ? 'visibility' : 'visibility_off' }}
+        </mat-icon>
+        <div class="visibility-text">
+          <span class="visibility-label">Visible par les assignés</span>
+          <span class="visibility-hint">
+            {{ taskForm.get('isVisibleToAssignees')?.value
+              ? 'Les membres assignés peuvent voir cette tâche'
+              : 'Tâche masquée aux assignés — visible uniquement par les managers/admins' }}
+          </span>
+        </div>
+      </div>
+      <mat-slide-toggle
+        formControlName="isVisibleToAssignees"
+        color="primary"
+        matTooltip="Activer/désactiver la visibilité pour les assignés">
+      </mat-slide-toggle>
+    </div>
+
   </form>
 </mat-dialog-content>
 

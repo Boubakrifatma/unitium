@@ -187,18 +187,21 @@ export class AppSidebarComponent {
 
         // Manager/Admin/Tutor roles can access broader project/task workspace management views.
         if (this.canManageWorkspaces) {
+            if (!this.isManager) {
+                projectChildren.push(
+                    { name: "Projects (Template)", route: "/app/projects", icon: "assignment" },
+                    { name: "Project Details (Template)", route: "/app/project-details", icon: "subject" },
+                );
+            }
             projectChildren.push(
-                { name: "Projects (Template)", route: "/app/projects", icon: "assignment" },
-                { name: "Project Details (Template)", route: "/app/project-details", icon: "subject" },
-                { name: "All Task", route: "/app/all-tasks", icon: "checklist" },
                 { name: "Milestones", route: "/app/milestones", icon: "flag" },
-                { name: "Tasks Details", route: "/app/task-details", icon: "task" },
-                { name: "Task Kanban", route: "/app/kanban", icon: "view_kanban" },
-                { name: "Task Gantt Chart", route: "/app/gantt-chart", icon: "event" },
-                { name: "Time Tracking", route: "/app/time-tracking", icon: "alarm" },
                 { name: "Manager Delivrable", route: "/app/manager-deliverables", icon: "assignment_turned_in" },
                 { name: "Notifications", route: "/app/notifications", icon: "notifications" },
-
+            );
+        }
+        if (this.isManager) {
+            projectChildren.push(
+                { name: "Brainstorming", route: "/app/brainstorming", icon: "psychology" },
             );
         }
 
@@ -209,17 +212,16 @@ export class AppSidebarComponent {
         });
 
         // EMPLOYEE + above
+        const applicationsChildren: NavItem[] = [
+            { name: "Deliverables", route: "/app/deliverables", icon: "upload_file" },
+        ];
+        if (!this.isManager) {
+            applicationsChildren.unshift({ name: "Task Kanban", route: "/app/kanban", icon: "view_kanban" });
+        }
         all.push({
             name: "Applications",
             icon: "apps",
-            children: [
-                { name: "Task Kanban", route: "/app/kanban", icon: "view_kanban" },
-                { name: "Deliverables", route: "/app/deliverables", icon: "upload_file" },
-                { name: "Explorer", route: "/app/explorer", icon: "folder_zip" },
-                { name: "Calendar", route: "/app/calendar", icon: "event" },
-                { name: "Chat", route: "/app/chat", icon: "chat" },
-
-            ],
+            children: applicationsChildren,
         });
         // Git integration — workspace for everyone, dashboard for managers/admins
         const gitChildren: NavItem[] = [
@@ -227,12 +229,25 @@ export class AppSidebarComponent {
         ];
         if (this.isManager) {
             gitChildren.push({ name: "Manager Dashboard", route: "/app/git/dashboard", icon: "insights" });
+            gitChildren.push({ name: "Code Browser", route: "/app/git/code-browser", icon: "manage_search" });
+            gitChildren.push({ name: "Code Quality", route: "/app/git/quality", icon: "analytics" });
         }
         all.push({
             name: "Git",
             icon: "account_tree",
             children: gitChildren,
         });
+
+        // Executive analytics — managers and above
+        if (this.isManager) {
+            all.push({
+                name: "Analytics",
+                icon: "bar_chart",
+                children: [
+                    { name: "Executive Dashboard", route: "/app/analytics/executive", icon: "dashboard_customize" },
+                ],
+            });
+        }
 
         all.push({
             name: "Account",
@@ -305,11 +320,7 @@ export class AppSidebarComponent {
                 { name: "Workspaces", route: "/app/workspaces", icon: "workspaces" },
                 { name: "Projects", route: "/app/projects", icon: "assignment" },
                 { name: "Project Details", route: "/app/project-details", icon: "subject" },
-                { name: "All Task", route: "/app/all-tasks", icon: "checklist" },
                 { name: "Tasks Details", route: "/app/task-details", icon: "task" },
-                { name: "Task Kanban", route: "/app/kanban", icon: "view_kanban" },
-                { name: "Task Gantt Chart", route: "/app/gantt-chart", icon: "event" },
-                { name: "Time Tacking", route: "/app/time-tracking", icon: "alarm" },
             ],
         },
         {

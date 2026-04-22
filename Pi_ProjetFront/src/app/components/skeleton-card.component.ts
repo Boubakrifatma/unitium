@@ -29,7 +29,6 @@ import { MatCardModule } from "@angular/material/card";
             .skeleton-card {
                 border: 1px solid rgba(0, 0, 0, 0.08);
             }
-
             .skeleton-avatar {
                 width: 40px;
                 height: 40px;

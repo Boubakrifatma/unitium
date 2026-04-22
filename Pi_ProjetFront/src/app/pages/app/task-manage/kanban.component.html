@@ -1,27 +1,32 @@
-<!-- ── Header ─────────────────────────────────────────────────── -->
-<div class="container-fluid fade-in mb-3 mb-lg-4">
+<!-- ═══════════════════════════════════════════════════════════════
+     KANBAN BOARD — enhanced UI
+     ═══════════════════════════════════════════════════════════════ -->
+
+<!-- ── Page Header ──────────────────────────────────────────────── -->
+<div class="kb-page-header container-fluid fade-in mb-3">
   <mat-card class="bg-light-theme shadow-none pt-3 pb-lg-3 px-3">
     <div class="row gx-3 align-items-center">
 
       <div class="col-12 col-md mb-3 mb-xl-0 py-1">
-        <h3 class="mb-1">Mes Tâches — Kanban</h3>
+        <h3 class="mb-1 kb-page-title">
+          <mat-icon class="material-icons-outlined align-middle me-2" style="color:#6366f1">view_kanban</mat-icon>
+          Mes Tâches — Kanban
+        </h3>
         <p class="small mb-0">
-          <span routerLink="/app/dashboard" class="me-2 text-theme style-none">
+          <span routerLink="/app/dashboard" class="me-2 text-theme style-none kb-breadcrumb-link">
             <mat-icon class="material-icons-outlined align-middle text-sm">house</mat-icon>
             Home
           </span>
           <mat-icon class="material-icons-outlined align-middle text-sm me-2">chevron_right</mat-icon>
-          Kanban
+          <span class="text-secondary">Kanban</span>
         </p>
       </div>
 
-      <!-- Project -->
+      <!-- Project filter -->
       <div class="col-6 col-md-3 col-lg-3 col-xl-2 mb-3 mb-xl-0">
         <mat-form-field appearance="outline" class="w-100 inline-small">
           <mat-label>Projet</mat-label>
-          <mat-select
-            [value]="selectedProjectId()"
-            (selectionChange)="selectProject($event.value)">
+          <mat-select [value]="selectedProjectId()" (selectionChange)="selectProject($event.value)">
             <mat-option value="all">Tous les projets</mat-option>
             @for (p of projectList(); track p.id) {
               <mat-option [value]="p.id">{{ p.name }}</mat-option>
@@ -30,7 +35,7 @@
         </mat-form-field>
       </div>
 
-      <!-- Priority -->
+      <!-- Priority filter -->
       <div class="col-6 col-md-3 col-lg-2 col-xl-2 mb-3 mb-xl-0">
         <mat-form-field appearance="outline" class="w-100 inline-small">
           <mat-label>Priorité</mat-label>
@@ -56,15 +61,16 @@
         </mat-form-field>
       </div>
 
-      <!-- Actions -->
+      <!-- Action buttons -->
       <div class="col-auto mb-3 mb-xl-0 d-flex align-items-center gap-1">
         <button mat-icon-button (click)="toggleView()"
-                [matTooltip]="viewMode() === 'comfortable' ? 'Mode compact' : 'Mode confort'">
+                [matTooltip]="viewMode() === 'comfortable' ? 'Mode compact' : 'Mode confort'"
+                class="kb-icon-btn">
           <mat-icon class="material-icons-outlined">
             {{ viewMode() === 'comfortable' ? 'view_compact' : 'view_agenda' }}
           </mat-icon>
         </button>
-        <button mat-icon-button (click)="loadMyTasks()" matTooltip="Rafraîchir">
+        <button mat-icon-button (click)="loadMyTasks()" matTooltip="Rafraîchir" class="kb-icon-btn">
           <mat-icon class="material-icons-outlined">refresh</mat-icon>
         </button>
       </div>
@@ -91,202 +97,254 @@
   </div>
 }
 
-<!-- ── Contenu principal ───────────────────────────────────────── -->
+<!-- ── Main content ───────────────────────────────────────────── -->
 @if (!loading() && !error()) {
 <div class="container-fluid fade-in">
 
-  <!-- Summary cards -->
-  <div class="row gx-3 gx-lg-4 mb-2">
-    @for (summary of summaryMetrics(); track summary.title) {
-      <div class="col-6 col-md-6 col-lg-3">
-        <mat-card class="mb-3 mb-lg-4" [ngClass]="summary.colorClass">
-          <mat-card-content class="pb-0">
-            <div class="row gx-3 align-items-center">
-              <div class="col-auto mb-3">
-                <div class="avatar avatar-50 bg-light-theme text-theme rounded">
-                  <mat-icon class="material-icons-outlined">{{ summary.icon }}</mat-icon>
-                </div>
-              </div>
-              <div class="col mb-3">
-                <p class="text-secondary small mb-1">{{ summary.title }}</p>
-                <h2 class="mb-0">{{ summary.value }}</h2>
-              </div>
-            </div>
-          </mat-card-content>
-        </mat-card>
+  <!-- ── KPI Stats Bar ──────────────────────────────────────── -->
+  <div class="kb-stats-bar mb-4">
+    <div class="kb-kpi-chip">
+      <mat-icon class="material-icons-outlined kb-kpi-icon" style="color:#6366f1">checklist</mat-icon>
+      <span class="kb-kpi-label">Total</span>
+      <span class="kb-kpi-value">{{ filteredTasks().length }}</span>
+    </div>
+    <div class="kb-kpi-chip">
+      <mat-icon class="material-icons-outlined kb-kpi-icon" style="color:#10b981">done_all</mat-icon>
+      <span class="kb-kpi-label">Done</span>
+      <span class="kb-kpi-value" style="color:#10b981">
+        {{ summaryMetrics()[3].value }}
+        ({{ filteredTasks().length > 0
+            ? ((summaryMetrics()[3].value / filteredTasks().length) * 100 | number:'1.0-0')
+            : 0 }}%)
+      </span>
+    </div>
+    <div class="kb-kpi-chip">
+      <mat-icon class="material-icons-outlined kb-kpi-icon" style="color:#ef4444">priority_high</mat-icon>
+      <span class="kb-kpi-label">Critiques</span>
+      <span class="kb-kpi-value" style="color:#ef4444">
+        {{ getTasksForColumn('new').filter(t => t.priority === 'critical').length +
+           getTasksForColumn('in-progress').filter(t => t.priority === 'critical').length +
+           getTasksForColumn('ready to test').filter(t => t.priority === 'critical').length }}
+      </span>
+    </div>
+    <div class="kb-kpi-chip">
+      <mat-icon class="material-icons-outlined kb-kpi-icon" style="color:#f59e0b">alarm</mat-icon>
+      <span class="kb-kpi-label">En retard</span>
+      <span class="kb-kpi-value" style="color:#f59e0b">
+        {{ filteredTasks().filter(t => isOverdue(t.dueDate) && t.status !== 'completed').length }}
+      </span>
+    </div>
+    @if (selectedProject()) {
+      <div class="kb-kpi-chip kb-kpi-project">
+        <mat-icon class="material-icons-outlined kb-kpi-icon" style="color:#3b82f6">folder_open</mat-icon>
+        <span class="kb-kpi-label">Projet</span>
+        <span class="kb-kpi-value" style="color:#3b82f6">{{ selectedProject()!.name }}</span>
       </div>
     }
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <button mat-stroked-button class="kb-refresh-btn" (click)="loadMyTasks()">
+        <mat-icon class="material-icons-outlined me-1">refresh</mat-icon>
+        Actualiser
+      </button>
+    </div>
   </div>
 
-  <!-- Selected project banner -->
-  @if (selectedProject()) {
-    <mat-card class="mb-3 mb-lg-4 px-3 py-2 bg-light-theme shadow-none">
-      <div class="d-flex align-items-center gap-3">
-        <mat-icon class="material-icons-outlined text-theme">folder_open</mat-icon>
-        <div>
-          <h5 class="mb-0">{{ selectedProject()!.name }}</h5>
-          <p class="small text-secondary mb-0">
-            {{ filteredTasks().length }} tâche(s) assignée(s)
-          </p>
-        </div>
-      </div>
-    </mat-card>
-  }
-
-  <!-- Empty state -->
+  <!-- ── Empty state ────────────────────────────────────────── -->
   @if (filteredTasks().length === 0) {
-    <div class="text-center py-5">
-      <mat-icon class="material-icons-outlined" style="font-size:64px; color:var(--mat-sys-outline)">
-        assignment_turned_in
-      </mat-icon>
+    <div class="text-center py-5 kb-empty-state">
+      <div class="kb-empty-icon-wrap">
+        <mat-icon class="material-icons-outlined" style="font-size:56px; color:#94a3b8">
+          assignment_turned_in
+        </mat-icon>
+      </div>
       <h4 class="mt-3 text-secondary">Aucune tâche pour ce projet</h4>
       <p class="text-secondary">Vous n'avez pas de tâches assignées dans ce projet.</p>
     </div>
   }
 
-  <!-- Kanban board -->
+  <!-- ── Kanban Board ────────────────────────────────────────── -->
   @if (filteredTasks().length > 0) {
-    <div class="row gx-3 gx-lg-4 kanban-board" [class.compact]="viewMode() === 'compact'">
+    <div class="kb-board" [class.compact]="viewMode() === 'compact'">
+
       @for (column of kanbanColumns; track column.id) {
-        <div class="col-12 col-sm-6 col-lg-3">
-          <mat-card class="kanban-column bg-light-theme shadow-none p-2 pb-0"
-                    [style.--accent]="column.accent">
+        <!-- Column wrapper -->
+        <div class="kb-column" [style.--col-accent]="column.accent">
 
-            <!-- Column header -->
-            <div class="column-header px-2 py-2">
+          <!-- Column header -->
+          <div class="kb-col-header">
+            <div class="kb-col-header-top" [style.background]="column.accent"></div>
+            <div class="kb-col-header-body">
               <div class="d-flex align-items-center gap-2">
-                <span class="column-dot"></span>
-                <mat-icon class="material-icons-outlined column-icon">{{ column.icon }}</mat-icon>
-                <h5 class="column-title mb-0">{{ column.title }}</h5>
+                <mat-icon class="material-icons-outlined kb-col-icon">{{ column.icon }}</mat-icon>
+                <span class="kb-col-title">{{ column.title }}</span>
+                <span class="kb-col-badge" [style.background]="column.accent">
+                  {{ getTasksForColumn(column.id).length }}
+                </span>
               </div>
-              <span class="column-count">{{ getTasksForColumn(column.id).length }}</span>
+              <button mat-icon-button class="kb-add-task-btn"
+                      [matTooltip]="'Ajouter une tâche dans ' + column.title"
+                      (click)="openDeliverableDialog({ taskId: 0, projectId: '', projectName: '', title: '', description: '', status: column.id, type: 'task', assignedTo: '', assignedToEmail: '', priority: 'medium', assignHours: '0h', loggedHours: '0h', dueDate: '' })">
+                <mat-icon class="material-icons-outlined" style="font-size:18px">add</mat-icon>
+              </button>
             </div>
+          </div>
 
-            <!-- Drop zone -->
-            <div
-              class="column-body"
-              cdkDropList
-              [id]="column.id"
-              [cdkDropListData]="getTasksForColumn(column.id)"
-              [cdkDropListConnectedTo]="columnIds"
-              (cdkDropListDropped)="drop($event)">
+          <!-- Drop zone -->
+          <div
+            class="kb-col-body"
+            cdkDropList
+            [id]="column.id"
+            [cdkDropListData]="getTasksForColumn(column.id)"
+            [cdkDropListConnectedTo]="columnIds"
+            (cdkDropListDropped)="drop($event)">
 
-              @for (task of getTasksForColumn(column.id); track task.taskId) {
-                <div cdkDrag class="task-drag">
+            @for (task of getTasksForColumn(column.id); track task.taskId) {
+              <div cdkDrag class="kb-drag-item">
 
-                  <div *cdkDragPlaceholder class="task-placeholder"></div>
+                <!-- Drag placeholder -->
+                <div *cdkDragPlaceholder class="kb-drag-placeholder"></div>
 
-                  <mat-card class="task-card mb-2" [style.--priority]="getPriorityColor(task.priority)">
-                    <mat-card-content class="p-3">
+                <!-- Task Card -->
+                <div class="kb-task-card" [style.--priority-color]="getPriorityColor(task.priority)">
 
-                      <!-- Top row: type + priority -->
-                      <div class="d-flex align-items-center justify-content-between mb-2">
-                        <div class="d-flex gap-1 flex-wrap">
-                          <span class="pill pill-type" [attr.data-type]="task.type">
-                            {{ task.type | titlecase }}
-                          </span>
-                          <span class="pill pill-priority" [attr.data-priority]="task.priority">
-                            {{ task.priority | titlecase }}
-                          </span>
-                        </div>
-                        <mat-icon class="material-icons-outlined drag-indicator">drag_indicator</mat-icon>
-                      </div>
+                  <!-- Priority stripe (left border) -->
+                  <div class="kb-priority-stripe" [style.background]="getPriorityColor(task.priority)"></div>
 
-                      <!-- Title -->
-                      <p class="task-title mb-1" [matTooltip]="task.title">{{ task.title }}</p>
+                  <div class="kb-task-inner">
 
-                      <!-- Description (comfortable only) -->
-                      @if (task.description && viewMode() === 'comfortable') {
-                        <p class="task-desc small text-secondary mb-2">{{ task.description }}</p>
-                      }
-
-                      <!-- Project chip (all projects) -->
-                      @if (selectedProjectId() === 'all') {
-                        <p class="small text-secondary mb-2">
-                          <mat-icon class="material-icons-outlined me-1"
-                                    style="font-size:14px; vertical-align:middle">folder</mat-icon>
-                          {{ task.projectName }}
-                        </p>
-                      }
-
-                      <!-- Hours progress -->
-                      @if (viewMode() === 'comfortable') {
-                        <div class="hours-block mb-2">
-                          <div class="d-flex justify-content-between small text-secondary mb-1">
-                            <span>
-                              <mat-icon class="material-icons-outlined me-1 text-theme"
-                                        style="font-size:13px; vertical-align:middle">schedule</mat-icon>
-                              {{ task.loggedHours }} / {{ task.assignHours }}
-                            </span>
-                            <span class="text-theme fw-semibold">{{ getHoursProgress(task) }}%</span>
-                          </div>
-                          <mat-progress-bar mode="determinate" [value]="getHoursProgress(task)"
-                                            class="thin-progress"></mat-progress-bar>
-                        </div>
-                      }
-
-                      <!-- Footer: assignee + due date -->
-                      <div class="task-footer d-flex align-items-center justify-content-between">
-                        <div class="d-flex align-items-center gap-2" [matTooltip]="task.assignedTo || 'Non assigné'">
-                          <div class="avatar-sm" [style.background]="getAvatarColor(task.assignedTo)">
-                            {{ getInitials(task.assignedTo) }}
-                          </div>
-                          @if (viewMode() === 'comfortable') {
-                            <span class="small text-secondary text-truncate assignee-name">
-                              {{ task.assignedTo || 'Non assigné' }}
-                            </span>
+                    <!-- Top row: type chip + status chip + priority badge -->
+                    <div class="kb-task-meta-row">
+                      <div class="d-flex align-items-center gap-1 flex-wrap">
+                        <span class="kb-pill kb-pill-type" [attr.data-type]="task.type">
+                          @switch (task.type) {
+                            @case ('bug') { <mat-icon class="kb-pill-icon material-icons-outlined">bug_report</mat-icon> }
+                            @case ('epic') { <mat-icon class="kb-pill-icon material-icons-outlined">auto_awesome</mat-icon> }
+                            @case ('story') { <mat-icon class="kb-pill-icon material-icons-outlined">bookmark</mat-icon> }
+                            @case ('subtask') { <mat-icon class="kb-pill-icon material-icons-outlined">subdirectory_arrow_right</mat-icon> }
+                            @default { <mat-icon class="kb-pill-icon material-icons-outlined">task_alt</mat-icon> }
                           }
-                        </div>
+                          {{ task.type | titlecase }}
+                        </span>
+                        <span class="kb-pill kb-pill-priority" [attr.data-priority]="task.priority">
+                          {{ task.priority | titlecase }}
+                        </span>
+                      </div>
+                      <mat-icon class="material-icons-outlined kb-drag-handle" cdkDragHandle>
+                        drag_indicator
+                      </mat-icon>
+                    </div>
 
-                        @if (task.dueDate) {
-                          <span class="due-chip" [attr.data-urgency]="getDueUrgency(task.dueDate)">
-                            <mat-icon class="material-icons-outlined">event</mat-icon>
-                            {{ task.dueDate | date:'dd MMM' }}
+                    <!-- Title -->
+                    <p class="kb-task-title" [matTooltip]="task.title">{{ task.title }}</p>
+
+                    <!-- Description (comfortable mode) -->
+                    @if (task.description && viewMode() === 'comfortable') {
+                      <p class="kb-task-desc">{{ task.description }}</p>
+                    }
+
+                    <!-- Project chip (all-projects view) -->
+                    @if (selectedProjectId() === 'all') {
+                      <p class="kb-task-project">
+                        <mat-icon class="material-icons-outlined" style="font-size:12px; vertical-align:middle">folder</mat-icon>
+                        {{ task.projectName }}
+                      </p>
+                    }
+
+                    <!-- Hours + progress (comfortable mode) -->
+                    @if (viewMode() === 'comfortable') {
+                      <div class="kb-hours-block">
+                        <div class="kb-hours-row">
+                          <span class="kb-hours-label">
+                            <mat-icon class="material-icons-outlined" style="font-size:12px; vertical-align:middle">schedule</mat-icon>
+                            {{ task.loggedHours }} / {{ task.assignHours }}
                           </span>
+                          <span class="kb-hours-pct">{{ getHoursProgress(task) }}%</span>
+                        </div>
+                        <div class="kb-progress-track">
+                          <div class="kb-progress-bar"
+                               [style.width.%]="getHoursProgress(task)"
+                               [style.background]="getPriorityColor(task.priority)"></div>
+                        </div>
+                      </div>
+                    }
+
+                    <!-- Footer: assignee + due date -->
+                    <div class="kb-task-footer">
+                      <!-- Assignee avatar -->
+                      <div class="d-flex align-items-center gap-2" [matTooltip]="task.assignedTo || 'Non assigné'">
+                        <div class="kb-avatar" [style.background]="getAvatarColor(task.assignedTo)">
+                          {{ getInitials(task.assignedTo) }}
+                        </div>
+                        @if (viewMode() === 'comfortable') {
+                          <span class="kb-assignee-name">{{ task.assignedTo || 'Non assigné' }}</span>
                         }
                       </div>
 
-                      <!-- Deliverable row (completed) -->
-                      @if (task.status === 'completed') {
-                        <div class="deliverable-row mt-2 pt-2">
-                          @if (hasDeliverable(task.taskId)) {
-                            <div class="d-flex align-items-center gap-2 flex-wrap">
-                              <span class="badge badge-light text-success" matTooltip="Livrable existe">
-                                <mat-icon class="material-icons-outlined me-1" style="font-size:13px">check_circle</mat-icon>
-                                Livrable
-                              </span>
-                              <button mat-stroked-button color="accent" class="deliv-btn"
-                                      (click)="openDeliverableDialog(task)" matTooltip="Ajouter une nouvelle version">
-                                <mat-icon class="material-icons-outlined me-1">add_circle</mat-icon>
-                                Version
-                              </button>
-                            </div>
-                          } @else {
-                            <button mat-stroked-button color="primary" class="deliv-btn"
-                                    (click)="openDeliverableDialog(task)" matTooltip="Ajouter un livrable">
-                              <mat-icon class="material-icons-outlined me-1">upload_file</mat-icon>
-                              Livrable
-                            </button>
-                          }
-                        </div>
+                      <!-- Due date chip -->
+                      @if (task.dueDate) {
+                        <span class="kb-due-chip" [attr.data-urgency]="getDueUrgency(task.dueDate)">
+                          <mat-icon class="material-icons-outlined" style="font-size:12px">event</mat-icon>
+                          {{ task.dueDate | date:'dd MMM' }}
+                        </span>
                       }
-                    </mat-card-content>
-                  </mat-card>
-                </div>
-              }
+                    </div>
 
-              <!-- Empty column drop zone -->
-              @if (getTasksForColumn(column.id).length === 0) {
-                <div class="drop-hint">
-                  <mat-icon class="material-icons-outlined">inbox</mat-icon>
-                  <span class="small">Déposer ici</span>
-                </div>
-              }
-            </div>
-          </mat-card>
-        </div>
+                    <!-- Bottom row: estimated hours chip + drag handle hint -->
+                    <div class="kb-task-bottom-row">
+                      <span class="kb-est-chip">
+                        <mat-icon class="material-icons-outlined" style="font-size:11px">hourglass_empty</mat-icon>
+                        {{ task.assignHours }}
+                      </span>
+                      <span class="kb-drag-hint">
+                        <mat-icon class="material-icons-outlined" style="font-size:14px; opacity:0.4">open_with</mat-icon>
+                      </span>
+                    </div>
+
+                    <!-- Deliverable row (completed tasks only) -->
+                    @if (task.status === 'completed') {
+                      <div class="kb-deliverable-row">
+                        @if (hasDeliverable(task.taskId)) {
+                          <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <span class="kb-deliv-badge kb-deliv-ok">
+                              <mat-icon class="material-icons-outlined" style="font-size:13px">check_circle</mat-icon>
+                              Livrable
+                            </span>
+                            <button mat-stroked-button color="accent" class="kb-deliv-btn"
+                                    (click)="openDeliverableDialog(task)"
+                                    matTooltip="Ajouter une nouvelle version">
+                              <mat-icon class="material-icons-outlined" style="font-size:14px">add_circle</mat-icon>
+                              Version
+                            </button>
+                          </div>
+                        } @else {
+                          <button mat-stroked-button color="primary" class="kb-deliv-btn"
+                                  (click)="openDeliverableDialog(task)"
+                                  matTooltip="Ajouter un livrable">
+                            <mat-icon class="material-icons-outlined" style="font-size:14px">upload_file</mat-icon>
+                            Livrable
+                          </button>
+                        }
+                      </div>
+                    }
+
+                  </div><!-- /.kb-task-inner -->
+                </div><!-- /.kb-task-card -->
+              </div><!-- /.kb-drag-item -->
+            }
+
+            <!-- Empty column drop zone -->
+            @if (getTasksForColumn(column.id).length === 0) {
+              <div class="kb-empty-drop">
+                <mat-icon class="material-icons-outlined" style="font-size:28px; color:#cbd5e1">inbox</mat-icon>
+                <span class="small" style="color:#94a3b8">Déposer ici</span>
+              </div>
+            }
+
+          </div><!-- /.kb-col-body -->
+        </div><!-- /.kb-column -->
       }
-    </div>
+
+    </div><!-- /.kb-board -->
   }
 
 </div>

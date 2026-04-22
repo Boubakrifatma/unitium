@@ -237,4 +237,67 @@ export class GitService {
     if (opts.projectId != null) params = params.set('projectId', opts.projectId);
     return this.http.get<GitDashboardSnapshot>(`${this.base}/git/dashboard`, { params });
   }
+
+  // ----- Manager code browser (read-only, via GitHub API — no local clone) ----
+
+  /** List all repos (public + private) visible to the manager. */
+  managerListRepos(page = 1, perPage = 100): Observable<GithubRepo[]> {
+    const params = new HttpParams().set('page', page).set('perPage', perPage);
+    return this.http.get<GithubRepo[]>(`${this.base}/manager/code/repos`, { params });
+  }
+
+  /** List all branches of a repo. */
+  managerListBranches(owner: string, repo: string): Observable<ManagerBranch[]> {
+    return this.http.get<ManagerBranch[]>(
+      `${this.base}/manager/code/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/branches`,
+    );
+  }
+
+  /**
+   * Browse repo contents at a given path and ref.
+   * Returns ManagerDirEntry[] for a directory, or ManagerFileContent for a file.
+   */
+  managerContents(owner: string, repo: string, path: string, ref: string): Observable<ManagerDirEntry[] | ManagerFileContent> {
+    const params = new HttpParams().set('path', path).set('ref', ref);
+    return this.http.get<ManagerDirEntry[] | ManagerFileContent>(
+      `${this.base}/manager/code/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents`,
+      { params },
+    );
+  }
+
+  /** Commit history on a specific branch (no local clone needed). */
+  managerCommits(owner: string, repo: string, ref: string, limit = 30): Observable<any[]> {
+    const params = new HttpParams().set('ref', ref).set('limit', limit);
+    return this.http.get<any[]>(
+      `${this.base}/manager/code/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/commits`,
+      { params },
+    );
+  }
+}
+
+// ── Manager browser DTOs ──────────────────────────────────────────────────────
+
+export interface ManagerBranch {
+  name: string;
+  commit: { sha: string; url: string };
+  protected: boolean;
+}
+
+export interface ManagerDirEntry {
+  name: string;
+  path: string;
+  type: 'file' | 'dir';
+  size: number;
+  sha: string;
+  htmlUrl: string;
+}
+
+export interface ManagerFileContent {
+  type: 'file';
+  path: string;
+  name: string;
+  size: number;
+  sha: string;
+  content: string;   // decoded plain text
+  htmlUrl: string;
 }

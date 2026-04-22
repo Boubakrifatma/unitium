@@ -168,16 +168,47 @@ public class JGitService {
     public Map<String, Object> branches(Long linkId) {
         GitRepoLink link = getLink(linkId);
         try (Git git = open(link)) {
-            List<String> branches = new ArrayList<>();
+            List<String> local = new ArrayList<>();
             for (Ref ref : git.branchList().call()) {
-                branches.add(ref.getName().replaceFirst("^refs/heads/", ""));
+                local.add(ref.getName().replaceFirst("^refs/heads/", ""));
+            }
+            List<String> remote = new ArrayList<>();
+            for (Ref ref : git.branchList().setListMode(org.eclipse.jgit.api.ListBranchCommand.ListMode.REMOTE).call()) {
+                String name = ref.getName().replaceFirst("^refs/remotes/origin/", "");
+                if (!name.equals("HEAD")) remote.add(name);
             }
             return Map.of(
                     "current", git.getRepository().getBranch(),
-                    "local", branches
+                    "local", local,
+                    "remote", remote
             );
         } catch (IOException | GitAPIException e) {
             throw new IllegalStateException("Failed to list branches: " + e.getMessage(), e);
+        }
+    }
+
+    public Map<String, Object> checkout(Long linkId, String branchName) {
+        GitRepoLink link = getLink(linkId);
+        try (Git git = open(link)) {
+            List<String> localNames = new ArrayList<>();
+            for (Ref ref : git.branchList().call()) {
+                localNames.add(ref.getName().replaceFirst("^refs/heads/", ""));
+            }
+            if (localNames.contains(branchName)) {
+                // Branch exists locally — simple checkout
+                git.checkout().setName(branchName).call();
+            } else {
+                // Branch only on remote — create tracking branch
+                git.checkout()
+                        .setCreateBranch(true)
+                        .setName(branchName)
+                        .setUpstreamMode(org.eclipse.jgit.api.CreateBranchCommand.SetupUpstreamMode.TRACK)
+                        .setStartPoint("origin/" + branchName)
+                        .call();
+            }
+            return Map.of("current", git.getRepository().getBranch());
+        } catch (IOException | GitAPIException e) {
+            throw new IllegalStateException("Checkout failed: " + e.getMessage(), e);
         }
     }
 }

@@ -10,6 +10,8 @@ import { MatIconModule } from "@angular/material/icon";
 import { MatChipsModule } from "@angular/material/chips";
 import { MatDatepickerModule } from "@angular/material/datepicker";
 import { MatNativeDateModule } from "@angular/material/core";
+import { MatSlideToggleModule } from "@angular/material/slide-toggle";
+import { MatTooltipModule } from "@angular/material/tooltip";
 import { TaskDependencyService } from "../../../services/TaskService/taskDepdendencyService";
 
 export interface DialogData {
@@ -36,7 +38,9 @@ export interface DialogData {
     MatIconModule,
     MatChipsModule,
     MatDatepickerModule,
-    MatNativeDateModule
+    MatNativeDateModule,
+    MatSlideToggleModule,
+    MatTooltipModule,
   ],
   templateUrl: "./create-edit-task.component.html",
   styleUrls: ["./create-edit-task.component.scss"]
@@ -70,7 +74,8 @@ export class CreateEditTaskComponent implements OnInit {
       dueDate: [""],
       assignHours: [8, [Validators.required, Validators.min(0)]],
       actualHours: [0, Validators.min(0)],
-      dependsOnTaskId: [null]
+      dependsOnTaskId: [null],
+      isVisibleToAssignees: [true]
     }, { validators: [CreateEditTaskComponent.descriptionRelatedToTitle()] });
   }
 
@@ -125,7 +130,8 @@ export class CreateEditTaskComponent implements OnInit {
       startDate: task.startDate ? task.startDate.split('T')[0] : "",
       dueDate: task.dueDate ? task.dueDate.split('T')[0] : "",
       assignHours: task.assignHours || 8,
-      actualHours: task.loggedHours || 0
+      actualHours: task.loggedHours || 0,
+      isVisibleToAssignees: task.isVisibleToAssignees !== false
     });
   }
 

@@ -89,6 +89,50 @@ interface CPMNode {
           {{ tooltip.slack === 0 ? '🔴 Chemin critique' : '🟢 Tâche normale' }}
         </div>
       </div>
+
+      <!-- CPM Table toggle -->
+      <div class="cpm-table-toggle" *ngIf="!isEmpty">
+        <button class="cpm-toggle-btn" (click)="showTable = !showTable">
+          <span *ngIf="!showTable">Voir tableau CPM</span>
+          <span *ngIf="showTable">Masquer tableau CPM</span>
+        </button>
+      </div>
+
+      <!-- CPM Table -->
+      <div class="cpm-table-wrapper" *ngIf="showTable && !isEmpty">
+        <table class="cpm-table">
+          <thead>
+            <tr>
+              <th>Tâche</th>
+              <th>Durée (h)</th>
+              <th>ES</th>
+              <th>EF</th>
+              <th>LS</th>
+              <th>LF</th>
+              <th>Marge</th>
+              <th>Chemin critique</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let node of allCpmNodes(); let i = index"
+                [class.cpm-row-critical]="node.onCriticalPath"
+                [class.cpm-row-even]="!node.onCriticalPath && i % 2 === 0">
+              <td class="cpm-task-title">{{ node.title }}</td>
+              <td class="cpm-center">{{ node.duration }}</td>
+              <td class="cpm-center">{{ node.ES }}</td>
+              <td class="cpm-center">{{ node.EF }}</td>
+              <td class="cpm-center">{{ node.LS }}</td>
+              <td class="cpm-center">{{ node.LF }}</td>
+              <td class="cpm-center" [class.cpm-slack-zero]="node.slack === 0">{{ node.slack }}</td>
+              <td class="cpm-center">
+                <span class="cpm-badge" [class.cpm-badge-critical]="node.onCriticalPath" [class.cpm-badge-normal]="!node.onCriticalPath">
+                  {{ node.onCriticalPath ? 'Oui' : 'Non' }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   `,
   styles: [`
@@ -244,6 +288,112 @@ interface CPMNode {
       background: rgba(239,68,68,0.15);
       color: #f87171;
     }
+
+    /* CPM Table */
+    .cpm-table-toggle {
+      display: flex;
+      justify-content: center;
+      padding: 12px 16px 0;
+    }
+
+    .cpm-toggle-btn {
+      padding: 8px 22px;
+      border: 1.5px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.06);
+      color: #cbd5e1;
+      border-radius: 8px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .cpm-toggle-btn:hover {
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.3);
+      color: #f1f5f9;
+    }
+
+    .cpm-table-wrapper {
+      padding: 16px;
+      overflow-x: auto;
+    }
+
+    .cpm-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    .cpm-table thead tr {
+      background: rgba(255,255,255,0.07);
+    }
+
+    .cpm-table th {
+      padding: 10px 14px;
+      text-align: left;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      white-space: nowrap;
+    }
+
+    .cpm-table td {
+      padding: 9px 14px;
+      color: #cbd5e1;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .cpm-center { text-align: center; }
+
+    .cpm-task-title {
+      font-weight: 600;
+      color: #e2e8f0;
+      max-width: 220px;
+    }
+
+    .cpm-row-critical {
+      background: rgba(239,68,68,0.08);
+    }
+
+    .cpm-row-critical td {
+      color: #fca5a5;
+    }
+
+    .cpm-row-critical .cpm-task-title {
+      color: #f87171;
+      font-weight: 700;
+    }
+
+    .cpm-row-even {
+      background: rgba(255,255,255,0.02);
+    }
+
+    .cpm-slack-zero {
+      color: #f87171 !important;
+      font-weight: 700;
+    }
+
+    .cpm-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    .cpm-badge-critical {
+      background: rgba(239,68,68,0.18);
+      color: #f87171;
+    }
+
+    .cpm-badge-normal {
+      background: rgba(59,130,246,0.15);
+      color: #60a5fa;
+    }
   `],
 })
 export class CriticalPathComponent implements OnChanges, AfterViewInit {
@@ -261,6 +411,15 @@ export class CriticalPathComponent implements OnChanges, AfterViewInit {
   normalNodes: CPMNode[] = [];
   totalCriticalDuration = 0;
   isEmpty = false;
+
+  // CPM table toggle
+  showTable = false;
+
+  /** All CPM nodes sorted: critical first, then by ES ascending */
+  allCpmNodes(): CPMNode[] {
+    return [...this.criticalNodes, ...this.normalNodes]
+      .sort((a, b) => (b.onCriticalPath ? 1 : 0) - (a.onCriticalPath ? 1 : 0) || a.ES - b.ES);
+  }
 
   tooltip = {
     visible: false,
