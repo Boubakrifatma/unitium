@@ -25,10 +25,10 @@ interface CPMNode {
   duration: number;
   status: string;
   priority: string;
-  ES: number; // Earliest Start
-  EF: number; // Earliest Finish
-  LS: number; // Latest Start
-  LF: number; // Latest Finish
+  ES: number;
+  EF: number;
+  LS: number;
+  LF: number;
   slack: number;
   onCriticalPath: boolean;
 }
@@ -39,62 +39,92 @@ interface CPMNode {
   imports: [CommonModule],
   template: `
     <div class="cp-wrapper">
+
       <!-- Legend -->
       <div class="cp-legend">
-        <span class="legend-item critical"><span class="dot"></span>Chemin critique</span>
-        <span class="legend-item normal"><span class="dot"></span>Tâche normale</span>
-        <span class="legend-item done"><span class="dot"></span>Terminée</span>
-        <span class="legend-item no-dep">* Tâches sans dépendances affichées séparément</span>
+        <div class="legend-items">
+          <span class="legend-item critical"><span class="dot"></span>Chemin critique</span>
+          <span class="legend-item normal"><span class="dot"></span>Tâche normale</span>
+          <span class="legend-item done"><span class="dot"></span>Terminée</span>
+          <span class="legend-item done-critical"><span class="dot"></span>Critique & Terminée</span>
+        </div>
+        <span class="legend-note">* Nœuds sans dépendances affichés en isolation</span>
       </div>
 
-      <!-- Stats bar -->
-      <div class="cp-stats" *ngIf="criticalNodes.length > 0">
-        <div class="stat">
-          <span class="stat-label">Durée totale critique</span>
-          <span class="stat-val">{{ totalCriticalDuration }}h</span>
+      <!-- Stats -->
+      <div class="cp-stats" *ngIf="!isEmpty">
+        <div class="cp-stat critical-stat">
+          <div class="cp-stat-icon">🔴</div>
+          <div class="cp-stat-body">
+            <span class="cp-stat-value">{{ totalCriticalDuration }}h</span>
+            <span class="cp-stat-label">Durée critique totale</span>
+          </div>
         </div>
-        <div class="stat">
-          <span class="stat-label">Tâches critiques</span>
-          <span class="stat-val critical-color">{{ criticalNodes.length }}</span>
+        <div class="cp-stat">
+          <div class="cp-stat-icon">📊</div>
+          <div class="cp-stat-body">
+            <span class="cp-stat-value critical-color">{{ criticalNodes.length }}</span>
+            <span class="cp-stat-label">Tâches critiques</span>
+          </div>
         </div>
-        <div class="stat">
-          <span class="stat-label">Tâches normales</span>
-          <span class="stat-val">{{ normalNodes.length }}</span>
+        <div class="cp-stat">
+          <div class="cp-stat-icon">🟢</div>
+          <div class="cp-stat-body">
+            <span class="cp-stat-value normal-color">{{ normalNodes.length }}</span>
+            <span class="cp-stat-label">Tâches non critiques</span>
+          </div>
+        </div>
+        <div class="cp-stat">
+          <div class="cp-stat-icon">⏱️</div>
+          <div class="cp-stat-body">
+            <span class="cp-stat-value">{{ projectFinish }}h</span>
+            <span class="cp-stat-label">Durée projet</span>
+          </div>
+        </div>
+        <div class="cp-stat">
+          <div class="cp-stat-icon">🎯</div>
+          <div class="cp-stat-body">
+            <span class="cp-stat-value slack-color">{{ avgSlack }}h</span>
+            <span class="cp-stat-label">Marge moyenne</span>
+          </div>
         </div>
       </div>
 
       <!-- Empty state -->
       <div *ngIf="isEmpty" class="cp-empty">
-        <div class="empty-icon">�</div>
-        <p>Aucune tâche disponible.</p>
-        <p class="hint">Créez des tâches avec des durées estimées pour voir le chemin critique.</p>
+        <div class="empty-icon">🗂️</div>
+        <h4>Aucune tâche disponible</h4>
+        <p>Créez des tâches avec des durées estimées pour calculer le chemin critique.</p>
       </div>
 
-      <!-- Cytoscape container -->
+      <!-- Cytoscape graph -->
       <div #cytoscapeContainer class="cy-container" [class.hidden]="isEmpty"></div>
 
-      <!-- Node tooltip -->
+      <!-- Tooltip -->
       <div class="cp-tooltip" [class.visible]="tooltip.visible"
            [style.left.px]="tooltip.x" [style.top.px]="tooltip.y">
-        <div class="tooltip-title">{{ tooltip.title }}</div>
-        <div class="tooltip-row"><span>Durée estimée</span><strong>{{ tooltip.duration }}h</strong></div>
-        <div class="tooltip-row"><span>Début au plus tôt</span><strong>{{ tooltip.ES }}h</strong></div>
-        <div class="tooltip-row"><span>Fin au plus tôt</span><strong>{{ tooltip.EF }}h</strong></div>
-        <div class="tooltip-row"><span>Début au plus tard</span><strong>{{ tooltip.LS }}h</strong></div>
-        <div class="tooltip-row"><span>Fin au plus tard</span><strong>{{ tooltip.LF }}h</strong></div>
-        <div class="tooltip-row slack" [class.zero]="tooltip.slack === 0">
-          <span>Marge totale</span><strong>{{ tooltip.slack }}h</strong>
+        <div class="tooltip-title" [class.critical-title]="tooltip.slack === 0">
+          <span>{{ tooltip.slack === 0 ? '🔴' : '🔵' }}</span>
+          {{ tooltip.title }}
+        </div>
+        <div class="tooltip-grid">
+          <span class="tl">Durée estimée</span>   <strong>{{ tooltip.duration }}h</strong>
+          <span class="tl">Début au plus tôt</span> <strong>{{ tooltip.ES }}h</strong>
+          <span class="tl">Fin au plus tôt</span>   <strong>{{ tooltip.EF }}h</strong>
+          <span class="tl">Début au plus tard</span><strong>{{ tooltip.LS }}h</strong>
+          <span class="tl">Fin au plus tard</span>  <strong>{{ tooltip.LF }}h</strong>
+          <span class="tl">Marge totale</span>
+          <strong [class.zero-slack]="tooltip.slack === 0">{{ tooltip.slack }}h</strong>
         </div>
         <div class="tooltip-badge" [class.critical]="tooltip.slack === 0">
-          {{ tooltip.slack === 0 ? '🔴 Chemin critique' : '🟢 Tâche normale' }}
+          {{ tooltip.slack === 0 ? '🔴 Chemin critique — Marge nulle' : '🟢 Tâche normale' }}
         </div>
       </div>
 
-      <!-- CPM Table toggle -->
-      <div class="cpm-table-toggle" *ngIf="!isEmpty">
+      <!-- CPM table toggle -->
+      <div class="cpm-toggle-row" *ngIf="!isEmpty">
         <button class="cpm-toggle-btn" (click)="showTable = !showTable">
-          <span *ngIf="!showTable">Voir tableau CPM</span>
-          <span *ngIf="showTable">Masquer tableau CPM</span>
+          <span>{{ showTable ? '▲ Masquer le tableau CPM' : '▼ Afficher le tableau CPM' }}</span>
         </button>
       </div>
 
@@ -103,29 +133,32 @@ interface CPMNode {
         <table class="cpm-table">
           <thead>
             <tr>
+              <th>#</th>
               <th>Tâche</th>
               <th>Durée (h)</th>
-              <th>ES</th>
-              <th>EF</th>
-              <th>LS</th>
-              <th>LF</th>
+              <th title="Earliest Start">ES</th>
+              <th title="Earliest Finish">EF</th>
+              <th title="Latest Start">LS</th>
+              <th title="Latest Finish">LF</th>
               <th>Marge</th>
-              <th>Chemin critique</th>
+              <th>Critique ?</th>
             </tr>
           </thead>
           <tbody>
             <tr *ngFor="let node of allCpmNodes(); let i = index"
-                [class.cpm-row-critical]="node.onCriticalPath"
-                [class.cpm-row-even]="!node.onCriticalPath && i % 2 === 0">
-              <td class="cpm-task-title">{{ node.title }}</td>
-              <td class="cpm-center">{{ node.duration }}</td>
-              <td class="cpm-center">{{ node.ES }}</td>
-              <td class="cpm-center">{{ node.EF }}</td>
-              <td class="cpm-center">{{ node.LS }}</td>
-              <td class="cpm-center">{{ node.LF }}</td>
-              <td class="cpm-center" [class.cpm-slack-zero]="node.slack === 0">{{ node.slack }}</td>
-              <td class="cpm-center">
-                <span class="cpm-badge" [class.cpm-badge-critical]="node.onCriticalPath" [class.cpm-badge-normal]="!node.onCriticalPath">
+                [class.row-critical]="node.onCriticalPath"
+                [class.row-alt]="!node.onCriticalPath && i % 2 !== 0">
+              <td class="col-num">{{ i + 1 }}</td>
+              <td class="col-title">{{ node.title }}</td>
+              <td class="col-center">{{ node.duration }}</td>
+              <td class="col-center">{{ node.ES }}</td>
+              <td class="col-center">{{ node.EF }}</td>
+              <td class="col-center">{{ node.LS }}</td>
+              <td class="col-center">{{ node.LF }}</td>
+              <td class="col-center" [class.zero-slack]="node.slack === 0">{{ node.slack }}</td>
+              <td class="col-center">
+                <span class="badge" [class.badge-critical]="node.onCriticalPath"
+                                    [class.badge-normal]="!node.onCriticalPath">
                   {{ node.onCriticalPath ? 'Oui' : 'Non' }}
                 </span>
               </td>
@@ -133,114 +166,163 @@ interface CPMNode {
           </tbody>
         </table>
       </div>
+
     </div>
   `,
   styles: [`
+    /* ── Wrapper ────────────────────────────────────────────────── */
     .cp-wrapper {
       position: relative;
-      background: #0f172a;
-      border-radius: 12px;
+      background: #ffffff;
+      border-radius: 14px;
+      border: 1px solid #e2e8f0;
       overflow: hidden;
-      min-height: 520px;
+      box-shadow: 0 1px 8px rgba(0,0,0,0.06);
     }
 
+    /* ── Legend ─────────────────────────────────────────────────── */
     .cp-legend {
       display: flex;
-      gap: 20px;
       align-items: center;
+      justify-content: space-between;
       flex-wrap: wrap;
-      padding: 12px 16px;
-      background: rgba(255,255,255,0.04);
-      border-bottom: 1px solid rgba(255,255,255,0.08);
+      gap: 8px;
+      padding: 10px 18px;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .legend-items {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      align-items: center;
     }
 
     .legend-item {
       display: flex;
       align-items: center;
       gap: 6px;
-      font-size: 0.78rem;
-      color: #94a3b8;
+      font-size: 12px;
+      color: #475569;
+      font-weight: 500;
     }
 
     .dot {
       width: 12px;
       height: 12px;
       border-radius: 50%;
+      flex-shrink: 0;
     }
 
-    .legend-item.critical .dot { background: #ef4444; }
-    .legend-item.normal .dot { background: #3b82f6; }
-    .legend-item.done .dot { background: #10b981; }
-    .legend-item.no-dep { font-style: italic; font-size: 0.72rem; color: #64748b; }
+    .legend-item.critical      .dot { background: #dc2626; }
+    .legend-item.normal        .dot { background: #3b82f6; }
+    .legend-item.done          .dot { background: #16a34a; }
+    .legend-item.done-critical .dot { background: #d97706; }
 
+    .legend-note {
+      font-size: 11px;
+      color: #94a3b8;
+      font-style: italic;
+    }
+
+    /* ── Stats bar ──────────────────────────────────────────────── */
     .cp-stats {
       display: flex;
-      gap: 0;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
+      border-bottom: 1px solid #e2e8f0;
+      overflow-x: auto;
     }
 
-    .stat {
+    .cp-stat {
+      display: flex;
+      align-items: center;
+      gap: 10px;
       flex: 1;
-      text-align: center;
-      padding: 10px 16px;
-      border-right: 1px solid rgba(255,255,255,0.08);
+      padding: 14px 18px;
+      border-right: 1px solid #e2e8f0;
+      min-width: 150px;
+
+      &:last-child { border-right: none; }
+
+      &.critical-stat {
+        background: #fff5f5;
+        border-bottom: 3px solid #dc2626;
+      }
     }
 
-    .stat:last-child { border-right: none; }
+    .cp-stat-icon { font-size: 22px; flex-shrink: 0; }
 
-    .stat-label {
-      display: block;
-      font-size: 0.72rem;
+    .cp-stat-body {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .cp-stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #0f172a;
+      line-height: 1;
+    }
+
+    .cp-stat-label {
+      font-size: 11px;
       color: #64748b;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
     }
 
-    .stat-val {
-      display: block;
-      font-size: 1.3rem;
-      font-weight: 700;
-      color: #f1f5f9;
-      margin-top: 2px;
-    }
+    .critical-color { color: #dc2626 !important; }
+    .normal-color   { color: #16a34a !important; }
+    .slack-color    { color: #7c3aed !important; }
 
-    .stat-val.critical-color { color: #ef4444; }
-
+    /* ── Graph container ────────────────────────────────────────── */
     .cy-container {
       width: 100%;
-      height: 460px;
-      background: #0f172a;
+      height: 480px;
+      background: #fafbfc;
+      border-bottom: 1px solid #e2e8f0;
     }
 
     .cy-container.hidden { display: none; }
 
+    /* ── Empty state ────────────────────────────────────────────── */
     .cp-empty {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      height: 400px;
-      color: #64748b;
+      padding: 60px 24px;
       text-align: center;
-      gap: 8px;
+      background: #f8fafc;
     }
 
-    .empty-icon { font-size: 3rem; }
+    .empty-icon { font-size: 3.5rem; margin-bottom: 16px; }
 
-    .cp-empty p { margin: 0; font-size: 0.95rem; }
+    .cp-empty h4 {
+      margin: 0 0 8px;
+      font-size: 17px;
+      font-weight: 600;
+      color: #475569;
+    }
 
-    .cp-empty .hint { font-size: 0.8rem; color: #475569; max-width: 380px; }
+    .cp-empty p {
+      margin: 0;
+      font-size: 13px;
+      color: #94a3b8;
+      max-width: 360px;
+    }
 
-    /* Tooltip */
+    /* ── Tooltip ────────────────────────────────────────────────── */
     .cp-tooltip {
       position: absolute;
       pointer-events: none;
-      background: #1e293b;
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 10px;
-      padding: 12px 14px;
-      min-width: 220px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 14px 16px;
+      min-width: 230px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.12);
       opacity: 0;
       transform: translateY(6px);
       transition: opacity 0.15s, transform 0.15s;
@@ -253,146 +335,163 @@ interface CPMNode {
     }
 
     .tooltip-title {
-      font-size: 0.92rem;
+      font-size: 13px;
       font-weight: 700;
-      color: #f1f5f9;
-      margin-bottom: 8px;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      padding-bottom: 6px;
-    }
-
-    .tooltip-row {
+      color: #1e293b;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e2e8f0;
       display: flex;
-      justify-content: space-between;
-      font-size: 0.8rem;
-      color: #94a3b8;
-      margin: 3px 0;
+      gap: 6px;
+      align-items: flex-start;
+
+      &.critical-title { color: #dc2626; }
     }
 
-    .tooltip-row strong { color: #f1f5f9; }
+    .tooltip-grid {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 4px 12px;
+      font-size: 12px;
+    }
 
-    .tooltip-row.slack.zero strong { color: #ef4444; }
+    .tl { color: #64748b; }
+
+    .tooltip-grid strong {
+      color: #1e293b;
+      font-weight: 700;
+      text-align: right;
+
+      &.zero-slack { color: #dc2626; }
+    }
 
     .tooltip-badge {
-      margin-top: 8px;
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 0.75rem;
+      margin-top: 10px;
+      padding: 5px 10px;
+      border-radius: 8px;
+      font-size: 12px;
       font-weight: 600;
       text-align: center;
-      background: rgba(59,130,246,0.15);
-      color: #60a5fa;
+      background: #dbeafe;
+      color: #1e40af;
+
+      &.critical {
+        background: #fee2e2;
+        color: #991b1b;
+      }
     }
 
-    .tooltip-badge.critical {
-      background: rgba(239,68,68,0.15);
-      color: #f87171;
-    }
-
-    /* CPM Table */
-    .cpm-table-toggle {
+    /* ── CPM table toggle ───────────────────────────────────────── */
+    .cpm-toggle-row {
       display: flex;
       justify-content: center;
-      padding: 12px 16px 0;
+      padding: 14px 16px 8px;
+      background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
     }
 
     .cpm-toggle-btn {
-      padding: 8px 22px;
-      border: 1.5px solid rgba(255,255,255,0.18);
-      background: rgba(255,255,255,0.06);
-      color: #cbd5e1;
+      padding: 8px 24px;
+      border: 1.5px solid #e2e8f0;
+      background: #ffffff;
+      color: #475569;
       border-radius: 8px;
-      font-size: 0.84rem;
+      font-size: 13px;
       font-weight: 600;
       cursor: pointer;
-      transition: background 0.2s, border-color 0.2s;
+      transition: all 0.15s;
+
+      &:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+        color: #1e293b;
+      }
     }
 
-    .cpm-toggle-btn:hover {
-      background: rgba(255,255,255,0.12);
-      border-color: rgba(255,255,255,0.3);
-      color: #f1f5f9;
-    }
-
+    /* ── CPM Table ──────────────────────────────────────────────── */
     .cpm-table-wrapper {
-      padding: 16px;
+      padding: 0 16px 20px;
       overflow-x: auto;
+      background: #f8fafc;
     }
 
     .cpm-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.82rem;
+      font-size: 13px;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
     }
 
     .cpm-table thead tr {
-      background: rgba(255,255,255,0.07);
+      background: #f1f5f9;
     }
 
     .cpm-table th {
-      padding: 10px 14px;
+      padding: 11px 14px;
       text-align: left;
-      font-size: 0.72rem;
+      font-size: 11px;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.06em;
       color: #64748b;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
+      border-bottom: 2px solid #e2e8f0;
       white-space: nowrap;
     }
 
     .cpm-table td {
-      padding: 9px 14px;
-      color: #cbd5e1;
-      border-bottom: 1px solid rgba(255,255,255,0.05);
+      padding: 10px 14px;
+      color: #374151;
+      border-bottom: 1px solid #f1f5f9;
+      background: #ffffff;
     }
 
-    .cpm-center { text-align: center; }
+    .col-num { color: #94a3b8; font-size: 11px; }
+    .col-center { text-align: center; }
 
-    .cpm-task-title {
+    .col-title {
       font-weight: 600;
-      color: #e2e8f0;
-      max-width: 220px;
+      color: #1e293b;
+      max-width: 240px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
-    .cpm-row-critical {
-      background: rgba(239,68,68,0.08);
+    .row-critical td {
+      background: #fff5f5 !important;
+      color: #7f1d1d;
     }
 
-    .cpm-row-critical td {
-      color: #fca5a5;
-    }
-
-    .cpm-row-critical .cpm-task-title {
-      color: #f87171;
+    .row-critical .col-title {
+      color: #dc2626;
       font-weight: 700;
     }
 
-    .cpm-row-even {
-      background: rgba(255,255,255,0.02);
-    }
+    .row-alt td { background: #fafafa; }
 
-    .cpm-slack-zero {
-      color: #f87171 !important;
+    .zero-slack {
+      color: #dc2626 !important;
       font-weight: 700;
     }
 
-    .cpm-badge {
+    .badge {
       display: inline-block;
       padding: 3px 10px;
-      border-radius: 12px;
-      font-size: 0.72rem;
+      border-radius: 20px;
+      font-size: 11px;
       font-weight: 700;
     }
 
-    .cpm-badge-critical {
-      background: rgba(239,68,68,0.18);
-      color: #f87171;
+    .badge-critical {
+      background: #fee2e2;
+      color: #dc2626;
     }
 
-    .cpm-badge-normal {
-      background: rgba(59,130,246,0.15);
-      color: #60a5fa;
+    .badge-normal {
+      background: #dbeafe;
+      color: #1e40af;
     }
   `],
 })
@@ -408,42 +507,29 @@ export class CriticalPathComponent implements OnChanges, AfterViewInit {
   constructor(private cdr: ChangeDetectorRef, private ngZone: NgZone) {}
 
   criticalNodes: CPMNode[] = [];
-  normalNodes: CPMNode[] = [];
+  normalNodes:   CPMNode[] = [];
   totalCriticalDuration = 0;
+  projectFinish = 0;
+  avgSlack = 0;
   isEmpty = false;
-
-  // CPM table toggle
   showTable = false;
 
-  /** All CPM nodes sorted: critical first, then by ES ascending */
   allCpmNodes(): CPMNode[] {
     return [...this.criticalNodes, ...this.normalNodes]
       .sort((a, b) => (b.onCriticalPath ? 1 : 0) - (a.onCriticalPath ? 1 : 0) || a.ES - b.ES);
   }
 
-  tooltip = {
-    visible: false,
-    x: 0,
-    y: 0,
-    title: '',
-    duration: 0,
-    ES: 0,
-    EF: 0,
-    LS: 0,
-    LF: 0,
-    slack: 0,
-  };
+  tooltip = { visible: false, x: 0, y: 0, title: '', duration: 0, ES: 0, EF: 0, LS: 0, LF: 0, slack: 0 };
 
   ngAfterViewInit(): void {
     this.viewInitialized = true;
-    // Delay to ensure the container is visible before Cytoscape measures it
     setTimeout(() => {
       this.ngZone.runOutsideAngular(() => this.render());
       this.cdr.detectChanges();
     }, 50);
   }
 
-  ngOnChanges(changes: SimpleChanges): void {
+  ngOnChanges(_: SimpleChanges): void {
     if (this.viewInitialized) {
       setTimeout(() => {
         this.ngZone.runOutsideAngular(() => this.render());
@@ -452,21 +538,17 @@ export class CriticalPathComponent implements OnChanges, AfterViewInit {
     }
   }
 
-  // ── CPM computation ────────────────────────────────────────────
+  // ── CPM algorithm ────────────────────────────────────────────────
 
   private computeCPM(): Map<number, CPMNode> {
-    // Include ALL tasks, not just those with dependencies
     const taskIds = new Set(this.tasks.map(t => t.taskId));
     const relevantDeps = this.dependencies.filter(
       d => taskIds.has(d.taskId) && taskIds.has(d.dependsOnTaskId)
     );
 
     const nodeMap = new Map<number, CPMNode>();
-    const tasksInGraph = new Set<number>();
 
-    // Add ALL tasks to the graph
     this.tasks.forEach(t => {
-      tasksInGraph.add(t.taskId);
       nodeMap.set(t.taskId, {
         id: t.taskId,
         title: t.title,
@@ -479,109 +561,101 @@ export class CriticalPathComponent implements OnChanges, AfterViewInit {
       });
     });
 
-    // Build successor/predecessor adjacency
-    const successors = new Map<number, number[]>();
+    const successors   = new Map<number, number[]>();
     const predecessors = new Map<number, number[]>();
-
-    nodeMap.forEach((_, id) => {
-      successors.set(id, []);
-      predecessors.set(id, []);
-    });
+    nodeMap.forEach((_, id) => { successors.set(id, []); predecessors.set(id, []); });
 
     relevantDeps.forEach(d => {
-      // d.dependsOnTask must finish before d.task starts
       successors.get(d.dependsOnTaskId)?.push(d.taskId);
       predecessors.get(d.taskId)?.push(d.dependsOnTaskId);
     });
 
-    // Topological sort (Kahn's algorithm)
-    const inDegree = new Map<number, number>();
-    nodeMap.forEach((_, id) => inDegree.set(id, predecessors.get(id)?.length ?? 0));
-
+    // Topological sort — Kahn's algorithm
+    const inDeg = new Map<number, number>();
+    nodeMap.forEach((_, id) => inDeg.set(id, predecessors.get(id)?.length ?? 0));
     const queue: number[] = [];
-    inDegree.forEach((deg, id) => { if (deg === 0) queue.push(id); });
-
-    const topoOrder: number[] = [];
-    while (queue.length > 0) {
+    inDeg.forEach((d, id) => { if (d === 0) queue.push(id); });
+    const topo: number[] = [];
+    while (queue.length) {
       const curr = queue.shift()!;
-      topoOrder.push(curr);
-      successors.get(curr)?.forEach(succ => {
-        const newDeg = (inDegree.get(succ) ?? 0) - 1;
-        inDegree.set(succ, newDeg);
-        if (newDeg === 0) queue.push(succ);
+      topo.push(curr);
+      successors.get(curr)?.forEach(s => {
+        const nd = (inDeg.get(s) ?? 0) - 1;
+        inDeg.set(s, nd);
+        if (nd === 0) queue.push(s);
       });
     }
 
-    // Forward pass — ES, EF
-    topoOrder.forEach(id => {
-      const node = nodeMap.get(id)!;
+    // Forward pass
+    topo.forEach(id => {
+      const n = nodeMap.get(id)!;
       const preds = predecessors.get(id) ?? [];
-      node.ES = preds.length === 0
-        ? 0
-        : Math.max(...preds.map(p => nodeMap.get(p)!.EF));
-      node.EF = node.ES + node.duration;
+      n.ES = preds.length ? Math.max(...preds.map(p => nodeMap.get(p)!.EF)) : 0;
+      n.EF = n.ES + n.duration;
     });
 
-    // Project finish = max EF
-    const projectFinish = Math.max(...Array.from(nodeMap.values()).map(n => n.EF));
+    const finish = Math.max(...Array.from(nodeMap.values()).map(n => n.EF));
 
-    // Backward pass — LF, LS
-    [...topoOrder].reverse().forEach(id => {
-      const node = nodeMap.get(id)!;
+    // Backward pass
+    [...topo].reverse().forEach(id => {
+      const n = nodeMap.get(id)!;
       const succs = successors.get(id) ?? [];
-      node.LF = succs.length === 0
-        ? projectFinish
-        : Math.min(...succs.map(s => nodeMap.get(s)!.LS));
-      node.LS = node.LF - node.duration;
+      n.LF = succs.length ? Math.min(...succs.map(s => nodeMap.get(s)!.LS)) : finish;
+      n.LS = n.LF - n.duration;
     });
 
-    // Slack & critical path flag
-    nodeMap.forEach(node => {
-      node.slack = node.LS - node.ES;
-      node.onCriticalPath = node.slack === 0;
+    // Slack & critical path
+    nodeMap.forEach(n => {
+      n.slack = n.LS - n.ES;
+      n.onCriticalPath = n.slack === 0;
     });
 
     return nodeMap;
   }
 
-  // ── Rendering ──────────────────────────────────────────────────
+  // ── Rendering ─────────────────────────────────────────────────────
 
   private render(): void {
     if (!this.containerRef) return;
-
-    if (this.cy) {
-      this.cy.destroy();
-      this.cy = null;
-    }
+    if (this.cy) { this.cy.destroy(); this.cy = null; }
 
     const nodeMap = this.computeCPM();
 
     if (nodeMap.size === 0) {
       this.isEmpty = true;
       this.criticalNodes = [];
-      this.normalNodes = [];
+      this.normalNodes   = [];
       this.totalCriticalDuration = 0;
+      this.projectFinish = 0;
+      this.avgSlack = 0;
       return;
     }
 
     this.isEmpty = false;
-    this.criticalNodes = Array.from(nodeMap.values()).filter(n => n.onCriticalPath);
-    this.normalNodes = Array.from(nodeMap.values()).filter(n => !n.onCriticalPath);
+    this.criticalNodes = Array.from(nodeMap.values()).filter(n =>  n.onCriticalPath);
+    this.normalNodes   = Array.from(nodeMap.values()).filter(n => !n.onCriticalPath);
     this.totalCriticalDuration = this.criticalNodes.reduce((s, n) => s + n.duration, 0);
+    this.projectFinish = Math.max(...Array.from(nodeMap.values()).map(n => n.EF));
+    const allSlacks = Array.from(nodeMap.values()).map(n => n.slack);
+    this.avgSlack = allSlacks.length
+      ? Math.round(allSlacks.reduce((s, v) => s + v, 0) / allSlacks.length)
+      : 0;
 
     const taskIds = new Set(this.tasks.map(t => t.taskId));
     const relevantDeps = this.dependencies.filter(
       d => taskIds.has(d.taskId) && taskIds.has(d.dependsOnTaskId)
     );
 
-    // Build cytoscape elements
     const elements: cytoscape.ElementDefinition[] = [];
 
     nodeMap.forEach(node => {
+      // Node label: title + ES-EF on one line
+      const shortTitle = node.title.length > 20 ? node.title.substring(0, 18) + '…' : node.title;
+      const label = `${shortTitle}\n[${node.ES}→${node.EF}] slack:${node.slack}`;
       elements.push({
         data: {
           id: `n${node.id}`,
-          label: node.title.length > 22 ? node.title.substring(0, 20) + '…' : node.title,
+          label,
           duration: node.duration,
           slack: node.slack,
           critical: node.onCriticalPath,
@@ -592,18 +666,14 @@ export class CriticalPathComponent implements OnChanges, AfterViewInit {
     });
 
     relevantDeps.forEach(dep => {
-      const source = `n${dep.dependsOnTaskId}`;
-      const target = `n${dep.taskId}`;
-      const srcNode = nodeMap.get(dep.dependsOnTaskId);
-      const tgtNode = nodeMap.get(dep.taskId);
-      const isCriticalEdge = srcNode?.onCriticalPath && tgtNode?.onCriticalPath;
-
+      const src = nodeMap.get(dep.dependsOnTaskId);
+      const tgt = nodeMap.get(dep.taskId);
       elements.push({
         data: {
           id: `e${dep.id}`,
-          source,
-          target,
-          critical: isCriticalEdge,
+          source: `n${dep.dependsOnTaskId}`,
+          target: `n${dep.taskId}`,
+          critical: src?.onCriticalPath && tgt?.onCriticalPath,
           depType: dep.dependencyType,
         },
       });
@@ -616,63 +686,66 @@ export class CriticalPathComponent implements OnChanges, AfterViewInit {
         {
           selector: 'node',
           style: {
-            'background-color': '#3b82f6',
+            'background-color': '#dbeafe',
             'border-width': 2,
-            'border-color': '#1d4ed8',
+            'border-color': '#3b82f6',
             label: 'data(label)',
-            color: '#ffffff',
-            'font-size': '11px',
-            'font-weight': 'normal',
+            color: '#1e40af',
+            'font-size': '10px',
+            'font-weight': 600,
             'text-valign': 'center',
             'text-halign': 'center',
             'text-wrap': 'wrap',
-            'text-max-width': '90px',
-            width: 100,
-            height: 40,
+            'text-max-width': '100px',
+            width: 120,
+            height: 50,
             shape: 'roundrectangle',
-            'text-outline-width': 0,
-            'padding': '8px',
+            'padding': '10px',
           },
         },
         {
           selector: 'node[?critical]',
           style: {
-            'background-color': '#dc2626',
-            'border-color': '#991b1b',
+            'background-color': '#fee2e2',
+            'border-color': '#dc2626',
             'border-width': 3,
+            color: '#991b1b',
           },
         },
         {
           selector: 'node[?done]',
           style: {
-            'background-color': '#059669',
-            'border-color': '#065f46',
+            'background-color': '#dcfce7',
+            'border-color': '#16a34a',
+            color: '#14532d',
           },
         },
         {
           selector: 'node[?critical][?done]',
           style: {
-            'background-color': '#d97706',
-            'border-color': '#92400e',
+            'background-color': '#fef3c7',
+            'border-color': '#d97706',
+            color: '#78350f',
           },
         },
         {
           selector: 'node:selected',
           style: {
-            'border-color': '#fbbf24',
+            'border-color': '#7c3aed',
             'border-width': 4,
+            'background-color': '#ede9fe',
           },
         },
         {
           selector: 'edge',
           style: {
             width: 2,
-            'line-color': '#475569',
-            'target-arrow-color': '#475569',
+            'line-color': '#cbd5e1',
+            'target-arrow-color': '#cbd5e1',
             'target-arrow-shape': 'triangle',
             'curve-style': 'bezier',
-            'arrow-scale': 1.2,
-            opacity: 0.7,
+            'arrow-scale': 1.3,
+            opacity: 0.8,
           },
         },
         {
@@ -688,60 +761,35 @@ export class CriticalPathComponent implements OnChanges, AfterViewInit {
       layout: {
         name: 'dagre',
         rankDir: 'LR',
-        nodeSep: 60,
-        rankSep: 100,
-        padding: 30,
+        nodeSep: 55,
+        rankSep: 110,
+        padding: 36,
         animate: false,
       } as any,
-      minZoom: 0.3,
+      minZoom: 0.25,
       maxZoom: 3,
       userZoomingEnabled: true,
       userPanningEnabled: true,
+      boxSelectionEnabled: false,
     });
 
-    // Tooltip on hover — run inside Angular zone so CD fires
-    this.cy.on('mouseover', 'node', (evt) => {
-      const nodeData: CPMNode = evt.target.data('nodeData');
-      const pos = evt.renderedPosition;
+    const showTooltip = (nodeData: CPMNode, pos: { x: number; y: number }) => {
       this.ngZone.run(() => {
         this.tooltip = {
           visible: true,
-          x: pos.x + 16,
-          y: pos.y - 10,
+          x: pos.x + 18,
+          y: pos.y - 12,
           title: nodeData.title,
           duration: nodeData.duration,
-          ES: nodeData.ES,
-          EF: nodeData.EF,
-          LS: nodeData.LS,
-          LF: nodeData.LF,
+          ES: nodeData.ES, EF: nodeData.EF,
+          LS: nodeData.LS, LF: nodeData.LF,
           slack: nodeData.slack,
         };
       });
-    });
+    };
 
-    this.cy.on('mouseout', 'node', () => {
-      this.ngZone.run(() => {
-        this.tooltip = { ...this.tooltip, visible: false };
-      });
-    });
-
-    this.cy.on('tap', 'node', (evt) => {
-      const nodeData: CPMNode = evt.target.data('nodeData');
-      const pos = evt.renderedPosition;
-      this.ngZone.run(() => {
-        this.tooltip = {
-          visible: true,
-          x: pos.x + 16,
-          y: pos.y - 10,
-          title: nodeData.title,
-          duration: nodeData.duration,
-          ES: nodeData.ES,
-          EF: nodeData.EF,
-          LS: nodeData.LS,
-          LF: nodeData.LF,
-          slack: nodeData.slack,
-        };
-      });
-    });
+    this.cy.on('mouseover', 'node', e => showTooltip(e.target.data('nodeData'), e.renderedPosition));
+    this.cy.on('tap',       'node', e => showTooltip(e.target.data('nodeData'), e.renderedPosition));
+    this.cy.on('mouseout',  'node', () => this.ngZone.run(() => { this.tooltip = { ...this.tooltip, visible: false }; }));
   }
 }

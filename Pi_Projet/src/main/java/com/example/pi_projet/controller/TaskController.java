@@ -92,6 +92,7 @@ public class TaskController {
                 .milestone(milestone)
                 .parentTask(parentTask)
                 .createdBy(currentUser)
+                .isVisibleToAssignees(dto.getIsVisibleToAssignees() == null || dto.getIsVisibleToAssignees())
                 .build();
 
         Task saved = taskService.create(task);
@@ -180,6 +181,11 @@ public class TaskController {
             existing.setProject(projectService.getById(UUID.fromString(dto.getProjectId())));
         }
 
+        // visibility
+        if (dto.getIsVisibleToAssignees() != null) {
+            existing.setVisibleToAssignees(dto.getIsVisibleToAssignees());
+        }
+
         return ResponseEntity.ok(toDto(taskService.update(id, existing)));
     }
     @DeleteMapping("/{id}")
@@ -212,6 +218,16 @@ public class TaskController {
         }
 
         List<Task> tasks = taskService.getTasksByUser(currentUser.getId());
+
+        // Filter out hidden tasks for non-manager/admin users
+        boolean isManagerOrAdmin = currentUser.getRole() == com.example.pi_projet.entity.User.RoleName.ADMIN
+                || currentUser.getRole() == com.example.pi_projet.entity.User.RoleName.MANAGER;
+        if (!isManagerOrAdmin) {
+            tasks = tasks.stream()
+                    .filter(Task::isVisibleToAssignees)
+                    .collect(Collectors.toList());
+        }
+
         List<TaskResponseDto> dtos = tasks.stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());

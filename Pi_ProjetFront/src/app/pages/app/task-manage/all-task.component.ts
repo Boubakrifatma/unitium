@@ -50,6 +50,7 @@ export interface TaskItem {
   createdByName: string;
   parentTaskId?: number | null;
   parentTaskTitle?: string | null;
+  isVisibleToAssignees: boolean;
 }
 
 export interface TaskGroup {
@@ -173,6 +174,7 @@ export class AllTaskComponent implements OnInit, AfterViewInit {
           createdByName: t.createdByName || "Inconnu",
           parentTaskId: t.parentTaskId,
           parentTaskTitle: t.parentTaskTitle || null,
+          isVisibleToAssignees: t.isVisibleToAssignees !== false,
         }));
 
         this.tasks.set(mapped);
@@ -394,6 +396,7 @@ export class AllTaskComponent implements OnInit, AfterViewInit {
       milestoneId: this.milestoneId()!,
       startDate: formData.startDate || null,
       dueDate: formData.dueDate || null,
+      isVisibleToAssignees: formData.isVisibleToAssignees !== false,
     };
 
     this.taskService.create(payload).subscribe({
@@ -461,6 +464,7 @@ export class AllTaskComponent implements OnInit, AfterViewInit {
       parentTaskId: formData.parentTaskId || null,
       startDate: formData.startDate || null,
       dueDate: formData.dueDate || null,
+      isVisibleToAssignees: formData.isVisibleToAssignees !== false,
     };
 
     this.taskService.update(taskId, payload).subscribe({

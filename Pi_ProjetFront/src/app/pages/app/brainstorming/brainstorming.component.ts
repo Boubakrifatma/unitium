@@ -14,7 +14,9 @@ import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { RouterLink } from '@angular/router';
+import { CreateTaskMatrixDialogComponent } from './create-task-matrix-dialog.component';
 
 /* ── Domain models ──────────────────────────────────────────── */
 export interface StickyNote {
@@ -63,7 +65,7 @@ const STORAGE_MATRIX_KEY = 'brainstorm-matrix';
     DragDropModule,
     MatCardModule, MatIconModule, MatButtonModule,
     MatInputModule, MatFormFieldModule,
-    MatSnackBarModule, MatTooltipModule,
+    MatSnackBarModule, MatTooltipModule, MatDialogModule,
   ],
   template: `
 <!-- ══════════════════════════════════════════════════════════════
@@ -236,7 +238,28 @@ const STORAGE_MATRIX_KEY = 'brainstorm-matrix';
              [cdkDropListConnectedTo]="['q2','q3','q4']"
              (cdkDropListDropped)="moveInMatrix($event, 'q1')">
           @for (task of getTasksForQuadrant('q1'); track task.id) {
-            <ng-container *ngTemplateOutlet="taskCard; context: { $implicit: task }"></ng-container>
+            <div class="bs-task-card" cdkDrag [cdkDragData]="task">
+              <div *cdkDragPlaceholder class="bs-drag-placeholder"></div>
+              <div class="bs-task-card-header">
+                <div class="bs-priority-dot" [attr.data-priority]="task.priority"></div>
+                <span class="bs-task-title">{{ task.title }}</span>
+                <button class="bs-task-delete" (click)="removeFromMatrix(task.id)" matTooltip="Supprimer">
+                  <mat-icon class="material-icons-outlined" style="font-size:13px">close</mat-icon>
+                </button>
+              </div>
+              <div class="bs-task-actions">
+                <span class="bs-task-priority-badge" [attr.data-priority]="task.priority">{{ task.priority | titlecase }}</span>
+                <div class="d-flex gap-1">
+                  <button class="bs-prio-btn" (click)="cyclePriority(task.id)" matTooltip="Changer priorité">
+                    <mat-icon class="material-icons-outlined" style="font-size:12px">swap_vert</mat-icon>
+                  </button>
+                  <button class="bs-create-task-btn" (click)="requestCreateTask(task)" matTooltip="Créer la tâche">
+                    <mat-icon class="material-icons-outlined" style="font-size:12px">add_circle</mat-icon>
+                    Créer
+                  </button>
+                </div>
+              </div>
+            </div>
           }
           @if (getTasksForQuadrant('q1').length === 0) {
             <div class="bs-drop-hint">Déposez ici</div>
@@ -260,7 +283,28 @@ const STORAGE_MATRIX_KEY = 'brainstorm-matrix';
              [cdkDropListConnectedTo]="['q1','q3','q4']"
              (cdkDropListDropped)="moveInMatrix($event, 'q2')">
           @for (task of getTasksForQuadrant('q2'); track task.id) {
-            <ng-container *ngTemplateOutlet="taskCard; context: { $implicit: task }"></ng-container>
+            <div class="bs-task-card" cdkDrag [cdkDragData]="task">
+              <div *cdkDragPlaceholder class="bs-drag-placeholder"></div>
+              <div class="bs-task-card-header">
+                <div class="bs-priority-dot" [attr.data-priority]="task.priority"></div>
+                <span class="bs-task-title">{{ task.title }}</span>
+                <button class="bs-task-delete" (click)="removeFromMatrix(task.id)" matTooltip="Supprimer">
+                  <mat-icon class="material-icons-outlined" style="font-size:13px">close</mat-icon>
+                </button>
+              </div>
+              <div class="bs-task-actions">
+                <span class="bs-task-priority-badge" [attr.data-priority]="task.priority">{{ task.priority | titlecase }}</span>
+                <div class="d-flex gap-1">
+                  <button class="bs-prio-btn" (click)="cyclePriority(task.id)" matTooltip="Changer priorité">
+                    <mat-icon class="material-icons-outlined" style="font-size:12px">swap_vert</mat-icon>
+                  </button>
+                  <button class="bs-create-task-btn" (click)="requestCreateTask(task)" matTooltip="Créer la tâche">
+                    <mat-icon class="material-icons-outlined" style="font-size:12px">add_circle</mat-icon>
+                    Créer
+                  </button>
+                </div>
+              </div>
+            </div>
           }
           @if (getTasksForQuadrant('q2').length === 0) {
             <div class="bs-drop-hint">Déposez ici</div>
@@ -284,7 +328,28 @@ const STORAGE_MATRIX_KEY = 'brainstorm-matrix';
              [cdkDropListConnectedTo]="['q1','q2','q4']"
              (cdkDropListDropped)="moveInMatrix($event, 'q3')">
           @for (task of getTasksForQuadrant('q3'); track task.id) {
-            <ng-container *ngTemplateOutlet="taskCard; context: { $implicit: task }"></ng-container>
+            <div class="bs-task-card" cdkDrag [cdkDragData]="task">
+              <div *cdkDragPlaceholder class="bs-drag-placeholder"></div>
+              <div class="bs-task-card-header">
+                <div class="bs-priority-dot" [attr.data-priority]="task.priority"></div>
+                <span class="bs-task-title">{{ task.title }}</span>
+                <button class="bs-task-delete" (click)="removeFromMatrix(task.id)" matTooltip="Supprimer">
+                  <mat-icon class="material-icons-outlined" style="font-size:13px">close</mat-icon>
+                </button>
+              </div>
+              <div class="bs-task-actions">
+                <span class="bs-task-priority-badge" [attr.data-priority]="task.priority">{{ task.priority | titlecase }}</span>
+                <div class="d-flex gap-1">
+                  <button class="bs-prio-btn" (click)="cyclePriority(task.id)" matTooltip="Changer priorité">
+                    <mat-icon class="material-icons-outlined" style="font-size:12px">swap_vert</mat-icon>
+                  </button>
+                  <button class="bs-create-task-btn" (click)="requestCreateTask(task)" matTooltip="Créer la tâche">
+                    <mat-icon class="material-icons-outlined" style="font-size:12px">add_circle</mat-icon>
+                    Créer
+                  </button>
+                </div>
+              </div>
+            </div>
           }
           @if (getTasksForQuadrant('q3').length === 0) {
             <div class="bs-drop-hint">Déposez ici</div>
@@ -308,7 +373,28 @@ const STORAGE_MATRIX_KEY = 'brainstorm-matrix';
              [cdkDropListConnectedTo]="['q1','q2','q3']"
              (cdkDropListDropped)="moveInMatrix($event, 'q4')">
           @for (task of getTasksForQuadrant('q4'); track task.id) {
-            <ng-container *ngTemplateOutlet="taskCard; context: { $implicit: task }"></ng-container>
+            <div class="bs-task-card" cdkDrag [cdkDragData]="task">
+              <div *cdkDragPlaceholder class="bs-drag-placeholder"></div>
+              <div class="bs-task-card-header">
+                <div class="bs-priority-dot" [attr.data-priority]="task.priority"></div>
+                <span class="bs-task-title">{{ task.title }}</span>
+                <button class="bs-task-delete" (click)="removeFromMatrix(task.id)" matTooltip="Supprimer">
+                  <mat-icon class="material-icons-outlined" style="font-size:13px">close</mat-icon>
+                </button>
+              </div>
+              <div class="bs-task-actions">
+                <span class="bs-task-priority-badge" [attr.data-priority]="task.priority">{{ task.priority | titlecase }}</span>
+                <div class="d-flex gap-1">
+                  <button class="bs-prio-btn" (click)="cyclePriority(task.id)" matTooltip="Changer priorité">
+                    <mat-icon class="material-icons-outlined" style="font-size:12px">swap_vert</mat-icon>
+                  </button>
+                  <button class="bs-create-task-btn" (click)="requestCreateTask(task)" matTooltip="Créer la tâche">
+                    <mat-icon class="material-icons-outlined" style="font-size:12px">add_circle</mat-icon>
+                    Créer
+                  </button>
+                </div>
+              </div>
+            </div>
           }
           @if (getTasksForQuadrant('q4').length === 0) {
             <div class="bs-drop-hint">Déposez ici</div>
@@ -320,33 +406,6 @@ const STORAGE_MATRIX_KEY = 'brainstorm-matrix';
   </div><!-- /.bs-panel-matrix -->
 
 </div><!-- /.bs-workspace -->
-
-<!-- ── Shared task card template ─────────────────────────────── -->
-<ng-template #taskCard let-task>
-  <div class="bs-task-card" cdkDrag>
-    <div class="bs-task-card-header">
-      <div class="bs-priority-dot" [attr.data-priority]="task.priority"></div>
-      <span class="bs-task-title">{{ task.title }}</span>
-      <button class="bs-task-delete" (click)="removeFromMatrix(task.id)" matTooltip="Supprimer">
-        <mat-icon class="material-icons-outlined" style="font-size:13px">close</mat-icon>
-      </button>
-    </div>
-    <div class="bs-task-actions">
-      <span class="bs-task-priority-badge" [attr.data-priority]="task.priority">
-        {{ task.priority | titlecase }}
-      </span>
-      <div class="d-flex gap-1">
-        <button class="bs-prio-btn" (click)="cyclePriority(task.id)" matTooltip="Changer priorité">
-          <mat-icon class="material-icons-outlined" style="font-size:12px">swap_vert</mat-icon>
-        </button>
-        <button class="bs-create-task-btn" (click)="requestCreateTask(task)" matTooltip="Créer la tâche">
-          <mat-icon class="material-icons-outlined" style="font-size:12px">add_circle</mat-icon>
-          Créer
-        </button>
-      </div>
-    </div>
-  </div>
-</ng-template>
   `,
   styles: [`
     /* ══════════════════════════════════════════════════════════
@@ -792,6 +851,14 @@ const STORAGE_MATRIX_KEY = 'brainstorm-matrix';
       &:hover { background: #6366f1; color: #fff; }
     }
 
+    /* CDK drag placeholder */
+    .bs-drag-placeholder {
+      height: 56px;
+      border: 2px dashed #6366f1;
+      border-radius: 7px;
+      background: rgba(99,102,241,0.05);
+    }
+
     /* CDK ghost */
     ::ng-deep .cdk-drag-preview.bs-task-card {
       box-shadow: 0 16px 32px rgba(15,23,42,0.2) !important;
@@ -808,6 +875,7 @@ const STORAGE_MATRIX_KEY = 'brainstorm-matrix';
 export class BrainstormingComponent implements OnInit {
 
   private snackBar = inject(MatSnackBar);
+  private dialog   = inject(MatDialog);
 
   /* ── Signals ─────────────────────────────────────────────── */
   notes       = signal<StickyNote[]>([]);
@@ -931,27 +999,35 @@ export class BrainstormingComponent implements OnInit {
   moveInMatrix(event: CdkDragDrop<MatrixTask[]>, targetQuadrant: 'q1' | 'q2' | 'q3' | 'q4'): void {
     if (event.previousContainer === event.container) {
       moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
-    } else {
-      transferArrayItem(
-        event.previousContainer.data,
-        event.container.data,
-        event.previousIndex,
-        event.currentIndex,
-      );
-      const moved = event.container.data[event.currentIndex];
-      this.matrixTasks.update(ts =>
-        ts.map(t => t.id === moved.id ? { ...t, quadrant: targetQuadrant } : t)
-      );
+      return;
     }
+
+    transferArrayItem(
+      event.previousContainer.data,
+      event.container.data,
+      event.previousIndex,
+      event.currentIndex,
+    );
+
+    const moved = event.container.data[event.currentIndex];
+    this.matrixTasks.update(ts =>
+      ts.map(t => t.id === moved.id ? { ...t, quadrant: targetQuadrant } : t)
+    );
     this._saveMatrix();
   }
 
   requestCreateTask(task: MatrixTask): void {
-    this.snackBar.open(
-      `Task creation coming soon — "${task.title}"`,
-      'OK',
-      { duration: 3500, panelClass: ['bs-snack'] }
-    );
+    const ref = this.dialog.open(CreateTaskMatrixDialogComponent, {
+      width: '560px',
+      maxWidth: '95vw',
+      data: { title: task.title, priority: task.priority, quadrant: task.quadrant },
+    });
+    ref.afterClosed().subscribe(result => {
+      if (result?.success) {
+        this.removeFromMatrix(task.id);
+        this.snackBar.open('Tâche créée avec succès !', 'OK', { duration: 3000 });
+      }
+    });
   }
 
   /* ── Persistence ──────────────────────────────────────────── */

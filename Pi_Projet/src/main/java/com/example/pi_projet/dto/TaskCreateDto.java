@@ -1,5 +1,6 @@
 package com.example.pi_projet.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.time.LocalDate;
@@ -23,4 +24,7 @@ public class TaskCreateDto {
 
     private LocalDate startDate;
     private LocalDate dueDate;
+
+    @JsonProperty("isVisibleToAssignees")
+    private Boolean isVisibleToAssignees;
 }

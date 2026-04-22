@@ -1,161 +1,200 @@
 <div class="wbs-container">
-  <!-- Header -->
+
+  <!-- ── Header ─────────────────────────────────────────────────── -->
   <div class="wbs-header">
     <div class="wbs-title">
-      <span class="wbs-icon">📋</span>
+      <div class="header-icon">📋</div>
       <div>
         <h3>Work Breakdown Structure</h3>
-        <p>{{ milestoneName }}</p>
+        <p class="subtitle">{{ milestoneName }}</p>
       </div>
     </div>
-
     <div class="wbs-controls">
       <button mat-stroked-button (click)="expandAll()" matTooltip="Tout développer">
-        <mat-icon>unfold_more</mat-icon>
-        Développer
+        <mat-icon>unfold_more</mat-icon> Développer
       </button>
       <button mat-stroked-button (click)="collapseAll()" matTooltip="Tout réduire">
-        <mat-icon>unfold_less</mat-icon>
-        Réduire
+        <mat-icon>unfold_less</mat-icon> Réduire
       </button>
-      <button mat-raised-button color="primary" (click)="exportExcel()" matTooltip="Exporter en CSV">
-        <mat-icon>file_download</mat-icon>
-        Exporter
+      <button mat-flat-button color="primary" (click)="exportCsv()" matTooltip="Exporter en CSV">
+        <mat-icon>download</mat-icon> Exporter
       </button>
     </div>
   </div>
 
-  <!-- Stats -->
+  <!-- ── Statistics ─────────────────────────────────────────────── -->
   <div class="wbs-stats">
-    <div class="stat-card">
+    <div class="stat-card total">
+      <span class="stat-icon">📦</span>
       <span class="stat-value">{{ stats().total }}</span>
-      <span class="stat-label">Tâches totales</span>
+      <span class="stat-label">Total</span>
     </div>
     <div class="stat-card completed">
+      <span class="stat-icon">✅</span>
       <span class="stat-value">{{ stats().completed }}</span>
       <span class="stat-label">Terminées</span>
     </div>
     <div class="stat-card in-progress">
+      <span class="stat-icon">🔄</span>
       <span class="stat-value">{{ stats().inProgress }}</span>
       <span class="stat-label">En cours</span>
     </div>
     <div class="stat-card todo">
+      <span class="stat-icon">⏳</span>
       <span class="stat-value">{{ stats().todo }}</span>
       <span class="stat-label">À faire</span>
     </div>
+    <div class="stat-card hours">
+      <span class="stat-icon">⏱️</span>
+      <span class="stat-value">{{ stats().totalHours }}h</span>
+      <span class="stat-label">Heures estimées</span>
+    </div>
     <div class="stat-card avg">
+      <span class="stat-icon">📊</span>
       <span class="stat-value">{{ stats().avgProgress }}%</span>
-      <span class="stat-label">Progression moyenne</span>
+      <span class="stat-label">Progression</span>
     </div>
   </div>
 
-  <!-- WBS Tree View -->
-  <div class="wbs-tree-view" *ngIf="wbsTree().length > 0; else emptyState">
-    <!-- Root Node (Milestone) -->
-    <div class="tree-root">
-      <div class="tree-node root-node">
-        <div class="node-content">
-          <span class="node-icon">🎯</span>
-          <span class="node-title">{{ milestoneName }}</span>
-        </div>
+  <!-- ── WBS Tree ────────────────────────────────────────────────── -->
+  <div class="wbs-scroll-area" *ngIf="tasks.length > 0; else emptyState">
+    <div class="wbs-tree">
+
+      <!-- Root: Milestone -->
+      <div class="root-node">
+        <span class="root-icon">🎯</span>
+        <span class="root-label">{{ milestoneName }}</span>
+        <span class="root-badge">{{ stats().total }} tâche{{ stats().total > 1 ? 's' : '' }}</span>
       </div>
 
-      <!-- Tree Branches -->
-      <div class="tree-branches">
-        <div class="tree-branch" *ngFor="let parent of wbsTree(); let last = last">
-          <!-- Vertical connector from root -->
-          <div class="connector-vertical" *ngIf="wbsTree().length > 1"></div>
+      <!-- Level 1 — Parent tasks -->
+      <div class="level1-container">
+        <div class="level1-item" *ngFor="let parent of wbsTree(); let pi = index; let last = last">
 
-          <!-- Horizontal connector to parent -->
-          <div class="connector-horizontal"></div>
+          <!-- Connector line from root to this branch -->
+          <div class="branch-connector">
+            <div class="v-line" [class.last]="last"></div>
+            <div class="h-line"></div>
+          </div>
 
-          <!-- Parent Node -->
-          <div class="tree-node parent-node" [class.has-children]="parent.children.length > 0">
-            <div class="node-card" [class.expanded]="parent.expanded">
-              <div class="node-header">
-                <button mat-icon-button (click)="toggleNode(parent)" *ngIf="parent.children.length > 0" class="expand-btn">
-                  <mat-icon>{{ parent.expanded ? 'remove' : 'add' }}</mat-icon>
-                </button>
-                <span class="node-type-icon">{{ getTypeIcon(parent.type) }}</span>
-                <span class="node-title" [title]="parent.title">{{ parent.title }}</span>
-              </div>
-              <div class="node-body">
-                <div class="node-status-row">
-                  <span class="status-pill" [style.background-color]="getStatusColor(parent.status)">
-                    {{ getStatusLabel(parent.status) }}
-                  </span>
-                  <span class="priority-pill" [class]="'p-' + parent.priority.toLowerCase()">
-                    {{ getPriorityLabel(parent.priority) }}
-                  </span>
-                </div>
-                <div class="node-assignee">
-                  <mat-icon>person</mat-icon>
-                  <span>{{ parent.assignedTo }}</span>
-                </div>
-                <div class="node-dates">{{ formatDate(parent.startDate) }} - {{ formatDate(parent.dueDate) }}</div>
-                <div class="node-progress">
-                  <div class="progress-track">
-                    <div class="progress-bar" [style.width.%]="parent.progress"></div>
-                  </div>
-                  <span class="progress-value">{{ parent.progress }}%</span>
-                </div>
+          <!-- Parent task card -->
+          <div class="task-card parent-card" [class.is-done]="parent.status === 'done'">
+            <div class="card-header">
+              <button class="expand-btn" (click)="toggleNode(parent.id)"
+                      *ngIf="parent.children.length > 0"
+                      [matTooltip]="isExpanded(parent.id) ? 'Réduire' : 'Développer'">
+                <mat-icon>{{ isExpanded(parent.id) ? 'expand_less' : 'expand_more' }}</mat-icon>
+              </button>
+              <div class="expand-placeholder" *ngIf="!parent.children.length"></div>
+
+              <span class="wbs-num">{{ pi + 1 }}.0</span>
+              <span class="type-emoji">{{ typeIcon(parent.type) }}</span>
+              <span class="card-title" [title]="parent.title">{{ parent.title }}</span>
+
+              <div class="card-tags">
+                <span class="status-tag" [style.background]="statusColor(parent.status) + '22'"
+                      [style.color]="statusColor(parent.status)"
+                      [style.borderColor]="statusColor(parent.status) + '66'">
+                  {{ statusLabel(parent.status) }}
+                </span>
+                <span class="priority-tag" [class]="'p-' + parent.priority">
+                  {{ priorityLabel(parent.priority) }}
+                </span>
+                <span class="child-badge" *ngIf="parent.children.length">
+                  {{ parent.children.length }} sous-tâche{{ parent.children.length > 1 ? 's' : '' }}
+                </span>
               </div>
             </div>
 
-            <!-- Children Container -->
-            <div class="children-container" *ngIf="parent.expanded && parent.children.length > 0">
-              <div class="child-connector-vertical"></div>
-
-              <div class="children-row">
-                <div class="child-wrapper" *ngFor="let child of parent.children; let lastChild = last">
-                  <!-- Horizontal connector to child -->
-                  <div class="child-connector-horizontal"></div>
-
-                  <!-- Child Node -->
-                  <div class="tree-node child-node">
-                    <div class="node-card child-card">
-                      <div class="node-header">
-                        <span class="node-type-icon">{{ getTypeIcon(child.type) }}</span>
-                        <span class="node-title" [title]="child.title">{{ child.title }}</span>
-                      </div>
-                      <div class="node-body">
-                        <div class="node-status-row">
-                          <span class="status-pill" [style.background-color]="getStatusColor(child.status)">
-                            {{ getStatusLabel(child.status) }}
-                          </span>
-                          <span class="priority-pill" [class]="'p-' + child.priority.toLowerCase()">
-                            {{ getPriorityLabel(child.priority) }}
-                          </span>
-                        </div>
-                        <div class="node-assignee">
-                          <mat-icon>person</mat-icon>
-                          <span>{{ child.assignedTo }}</span>
-                        </div>
-                        <div class="node-dates">{{ formatDate(child.startDate) }} - {{ formatDate(child.dueDate) }}</div>
-                        <div class="node-progress">
-                          <div class="progress-track">
-                            <div class="progress-bar" [style.width.%]="child.progress"></div>
-                          </div>
-                          <span class="progress-value">{{ child.progress }}%</span>
-                        </div>
-                      </div>
-                    </div>
+            <div class="card-body">
+              <div class="meta-row" *ngIf="parent.assignedTo !== 'Non assigné'">
+                <mat-icon>person_outline</mat-icon>
+                <span>{{ parent.assignedTo }}</span>
+              </div>
+              <div class="meta-row dates" *ngIf="parent.startDate && parent.startDate !== '-'">
+                <mat-icon>event</mat-icon>
+                <span>{{ formatDate(parent.startDate) }} → {{ formatDate(parent.dueDate) }}</span>
+              </div>
+              <div class="meta-row" *ngIf="parent.estimatedHours > 0">
+                <mat-icon>schedule</mat-icon>
+                <span>{{ parent.estimatedHours }}h estimées</span>
+              </div>
+              <div class="progress-row">
+                <div class="progress-track">
+                  <div class="progress-fill"
+                       [style.width.%]="parent.progress"
+                       [style.background]="progressColor(parent.progress)">
                   </div>
                 </div>
+                <span class="progress-pct" [style.color]="progressColor(parent.progress)">
+                  {{ parent.progress }}%
+                </span>
               </div>
             </div>
           </div>
+
+          <!-- Level 2 — Child tasks -->
+          <div class="level2-container" *ngIf="isExpanded(parent.id) && parent.children.length > 0">
+            <div class="level2-item" *ngFor="let child of parent.children; let ci = index; let lastChild = last">
+
+              <div class="child-connector">
+                <div class="v-line" [class.last]="lastChild"></div>
+                <div class="h-line"></div>
+              </div>
+
+              <div class="task-card child-card" [class.is-done]="child.status === 'done'">
+                <div class="card-header child-header">
+                  <span class="wbs-num secondary">{{ pi + 1 }}.{{ ci + 1 }}</span>
+                  <span class="type-emoji">{{ typeIcon(child.type) }}</span>
+                  <span class="card-title" [title]="child.title">{{ child.title }}</span>
+
+                  <div class="card-tags">
+                    <span class="status-tag" [style.background]="statusColor(child.status) + '22'"
+                          [style.color]="statusColor(child.status)"
+                          [style.borderColor]="statusColor(child.status) + '66'">
+                      {{ statusLabel(child.status) }}
+                    </span>
+                    <span class="priority-tag" [class]="'p-' + child.priority">
+                      {{ priorityLabel(child.priority) }}
+                    </span>
+                  </div>
+                </div>
+
+                <div class="card-body">
+                  <div class="meta-row" *ngIf="child.assignedTo !== 'Non assigné'">
+                    <mat-icon>person_outline</mat-icon>
+                    <span>{{ child.assignedTo }}</span>
+                  </div>
+                  <div class="progress-row">
+                    <div class="progress-track">
+                      <div class="progress-fill"
+                           [style.width.%]="child.progress"
+                           [style.background]="progressColor(child.progress)">
+                      </div>
+                    </div>
+                    <span class="progress-pct" [style.color]="progressColor(child.progress)">
+                      {{ child.progress }}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
         </div>
       </div>
+
     </div>
   </div>
 
-  <!-- Empty State -->
+  <!-- ── Empty State ─────────────────────────────────────────────── -->
   <ng-template #emptyState>
     <div class="empty-state">
       <mat-icon>account_tree</mat-icon>
       <h4>Aucune tâche disponible</h4>
-      <p>Créez des tâches pour voir la structure WBS</p>
+      <p>Créez des tâches pour visualiser la structure WBS</p>
     </div>
   </ng-template>
+
 </div>

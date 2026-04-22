@@ -53,6 +53,7 @@ public class TaskService {
         existing.setStartDate(t.getStartDate());
         existing.setDueDate(t.getDueDate());
         existing.setCompletedAt(t.getCompletedAt());
+        existing.setVisibleToAssignees(t.isVisibleToAssignees());
 
         if (t.getMilestone() != null) existing.setMilestone(t.getMilestone());
         if (t.getProject()   != null) existing.setProject(t.getProject());

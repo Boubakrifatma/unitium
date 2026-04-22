@@ -3192,7 +3192,7 @@ interface MessageGroup {
 
                     <!-- ── Empty state ──────────────────────────────────── -->
                     @if (!activeRoom()) {
-                        <div class="chat-empty-state height-dynamic" style="--h-dynamic:calc(100vh - 250px)">
+                        <div class="chat-empty-state height-dynamic" style="--h-dynamic:calc(100vh - 175px)">
                             <div class="chat-empty-top">
                                 <button matIconButton (click)="innersidebar()" matTooltip="Channels list"
                                         class="me-2 d-lg-none">
@@ -3233,7 +3233,7 @@ interface MessageGroup {
 
                     <!-- ── Active room ──────────────────────────────────── -->
                     @if (activeRoom()) {
-                        <div class="chat-room-wrap height-dynamic" style="--h-dynamic:calc(100vh - 250px)">
+                        <div class="chat-room-wrap height-dynamic" style="--h-dynamic:calc(100vh - 175px)">
 
                             <!-- Chat header -->
                             <div class="chat-header px-3 py-2">
@@ -5582,7 +5582,7 @@ interface MessageGroup {
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            height: calc(100vh - 250px);
+            height: calc(100vh - 175px);
             min-height: 0;
             box-shadow:
                 0 1px 2px rgba(0,0,0,0.04),
@@ -11136,7 +11136,7 @@ interface MessageGroup {
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            height: calc(100vh - 250px);
+            height: calc(100vh - 175px);
             min-height: 0;
             box-shadow:
                 0 1px 2px rgba(0,0,0,0.04),
@@ -15426,9 +15426,336 @@ interface MessageGroup {
 
         /* Messages scroll — clean off-white */
         .messages-scroll {
-            background: #f4f6f9 !important;
+            background: #f4f6fb !important;
             background-image: none !important;
-            padding: 20px 20px !important;
+            padding: 16px 24px !important;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           ✦  LAYOUT FIX + UI POLISH — Professional Chat Interface
+        ═══════════════════════════════════════════════════════════════ */
+
+        /* 1 ── Layout: proper height chain so input stays at bottom ── */
+        .inner-sidebar-wrap.chat-layout {
+            height: calc(100vh - 175px) !important;
+            align-items: stretch !important;
+            min-height: 400px;
+        }
+        .chat-sidebar {
+            height: 100% !important;
+            min-height: 0;
+        }
+        .chat-main {
+            height: 100% !important;
+            min-height: 0;
+        }
+        .chat-room-wrap,
+        .chat-empty-state {
+            height: 100% !important;
+            min-height: 0;
+        }
+
+        /* 2 ── Page header: compact so more space for chat ────────── */
+        .chat-header-card {
+            padding: 12px 20px !important;
+            border-radius: 14px !important;
+        }
+        .chat-header-icon-wrapper {
+            width: 36px !important;
+            height: 36px !important;
+        }
+        .chat-header-main-icon { font-size: 20px !important; }
+        .chat-header-title { font-size: 17px !important; margin: 0 !important; }
+        .chat-header-subtitle { font-size: 12px !important; margin: 0 !important; }
+
+        /* 3 ── Chat header bar ─────────────────────────────────────── */
+        .chat-header {
+            background: #ffffff !important;
+            border-bottom: 1px solid #e8edf3 !important;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
+            padding: 10px 16px !important;
+        }
+        .chat-room-title {
+            font-size: 15px !important;
+            font-weight: 700 !important;
+            color: #1e293b !important;
+            background: none !important;
+            -webkit-text-fill-color: #1e293b !important;
+            letter-spacing: -0.01em !important;
+        }
+        .chat-header-subtitle {
+            font-size: 11px !important;
+            color: #64748b !important;
+        }
+        .chat-header-room-avatar {
+            width: 34px !important;
+            height: 34px !important;
+            min-width: 34px !important;
+            border-radius: 10px !important;
+            font-size: 12px !important;
+            font-weight: 700 !important;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.12) !important;
+        }
+        .header-call-btn {
+            width: 32px !important;
+            height: 32px !important;
+            border-radius: 8px !important;
+        }
+
+        /* 4 ── Input wrap: white, sticky, separated ────────────────── */
+        .chat-input-wrap {
+            background: #ffffff !important;
+            padding: 10px 14px 14px !important;
+            border-top: 1px solid #e8edf3 !important;
+            flex-shrink: 0 !important;
+            position: relative !important;
+            z-index: 5 !important;
+        }
+
+        /* 5 ── Input card: clean, focused style ────────────────────── */
+        .input-card {
+            border-radius: 14px !important;
+            border: 1.5px solid #dde3ee !important;
+            background: #f9fafb !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.03) !important;
+            overflow: hidden;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+        }
+        .input-card:focus-within {
+            border-color: #6366f1 !important;
+            background: #ffffff !important;
+            box-shadow: 0 2px 6px rgba(99,102,241,0.10), 0 0 0 3px rgba(99,102,241,0.08) !important;
+        }
+
+        /* 6 ── Quill toolbar & editor ──────────────────────────────── */
+        .quill-format-wrap ::ng-deep .ql-toolbar {
+            background: #f1f4f9 !important;
+            border-bottom: 1px solid #e8edf3 !important;
+            padding: 5px 12px !important;
+        }
+        .quill-format-wrap ::ng-deep .ql-editor {
+            min-height: 44px !important;
+            max-height: 120px !important;
+            padding: 10px 16px 6px !important;
+            font-size: 14px !important;
+            line-height: 1.65 !important;
+            color: #1e293b !important;
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif !important;
+        }
+        .quill-format-wrap ::ng-deep .ql-editor.ql-blank::before {
+            color: #94a3b8 !important;
+            font-style: normal !important;
+            font-size: 14px !important;
+        }
+
+        /* 7 ── Input bottom bar ─────────────────────────────────────── */
+        .input-bottom-bar {
+            background: #f8fafc !important;
+            border-top: 1px solid #edf0f5 !important;
+            padding: 5px 10px 5px 8px !important;
+        }
+        .input-action-btn {
+            border-radius: 8px !important;
+            width: 30px !important;
+            height: 30px !important;
+            color: #64748b !important;
+        }
+        .input-action-btn:hover:not(:disabled) {
+            background: rgba(99,102,241,0.10) !important;
+            color: #6366f1 !important;
+            transform: scale(1.08) !important;
+        }
+        .input-hint-text {
+            background: #f1f4f9 !important;
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 4px !important;
+            padding: 1px 5px !important;
+            font-size: 10px !important;
+            font-family: 'SF Mono', monospace !important;
+            color: #64748b !important;
+            opacity: 1 !important;
+        }
+
+        /* 8 ── Send button ───────────────────────────────────────────── */
+        .send-fab {
+            width: 36px !important;
+            height: 36px !important;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+            box-shadow: 0 2px 8px rgba(99,102,241,0.35) !important;
+        }
+        .send-fab:not(:disabled):hover {
+            transform: scale(1.1) translateY(-1px) !important;
+            box-shadow: 0 4px 16px rgba(99,102,241,0.45) !important;
+        }
+        .sc-send-arrow {
+            border-radius: 0 50% 50% 0 !important;
+        }
+
+        /* 9 ── Reply / Edit banners ──────────────────────────────────── */
+        .reply-preview-banner {
+            background: linear-gradient(135deg, #f0f4ff, #ede9fe) !important;
+            border-left: 3px solid #6366f1 !important;
+            border-top: 1px solid rgba(99,102,241,0.15) !important;
+            margin: 0 0 0 !important;
+            padding: 8px 14px !important;
+            border-radius: 0 !important;
+        }
+        .rp-name { color: #6366f1 !important; font-weight: 700 !important; font-size: 12px !important; }
+        .rp-text { color: #475569 !important; font-size: 12px !important; }
+        .edit-bar {
+            background: #fffbeb !important;
+            border-left: 3px solid #f59e0b !important;
+            border-bottom: 1px solid rgba(245,158,11,0.15) !important;
+            margin: 0 !important;
+            padding: 6px 14px !important;
+        }
+
+        /* 10 ── Message avatars ──────────────────────────────────────── */
+        .msg-avatar {
+            width: 32px !important;
+            height: 32px !important;
+            min-width: 32px !important;
+            border-radius: 50% !important;
+            font-size: 11px !important;
+            font-weight: 700 !important;
+            letter-spacing: 0 !important;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.14) !important;
+            border: 2px solid rgba(255,255,255,0.9) !important;
+        }
+        .msg-avatar-spacer {
+            width: 32px !important;
+            min-width: 32px !important;
+        }
+
+        /* 11 ── Message bubbles refinement ──────────────────────────── */
+        .msg-bubble {
+            font-size: 14px !important;
+            line-height: 1.65 !important;
+            border-radius: 18px !important;
+            padding: 10px 16px 8px !important;
+        }
+        .msg-bubble-own {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+            box-shadow: 0 4px 14px rgba(99,102,241,0.28) !important;
+            border-radius: 18px 18px 5px 18px !important;
+        }
+        .msg-bubble-own::after {
+            background: #7c3aed !important;
+        }
+        .msg-bubble-other {
+            background: #ffffff !important;
+            border: 1px solid #e8edf3 !important;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
+            border-radius: 18px 18px 18px 5px !important;
+        }
+        .msg-bubble-other::after {
+            background: #ffffff !important;
+            border-left: 1px solid #e8edf3 !important;
+        }
+        .msg-sender-name {
+            font-size: 11px !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.02em !important;
+        }
+
+        /* 12 ── Sidebar: WA-style polished ───────────────────────────── */
+        .wa-sidebar-top {
+            background: #f8fafc !important;
+            border-bottom: 1px solid #e8edf3 !important;
+            padding: 12px 14px !important;
+        }
+        .wa-sidebar-title {
+            font-size: 18px !important;
+            font-weight: 700 !important;
+            color: #1e293b !important;
+            letter-spacing: -0.02em !important;
+        }
+        .wa-search-box {
+            background: #ffffff !important;
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 10px !important;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
+        }
+        .wa-search-input { font-size: 13px !important; color: #1e293b !important; }
+        .wa-chips-row {
+            padding: 6px 12px !important;
+            gap: 6px !important;
+            border-bottom: 1px solid #f1f4f9 !important;
+        }
+        .wa-chip {
+            font-size: 12px !important;
+            padding: 4px 12px !important;
+            border-radius: 20px !important;
+            font-weight: 600 !important;
+        }
+        .wa-chip-active {
+            background: rgba(99,102,241,0.12) !important;
+            color: #6366f1 !important;
+        }
+        .wa-rooms-scroll { padding: 6px 0 !important; }
+        .wa-section-header { padding: 8px 16px 4px !important; }
+        .wa-section-label {
+            font-size: 10px !important;
+            font-weight: 700 !important;
+            color: #94a3b8 !important;
+            letter-spacing: 0.08em !important;
+        }
+        .wa-room-item {
+            padding: 10px 14px !important;
+            margin: 1px 6px !important;
+            border-radius: 10px !important;
+            transition: background 0.15s !important;
+        }
+        .wa-room-item:hover:not(.wa-room-active) { background: #f5f7ff !important; }
+        .wa-room-item.wa-room-active {
+            background: linear-gradient(135deg, rgba(99,102,241,0.10), rgba(139,92,246,0.07)) !important;
+            box-shadow: inset 0 0 0 1px rgba(99,102,241,0.14) !important;
+        }
+        .wa-avatar {
+            width: 42px !important;
+            height: 42px !important;
+            border-radius: 50% !important;
+            font-size: 14px !important;
+            font-weight: 700 !important;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.12) !important;
+            flex-shrink: 0 !important;
+        }
+        .wa-room-name { font-size: 14px !important; font-weight: 600 !important; color: #1e293b !important; }
+        .wa-room-preview { font-size: 12px !important; color: #64748b !important; }
+        .wa-unread-badge {
+            background: #6366f1 !important;
+            color: #fff !important;
+            font-size: 10px !important;
+            font-weight: 700 !important;
+            min-width: 18px !important;
+            height: 18px !important;
+            border-radius: 9px !important;
+            padding: 0 5px !important;
+        }
+
+        /* 13 ── Date separators & system messages ───────────────────── */
+        .sys-msg-pill {
+            background: rgba(99,102,241,0.07) !important;
+            border: 1px solid rgba(99,102,241,0.12) !important;
+            border-radius: 20px !important;
+            padding: 4px 12px !important;
+            font-size: 11px !important;
+            color: #6366f1 !important;
+        }
+
+        /* 14 ── Scroll-to-bottom FAB ─────────────────────────────────── */
+        .scroll-fab {
+            bottom: 20px !important;
+            right: 20px !important;
+            background: #6366f1 !important;
+            box-shadow: 0 4px 14px rgba(99,102,241,0.35) !important;
+        }
+
+        /* 15 ── Emoji picker ──────────────────────────────────────────── */
+        .emoji-full-picker {
+            border-radius: 16px !important;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.12) !important;
+            border: 1px solid #e2e8f0 !important;
         }
 
     `],
