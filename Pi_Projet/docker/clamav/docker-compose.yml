@@ -1,0 +1,30 @@
+version: "3.9"
+
+# ClamAV antivirus daemon used by VirusScanService.
+# Start with:  docker compose -f Pi_Projet/docker/clamav/docker-compose.yml up -d
+# The Spring app talks to it over TCP (INSTREAM) on the host port mapped below,
+# matching the clamav.host / clamav.port values in application.properties.
+
+services:
+  clamav:
+    image: clamav/clamav:stable
+    container_name: pi-clamav
+    restart: unless-stopped
+    ports:
+      - "3310:3310"          # clamd TCP — matches clamav.port=3310
+    environment:
+      # Refresh signatures once on boot, then daily via freshclam inside the container.
+      - CLAMAV_NO_FRESHCLAMD=false
+      - CLAMAV_NO_CLAMD=false
+    volumes:
+      - clamav_db:/var/lib/clamav     # virus signature database (persists across restarts)
+    healthcheck:
+      # clamd answers PING with "PONG\0" on the TCP port — used to gate readiness.
+      test: ["CMD-SHELL", "echo PING | nc -w 5 localhost 3310 | grep -q PONG"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s     # first run downloads ~250 MB of signatures
+
+volumes:
+  clamav_db:

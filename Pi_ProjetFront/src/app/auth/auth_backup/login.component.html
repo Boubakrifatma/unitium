@@ -1,0 +1,50 @@
+<div class="login-wrapper">
+  <div class="card">
+    <h1>Sign In</h1>
+    <p class="subtitle">Access your workspace</p>
+
+    <div class="alert-error" *ngIf="error">{{ error }}</div>
+
+    <form (ngSubmit)="onSubmit()" #loginForm="ngForm">
+
+      <label for="email">Email</label>
+      <input
+        id="email"
+        type="email"
+        name="email"
+        [(ngModel)]="email"
+        placeholder="you@example.com"
+        required
+        autofocus
+      />
+
+      <label for="password">Password</label>
+      <input
+        id="password"
+        type="password"
+        name="password"
+        [(ngModel)]="password"
+        placeholder="••••••••"
+        required
+      />
+
+      <button type="submit" [disabled]="loading || loginForm.invalid">
+        {{ loading ? 'Signing in...' : 'Sign In' }}
+      </button>
+
+    </form>
+
+    <!-- Remove in production -->
+    <div class="test-accounts">
+      <p>Test accounts</p>
+      <button
+        *ngFor="let a of testAccounts"
+        type="button"
+        class="account-btn"
+        (click)="fillAccount(a)"
+      >
+        {{ a.email }} <span>{{ a.role }}</span>
+      </button>
+    </div>
+  </div>
+</div>

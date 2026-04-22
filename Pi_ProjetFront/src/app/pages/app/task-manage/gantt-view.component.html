@@ -1,0 +1,252 @@
+<div class="gc">
+
+  <!-- ══ HEADER ══════════════════════════════════════════════════════════ -->
+  <div class="gc-header">
+    <div class="gc-title">
+      <span class="gc-icon">📊</span>
+      <div>
+        <h3>Diagramme de Gantt</h3>
+        <p>{{ milestoneName }}</p>
+      </div>
+    </div>
+
+    <div class="gc-controls">
+      <!-- Scale buttons -->
+      <div class="scale-group">
+        <button [class.active]="scale() === 'day'"   (click)="setScale('day')">Jour</button>
+        <button [class.active]="scale() === 'week'"  (click)="setScale('week')">Semaine</button>
+        <button [class.active]="scale() === 'month'" (click)="setScale('month')">Mois</button>
+      </div>
+
+      <!-- Export -->
+      <button class="btn-export" (click)="exportPrint()" title="Imprimer">
+        <mat-icon>print</mat-icon>
+      </button>
+      <button class="btn-export" (click)="exportExcel()" title="Exporter en Excel">
+        <mat-icon>table_chart</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ STATS ════════════════════════════════════════════════════════════ -->
+  <div class="gc-stats">
+    <div class="stat-pill">
+      <span class="sp-val">{{ stats().total }}</span>
+      <span class="sp-lbl">Total</span>
+    </div>
+    <div class="stat-pill done">
+      <span class="sp-val">{{ stats().done }}</span>
+      <span class="sp-lbl">Terminées</span>
+    </div>
+    <div class="stat-pill prog">
+      <span class="sp-val">{{ stats().inProgress }}</span>
+      <span class="sp-lbl">En cours</span>
+    </div>
+    <div class="stat-pill late" *ngIf="stats().late > 0">
+      <span class="sp-val">{{ stats().late }}</span>
+      <span class="sp-lbl">En retard</span>
+    </div>
+    <div class="stat-pill avg">
+      <span class="sp-val">{{ stats().avgProgress }}%</span>
+      <span class="sp-lbl">Avancement moyen</span>
+    </div>
+  </div>
+
+  <!-- ══ FILTERS ═══════════════════════════════════════════════════════════ -->
+  <div class="gc-filters">
+    <span class="filter-label">Filtrer :</span>
+    <button class="chip" [class.active]="filter() === 'all'"         (click)="setFilter('all')">Tous</button>
+    <button class="chip todo"        [class.active]="filter() === 'todo'"        (click)="setFilter('todo')">À faire</button>
+    <button class="chip in-progress" [class.active]="filter() === 'in_progress'" (click)="setFilter('in_progress')">En cours</button>
+    <button class="chip done-chip"   [class.active]="filter() === 'done'"        (click)="setFilter('done')">Terminé</button>
+    <button class="chip blocked"     [class.active]="filter() === 'blocked'"     (click)="setFilter('blocked')">Bloqué</button>
+    <button class="chip review"      [class.active]="filter() === 'review'"      (click)="setFilter('review')">Révision</button>
+  </div>
+
+  <!-- ══ LEGEND ════════════════════════════════════════════════════════════ -->
+  <div class="gc-legend">
+    <span class="leg todo">À faire</span>
+    <span class="leg in_progress">En cours</span>
+    <span class="leg done">Terminé</span>
+    <span class="leg blocked">Bloqué</span>
+    <span class="leg review">Révision</span>
+    <span class="leg late-leg">En retard</span>
+    <span class="leg-item"><span class="today-dot"></span>Aujourd'hui</span>
+    <span class="leg-item"><span class="progress-demo"></span>Avancement</span>
+  </div>
+
+  <!-- ══ MAIN CHART ══════════════════════════════════════════════════════ -->
+  <div class="gc-chart" *ngIf="ganttRows().length > 0; else emptyState">
+
+    <!-- Left panel: task list -->
+    <div class="gc-left" [style.width.px]="LEFT_WIDTH">
+      <!-- Left header -->
+      <div class="gc-left-hdr" [style.height.px]="HEADER_TOP_H + HEADER_BOT_H">
+        <span>Tâche</span>
+        <span class="hdr-right">Priorité</span>
+      </div>
+
+      <!-- Left rows (scrollable in sync) -->
+      <div class="gc-left-rows" #leftScroll (scroll)="onLeftScroll($event)">
+        <div class="gc-left-row"
+             *ngFor="let row of ganttRows()"
+             [style.height.px]="ROW_HEIGHT"
+             [class.late]="row.isLate">
+          <span class="row-icon">{{ typeIcon(row.type) }}</span>
+          <div class="row-info">
+            <span class="row-title" [title]="row.title">{{ row.title }}</span>
+            <span class="row-sub">{{ row.assignedTo }}</span>
+          </div>
+          <span class="priority-dot" [class]="'p-' + row.priority.toLowerCase()"
+                [title]="priorityLabel(row.priority)"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right panel: timeline + bars -->
+    <div class="gc-right">
+      <!-- Scrollable container -->
+      <div class="gc-right-scroll" #rightScroll (scroll)="onRightScroll($event)">
+        <div class="gc-right-inner" [style.width.px]="totalWidthPx()">
+
+          <!-- ─ Time header ──────────────────────────────────────────── -->
+          <div class="gc-time-hdr" [style.height.px]="HEADER_TOP_H + HEADER_BOT_H">
+
+            <!-- Top row: month groups (day / week scales) -->
+            <div class="hdr-top" [style.height.px]="HEADER_TOP_H"
+                 *ngIf="monthGroups().length > 0">
+              <div class="month-grp"
+                   *ngFor="let mg of monthGroups()"
+                   [style.left.px]="mg.leftPx"
+                   [style.width.px]="mg.widthPx">
+                {{ mg.label }}
+              </div>
+            </div>
+
+            <!-- Bottom row: day / week / month columns -->
+            <div class="hdr-bot" [style.height.px]="HEADER_BOT_H"
+                 [style.top.px]="monthGroups().length > 0 ? HEADER_TOP_H : 0">
+              <div class="time-col"
+                   *ngFor="let col of timeCols()"
+                   [style.left.px]="col.leftPx"
+                   [style.width.px]="col.widthPx"
+                   [class.weekend]="col.isWeekend"
+                   [class.today-col]="col.isToday">
+                <span class="tc-main">{{ col.label }}</span>
+                <span class="tc-sub" *ngIf="col.subLabel">{{ col.subLabel }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ─ Body ────────────────────────────────────────────────── -->
+          <div class="gc-body"
+               [style.height.px]="ganttRows().length * ROW_HEIGHT"
+               [style.margin-top.px]="HEADER_TOP_H + HEADER_BOT_H">
+
+            <!-- Weekend stripes -->
+            <div class="wk-stripe"
+                 *ngFor="let s of weekendStripes()"
+                 [style.left.px]="s.leftPx"
+                 [style.width.px]="s.widthPx"></div>
+
+            <!-- Vertical grid lines -->
+            <div class="v-line"
+                 *ngFor="let col of timeCols()"
+                 [style.left.px]="col.leftPx"></div>
+
+            <!-- Horizontal row bands -->
+            <div class="h-band"
+                 *ngFor="let row of ganttRows(); let i = index"
+                 [style.top.px]="i * ROW_HEIGHT"
+                 [style.height.px]="ROW_HEIGHT"
+                 [class.even]="i % 2 === 0"></div>
+
+            <!-- Today line -->
+            <div class="today-line" *ngIf="todayPx() >= 0 && todayPx() <= totalWidthPx()"
+                 [style.left.px]="todayPx()">
+              <span class="today-pin">▼</span>
+            </div>
+
+            <!-- Task bars -->
+            <div class="bar-wrapper"
+                 *ngFor="let row of ganttRows(); let i = index"
+                 [style.top.px]="i * ROW_HEIGHT + 8"
+                 [style.height.px]="ROW_HEIGHT - 16"
+                 (mouseenter)="showTooltip($event, row)"
+                 (mouseleave)="hideTooltip()">
+
+              <div class="gantt-bar"
+                   [style.left.px]="row.leftPx"
+                   [style.width.px]="row.widthPx"
+                   [class]="'bar-' + row.status"
+                   [class.bar-late]="row.isLate">
+
+                <!-- Progress fill -->
+                <div class="bar-fill" [style.width.%]="row.progress"></div>
+
+                <!-- Bar content -->
+                <div class="bar-content">
+                  <span class="bar-title" *ngIf="row.widthPx > 50">{{ row.title }}</span>
+                  <span class="bar-pct"   *ngIf="row.widthPx > 100">{{ row.progress }}%</span>
+                </div>
+
+                <!-- Late badge -->
+                <div class="bar-late-badge" *ngIf="row.isLate">!</div>
+              </div>
+            </div>
+
+          </div><!-- /gc-body -->
+        </div><!-- /gc-right-inner -->
+      </div><!-- /gc-right-scroll -->
+    </div><!-- /gc-right -->
+
+  </div><!-- /gc-chart -->
+
+  <!-- ══ EMPTY STATE ═══════════════════════════════════════════════════════ -->
+  <ng-template #emptyState>
+    <div class="gc-empty">
+      <div class="empty-icon">📊</div>
+      <h4>Aucune tâche planifiée</h4>
+      <p>Assignez des dates de début et de fin aux tâches pour les voir apparaître ici.</p>
+    </div>
+  </ng-template>
+
+  <!-- ══ TOOLTIP ════════════════════════════════════════════════════════════ -->
+  <div class="gc-tooltip" [class.visible]="tooltip.visible"
+       [style.left.px]="tooltip.x" [style.top.px]="tooltip.y"
+       *ngIf="tooltip.row">
+    <div class="tt-header" [class]="'tt-' + tooltip.row!.status">
+      <span class="tt-icon">{{ typeIcon(tooltip.row!.type) }}</span>
+      <span class="tt-title">{{ tooltip.row!.title }}</span>
+    </div>
+    <div class="tt-body">
+      <div class="tt-row">
+        <mat-icon>calendar_today</mat-icon>
+        <span>{{ fmtDate(tooltip.row!.startDate) }} → {{ fmtDate(tooltip.row!.dueDate) }}</span>
+      </div>
+      <div class="tt-row">
+        <mat-icon>schedule</mat-icon>
+        <span>{{ tooltip.row!.durationDays }} jour(s)</span>
+      </div>
+      <div class="tt-row">
+        <mat-icon>person</mat-icon>
+        <span>{{ tooltip.row!.assignedTo }}</span>
+      </div>
+      <div class="tt-row">
+        <mat-icon>flag</mat-icon>
+        <span>{{ statusLabel(tooltip.row!.status) }} · {{ priorityLabel(tooltip.row!.priority) }}</span>
+      </div>
+      <div class="tt-progress">
+        <div class="tt-prog-bar">
+          <div class="tt-prog-fill" [style.width.%]="tooltip.row!.progress"
+               [class]="'tt-fill-' + tooltip.row!.status"></div>
+        </div>
+        <span class="tt-pct">{{ tooltip.row!.progress }}%</span>
+      </div>
+      <div class="tt-late" *ngIf="tooltip.row!.isLate">
+        ⚠️ Tâche en retard
+      </div>
+    </div>
+  </div>
+
+</div>

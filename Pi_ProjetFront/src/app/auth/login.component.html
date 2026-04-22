@@ -1,0 +1,96 @@
+<div class="login-wrapper">
+  <div class="card">
+
+    <!-- ── Étape 1 : Email + Mot de passe ────────────────────────────── -->
+    <ng-container *ngIf="step === 'credentials'">
+      <h1>Sign In</h1>
+      <p class="subtitle">Access your workspace</p>
+
+      <div class="alert-error" *ngIf="error">{{ error }}</div>
+
+      <form (ngSubmit)="onSubmit()" #loginForm="ngForm">
+
+        <label for="email">Email</label>
+        <input
+          id="email"
+          type="email"
+          name="email"
+          [(ngModel)]="email"
+          placeholder="you@example.com"
+          required
+          autofocus
+        />
+
+        <label for="password">Password</label>
+        <input
+          id="password"
+          type="password"
+          name="password"
+          [(ngModel)]="password"
+          placeholder="••••••••"
+          required
+        />
+
+        <button type="submit" [disabled]="loading || loginForm.invalid">
+          {{ loading ? 'Signing in...' : 'Sign In' }}
+        </button>
+
+      </form>
+
+      <!-- Remove in production -->
+      <div class="test-accounts">
+        <p>Test accounts</p>
+        <button
+          *ngFor="let a of testAccounts"
+          type="button"
+          class="account-btn"
+          (click)="fillAccount(a)"
+        >
+          {{ a.email }} <span>{{ a.role }}</span>
+        </button>
+      </div>
+    </ng-container>
+
+    <!-- ── Étape 2 : Code 2FA (Google Authenticator) ──────────────────── -->
+    <ng-container *ngIf="step === 'mfa'">
+      <div class="mfa-icon">🔐</div>
+      <h1>Two-Factor Authentication</h1>
+      <p class="subtitle">
+        Open <strong>Google Authenticator</strong> and enter the 6-digit code
+        shown for <strong>PiProjet</strong>.
+      </p>
+
+      <div class="alert-error" *ngIf="error">{{ error }}</div>
+
+      <form (ngSubmit)="onVerify2FA()">
+
+        <label for="mfaCode">6-digit code</label>
+        <input
+          id="mfaCode"
+          type="text"
+          name="mfaCode"
+          [(ngModel)]="mfaCode"
+          placeholder="000000"
+          maxlength="6"
+          pattern="[0-9]{6}"
+          autocomplete="one-time-code"
+          inputmode="numeric"
+          required
+          autofocus
+          class="mfa-input"
+        />
+        <p class="mfa-hint">The code refreshes every 30 seconds.</p>
+
+        <button type="submit" [disabled]="loading || mfaCode.length !== 6">
+          {{ loading ? 'Verifying...' : 'Verify' }}
+        </button>
+
+        <button type="button" class="back-btn" (click)="backToCredentials()">
+          ← Back
+        </button>
+
+      </form>
+    </ng-container>
+
+  </div>
+</div>

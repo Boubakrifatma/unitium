@@ -1,0 +1,312 @@
+/**
+ * SHARED COMPONENT STYLES
+ * Standardized UI patterns used across workspace and project modules
+ * Import this into components that need consistent styling
+ */
+
+/* ===== EMPTY STATES ===== */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+}
+
+.empty-state-icon {
+    font-size: 64px;
+    width: 64px;
+    height: 64px;
+    color: rgba(0, 0, 0, 0.25);
+    margin-bottom: 16px;
+}
+
+.empty-state-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1a202c;
+    margin-bottom: 8px;
+}
+
+.empty-state-message {
+    font-size: 14px;
+    color: #64748b;
+    margin-bottom: 16px;
+}
+
+.empty-state-action {
+    margin-top: 8px;
+}
+
+/* ===== CAPACITY WARNINGS ===== */
+.capacity-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    color: white;
+}
+
+.capacity-healthy {
+    background: #10b981;
+    color: white;
+}
+
+.capacity-warning {
+    background: #f59e0b;
+    color: white;
+}
+
+.capacity-critical {
+    background: #dc2626;
+    color: white;
+}
+
+/* Capacity banner style */
+.capacity-banner {
+    padding: 12px 16px;
+    border-radius: 8px;
+    border-left: 4px solid;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.capacity-banner.healthy {
+    border-left-color: #10b981;
+    background: rgba(16, 185, 129, 0.08);
+}
+
+.capacity-banner.warning {
+    border-left-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.08);
+}
+
+.capacity-banner.critical {
+    border-left-color: #dc2626;
+    background: rgba(220, 38, 38, 0.08);
+}
+
+.capacity-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.capacity-content {
+    flex: 1;
+}
+
+.capacity-label {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.capacity-details {
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+/* ===== STATUS BADGES ===== */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.status-active {
+    background: rgba(16, 185, 129, 0.15);
+    color: #059669;
+}
+
+.status-planning {
+    background: rgba(245, 158, 11, 0.15);
+    color: #d97706;
+}
+
+.status-on-hold {
+    background: rgba(245, 158, 11, 0.15);
+    color: #d97706;
+}
+
+.status-completed {
+    background: rgba(139, 92, 246, 0.15);
+    color: #7c3aed;
+}
+
+.status-cancelled {
+    background: rgba(220, 38, 38, 0.15);
+    color: #dc2626;
+}
+
+.status-archived {
+    background: rgba(75, 85, 99, 0.15);
+    color: #4b5563;
+}
+
+/* ===== ROLE BADGES ===== */
+.role-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.role-admin,
+.role-manager,
+.role-professor {
+    background: rgba(59, 130, 246, 0.15);
+    color: #1d4ed8;
+}
+
+.role-developer {
+    background: rgba(16, 185, 129, 0.15);
+    color: #059669;
+}
+
+.role-reviewer {
+    background: rgba(245, 158, 11, 0.15);
+    color: #d97706;
+}
+
+.role-observer,
+.role-viewer {
+    background: rgba(107, 114, 128, 0.15);
+    color: #374151;
+}
+
+/* ===== ALERT BANNERS ===== */
+.alert-banner {
+    padding: 12px 16px;
+    border-radius: 8px;
+    border-left: 4px solid;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.alert-info {
+    border-left-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.08);
+    color: #1e40af;
+}
+
+.alert-warning {
+    border-left-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.08);
+    color: #92400e;
+}
+
+.alert-error,
+.alert-danger {
+    border-left-color: #dc2626;
+    background: rgba(220, 38, 38, 0.08);
+    color: #7f1d1d;
+}
+
+.alert-success {
+    border-left-color: #10b981;
+    background: rgba(16, 185, 129, 0.08);
+    color: #065f46;
+}
+
+.alert-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.alert-content {
+    flex: 1;
+}
+
+/* ===== CARD PATTERNS ===== */
+.info-card {
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-left: 4px solid #6366f1;
+    border-radius: 12px;
+    padding: 16px;
+    background: rgba(99, 102, 241, 0.04);
+}
+
+.stat-card {
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1a202c;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ===== PROGRESS INDICATORS ===== */
+.progress-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    border: 1px solid rgba(99, 102, 241, 0.24);
+    background: rgba(99, 102, 241, 0.1);
+    color: #4f46e5;
+}
+
+.progress-value {
+    font-weight: 700;
+}
+
+/* ===== LOADING STATES ===== */
+.skeleton-loader {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* ===== RESPONSIVE ADJUSTMENTS ===== */
+@media (max-width: 768px) {
+    .empty-state {
+        padding: 30px 15px;
+    }
+
+    .empty-state-icon {
+        font-size: 48px;
+        width: 48px;
+        height: 48px;
+    }
+
+    .capacity-banner {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .status-badge,
+    .role-badge,
+    .progress-pill {
+        font-size: 11px;
+    }
+}

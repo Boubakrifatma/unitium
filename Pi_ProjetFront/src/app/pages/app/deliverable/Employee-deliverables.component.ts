@@ -1,0 +1,328 @@
+import { Component, OnInit, OnDestroy, signal, computed, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { MatCardModule } from '@angular/material/card';
+import { MatButtonModule } from '@angular/material/button';
+import { MatBadgeModule } from '@angular/material/badge';
+import { MatIconModule } from '@angular/material/icon';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { Subject, takeUntil, interval } from 'rxjs';
+
+import { DeliverableService, Deliverable } from '../../../services/Deliverable.service';
+import { DeliverableDetailDialogComponent } from './deliverable-detail-dialog.component';
+import { DeliverableDialogComponent } from './deliverable-dialog.component';
+import { NotificationService } from '../../../services/notification.service';
+import { TaskService } from '../../../services/TaskService/task.service';
+import { AuthService } from '../../../auth/auth.service';
+import { DeliverableIntelligenceService } from '../../../services/deliverable-intelligence.service';
+import { DuplicateWarningDialogComponent } from '../intelligence/duplicate-warning-dialog.component';
+
+const STATUS_CHANGE_EVENTS = new Set([
+  'ACCEPTED_BY_MANAGER',
+  'REVISION_REQUIRED_BY_MANAGER',
+  'VALIDATED_EMPLOYEE',
+  'REVISION_REQUIRED_BY_PO',
+]);
+
+@Component({
+  selector: 'app-employee-deliverables',
+  standalone: true,
+  imports: [
+    CommonModule,
+    MatCardModule,
+    MatButtonModule,
+    MatBadgeModule,
+    MatIconModule,
+    MatDialogModule,
+    MatSnackBarModule,
+    MatProgressSpinnerModule,
+  ],
+  templateUrl: './employee-deliverables.component.html',
+  styleUrls: ['./employee-deliverables.component.scss']
+})
+export class EmployeeDeliverablesComponent implements OnInit, OnDestroy {
+
+  private dialog = inject(MatDialog);
+  private destroy$ = new Subject<void>();
+
+  deliverables = signal<Deliverable[]>([]);
+  loading = signal(true);
+  error = signal<string | null>(null);
+  selectedStatus = signal<string | null>(null);
+
+  /**
+   * IDs des livrables dont le manager a ouvert la review.
+   * Calculé depuis les notifications existantes (signal réactif).
+   */
+  managerViewedIds = computed(() =>
+    new Set(
+      this.notificationService.notifications()
+        .filter(n => n.eventType === 'MANAGER_VIEWED' && n.deliverableId !== null)
+        .map(n => n.deliverableId as number)
+    )
+  );
+
+  /** Retourne le statut effectif : 'manager_viewed' si notifié, sinon le statut réel */
+  getEffectiveStatus(deliverable: Deliverable): string {
+    if (deliverable.status === 'under_review' && this.managerViewedIds().has(deliverable.id)) {
+      return 'manager_viewed';
+    }
+    return deliverable.status;
+  }
+
+  filteredDeliverables = computed(() => {
+    const status = this.selectedStatus();
+    const all = this.deliverables();
+    if (!status) return all;
+    // Pour le filtre 'manager_viewed', on filtre via getEffectiveStatus
+    if (status === 'manager_viewed') {
+      return all.filter(d => this.getEffectiveStatus(d) === 'manager_viewed');
+    }
+    return all.filter(d => d.status === status);
+  });
+
+  openingDialog = signal(false);
+
+  constructor(
+    public deliverableService: DeliverableService,
+    private notificationService: NotificationService,
+    private snackBar: MatSnackBar,
+    private taskService: TaskService,
+    private authService: AuthService,
+    private intelligence: DeliverableIntelligenceService,
+  ) {}
+
+  ngOnInit(): void {
+    this.loadDeliverables();
+
+    // Recharger quand un changement de statut réel arrive via SSE
+    this.notificationService.newNotification$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(notif => {
+        if (STATUS_CHANGE_EVENTS.has(notif.eventType)) {
+          this.loadDeliverables();
+
+          const isRevision = notif.eventType === 'REVISION_REQUIRED_BY_MANAGER';
+          const isAccepted = notif.eventType === 'ACCEPTED_BY_MANAGER';
+
+          let message = notif.message || notif.title || 'Votre livrable a été évalué par le manager.';
+          let panelClass = 'snack-info';
+
+          if (isAccepted) {
+            message = '✓ ' + message;
+            panelClass = 'snack-success';
+          } else if (isRevision) {
+            message = '↩ ' + message;
+            panelClass = 'snack-warning';
+          }
+
+          this.snackBar.open(message, 'Voir mes livrables', {
+            duration: 7000,
+            panelClass,
+            verticalPosition: 'top',
+            horizontalPosition: 'right',
+          });
+        }
+      });
+
+    // Polling silencieux toutes les 5 s
+    interval(5000)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => this.silentReload());
+  }
+
+  private silentReload(): void {
+    this.deliverableService.getMyDeliverables().subscribe({
+      next: (data) => {
+        const current = this.deliverables();
+        const changed = data.some(d => {
+          const existing = current.find(c => c.id === d.id);
+          return !existing || existing.status !== d.status;
+        });
+        if (changed || data.length !== current.length) {
+          this.deliverables.set(data);
+        }
+      }
+    });
+  }
+
+  openSubmitDialog(): void {
+    this.openingDialog.set(true);
+    const currentUser = this.authService.currentUser();
+    if (!currentUser) {
+      this.openingDialog.set(false);
+      return;
+    }
+
+    this.taskService.getMyTasks().subscribe({
+      next: (tasks) => {
+        this.openingDialog.set(false);
+        const doneTasks = tasks.filter(t => t.status === 'done');
+
+        if (doneTasks.length === 0) {
+          this.snackBar.open(
+            'Aucune tâche terminée (done) trouvée. Terminez une tâche avant de soumettre un livrable.',
+            'OK', { duration: 5000, verticalPosition: 'top' }
+          );
+          return;
+        }
+
+        // Use the first task that has a projectId to ensure projectId is not empty
+        const firstTaskWithProject = doneTasks.find(t => t.projectId) ?? doneTasks[0];
+
+        const availableProjects = doneTasks
+          .filter(t => t.projectId)
+          .map(t => ({ id: t.projectId, name: t.projectName }))
+          .filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
+
+        if (availableProjects.length === 0) {
+          this.snackBar.open(
+            'Impossible de soumettre : aucune tâche terminée n\'est associée à un projet.',
+            'OK', { duration: 6000, verticalPosition: 'top' }
+          );
+          return;
+        }
+
+        const ref = this.dialog.open(DeliverableDialogComponent, {
+          width: '680px',
+          maxWidth: '95vw',
+          data: {
+            mode: 'create',
+            deliverable: null,
+            tasks: doneTasks.filter(t => t.projectId), // only tasks with a project
+            users: [currentUser],
+            projects: availableProjects,
+            currentUserId: currentUser.id,
+            currentProjectId: firstTaskWithProject.projectId ?? '',
+          }
+        });
+
+        ref.afterClosed().subscribe(result => {
+          if (result) {
+            this.loadDeliverables();
+            this.checkDuplicatesOnLatest();
+          }
+        });
+      },
+      error: () => {
+        this.openingDialog.set(false);
+        this.snackBar.open('Erreur lors du chargement des tâches.', 'OK', { duration: 4000 });
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  loadDeliverables(): void {
+    this.loading.set(true);
+    this.error.set(null);
+    this.deliverableService.getMyDeliverables().subscribe({
+      next: (data) => {
+        this.deliverables.set(data);
+        this.loading.set(false);
+      },
+      error: (err) => {
+        console.error('Erreur chargement livrables:', err);
+        this.error.set('Erreur lors du chargement des livrables. Veuillez réessayer.');
+        this.loading.set(false);
+      }
+    });
+  }
+
+  filterByStatus(status: string | null): void {
+    this.selectedStatus.set(status);
+  }
+
+  getStatusColor(status: string): string {
+    return this.deliverableService.getStatusColor(status) || 'primary';
+  }
+
+  viewDetails(deliverable: Deliverable): void {
+    this.dialog.open(DeliverableDetailDialogComponent, {
+      width: '860px',
+      maxWidth: '95vw',
+      data: deliverable
+    });
+  }
+
+  getStatusIcon(status: string): string {
+    const icons: Record<string, string> = {
+      'submitted': 'send',
+      'under_review': 'hourglass_empty',
+      'manager_viewed': 'visibility',
+      'revision_required': 'rate_review',
+      'accepted_by_manager': 'check_circle',
+      'validated': 'verified',
+      'draft': 'edit_note'
+    };
+    return icons[status] || 'assignment';
+  }
+
+  editDeliverable(deliverable: Deliverable): void {
+    const currentUser = this.authService.currentUser();
+    if (!currentUser) {
+      this.snackBar.open('Utilisateur non authentifié.', 'OK', { duration: 4000 });
+      return;
+    }
+
+    const taskStub = {
+      id: deliverable.taskId,
+      title: deliverable.taskTitle ?? 'Tâche',
+      taskType: '',
+      projectName: deliverable.projectName ?? '',
+    };
+
+    const ref = this.dialog.open(DeliverableDialogComponent, {
+      width: '600px',
+      maxWidth: '95vw',
+      autoFocus: false,
+      panelClass: 'custom-dialog-container',
+      data: {
+        mode: 'add-version',
+        deliverable: deliverable,
+        tasks: [taskStub],
+        users: [currentUser],
+        projects: [{ id: deliverable.projectId, name: deliverable.projectName ?? '' }],
+        currentUserId: currentUser.id,
+        currentProjectId: deliverable.projectId,
+        deliverableId: deliverable.id,
+        hasExistingDeliverable: true,
+      },
+    });
+
+    ref.afterClosed().subscribe(result => {
+      if (result) {
+        this.loadDeliverables();
+        this.snackBar.open('Nouvelle version soumise avec succès.', 'OK', {
+          duration: 4000,
+          panelClass: 'snack-success',
+          verticalPosition: 'top',
+        });
+      }
+    });
+  }
+
+  /** After a successful submit, fetch the newest deliverable and warn if it looks like a duplicate. */
+  private checkDuplicatesOnLatest(): void {
+    this.deliverableService.getMyDeliverables().subscribe({
+      next: (data) => {
+        if (!data.length) return;
+        const latest = data.reduce((a, b) => (a.id > b.id ? a : b));
+        this.intelligence.duplicates(latest.id).subscribe({
+          next: (report) => {
+            if (report.duplicateWarning) {
+              this.dialog.open(DuplicateWarningDialogComponent, {
+                data: report,
+                width: '520px',
+              });
+            }
+          },
+        });
+      },
+    });
+  }
+}

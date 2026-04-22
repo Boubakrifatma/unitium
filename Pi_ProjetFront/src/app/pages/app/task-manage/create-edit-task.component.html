@@ -1,0 +1,188 @@
+<h2 mat-dialog-title class="dialog-title">
+  <mat-icon>{{ isEdit() ? 'edit' : 'add_task' }}</mat-icon>
+  {{ isEdit() ? 'Modifier la tâche' : 'Créer une nouvelle tâche' }}
+</h2>
+
+<mat-dialog-content class="dialog-content">
+  <form [formGroup]="taskForm" class="task-form">
+
+    <!-- Titre -->
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Titre de la tâche *</mat-label>
+      <input matInput formControlName="title" placeholder="Ex: Conception des maquettes UI">
+      <mat-hint>Minimum 3 mots</mat-hint>
+      <mat-error *ngIf="taskForm.get('title')?.hasError('required')">
+        Le titre est obligatoire
+      </mat-error>
+      <mat-error *ngIf="taskForm.get('title')?.hasError('minWords')">
+        Le titre doit contenir au moins 3 mots
+      </mat-error>
+    </mat-form-field>
+
+    <!-- Description -->
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Description *</mat-label>
+      <textarea matInput formControlName="description" rows="4" placeholder="Détails de la tâche..."></textarea>
+      <mat-hint>Doit être en relation avec le titre</mat-hint>
+      <mat-error *ngIf="taskForm.get('description')?.hasError('required')">
+        La description est obligatoire
+      </mat-error>
+      <mat-error *ngIf="taskForm.get('description')?.hasError('minlength')">
+        La description doit contenir au moins 10 caractères
+      </mat-error>
+      <mat-error *ngIf="taskForm.hasError('descriptionUnrelated') && taskForm.get('description')?.touched && !taskForm.get('description')?.hasError('required') && !taskForm.get('description')?.hasError('minlength')">
+        La description doit être en relation avec le titre de la tâche
+      </mat-error>
+    </mat-form-field>
+
+    <div class="form-grid">
+      <!-- Type -->
+      <mat-form-field appearance="outline">
+        <mat-label>Type</mat-label>
+        <mat-select formControlName="type">
+          <mat-option *ngFor="let type of taskTypes" [value]="type">
+            {{ type | titlecase }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- Priorité -->
+      <mat-form-field appearance="outline">
+        <mat-label>Priorité</mat-label>
+        <mat-select formControlName="priority">
+          <mat-option *ngFor="let p of taskPriorities" [value]="p">
+            {{ p }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- Heures estimées -->
+      <mat-form-field appearance="outline">
+        <mat-label>Heures estimées</mat-label>
+        <input matInput type="number" formControlName="assignHours" min="0">
+      </mat-form-field>
+    </div>
+
+    <div class="form-grid">
+      <!-- Date début -->
+      <mat-form-field appearance="outline">
+        <mat-label>Date de début</mat-label>
+        <input matInput type="date" formControlName="startDate">
+      </mat-form-field>
+
+      <!-- Date fin -->
+      <mat-form-field appearance="outline">
+        <mat-label>Date d'échéance</mat-label>
+        <input matInput type="date" formControlName="dueDate">
+      </mat-form-field>
+
+      <!-- Heures réelles (seulement en édition) -->
+      <mat-form-field appearance="outline" *ngIf="isEdit()">
+        <mat-label>Heures réelles</mat-label>
+        <input matInput type="number" formControlName="actualHours" min="0">
+      </mat-form-field>
+    </div>
+
+    <!-- Assigné à -->
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Assigné à</mat-label>
+      <mat-select formControlName="assignedTo">
+        <mat-option [value]="null">Non assigné</mat-option>
+        <mat-option *ngFor="let member of data.members" [value]="member.id">
+          <div class="member-option">
+            <div class="avatar-small" *ngIf="member.avatarUrl; else initials">
+              <img [src]="member.avatarUrl" alt="">
+            </div>
+            <ng-template #initials>
+              <div class="avatar-small initials">{{ getInitials(member.name) }}</div>
+            </ng-template>
+            <span>{{ member.name }}</span>
+          </div>
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <!-- Tâche parent -->
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Tâche parent (optionnel)</mat-label>
+      <mat-select formControlName="parentTaskId">
+        <mat-option [value]="null">Aucune (tâche principale)</mat-option>
+        <mat-option *ngFor="let p of data.parentTasks" [value]="p.taskId">
+          #{{ p.taskId }} — {{ p.title }}
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <!-- Dépendances -->
+    <div class="dependencies-section">
+      <h3 class="section-title">Dépendances (optionnel)</h3>
+
+      <div class="dependency-form">
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>La tâche dépend de...</mat-label>
+          <mat-select formControlName="dependsOnTaskId">
+            <mat-option [value]="null">Sélectionner une tâche</mat-option>
+            <mat-option *ngFor="let task of data.availableTasks" [value]="task.taskId">
+              #{{ task.taskId }} — {{ task.title }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>Type de lien</mat-label>
+          <mat-select [formControl]="dependencyTypeControl">
+            <mat-option value="finish_to_start">Fin à Début</mat-option>
+            <mat-option value="start_to_start">Début à Début</mat-option>
+            <mat-option value="finish_to_finish">Fin à Fin</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <button type="button" mat-icon-button (click)="addDependency()" title="Ajouter la dépendance">
+          <mat-icon>add_circle</mat-icon>
+        </button>
+      </div>
+
+      <!-- Liste des dépendances ajoutées -->
+      <div *ngIf="selectedDependencies().length > 0" class="dependencies-list">
+        <mat-chip-set>
+          <mat-chip *ngFor="let dep of selectedDependencies()" (removed)="removeDependency(dep.taskId)">
+            <span>{{ getDependencyTaskTitle(dep.taskId) }} ({{ dep.type }})</span>
+            <button matChipRemove>
+              <mat-icon>close</mat-icon>
+            </button>
+          </mat-chip>
+        </mat-chip-set>
+      </div>
+    </div>
+
+    <!-- Visibilité -->
+    <div class="visibility-toggle-section">
+      <div class="visibility-info">
+        <mat-icon [class]="taskForm.get('isVisibleToAssignees')?.value ? 'vis-icon-on' : 'vis-icon-off'">
+          {{ taskForm.get('isVisibleToAssignees')?.value ? 'visibility' : 'visibility_off' }}
+        </mat-icon>
+        <div class="visibility-text">
+          <span class="visibility-label">Visible par les assignés</span>
+          <span class="visibility-hint">
+            {{ taskForm.get('isVisibleToAssignees')?.value
+              ? 'Les membres assignés peuvent voir cette tâche'
+              : 'Tâche masquée aux assignés — visible uniquement par les managers/admins' }}
+          </span>
+        </div>
+      </div>
+      <mat-slide-toggle
+        formControlName="isVisibleToAssignees"
+        color="primary"
+        matTooltip="Activer/désactiver la visibilité pour les assignés">
+      </mat-slide-toggle>
+    </div>
+
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()">Annuler</button>
+  <button mat-raised-button color="primary" (click)="onSubmit()" [disabled]="taskForm.invalid">
+    {{ isEdit() ? 'Mettre à jour' : 'Créer la tâche' }}
+  </button>
+</mat-dialog-actions>

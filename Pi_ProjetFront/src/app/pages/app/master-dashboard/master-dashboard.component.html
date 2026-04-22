@@ -1,0 +1,332 @@
+<section class="master-dashboard-shell">
+    <header class="hero-panel reveal">
+        <div class="hero-copy">
+            <p class="eyebrow">CMP Portfolio Command Center</p>
+            <h1>Master Dashboard</h1>
+            <p class="summary">{{ globalHealth().label }}</p>
+        </div>
+
+        <div class="hero-actions">
+            <div class="health-chip" [ngClass]="healthClass(globalHealth().score)">
+                <span>Portfolio Health</span>
+                <strong>{{ globalHealth().score | number: "1.0-1" }}</strong>
+                <small>{{ statusLabel(globalHealth().state) }}</small>
+            </div>
+
+            <button mat-flat-button type="button" class="refresh-button" (click)="manualRefresh()" [disabled]="loading() || refreshing()">
+                <mat-icon class="material-icons-outlined">refresh</mat-icon>
+                {{ refreshing() ? "Refreshing" : "Refresh now" }}
+            </button>
+
+            <p class="timestamp">Last update: {{ formatDateTime(portfolio()?.generatedAt) }}</p>
+        </div>
+    </header>
+
+    @if (error()) {
+        <div class="error-banner reveal">
+            <mat-icon class="material-icons-outlined">error_outline</mat-icon>
+            <span>{{ error() }}</span>
+        </div>
+    }
+
+    @if (loading()) {
+        <div class="loading-shell">
+            <mat-progress-spinner mode="indeterminate" diameter="54"></mat-progress-spinner>
+            <p>Loading portfolio signals...</p>
+        </div>
+    } @else {
+        <section class="metric-strip reveal">
+            <article class="metric-card metric-cool">
+                <div>
+                    <p>Workspaces</p>
+                    <h2>{{ metrics().workspaces }}</h2>
+                </div>
+                <mat-icon class="material-icons-outlined">workspaces</mat-icon>
+            </article>
+
+            <article class="metric-card metric-deep">
+                <div>
+                    <p>Projects</p>
+                    <h2>{{ metrics().projects }}</h2>
+                </div>
+                <mat-icon class="material-icons-outlined">folder_open</mat-icon>
+            </article>
+
+            <article class="metric-card metric-warm">
+                <div>
+                    <p>Tasks</p>
+                    <h2>{{ metrics().tasks }}</h2>
+                </div>
+                <mat-icon class="material-icons-outlined">checklist</mat-icon>
+            </article>
+
+            <article class="metric-card metric-earth">
+                <div>
+                    <p>Members</p>
+                    <h2>{{ metrics().members }}</h2>
+                </div>
+                <mat-icon class="material-icons-outlined">groups</mat-icon>
+            </article>
+        </section>
+
+        <section class="layout-grid">
+            <article class="panel panel-workspaces reveal">
+                <div class="panel-heading">
+                    <h3>Workspace Pulse</h3>
+                    <p>{{ workspaceCards().length }} active scopes</p>
+                </div>
+
+                @if (workspaceCards().length === 0) {
+                    <p class="empty-state">No workspace metrics are currently available.</p>
+                } @else {
+                    <div class="workspace-row">
+                        @for (workspace of workspaceCards(); track workspace.id) {
+                            <div class="workspace-pill" [ngClass]="healthClass(workspace.healthScore)">
+                                <div class="pill-top">
+                                    <h4>{{ workspace.name }}</h4>
+                                    <span>{{ workspace.projectCount }} projects</span>
+                                </div>
+                                <div class="pill-bottom">
+                                    <span>Health {{ workspace.healthScore | number: "1.0-0" }}</span>
+                                    <span>{{ workspace.urgentProjects }} urgent</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </article>
+
+            <article class="panel panel-territory reveal">
+                <div class="panel-heading">
+                    <h3>Territory Treemap</h3>
+                    <p>Task mass and health across workspace territories</p>
+                </div>
+                <div #treemapHost class="viz-host treemap-host" aria-label="Territory treemap map"></div>
+            </article>
+
+            <article class="panel panel-radar reveal">
+                <div class="panel-heading">
+                    <h3>Signal Radar</h3>
+                    <p>Multi-axis health, delivery, and momentum telemetry</p>
+                </div>
+                <div class="viz-host radar-host">
+                    <canvas #radarCanvas aria-label="Portfolio signal radar"></canvas>
+                </div>
+            </article>
+
+            <article class="panel panel-projects reveal">
+                <div class="panel-heading">
+                    <h3>Project Command Board</h3>
+                    <p>Select a project to inspect timeline and pressure points.</p>
+                </div>
+
+                @if (projectCards().length === 0) {
+                    <p class="empty-state">No projects are visible for your current role and memberships.</p>
+                } @else {
+                    <div class="project-grid">
+                        @for (project of projectCards(); track project.id) {
+                            <button type="button" class="project-card" [class.project-selected]="isSelectedProject(project.id)" (click)="selectProject(project.id)">
+                                <div class="project-top">
+                                    <h4>{{ project.name }}</h4>
+                                    <span class="risk-pill" [ngClass]="riskClass(project.riskLevel)">{{ statusLabel(project.riskLevel) }}</span>
+                                </div>
+
+                                <p class="project-meta">{{ project.workspaceName }} · {{ statusLabel(project.status) }}</p>
+
+                                <div class="project-progress">
+                                    <div class="progress-track">
+                                        <span [style.width]="progressWidth(project.taskSummary.progressPct)"></span>
+                                    </div>
+                                    <p>{{ project.taskSummary.done }}/{{ project.taskSummary.total }} tasks complete</p>
+                                </div>
+
+                                <div class="project-members">
+                                    <div class="avatars">
+                                        @for (member of project.members.preview; track member.userId) {
+                                            @if (member.avatarUrl) {
+                                                <img [src]="member.avatarUrl" [alt]="member.fullName || 'Member'" [matTooltip]="member.fullName || 'Member'" />
+                                            } @else {
+                                                <span class="avatar-fallback" [matTooltip]="member.fullName || 'Member'">{{ memberInitial(member.fullName) }}</span>
+                                            }
+                                        }
+                                    </div>
+                                    <span>{{ project.members.count }} members</span>
+                                </div>
+
+                                @if (project.urgent.isUrgent) {
+                                    <p class="urgency-line">
+                                        <mat-icon class="material-icons-outlined">priority_high</mat-icon>
+                                        {{ project.urgent.overdueTasks }} overdue tasks · {{ project.urgent.overdueMilestones }} overdue milestones
+                                    </p>
+                                }
+                            </button>
+                        }
+                    </div>
+                }
+            </article>
+
+            <article class="panel panel-focus reveal">
+                <div class="panel-heading">
+                    <h3>Focus Timeline</h3>
+                    <p>Detailed telemetry for the selected project.</p>
+                </div>
+
+                @if (focusLoading()) {
+                    <div class="focus-loading">
+                        <mat-progress-spinner mode="indeterminate" diameter="36"></mat-progress-spinner>
+                    </div>
+                } @else if (focus(); as focusData) {
+                    <div class="focus-header">
+                        <h4>{{ focusData.project.name }}</h4>
+                        <span class="status-pill" [ngClass]="statusClass(focusData.project.status)">{{ statusLabel(focusData.project.status) }}</span>
+                    </div>
+
+                    <div class="focus-meters">
+                        <div>
+                            <p>Timeline Progress</p>
+                            <strong>{{ focusData.timeline.progressPct | number: "1.0-0" }}%</strong>
+                        </div>
+                        <div>
+                            <p>Task Completion</p>
+                            <strong>{{ focusData.tasks.completed }}/{{ focusData.tasks.total }}</strong>
+                        </div>
+                        <div>
+                            <p>Urgent Flags</p>
+                            <strong>{{ focusData.urgent.isUrgent ? "Yes" : "No" }}</strong>
+                        </div>
+                    </div>
+
+                    <div class="phase-list">
+                        @for (phase of focusData.phases; track phase.name) {
+                            <div class="phase-item">
+                                <div class="phase-meta">
+                                    <span>{{ phase.name }}</span>
+                                    <span>{{ phase.progressPct | number: "1.0-0" }}%</span>
+                                </div>
+                                <div class="phase-track">
+                                    <span [style.width]="progressWidth(phase.progressPct)" [style.background]="phase.color"></span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="focus-list">
+                        <h5>Upcoming Milestones</h5>
+                        @if (focusData.upcomingMilestones.length === 0) {
+                            <p class="empty-state">No upcoming milestones.</p>
+                        } @else {
+                            @for (milestone of focusData.upcomingMilestones; track milestone.id) {
+                                <div class="focus-list-item">
+                                    <div>
+                                        <p>{{ milestone.name }}</p>
+                                        <span>{{ formatDate(milestone.dueDate) }}</span>
+                                    </div>
+                                    <strong>{{ relativeDays(milestone.daysRemaining) }}</strong>
+                                </div>
+                            }
+                        }
+                    </div>
+                } @else {
+                    <p class="empty-state">Select a project to load focus details.</p>
+                }
+            </article>
+
+            <article class="panel panel-constellation reveal">
+                <div class="panel-heading">
+                    <h3>3D Project Constellation</h3>
+                    <p>Planet-core system with workspace orbits and project satellites</p>
+                </div>
+                <div #constellationHost class="viz-host constellation-host" aria-label="Three.js project constellation"></div>
+                <p class="viz-caption">Rendering {{ constellationNodeCount() }} live project nodes in the scene.</p>
+                <p class="viz-interaction-hint">Hover to reveal names, click to focus, and double-click to open details.</p>
+            </article>
+
+            <article class="panel panel-graph reveal">
+                <div class="panel-heading">
+                    <h3>Systems Graph</h3>
+                    <p>Interactive workspace-project topology with force physics</p>
+                </div>
+                <div #networkHost class="viz-host graph-host" aria-label="Workspace project force graph"></div>
+                <p class="viz-interaction-hint">Hover for node names, click to select context, and double-click to open details.</p>
+            </article>
+
+            <article class="panel panel-activity reveal">
+                <div class="panel-heading">
+                    <h3>Recent Activity</h3>
+                    <p>{{ activityItems().length }} events</p>
+                </div>
+
+                @if (activityItems().length === 0) {
+                    <p class="empty-state">No recent audit events available.</p>
+                } @else {
+                    <div class="activity-list">
+                        @for (item of activityItems(); track $index) {
+                            <div class="activity-item">
+                                <div>
+                                    <p>{{ item.message }}</p>
+                                    <span>{{ item.workspaceName }} · {{ item.actor }}</span>
+                                </div>
+                                <time>{{ formatDateTime(item.createdAt) }}</time>
+                            </div>
+                        }
+                    </div>
+                }
+            </article>
+
+            <article class="panel panel-milestones reveal">
+                <div class="panel-heading">
+                    <h3>Milestone Countdown</h3>
+                    <p>{{ milestones().length }} upcoming</p>
+                </div>
+
+                @if (milestones().length === 0) {
+                    <p class="empty-state">No milestone due dates detected.</p>
+                } @else {
+                    <div class="milestone-list">
+                        @for (milestone of milestones(); track milestone.id) {
+                            <div class="milestone-item">
+                                <div>
+                                    <p>{{ milestone.name }}</p>
+                                    <span>{{ milestone.projectName }}</span>
+                                </div>
+                                <strong>{{ relativeDays(milestone.daysRemaining) }}</strong>
+                            </div>
+                        }
+                    </div>
+                }
+            </article>
+
+            <article class="panel panel-templates reveal">
+                <div class="panel-heading">
+                    <h3>Template Momentum</h3>
+                    <p>{{ templates().length }} spotlight templates</p>
+                </div>
+
+                @if (templates().length === 0) {
+                    <p class="empty-state">No featured or trending templates found.</p>
+                } @else {
+                    <div class="template-list">
+                        @for (template of templates(); track template.id) {
+                            <div class="template-item">
+                                <div>
+                                    <p>{{ template.name }}</p>
+                                    <span>{{ statusLabel(template.templateType || "custom") }} · {{ template.usageCount }} uses</span>
+                                </div>
+                                <strong>{{ template.rating | number: "1.1-1" }}</strong>
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (warnings().length > 0) {
+                    <div class="warning-block">
+                        <h5>Operational Warnings</h5>
+                        @for (warning of warnings(); track warning) {
+                            <p>{{ warning }}</p>
+                        }
+                    </div>
+                }
+            </article>
+        </section>
+    }
+</section>
