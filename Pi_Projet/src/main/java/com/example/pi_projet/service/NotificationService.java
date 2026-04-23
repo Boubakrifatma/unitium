@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -22,7 +23,6 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class NotificationService {
 
     private final DeliverableNotificationRepository notifRepository;
@@ -159,13 +159,13 @@ public class NotificationService {
     // QUERY
     // ─────────────────────────────────────────────────────────────────────────
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     public List<java.util.Map<String, Object>> getNotificationsForUser(Long userId) {
         return notifRepository.findByRecipientIdOrderByCreatedAtDesc(userId)
                 .stream().map(this::toDto).collect(java.util.stream.Collectors.toList());
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     public List<java.util.Map<String, Object>> getUnreadNotificationsForUser(Long userId) {
         return notifRepository.findByRecipientIdAndIsReadFalseOrderByCreatedAtDesc(userId)
                 .stream().map(this::toDto).collect(java.util.stream.Collectors.toList());
@@ -183,15 +183,17 @@ public class NotificationService {
         return map;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     public long countUnread(Long userId) {
         return notifRepository.countByRecipientIdAndIsReadFalse(userId);
     }
 
+    @Transactional
     public void markAsRead(Long notificationId) {
         notifRepository.markAsRead(notificationId);
     }
 
+    @Transactional
     public void markAllAsRead(Long userId) {
         notifRepository.markAllAsReadForUser(userId);
     }

@@ -153,54 +153,63 @@ public class ScheduledMessageService {
     }
 
     // ── Background job: send due messages ──────────────────────────────────────
-    @Transactional
+    // Fetch IDs without a transaction to avoid holding a connection during the loop
     public void processScheduledMessages() {
-        List<ScheduledMessage> due = scheduledMessageRepository
-                .findByStatusAndNextSendAtLessThanEqual(ScheduledMessageStatus.PENDING, LocalDateTime.now());
+        List<Long> dueIds = scheduledMessageRepository
+                .findIdsByStatusAndNextSendAtLessThanEqual(ScheduledMessageStatus.PENDING, LocalDateTime.now());
+        for (Long id : dueIds) {
+            processSingleScheduledMessage(id);
+        }
+    }
 
-        for (ScheduledMessage msg : due) {
-            String preview = preview(msg.getContent());
-            try {
-                messageService.sendMessage(msg.getRoom().getId(), msg.getContent(), msg.getSender());
+    // Each message processed in its own short transaction
+    @Transactional
+    public void processSingleScheduledMessage(Long id) {
+        ScheduledMessage msg = scheduledMessageRepository.findById(id).orElse(null);
+        if (msg == null || msg.getStatus() != ScheduledMessageStatus.PENDING) return;
 
-                LocalDateTime nextSendAt = computeNextSendAt(msg);
-                if (nextSendAt == null) {
-                    msg.setStatus(ScheduledMessageStatus.SENT);
-                } else {
-                    msg.setNextSendAt(nextSendAt);
-                    msg.setReminderSent(false);
-                }
-                scheduledMessageRepository.save(msg);
+        String preview = preview(msg.getContent());
+        try {
+            messageService.sendMessage(msg.getRoom().getId(), msg.getContent(), msg.getSender());
 
-                boolean isMeetingReminder = msg.getContent().contains("Reminder")
-                        || msg.getContent().contains("starts in");
-                java.util.Map<String, Object> sentPayload = new java.util.HashMap<>();
-                sentPayload.put("type", "SCHEDULED_SENT");
-                sentPayload.put("roomId", msg.getRoom().getId());
-                sentPayload.put("roomName", msg.getRoom().getName());
-                sentPayload.put("messagePreview", preview);
-                sentPayload.put("sentAt", LocalDateTime.now().toString());
-                if (isMeetingReminder) {
-                    sentPayload.put("meetingReminderType", "MEETING_REMINDER");
-                    sentPayload.put("meetingLink", msg.getRoom().getMeetingLink());
-                }
-                broadcast("/topic/notifications/" + msg.getSender().getId(), sentPayload);
-            } catch (Exception e) {
-                msg.setStatus(ScheduledMessageStatus.FAILED);
-                scheduledMessageRepository.save(msg);
-
-                broadcast("/topic/notifications/" + msg.getSender().getId(),
-                        Map.of(
-                                "type", "SCHEDULED_FAILED",
-                                "roomId", msg.getRoom().getId(),
-                                "roomName", msg.getRoom().getName(),
-                                "messagePreview", preview
-                        ));
+            LocalDateTime nextSendAt = computeNextSendAt(msg);
+            if (nextSendAt == null) {
+                msg.setStatus(ScheduledMessageStatus.SENT);
+            } else {
+                msg.setNextSendAt(nextSendAt);
+                msg.setReminderSent(false);
             }
+            scheduledMessageRepository.save(msg);
+
+            boolean isMeetingReminder = msg.getContent().contains("Reminder")
+                    || msg.getContent().contains("starts in");
+            java.util.Map<String, Object> sentPayload = new java.util.HashMap<>();
+            sentPayload.put("type", "SCHEDULED_SENT");
+            sentPayload.put("roomId", msg.getRoom().getId());
+            sentPayload.put("roomName", msg.getRoom().getName());
+            sentPayload.put("messagePreview", preview);
+            sentPayload.put("sentAt", LocalDateTime.now().toString());
+            if (isMeetingReminder) {
+                sentPayload.put("meetingReminderType", "MEETING_REMINDER");
+                sentPayload.put("meetingLink", msg.getRoom().getMeetingLink());
+            }
+            broadcast("/topic/notifications/" + msg.getSender().getId(), sentPayload);
+        } catch (Exception e) {
+            msg.setStatus(ScheduledMessageStatus.FAILED);
+            scheduledMessageRepository.save(msg);
+
+            broadcast("/topic/notifications/" + msg.getSender().getId(),
+                    Map.of(
+                            "type", "SCHEDULED_FAILED",
+                            "roomId", msg.getRoom().getId(),
+                            "roomName", msg.getRoom().getName(),
+                            "messagePreview", preview
+                    ));
         }
     }
 
     // ── Background job: 15-minute reminders ────────────────────────────────────
+    @Transactional
     public void process15MinReminders() {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime soon = now.plusMinutes(15);

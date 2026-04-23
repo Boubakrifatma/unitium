@@ -260,27 +260,31 @@ export class AllTaskComponent implements OnInit, AfterViewInit {
 
   // ===================== Dialogs - Création & Modification =====================
   openCreate() {
+    const dialogData = {
+      projectId: this.projectId(),
+      milestoneId: this.milestoneId(),
+      members: [
+        { id: null, name: "Non assigné", title: "Non assigné", avatarUrl: null },
+        ...this.projectMembers().map((u: any) => ({
+          id: u.userId ?? u.id ?? u.user?.id ?? null,
+          name: u.user?.fullName ?? u.fullName ?? u.name ?? u.email ?? `User #${u.userId ?? u.id ?? ''}`,
+          title: u.role ?? u.user?.role ?? '',
+          avatarUrl: u.user?.avatarUrl ?? u.avatarUrl ?? null
+        }))
+      ],
+      parentTasks: this.tasks().map(t => ({ taskId: t.taskId, title: t.title })),
+      availableTasks: this.tasks().map(t => ({ taskId: t.taskId, title: t.title }))
+    };
+    console.log('Dialog data:', dialogData);
+
     const dialogRef = this.dialog.open(CreateEditTaskComponent, {
       width: '650px',
       maxWidth: '95vw',
-      data: {
-        projectId: this.projectId(),
-        milestoneId: this.milestoneId(),
-        members: [
-          { id: null, name: "Non assigné", title: "Non assigné", avatarUrl: null },
-          ...this.projectMembers().map((u: any) => ({
-            id: u.userId ?? u.id ?? u.user?.id ?? null,
-            name: u.user?.fullName ?? u.fullName ?? u.name ?? u.email ?? `User #${u.userId ?? u.id ?? ''}`,
-            title: u.role ?? u.user?.role ?? '',
-            avatarUrl: u.user?.avatarUrl ?? u.avatarUrl ?? null
-          }))
-        ],
-        parentTasks: this.tasks().map(t => ({ taskId: t.taskId, title: t.title })),
-        availableTasks: this.tasks().map(t => ({ taskId: t.taskId, title: t.title }))
-      }
+      data: dialogData
     });
 
     dialogRef.afterClosed().subscribe(result => {
+      console.log('Dialog closed with result:', result);
       if (result) {
         this.createTask(result);
       }
@@ -344,34 +348,76 @@ export class AllTaskComponent implements OnInit, AfterViewInit {
   }
 
   openEdit(task: TaskItem) {
-    const dialogRef = this.dialog.open(CreateEditTaskComponent, {
-      width: '650px',
-      maxWidth: '95vw',
-      data: {
-        projectId: this.projectId(),
-        milestoneId: this.milestoneId(),
-        task: task,   // Mode édition
-        members: [
-          { id: null, name: "Non assigné", title: "Non assigné", avatarUrl: null },
-          ...this.projectMembers().map((u: any) => ({
-            id: u.userId ?? u.id ?? u.user?.id ?? null,
-            name: u.user?.fullName ?? u.fullName ?? u.name ?? u.email ?? `User #${u.userId ?? u.id ?? ''}`,
-            title: u.role ?? u.user?.role ?? '',
-            avatarUrl: u.user?.avatarUrl ?? u.avatarUrl ?? null
-          }))
-        ],
-        parentTasks: this.tasks()
-          .filter(t => t.taskId !== task.taskId)
-          .map(t => ({ taskId: t.taskId, title: t.title })),
-        availableTasks: this.tasks()
-          .filter(t => t.taskId !== task.taskId)
-          .map(t => ({ taskId: t.taskId, title: t.title }))
-      }
-    });
+    this.taskDependencyService.getDependenciesByTaskId(task.taskId).subscribe({
+      next: (existingDeps) => {
+        const existingDependencies = existingDeps.map(d => ({
+          dependencyId: d.id,
+          taskId: d.dependsOnTaskId,
+          type: d.dependencyType
+        }));
 
-    dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        this.updateTask(task.taskId, result);
+        const dialogRef = this.dialog.open(CreateEditTaskComponent, {
+          width: '650px',
+          maxWidth: '95vw',
+          data: {
+            projectId: this.projectId(),
+            milestoneId: this.milestoneId(),
+            task: task,
+            existingDependencies,
+            members: [
+              { id: null, name: "Non assigné", title: "Non assigné", avatarUrl: null },
+              ...this.projectMembers().map((u: any) => ({
+                id: u.userId ?? u.id ?? u.user?.id ?? null,
+                name: u.user?.fullName ?? u.fullName ?? u.name ?? u.email ?? `User #${u.userId ?? u.id ?? ''}`,
+                title: u.role ?? u.user?.role ?? '',
+                avatarUrl: u.user?.avatarUrl ?? u.avatarUrl ?? null
+              }))
+            ],
+            parentTasks: this.tasks()
+              .filter(t => t.taskId !== task.taskId)
+              .map(t => ({ taskId: t.taskId, title: t.title })),
+            availableTasks: this.tasks()
+              .filter(t => t.taskId !== task.taskId)
+              .map(t => ({ taskId: t.taskId, title: t.title }))
+          }
+        });
+
+        dialogRef.afterClosed().subscribe(result => {
+          if (result) {
+            this.updateTask(task.taskId, result, existingDependencies);
+          }
+        });
+      },
+      error: () => {
+        // Open dialog even if deps fail to load
+        const dialogRef = this.dialog.open(CreateEditTaskComponent, {
+          width: '650px',
+          maxWidth: '95vw',
+          data: {
+            projectId: this.projectId(),
+            milestoneId: this.milestoneId(),
+            task: task,
+            existingDependencies: [],
+            members: [
+              { id: null, name: "Non assigné", title: "Non assigné", avatarUrl: null },
+              ...this.projectMembers().map((u: any) => ({
+                id: u.userId ?? u.id ?? u.user?.id ?? null,
+                name: u.user?.fullName ?? u.fullName ?? u.name ?? u.email ?? `User #${u.userId ?? u.id ?? ''}`,
+                title: u.role ?? u.user?.role ?? '',
+                avatarUrl: u.user?.avatarUrl ?? u.avatarUrl ?? null
+              }))
+            ],
+            parentTasks: this.tasks()
+              .filter(t => t.taskId !== task.taskId)
+              .map(t => ({ taskId: t.taskId, title: t.title })),
+            availableTasks: this.tasks()
+              .filter(t => t.taskId !== task.taskId)
+              .map(t => ({ taskId: t.taskId, title: t.title }))
+          }
+        });
+        dialogRef.afterClosed().subscribe(result => {
+          if (result) this.updateTask(task.taskId, result, []);
+        });
       }
     });
   }
@@ -401,8 +447,10 @@ export class AllTaskComponent implements OnInit, AfterViewInit {
 
     this.taskService.create(payload).subscribe({
       next: (createdTask) => {
+        console.log('Task created:', createdTask);
         // Créer les dépendances si disponibles
         if (formData.dependencies && formData.dependencies.length > 0) {
+          console.log('Form data dependencies:', formData.dependencies);
           this.createTaskDependencies(createdTask.id, formData.dependencies);
         } else {
           this.snackBar.open("Tâche créée avec succès", "OK", { duration: 3000 });
@@ -411,13 +459,14 @@ export class AllTaskComponent implements OnInit, AfterViewInit {
         }
       },
       error: (err) => {
-        console.error(err);
+        console.error('Error creating task:', err);
         this.snackBar.open("Erreur lors de la création de la tâche", "OK", { duration: 4000 });
       }
     });
   }
 
   private createTaskDependencies(taskId: number, dependencies: any[]) {
+    console.log('Creating dependencies for taskId:', taskId, 'dependencies:', dependencies);
     let completed = 0;
     let errors = 0;
 
@@ -440,10 +489,15 @@ export class AllTaskComponent implements OnInit, AfterViewInit {
         dependsOnTaskId: dep.taskId,
         dependencyType: dep.type
       };
+      console.log('Sending dependency payload:', dependencyPayload);
 
       this.taskDependencyService.create(dependencyPayload).subscribe({
-        next: () => onComplete(),
-        error: () => {
+        next: (response) => {
+          console.log('Dependency created successfully:', response);
+          onComplete();
+        },
+        error: (err) => {
+          console.error('Error creating dependency:', err);
           errors++;
           onComplete();
         }
@@ -451,7 +505,7 @@ export class AllTaskComponent implements OnInit, AfterViewInit {
     });
   }
 
-  private updateTask(taskId: number, formData: any) {
+  private updateTask(taskId: number, formData: any, originalDeps: { dependencyId: number; taskId: number; type: string }[] = []) {
     const payload = {
       title: formData.title,
       description: formData.description || "",
@@ -469,14 +523,46 @@ export class AllTaskComponent implements OnInit, AfterViewInit {
 
     this.taskService.update(taskId, payload).subscribe({
       next: () => {
-        // Créer les nouvelles dépendances si ajoutées
-        if (formData.dependencies && formData.dependencies.length > 0) {
-          this.createTaskDependencies(taskId, formData.dependencies);
-        } else {
+        const currentDeps: { dependencyId?: number; taskId: number; type: string }[] = formData.dependencies || [];
+
+        // Dependencies to delete: existed before but no longer in current list
+        const toDelete = originalDeps.filter(
+          orig => !currentDeps.some(cur => cur.taskId === orig.taskId)
+        );
+
+        // Dependencies to create: in current list but not in original (no dependencyId)
+        const toCreate = currentDeps.filter(
+          cur => !originalDeps.some(orig => orig.taskId === cur.taskId)
+        );
+
+        const deleteObs = toDelete.map(d => this.taskDependencyService.delete(d.dependencyId));
+        const createObs = toCreate.map(d => this.taskDependencyService.create({
+          taskId,
+          dependsOnTaskId: d.taskId,
+          dependencyType: d.type as any
+        }));
+
+        const allOps = [...deleteObs, ...createObs];
+
+        if (allOps.length === 0) {
           this.snackBar.open("Tâche mise à jour avec succès", "OK", { duration: 3000 });
           this.loadTasks();
           this.loadDependencies();
+          return;
         }
+
+        forkJoin(allOps).subscribe({
+          next: () => {
+            this.snackBar.open("Tâche et dépendances mises à jour avec succès", "OK", { duration: 3000 });
+            this.loadTasks();
+            this.loadDependencies();
+          },
+          error: () => {
+            this.snackBar.open("Tâche mise à jour, erreur sur certaines dépendances", "OK", { duration: 4000 });
+            this.loadTasks();
+            this.loadDependencies();
+          }
+        });
       },
       error: (err) => {
         console.error(err);

@@ -24,11 +24,13 @@ public class TaskDependencyService {
     }
 
     public TaskDependency create(TaskDependency taskDependency) {
+        System.out.println("TaskDependencyService.create called with taskId: " + taskDependency.getTask().getId() + ", dependsOnTaskId: " + taskDependency.getDependsOnTask().getId());
         // Validate that both tasks exist
         taskRepository.findById(taskDependency.getTask().getId())
                 .orElseThrow(() -> new RuntimeException("Task not found"));
         taskRepository.findById(taskDependency.getDependsOnTask().getId())
                 .orElseThrow(() -> new RuntimeException("Dependency task not found"));
+        System.out.println("Tasks exist");
 
         // Check for circular dependencies
         if (taskDependency.getTask().getId().equals(taskDependency.getDependsOnTask().getId())) {
@@ -39,6 +41,7 @@ public class TaskDependencyService {
         if (repository.existsByTaskIdAndDependsOnTaskId(taskDependency.getTask().getId(), taskDependency.getDependsOnTask().getId())) {
             throw new RuntimeException("This dependency already exists");
         }
+        System.out.println("Validation passed, saving...");
 
         return repository.save(taskDependency);
     }

@@ -20,6 +20,10 @@ public interface ScheduledMessageRepository extends JpaRepository<ScheduledMessa
 
     List<ScheduledMessage> findByStatusAndNextSendAtLessThanEqual(ScheduledMessageStatus status, LocalDateTime now);
 
+    @Query("SELECT s.id FROM ScheduledMessage s WHERE s.status = :status AND s.nextSendAt <= :now")
+    List<Long> findIdsByStatusAndNextSendAtLessThanEqual(
+            @Param("status") ScheduledMessageStatus status, @Param("now") LocalDateTime now);
+
     List<ScheduledMessage> findBySenderAndStatus(User sender, ScheduledMessageStatus status);
 
     List<ScheduledMessage> findByStatusAndNextSendAtBetweenAndReminderSentFalse(

@@ -31,23 +31,29 @@ public class TaskDependencyController {
     @PostMapping
     public ResponseEntity<?> create(@RequestBody TaskDependencyCreateDto dto,
                                     HttpServletRequest request) {
+        System.out.println("TaskDependencyController.create called with dto: " + dto);
         User currentUser = (User) request.getAttribute("currentUser");
         if (currentUser == null) {
+            System.out.println("Current user is null");
             return ResponseEntity.status(401).body("Session invalide ou expirée");
         }
 
         if (dto.getTaskId() == null || dto.getDependsOnTaskId() == null) {
+            System.out.println("taskId or dependsOnTaskId is null");
             return ResponseEntity.badRequest().body("taskId and dependsOnTaskId are required");
         }
 
         if (dto.getDependencyType() == null || dto.getDependencyType().isBlank()) {
+            System.out.println("dependencyType is null or blank");
             return ResponseEntity.badRequest().body("dependencyType is required");
         }
 
         TaskDependency.DependencyType dependencyType;
         try {
             dependencyType = TaskDependency.DependencyType.valueOf(dto.getDependencyType().toLowerCase());
+            System.out.println("Dependency type: " + dependencyType);
         } catch (IllegalArgumentException e) {
+            System.out.println("Invalid dependency type: " + dto.getDependencyType());
             return ResponseEntity.badRequest().body("Invalid dependencyType. Allowed values: finish_to_start, start_to_start, finish_to_finish");
         }
 
@@ -56,7 +62,9 @@ public class TaskDependencyController {
         try {
             task = taskService.getById(dto.getTaskId());
             dependsOnTask = taskService.getById(dto.getDependsOnTaskId());
+            System.out.println("Task found: " + task.getId() + ", dependsOnTask found: " + dependsOnTask.getId());
         } catch (RuntimeException e) {
+            System.out.println("Task not found: " + e.getMessage());
             return ResponseEntity.badRequest().body(e.getMessage());
         }
 
@@ -69,9 +77,15 @@ public class TaskDependencyController {
 
         try {
             TaskDependency saved = taskDependencyService.create(taskDependency);
+            System.out.println("TaskDependency saved with id: " + saved.getId());
             return ResponseEntity.ok(toDto(saved));
         } catch (RuntimeException e) {
+            System.out.println("RuntimeException in create: " + e.getMessage());
             return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            System.out.println("Exception in create: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Internal server error");
         }
     }
 

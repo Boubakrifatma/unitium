@@ -21,6 +21,7 @@ export interface DialogData {
   parentTasks?: { taskId: number; title: string }[];
   availableTasks?: { taskId: number; title: string }[];
   task?: any; // Pour le mode édition
+  existingDependencies?: { dependencyId: number; taskId: number; type: string }[];
 }
 
 @Component({
@@ -55,7 +56,7 @@ export class CreateEditTaskComponent implements OnInit {
   isEdit = signal(false);
   taskForm: FormGroup;
   dependencyTypeControl = new FormControl<'finish_to_start' | 'start_to_start' | 'finish_to_finish'>('finish_to_start');
-  selectedDependencies = signal<{ taskId: number; type: 'finish_to_start' | 'start_to_start' | 'finish_to_finish' }[]>([]);
+  selectedDependencies = signal<{ dependencyId?: number; taskId: number; type: 'finish_to_start' | 'start_to_start' | 'finish_to_finish' }[]>([]);
 
   taskTypes = ["task", "bug", "epic", "story", "subtask"];
   taskPriorities = ["Low", "Medium", "High", "Critical"];
@@ -133,6 +134,17 @@ export class CreateEditTaskComponent implements OnInit {
       actualHours: task.loggedHours || 0,
       isVisibleToAssignees: task.isVisibleToAssignees !== false
     });
+
+    // Pre-load existing dependencies passed from parent
+    if (this.data.existingDependencies?.length) {
+      this.selectedDependencies.set(
+        this.data.existingDependencies.map(d => ({
+          dependencyId: d.dependencyId,
+          taskId: d.taskId,
+          type: d.type as 'finish_to_start' | 'start_to_start' | 'finish_to_finish'
+        }))
+      );
+    }
   }
 
   getTypeIcon(type: string): string {
@@ -164,6 +176,7 @@ export class CreateEditTaskComponent implements OnInit {
         ...formValue,
         dependencies: this.selectedDependencies()
       };
+      console.log('Dialog onSubmit result:', result);
       this.dialogRef.close(result);
     }
   }
@@ -171,8 +184,10 @@ export class CreateEditTaskComponent implements OnInit {
   addDependency() {
     const dependsOnTaskId = this.taskForm.get('dependsOnTaskId')?.value;
     const dependencyType = this.dependencyTypeControl.value;
+    console.log('addDependency called with dependsOnTaskId:', dependsOnTaskId, 'dependencyType:', dependencyType);
     if (dependsOnTaskId && dependencyType) {
       const alreadyAdded = this.selectedDependencies().some(d => d.taskId === dependsOnTaskId);
+      console.log('alreadyAdded:', alreadyAdded);
       if (!alreadyAdded) {
         const newDependencies = [
           ...this.selectedDependencies(),
@@ -181,9 +196,12 @@ export class CreateEditTaskComponent implements OnInit {
             type: dependencyType
           }
         ];
+        console.log('newDependencies:', newDependencies);
         this.selectedDependencies.set(newDependencies);
         this.taskForm.patchValue({ dependsOnTaskId: null });
       }
+    } else {
+      console.log('dependsOnTaskId or dependencyType is missing');
     }
   }
 

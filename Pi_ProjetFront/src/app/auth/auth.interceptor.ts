@@ -13,6 +13,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const token = authService.getToken();
 
   const isOwnBackend = req.url.startsWith('/') || req.url.includes('localhost:8084');
+  console.log('Interceptor for req:', req.url, 'isOwnBackend:', isOwnBackend, 'token:', !!token);
   const authReq = (token && isOwnBackend)
     ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
     : req;

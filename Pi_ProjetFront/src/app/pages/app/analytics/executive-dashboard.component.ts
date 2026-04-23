@@ -27,6 +27,7 @@ import {
 } from '../../../services/analytics.service';
 import { ProjectService, Project } from '../../../services/project-service';
 import { M2WorkspaceService } from '../m2-workspaces/m2-workspace.service';
+import { TaskService, TaskResponseDto } from '../../../services/TaskService/task.service';
 
 Chart.register(...registerables);
 
@@ -48,18 +49,18 @@ Chart.register(...registerables);
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
       <div>
         <h2 class="mb-1">Executive Dashboard</h2>
-        <p class="text-muted mb-0 small">Analyse des risques, vélocité et prévisions de livraison</p>
+        <p class="text-muted mb-0 small">Risk analysis, velocity and delivery forecasts</p>
       </div>
       <div class="d-flex gap-2 align-items-center">
         <mat-form-field appearance="outline" class="mb-0" style="min-width:220px">
-          <mat-label>Projet</mat-label>
+          <mat-label>Project</mat-label>
           <mat-select [(ngModel)]="selectedProjectId" (ngModelChange)="loadProject($event)">
             <mat-option *ngFor="let p of projects()" [value]="p.id">{{ p.name }}</mat-option>
           </mat-select>
         </mat-form-field>
         <button mat-raised-button color="primary" (click)="recalculate()" [disabled]="!selectedProjectId || recalculating()">
           <mat-icon>refresh</mat-icon>
-          Recalculer
+          Recalculate
         </button>
       </div>
     </div>
@@ -68,14 +69,14 @@ Chart.register(...registerables);
   @if (loading()) {
     <div class="text-center py-5">
       <mat-icon class="spin" style="font-size:48px;color:#6366f1">autorenew</mat-icon>
-      <p class="text-muted mt-2">Chargement des analytics...</p>
+      <p class="text-muted mt-2">Loading analytics...</p>
     </div>
   }
 
   @if (!loading() && !analytics()) {
     <div class="text-center py-5 text-muted">
       <mat-icon style="font-size:64px;opacity:.3">analytics</mat-icon>
-      <p class="mt-2">Sélectionnez un projet pour voir les analytics.</p>
+      <p class="mt-2">Select a project to view analytics.</p>
     </div>
   }
 
@@ -86,7 +87,7 @@ Chart.register(...registerables);
         <mat-card class="kpi-card h-100 p-3">
           <div class="d-flex justify-content-between align-items-start">
             <div>
-              <p class="text-muted small mb-1">Avancement réel</p>
+              <p class="text-muted small mb-1">Actual Progress</p>
               <h3 class="mb-0 fw-bold">{{ a.actualProgressPct | number:'1.0-0' }}%</h3>
               <span [class]="varianceClass(a.scheduleVariance)" class="small">
                 {{ a.scheduleVariance >= 0 ? '+' : '' }}{{ a.scheduleVariance | number:'1.0-0' }}% vs plan
@@ -101,7 +102,7 @@ Chart.register(...registerables);
         <mat-card class="kpi-card h-100 p-3">
           <div class="d-flex justify-content-between align-items-start">
             <div>
-              <p class="text-muted small mb-1">Risque global</p>
+              <p class="text-muted small mb-1">Overall Risk</p>
               <h3 class="mb-0 fw-bold">{{ a.overallRiskScore | number:'1.0-0' }}/100</h3>
               <span [class]="riskClass(a.overallRisk)" class="badge">{{ a.overallRisk | uppercase }}</span>
             </div>
@@ -115,7 +116,7 @@ Chart.register(...registerables);
             <div>
               <p class="text-muted small mb-1">Milestones</p>
               <h3 class="mb-0 fw-bold">{{ a.completedMilestones }}/{{ a.totalMilestones }}</h3>
-              <span class="small text-muted">{{ a.atRiskMilestones }} à risque · {{ a.missedMilestones }} manqués</span>
+              <span class="small text-muted">{{ a.atRiskMilestones }} at risk · {{ a.missedMilestones }} missed</span>
             </div>
             <mat-icon class="kpi-icon text-warning">flag</mat-icon>
           </div>
@@ -125,9 +126,9 @@ Chart.register(...registerables);
         <mat-card class="kpi-card h-100 p-3">
           <div class="d-flex justify-content-between align-items-start">
             <div>
-              <p class="text-muted small mb-1">Tâches</p>
+              <p class="text-muted small mb-1">Tasks</p>
               <h3 class="mb-0 fw-bold">{{ a.doneTasks }}/{{ a.totalTasks }}</h3>
-              <span class="small text-muted">{{ a.blockedTasks }} bloquées · {{ a.overdueTasks }} en retard</span>
+              <span class="small text-muted">{{ a.blockedTasks }} blocked · {{ a.overdueTasks }} overdue</span>
             </div>
             <mat-icon class="kpi-icon text-success">task_alt</mat-icon>
           </div>
@@ -154,12 +155,12 @@ Chart.register(...registerables);
         <mat-card class="p-3 h-100">
           <h6 class="fw-semibold mb-3">
             <mat-icon class="small me-1 text-danger">priority_high</mat-icon>
-            Milestones Critiques
+            Critical Milestones
           </h6>
           @if (a.criticalMilestones.length === 0) {
             <div class="text-center py-4 text-muted">
               <mat-icon>check_circle</mat-icon>
-              <p class="small mb-0">Aucun milestone à risque élevé</p>
+              <p class="small mb-0">No high-risk milestones</p>
             </div>
           }
           @for (m of a.criticalMilestones; track m.milestoneId) {
@@ -171,13 +172,13 @@ Chart.register(...registerables);
                     <span class="badge" [class]="riskBadge(m.riskLevel)">{{ m.riskLevel | uppercase }}</span>
                     <span class="badge bg-secondary">{{ m.riskScore | number:'1.0-0' }}/100</span>
                     @if (m.delayDays > 0) {
-                      <span class="badge bg-danger">+{{ m.delayDays }}j retard</span>
+                      <span class="badge bg-danger">+{{ m.delayDays }} days delay</span>
                     }
                   </div>
                   <mat-progress-bar [value]="m.completionPct" mode="determinate" class="mt-1" style="height:4px"></mat-progress-bar>
-                  <span class="small text-muted">{{ m.completionPct | number:'1.0-0' }}% · {{ m.doneTasks }}/{{ m.totalTasks }} tâches</span>
+                  <span class="small text-muted">{{ m.completionPct | number:'1.0-0' }}% · {{ m.doneTasks }}/{{ m.totalTasks }} tasks</span>
                 </div>
-                <button mat-icon-button (click)="openWhatIf(m)" matTooltip="Simulation What-If">
+                <button mat-icon-button (click)="openWhatIf(m)" matTooltip="What-If Simulation">
                   <mat-icon class="small">science</mat-icon>
                 </button>
               </div>
@@ -200,25 +201,25 @@ Chart.register(...registerables);
             <div class="d-flex justify-content-between align-items-center mb-3">
               <h6 class="fw-semibold mb-0">
                 <mat-icon class="small me-1 text-primary">science</mat-icon>
-                Simulation What-If — "{{ whatIfResult()!.triggeredByTaskTitle }}" (+{{ whatIfResult()!.hypotheticalDelayDays }}j)
+                What-If Simulation — "{{ whatIfResult()!.triggeredByTaskTitle }}" (+{{ whatIfResult()!.hypotheticalDelayDays }} days)
               </h6>
               <button mat-icon-button (click)="whatIfResult.set(null)"><mat-icon>close</mat-icon></button>
             </div>
             <div class="row g-3">
               <div class="col-12 col-md-6">
-                <h6 class="small text-muted">Tâches impactées ({{ whatIfResult()!.totalCascadedTasks }})</h6>
+                <h6 class="small text-muted">Affected Tasks ({{ whatIfResult()!.totalCascadedTasks }})</h6>
                 @for (t of whatIfResult()!.affectedTasks; track t.taskId) {
                   <div class="d-flex justify-content-between border-bottom py-1 small">
                     <span>{{ t.taskTitle }}</span>
-                    <span class="text-danger">+{{ t.shiftDays }}j → {{ t.newDueDate }}</span>
+                    <span class="text-danger">+{{ t.shiftDays }} days → {{ t.newDueDate }}</span>
                   </div>
                 }
                 @if (whatIfResult()!.affectedTasks.length === 0) {
-                  <p class="text-muted small">Aucune tâche en cascade.</p>
+                  <p class="text-muted small">No cascading tasks.</p>
                 }
               </div>
               <div class="col-12 col-md-6">
-                <h6 class="small text-muted">Milestones impactés</h6>
+                <h6 class="small text-muted">Affected Milestones</h6>
                 @for (m of whatIfResult()!.affectedMilestones; track m.milestoneId) {
                   <div class="mb-2 p-2 rounded" [class]="'risk-bg-' + m.newRiskLevel">
                     <strong class="small">{{ m.milestoneName }}</strong>
@@ -229,7 +230,7 @@ Chart.register(...registerables);
                   </div>
                 }
                 @if (whatIfResult()!.affectedMilestones.length === 0) {
-                  <p class="text-muted small">Aucun milestone impacté.</p>
+                  <p class="text-muted small">No affected milestones.</p>
                 }
               </div>
             </div>
@@ -244,20 +245,24 @@ Chart.register(...registerables);
         <mat-card class="p-3">
           <h6 class="fw-semibold mb-3">
             <mat-icon class="small me-1">science</mat-icon>
-            Simulation What-If
+            What-If Simulation
           </h6>
           <div class="d-flex gap-2 align-items-end flex-wrap">
-            <mat-form-field appearance="outline" style="min-width:160px" class="mb-0">
-              <mat-label>ID Tâche</mat-label>
-              <input matInput type="number" [(ngModel)]="whatIfTaskId" placeholder="ex: 42">
+            <mat-form-field appearance="outline" style="min-width:200px" class="mb-0">
+              <mat-label>Task Name</mat-label>
+              <mat-select [(ngModel)]="whatIfTaskId">
+                <mat-option *ngFor="let task of tasks()" [value]="task.id">
+                  #{{ task.id }} - {{ task.title }}
+                </mat-option>
+              </mat-select>
             </mat-form-field>
             <mat-form-field appearance="outline" style="min-width:140px" class="mb-0">
-              <mat-label>Retard (jours)</mat-label>
-              <input matInput type="number" [(ngModel)]="whatIfDelayDays" placeholder="ex: 5">
+              <mat-label>Delay (days)</mat-label>
+              <input matInput type="number" [(ngModel)]="whatIfDelayDays" placeholder="e.g. 5">
             </mat-form-field>
             <button mat-raised-button color="accent" (click)="runWhatIf()" [disabled]="!whatIfTaskId || !whatIfDelayDays || simulating()">
               <mat-icon>play_arrow</mat-icon>
-              Simuler
+              Simulate
             </button>
           </div>
           @if (simError()) {
@@ -290,6 +295,7 @@ export class ExecutiveDashboardComponent implements OnInit, AfterViewInit {
 
   projects = signal<Project[]>([]);
   analytics = signal<ProjectAnalyticsDto | null>(null);
+  tasks = signal<TaskResponseDto[]>([]);
   loading = signal(false);
   recalculating = signal(false);
   simulating = signal(false);
@@ -305,17 +311,24 @@ export class ExecutiveDashboardComponent implements OnInit, AfterViewInit {
   constructor(
     private analyticsService: AnalyticsService,
     private projectService: ProjectService,
+    private taskService: TaskService,
     private ws: M2WorkspaceService,
     private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit() {
-    this.projectService.getAll().subscribe(ps => {
+    this.projectService.getMyProjects().subscribe(ps => {
       this.projects.set(ps);
       if (ps.length > 0) {
         this.selectedProjectId = ps[0].id;
         this.loadProject(ps[0].id);
       }
+      this.cdr.markForCheck();
+    });
+
+    // Load user tasks for What-If simulation
+    this.taskService.getMyTasks().subscribe(tasks => {
+      this.tasks.set(tasks);
       this.cdr.markForCheck();
     });
   }
@@ -361,7 +374,7 @@ export class ExecutiveDashboardComponent implements OnInit, AfterViewInit {
         this.cdr.markForCheck();
       },
       error: err => {
-        this.simError.set('Erreur de simulation. Vérifiez l\'ID de la tâche.');
+        this.simError.set('Simulation error. Please check the task ID.');
         this.simulating.set(false);
         this.cdr.markForCheck();
       }

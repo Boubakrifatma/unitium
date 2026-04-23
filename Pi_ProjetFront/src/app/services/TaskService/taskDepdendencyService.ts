@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 export interface TaskDependencyResponseDto {
@@ -50,8 +50,13 @@ export class TaskDependencyService {
     return this.http.get<TaskDependencyResponseDto[]>(`${this.api}/all/${taskId}`);
   }
 
+  private getHeaders(): HttpHeaders {
+    const token = localStorage.getItem('token');
+    return new HttpHeaders({ Authorization: `Bearer ${token}` });
+  }
+
   create(payload: TaskDependencyCreateDto): Observable<TaskDependencyResponseDto> {
-    return this.http.post<TaskDependencyResponseDto>(this.api, payload);
+    return this.http.post<TaskDependencyResponseDto>(this.api, payload, { headers: this.getHeaders() });
   }
 
   update(id: number, payload: Partial<TaskDependencyCreateDto>): Observable<TaskDependencyResponseDto> {

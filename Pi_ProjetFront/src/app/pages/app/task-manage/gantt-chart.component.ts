@@ -30,7 +30,6 @@ export interface EffortLog {
     endTime: string;
     duration: string;
 }
-
 export type TaskStatus = "new" | "ready to test" | "in-progress" | "resolved" | "completed";
 export type TaskType = "Development" | "Design" | "Backend" | "Bug" | "Design Bug";
 export type TaskPriority = "High" | "Medium" | "Low";

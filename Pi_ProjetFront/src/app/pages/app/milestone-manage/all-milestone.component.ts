@@ -158,74 +158,83 @@ Chart.register(...registerables);
                 </div>
             </div>
 
-            <!-- ===== TIMELINE VIEW (Horizontal Pseudo-3D) ===== -->
-            <div class="tl3d-wrapper mb-4" *ngIf="viewMode() === 'timeline' && displayedMilestones().length > 0">
+            <!-- ===== TIMELINE VIEW (Straight Horizontal) ===== -->
+            <div class="htl-wrapper mb-4" *ngIf="viewMode() === 'timeline' && displayedMilestones().length > 0">
 
-                <!-- Header row -->
-                <div class="tl3d-header-row">
-                    <div class="tl3d-label-col">
-                        <span class="tl3d-title">Milestone Timeline</span>
-                        <span class="tl3d-legend">
-                            <span class="tl3d-dot" style="background:#10b981"></span>Completed
-                            <span class="tl3d-dot" style="background:#6366f1"></span>In Progress
-                            <span class="tl3d-dot" style="background:#f97316"></span>At Risk
-                            <span class="tl3d-dot" style="background:#64748b"></span>Pending
-                            <span class="tl3d-dot" style="background:#ef4444"></span>Missed
-                        </span>
+                <!-- Header -->
+                <div class="htl-header">
+                    <div class="htl-title-area">
+                        <mat-icon class="htl-title-icon">timeline</mat-icon>
+                        <span class="htl-title">Milestone Timeline</span>
+                        <span class="htl-count">{{ displayedMilestones().length }} milestones · sorted by due date</span>
                     </div>
-                    <div class="tl3d-chart-col">
-                        <!-- Month axis -->
-                        <div class="tl3d-month-axis">
-                            <span class="tl3d-month-label"
-                                *ngFor="let m of timelineMonthLabels()"
-                                [style.left.%]="m.pct">
-                                {{ m.label }}
-                            </span>
-                        </div>
+                    <div class="htl-legend">
+                        <span class="htl-legend-item"><span class="htl-dot" style="background:#10b981"></span>Completed</span>
+                        <span class="htl-legend-item"><span class="htl-dot" style="background:#6366f1"></span>In Progress</span>
+                        <span class="htl-legend-item"><span class="htl-dot" style="background:#f97316"></span>At Risk</span>
+                        <span class="htl-legend-item"><span class="htl-dot" style="background:#64748b"></span>Pending</span>
+                        <span class="htl-legend-item"><span class="htl-dot" style="background:#ef4444"></span>Missed</span>
                     </div>
                 </div>
 
-                <!-- Scrollable chart body -->
-                <div class="tl3d-body">
-                    <ng-container *ngFor="let row of timelineRows(); let ri = index">
-                        <div class="tl3d-row">
-                            <!-- Left label column -->
-                            <div class="tl3d-row-label">
-                                <span class="tl3d-row-name" [title]="row.name">{{ row.name }}</span>
-                                <span class="tl3d-row-date">{{ row.dueDate | date:'MMM d' }}</span>
+                <!-- Rail area -->
+                <div class="htl-rail-area">
+                    <!-- Month labels at top -->
+                    <div class="htl-axis">
+                        <span *ngFor="let m of timelineMonthLabels()" class="htl-month-lbl" [style.left.%]="m.pct">
+                            {{ m.label }}
+                        </span>
+                    </div>
+
+                    <!-- The track line with all nodes -->
+                    <div class="htl-track">
+                        <!-- Today vertical marker -->
+                        <div class="htl-today-line" *ngIf="timelineTodayPct() >= 0 && timelineTodayPct() <= 100"
+                            [style.left.%]="timelineTodayPct()">
+                            <span class="htl-today-lbl">Today</span>
+                        </div>
+
+                        <!-- Milestone nodes (alternating above/below) -->
+                        <div class="htl-ms"
+                            *ngFor="let row of timelineRows(); let i = index"
+                            [class.htl-ms-above]="i % 2 === 0"
+                            [class.htl-ms-below]="i % 2 !== 0"
+                            [style.left.%]="row.duePct">
+
+                            <!-- Label above (even indexes) -->
+                            <div class="htl-ms-label" *ngIf="i % 2 === 0">
+                                <span class="htl-ms-name" [title]="row.name">{{ row.name }}</span>
+                                <span class="htl-ms-date">{{ row.dueDate | date:'MMM d' }}</span>
+                            </div>
+                            <div class="htl-ms-stem" *ngIf="i % 2 === 0"></div>
+
+                            <!-- Node dot -->
+                            <div class="htl-ms-node" [class]="'htl-node-' + row.status"
+                                [class.htl-ms-sel]="selectedMilestone()?.id === row.id"
+                                (click)="onTimelineMilestoneClick(row)"
+                                (mouseenter)="showTooltip($event, row)"
+                                (mouseleave)="hideTooltip()">
                             </div>
 
-                            <!-- Chart area -->
-                            <div class="tl3d-row-chart">
-                                <!-- Today line -->
-                                <div class="tl3d-today-line"
-                                    *ngIf="timelineTodayPct() >= 0 && timelineTodayPct() <= 100"
-                                    [style.left.%]="timelineTodayPct()">
-                                    <span class="tl3d-today-label" *ngIf="ri === 0">Today</span>
-                                </div>
-
-                                <!-- 3D pill bar -->
-                                <div class="tl3d-pill"
-                                    [class]="'tl3d-pill-' + row.status"
-                                    [class.tl3d-pill-selected]="selectedMilestone()?.id === row.id"
-                                    [style.left.%]="row.leftPct"
-                                    [style.width.%]="row.widthPct"
-                                    [title]="row.name + ' · ' + row.status + ' · ' + (row.completionPct || 0) + '%'"
-                                    (click)="onTimelineMilestoneClick(row)"
-                                    (mouseenter)="showTooltip($event, row)"
-                                    (mouseleave)="hideTooltip()">
-                                    <span class="tl3d-pill-text">{{ row.name }}</span>
-                                </div>
+                            <!-- Label below (odd indexes) -->
+                            <div class="htl-ms-stem" *ngIf="i % 2 !== 0"></div>
+                            <div class="htl-ms-label" *ngIf="i % 2 !== 0">
+                                <span class="htl-ms-name" [title]="row.name">{{ row.name }}</span>
+                                <span class="htl-ms-date">{{ row.dueDate | date:'MMM d' }}</span>
                             </div>
                         </div>
-                    </ng-container>
+                    </div>
+
+                    <!-- Date range footer -->
+                    <div class="htl-date-range">
+                        <span>{{ timelineStart() | date:'MMM d, yyyy' }}</span>
+                        <span>{{ timelineEnd() | date:'MMM d, yyyy' }}</span>
+                    </div>
                 </div>
 
                 <!-- Tooltip -->
-                <div class="tl3d-tooltip"
-                    *ngIf="tooltipVisible() && tooltipData()"
-                    [style.top.px]="tooltipY()"
-                    [style.left.px]="tooltipX()">
+                <div class="htl-tooltip" *ngIf="tooltipVisible() && tooltipData()"
+                    [style.top.px]="tooltipY()" [style.left.px]="tooltipX()">
                     <div class="tt-name">{{ tooltipData()!.name }}</div>
                     <div class="tt-row">
                         <span class="tt-label">Status:</span>
@@ -245,7 +254,7 @@ Chart.register(...registerables);
                     </div>
                 </div>
 
-                <!-- Detail panel at bottom -->
+                <!-- Detail panel -->
                 <div class="tl3d-detail-panel" *ngIf="selectedMilestone() as sm">
                     <div class="tdp-header">
                         <div class="tdp-title">
@@ -666,245 +675,247 @@ Chart.register(...registerables);
             color: white;
         }
 
-        /* ===== Timeline View (3D Horizontal) ===== */
-        .tl3d-wrapper {
+        /* ===== Timeline View (Straight Horizontal) ===== */
+        .htl-wrapper {
             background: white;
-            border-radius: 14px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+            border-radius: 16px;
+            box-shadow: 0 2px 16px rgba(0,0,0,0.07);
             border: 1px solid #e5e7eb;
-            overflow: hidden;
             position: relative;
+            overflow: visible;
         }
 
-        /* Header row */
-        .tl3d-header-row {
+        /* Header */
+        .htl-header {
             display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 18px 24px;
             border-bottom: 1px solid #f3f4f6;
             background: #fafbfc;
-            padding: 14px 0;
+            border-radius: 16px 16px 0 0;
         }
 
-        .tl3d-label-col {
-            width: 220px;
-            flex-shrink: 0;
-            padding: 0 16px;
+        .htl-title-area {
             display: flex;
-            flex-direction: column;
-            justify-content: center;
-            gap: 6px;
+            align-items: center;
+            gap: 10px;
         }
 
-        .tl3d-title {
+        .htl-title-icon {
+            color: #6366f1;
+            font-size: 20px !important;
+            width: 20px !important;
+            height: 20px !important;
+        }
+
+        .htl-title {
             font-size: 0.95rem;
             font-weight: 700;
             color: #1f2937;
         }
 
-        .tl3d-legend {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            align-items: center;
+        .htl-count {
+            background: #ede9fe;
+            color: #6d28d9;
+            border-radius: 12px;
+            padding: 2px 10px;
             font-size: 0.72rem;
-            color: #6b7280;
+            font-weight: 600;
+        }
+
+        .htl-legend {
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            flex-wrap: wrap;
+            font-size: 0.75rem;
             font-weight: 500;
+            color: #6b7280;
         }
 
-        .tl3d-dot {
+        .htl-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .htl-dot {
             display: inline-block;
-            width: 9px;
-            height: 9px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
-            margin-right: 2px;
+            flex-shrink: 0;
         }
 
-        .tl3d-chart-col {
-            flex: 1;
-            position: relative;
-            padding: 0 8px;
-            min-width: 0;
+        /* Rail area */
+        .htl-rail-area {
+            padding: 0 48px 16px;
         }
 
         /* Month axis */
-        .tl3d-month-axis {
+        .htl-axis {
             position: relative;
-            height: 40px;
+            height: 36px;
+            border-bottom: 1px solid #f0f2f5;
         }
 
-        .tl3d-month-label {
+        .htl-month-lbl {
             position: absolute;
             top: 50%;
             transform: translate(-50%, -50%);
-            font-size: 0.72rem;
+            font-size: 0.68rem;
             font-weight: 600;
             color: #9ca3af;
             white-space: nowrap;
-            background: #fafbfc;
+            background: white;
             padding: 2px 6px;
             border-radius: 4px;
+            border: 1px solid #e5e7eb;
         }
 
-        /* Body */
-        .tl3d-body {
-            overflow-y: auto;
-            max-height: 480px;
-            padding-bottom: 8px;
-        }
-
-        .tl3d-row {
-            display: flex;
-            align-items: center;
-            height: 60px;
-            border-bottom: 1px solid #f9fafb;
-        }
-
-        .tl3d-row:hover { background: #fafbfc; }
-
-        .tl3d-row-label {
-            width: 220px;
-            flex-shrink: 0;
-            padding: 0 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-
-        .tl3d-row-name {
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: #1f2937;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 190px;
-        }
-
-        .tl3d-row-date { font-size: 0.72rem; color: #9ca3af; }
-
-        .tl3d-row-chart {
-            flex: 1;
+        /* Track — the 4px horizontal line */
+        .htl-track {
             position: relative;
-            height: 100%;
-            padding: 0 8px;
-            min-width: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #e5e7eb 0%, #6366f1 35%, #8b5cf6 65%, #e5e7eb 100%);
+            border-radius: 2px;
+            margin: 110px 0 110px;
+            overflow: visible;
         }
 
-        /* Today line */
-        .tl3d-today-line {
+        /* Today marker */
+        .htl-today-line {
             position: absolute;
-            top: 0;
-            bottom: 0;
+            top: -100px;
+            bottom: -100px;
             width: 2px;
-            background: rgba(239,68,68,0.7);
-            border: none;
-            z-index: 10;
-            pointer-events: none;
             background: repeating-linear-gradient(
                 to bottom,
-                #ef4444 0px,
-                #ef4444 6px,
-                transparent 6px,
-                transparent 10px
+                #ef4444 0px, #ef4444 5px,
+                transparent 5px, transparent 9px
             );
+            transform: translateX(-50%);
+            z-index: 8;
+            pointer-events: none;
         }
 
-        .tl3d-today-label {
+        .htl-today-lbl {
             position: absolute;
-            top: 4px;
+            top: -20px;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 0.65rem;
+            font-size: 0.63rem;
             font-weight: 700;
             color: #ef4444;
             background: white;
-            padding: 1px 4px;
-            border-radius: 4px;
             border: 1px solid #ef4444;
+            border-radius: 4px;
+            padding: 1px 5px;
             white-space: nowrap;
         }
 
-        /* 3D pill */
-        .tl3d-pill {
+        /* Milestone group — absolutely placed on the track */
+        .htl-ms {
             position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            height: 36px;
-            min-width: 40px;
-            border-radius: 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+
+        /* Above: label → stem → node (flex-column, node at bottom → nearest rail) */
+        .htl-ms-above {
+            bottom: -7px; /* node center (2px into 4px rail) = group bottom at 11px from rail top → bottom: -(11-4)= -7 below parent bottom, so actual position: rail_bottom - (-7) = 4+7 = 11 ✓ */
+        }
+
+        /* Below: node → stem → label (flex-column, node at top → nearest rail) */
+        .htl-ms-below {
+            top: -7px; /* node center at rail center: top = rail_center - node_radius = 2 - 9 = -7px ✓ */
+        }
+
+        /* Stem connecting node to label */
+        .htl-ms-stem {
+            width: 2px;
+            height: 30px;
+            background: linear-gradient(to bottom, #c7d2fe, #e5e7eb);
+            flex-shrink: 0;
+        }
+
+        /* The circular node dot */
+        .htl-ms-node {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.18);
             cursor: pointer;
             transition: transform 0.18s ease, box-shadow 0.18s ease;
-            display: flex;
-            align-items: center;
-            overflow: hidden;
-            z-index: 5;
+            flex-shrink: 0;
         }
 
-        .tl3d-pill:hover {
-            transform: translateY(-52%) scale(1.03);
-            z-index: 20;
+        .htl-ms-node:hover {
+            transform: scale(1.4);
+            box-shadow: 0 4px 16px rgba(99,102,241,0.4);
         }
 
-        .tl3d-pill-selected {
+        .htl-ms-sel {
             outline: 3px solid #6366f1;
-            outline-offset: 2px;
-            z-index: 15;
+            outline-offset: 3px;
         }
 
-        .tl3d-pill-text {
-            padding: 0 12px;
-            font-size: 0.78rem;
+        /* Node colors by status */
+        .htl-node-completed   { background: #10b981; }
+        .htl-node-in_progress { background: #6366f1; }
+        .htl-node-at_risk     { background: #f97316; }
+        .htl-node-pending     { background: #64748b; }
+        .htl-node-missed      { background: #ef4444; }
+
+        /* Milestone label (name + date) */
+        .htl-ms-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1px;
+            max-width: 96px;
+            text-align: center;
+        }
+
+        .htl-ms-name {
+            font-size: 0.7rem;
             font-weight: 600;
-            color: white;
+            color: #374151;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.25);
-            pointer-events: none;
+            max-width: 94px;
+            display: block;
+            line-height: 1.3;
         }
 
-        /* Status colors with 3D gradient + shadow */
-        .tl3d-pill-completed {
-            background: linear-gradient(180deg, #34d399 0%, #10b981 50%, #059669 100%);
-            box-shadow:
-                0 4px 0 #047857,
-                0 6px 8px rgba(5,150,105,0.35),
-                inset 0 1px 0 rgba(255,255,255,0.3);
+        .htl-ms-date {
+            font-size: 0.63rem;
+            color: #9ca3af;
+            font-weight: 500;
+            white-space: nowrap;
         }
 
-        .tl3d-pill-in_progress {
-            background: linear-gradient(180deg, #818cf8 0%, #6366f1 50%, #4f46e5 100%);
-            box-shadow:
-                0 4px 0 #3730a3,
-                0 6px 8px rgba(99,102,241,0.35),
-                inset 0 1px 0 rgba(255,255,255,0.3);
-        }
-
-        .tl3d-pill-at_risk {
-            background: linear-gradient(180deg, #fb923c 0%, #f97316 50%, #ea580c 100%);
-            box-shadow:
-                0 4px 0 #c2410c,
-                0 6px 8px rgba(249,115,22,0.35),
-                inset 0 1px 0 rgba(255,255,255,0.3);
-        }
-
-        .tl3d-pill-pending {
-            background: linear-gradient(180deg, #94a3b8 0%, #64748b 50%, #475569 100%);
-            box-shadow:
-                0 4px 0 #334155,
-                0 6px 8px rgba(100,116,139,0.35),
-                inset 0 1px 0 rgba(255,255,255,0.3);
-        }
-
-        .tl3d-pill-missed {
-            background: linear-gradient(180deg, #f87171 0%, #ef4444 50%, #dc2626 100%);
-            box-shadow:
-                0 4px 0 #b91c1c,
-                0 6px 8px rgba(239,68,68,0.35),
-                inset 0 1px 0 rgba(255,255,255,0.3);
+        /* Date range footer */
+        .htl-date-range {
+            display: flex;
+            justify-content: space-between;
+            padding: 0 2px;
+            font-size: 0.68rem;
+            color: #9ca3af;
+            font-weight: 500;
+            margin-top: 4px;
         }
 
         /* Tooltip */
-        .tl3d-tooltip {
+        .htl-tooltip {
             position: absolute;
             background: #1f2937;
             color: white;
@@ -913,7 +924,7 @@ Chart.register(...registerables);
             font-size: 0.82rem;
             z-index: 100;
             pointer-events: none;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.22);
             min-width: 180px;
             transform: translateX(-50%);
         }
@@ -948,6 +959,7 @@ Chart.register(...registerables);
             background: #fafbff;
             padding: 16px 20px;
             animation: slideDown 0.3s ease-out;
+            border-radius: 0 0 16px 16px;
         }
 
         .tdp-header {
@@ -1456,30 +1468,27 @@ export class AllMilestoneComponent implements OnInit, AfterViewInit {
         const range = end - start;
         if (range <= 0) return [];
 
-        return ms.map(m => {
-            // Use dueDate as the bar's right edge; start bar 30 days before or at timeline start
-            const dueTs = m.dueDate ? new Date(m.dueDate).getTime() : end;
-
-            // Estimate start: 30 days before due or timeline start (whichever is later)
-            const estimatedStartTs = Math.max(start, dueTs - 30 * 86400000);
-
-            const leftPct = Math.max(0, ((estimatedStartTs - start) / range) * 100);
-            const rightPct = Math.min(100, ((dueTs - start) / range) * 100);
-            const widthPct = Math.max(2, rightPct - leftPct);
-
-            return {
-                id: m.id,
-                name: m.name,
-                status: m.status,
-                dueDate: m.dueDate,
-                completionPct: m.completionPct,
-                riskScore: m.riskScore,
-                predictedDueDate: m.predictedDueDate,
-                description: m.description,
-                leftPct,
-                widthPct,
-            };
-        });
+        return [...ms]
+            .sort((a, b) => {
+                const ta = a.dueDate ? new Date(a.dueDate).getTime() : end;
+                const tb = b.dueDate ? new Date(b.dueDate).getTime() : end;
+                return ta - tb;
+            })
+            .map(m => {
+                const dueTs = m.dueDate ? new Date(m.dueDate).getTime() : end;
+                const duePct = Math.min(100, Math.max(0, ((dueTs - start) / range) * 100));
+                return {
+                    id: m.id,
+                    name: m.name,
+                    status: m.status,
+                    dueDate: m.dueDate,
+                    completionPct: m.completionPct,
+                    riskScore: m.riskScore,
+                    predictedDueDate: m.predictedDueDate,
+                    description: m.description,
+                    duePct,
+                };
+            });
     });
 
     timelineMonthLabels = computed((): { label: string; pct: number }[] => {
@@ -1518,7 +1527,7 @@ export class AllMilestoneComponent implements OnInit, AfterViewInit {
         this.tooltipVisible.set(true);
         const target = event.currentTarget as HTMLElement;
         const rect = target.getBoundingClientRect();
-        const wrapperEl = (event.currentTarget as HTMLElement).closest('.tl3d-wrapper');
+        const wrapperEl = (event.currentTarget as HTMLElement).closest('.htl-wrapper');
         const wrapperRect = wrapperEl?.getBoundingClientRect() ?? rect;
         this.tooltipX.set(rect.left - wrapperRect.left + rect.width / 2);
         this.tooltipY.set(rect.top - wrapperRect.top - 120);
