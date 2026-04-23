@@ -342,7 +342,20 @@ def push(req: PushReq):
     repo = _get_repo(req.repo_id)
     branch = req.branch or repo.active_branch.name
     try:
-        out = repo.git.push(req.remote, branch)
+        remote_obj = repo.remotes[req.remote]
+        original_url = remote_obj.url
+        # Inject token into HTTPS remote URL so git-receive-pack is permitted
+        if GITHUB_TOKEN and original_url.startswith("https://"):
+            authed_url = original_url.replace(
+                "https://", f"https://{GITHUB_TOKEN}@", 1
+            )
+            remote_obj.set_url(authed_url)
+        try:
+            out = repo.git.push(req.remote, branch)
+        finally:
+            # Always restore the original URL (no token stored on disk)
+            if GITHUB_TOKEN and original_url.startswith("https://"):
+                remote_obj.set_url(original_url)
     except GitCommandError as e:
         raise HTTPException(400, e.stderr.strip() or str(e))
     return {"pushed": branch, "remote": req.remote, "output": out}

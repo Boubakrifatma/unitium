@@ -65,7 +65,7 @@ import {
     <mat-card-content>
       <p class="muted">
         Collez un <strong>Personal Access Token</strong> avec le scope <code>repo</code>.
-        <a href="https://github.com/settings/tokens?type=beta" target="_blank">Générer →</a>
+        <a href="https://github.com/settings/tokens/new" target="_blank">Générer →</a>
       </p>
       <div class="token-row">
         <mat-form-field appearance="outline" class="grow">
