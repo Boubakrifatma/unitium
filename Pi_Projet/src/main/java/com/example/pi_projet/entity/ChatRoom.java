@@ -41,6 +41,14 @@ public class ChatRoom {
 
     private String description;
 
+    /**
+     * Populated only for po_manager rooms.
+     * Stores the Product Owner's user-id to enforce one room per
+     * (project + productOwnerId + createdBy/manager) at the service layer.
+     */
+    @Column(name = "product_owner_id")
+    private Long productOwnerId;
+
     // ── Meeting fields ──────────────────────────────────────────────────────────
     private LocalDateTime startTime;
     private LocalDateTime endTime;

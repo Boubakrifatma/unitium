@@ -34,4 +34,7 @@ public class DeliverableResponseDto {
     private Long submittedById;
     private String submittedByName;
     private String submittedByEmail;
+
+    // Linked PO-Manager chatroom (set when PO accepts the deliverable)
+    private Long chatRoomId;
 }

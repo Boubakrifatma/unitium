@@ -22,6 +22,7 @@ export interface TaskResponseDto {
   taskType: string;
   status: string;
   priority: string;
+  difficulty?: 'easy' | 'medium' | 'hard' | null;
   estimatedHours: number | null;
   actualHours: number | null;
   startDate: string | null;
@@ -61,6 +62,7 @@ export interface TaskWritePayload {
   startDate?: string;
   dueDate?: string;
   isVisibleToAssignees?: boolean;
+  difficulty?: 'easy' | 'medium' | 'hard';
 }
 
 export interface UserDTO {

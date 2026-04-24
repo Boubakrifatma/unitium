@@ -40,4 +40,5 @@ public class TaskResponseDto {
     private LocalDateTime completedAt;
 
     private boolean isVisibleToAssignees;
+    private String difficulty; // easy | medium | hard
 }

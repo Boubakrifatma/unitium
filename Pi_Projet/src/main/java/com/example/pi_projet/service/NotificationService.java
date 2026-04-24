@@ -4,6 +4,7 @@ import com.example.pi_projet.controller.DeliverableNotificationController;
 import com.example.pi_projet.entity.PoDecisionAndDelivrable.Deliverable;
 import com.example.pi_projet.entity.PoDecisionAndDelivrable.DeliverableNotification;
 import com.example.pi_projet.entity.PoDecisionAndDelivrable.DeliverableNotification.DeliverableEventType;
+import com.example.pi_projet.entity.TimeLineAndDeadLine.Task;
 import com.example.pi_projet.entity.User;
 import com.example.pi_projet.entity.ProjectMember;
 import com.example.pi_projet.repository.DeliverableNotificationRepository;
@@ -155,6 +156,27 @@ public class NotificationService {
         persist(employee, deliverable, DeliverableEventType.REVISION_REQUIRED_BY_PO, title, message);
     }
 
+    /**
+     * Task marked as done → notify all PROJECT_MANAGER members of the project
+     */
+    public void notifyManagersOnTaskCompleted(Task task, User assignee) {
+        if (task.getProject() == null) return;
+
+        List<User> managers = projectMemberRepository
+                .findUsersByProjectIdAndRole(task.getProject().getId(), ProjectMember.ProjectRole.PROJECT_MANAGER);
+        if (managers.isEmpty()) {
+            log.warn("No PROJECT_MANAGER found for project {} to notify task completion", task.getProject().getId());
+            return;
+        }
+
+        String assigneeName = assignee != null ? assignee.getFullName() : "An employee";
+        String title = "Task completed: " + task.getTitle();
+        String message = assigneeName + " has marked the task \"" + task.getTitle()
+                + "\" as completed in project \"" + task.getProject().getName() + "\".";
+
+        managers.forEach(manager -> persistTaskNotif(manager, task, DeliverableEventType.TASK_COMPLETED, title, message));
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // QUERY
     // ─────────────────────────────────────────────────────────────────────────
@@ -226,6 +248,28 @@ public class NotificationService {
 
         } catch (Exception e) {
             log.error("Erreur lors de l'envoi de la notification à {} : {}", recipient.getEmail(), e.getMessage());
+        }
+    }
+
+    private void persistTaskNotif(User recipient, Task task,
+                                   DeliverableEventType eventType, String title, String message) {
+        try {
+            DeliverableNotification saved = notifRepository.save(
+                    DeliverableNotification.builder()
+                            .recipient(recipient)
+                            .deliverable(null)
+                            .eventType(eventType)
+                            .title(title)
+                            .message(message)
+                            .isRead(false)
+                            .build());
+
+            sendEmail(recipient.getEmail(), title, message);
+            DeliverableNotificationController.push(recipient.getId(), saved);
+
+            log.info("Task notification sent to {} — {}", recipient.getEmail(), title);
+        } catch (Exception e) {
+            log.error("Error sending task notification to {}: {}", recipient.getEmail(), e.getMessage());
         }
     }
 

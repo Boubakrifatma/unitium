@@ -83,6 +83,9 @@ public class TaskController {
                 .priority(dto.getPriority() != null
                         ? Task.TaskPriority.valueOf(dto.getPriority().toLowerCase())
                         : null)
+                .difficulty(dto.getDifficulty() != null && !dto.getDifficulty().isBlank()
+                        ? Task.TaskDifficulty.valueOf(dto.getDifficulty().toLowerCase())
+                        : null)
                 .estimatedHours(dto.getEstimatedHours())
                 .actualHours(dto.getActualHours())
                 .startDate(dto.getStartDate())
@@ -139,6 +142,10 @@ public class TaskController {
 
         if (dto.getPriority() != null && !dto.getPriority().isBlank()) {
             existing.setPriority(Task.TaskPriority.valueOf(dto.getPriority().toLowerCase()));
+        }
+
+        if (dto.getDifficulty() != null && !dto.getDifficulty().isBlank()) {
+            existing.setDifficulty(Task.TaskDifficulty.valueOf(dto.getDifficulty().toLowerCase()));
         }
 
         if (dto.getEstimatedHours() != null) {
@@ -275,6 +282,7 @@ public class TaskController {
                 .milestoneId(t.getMilestone() != null ? t.getMilestone().getId() : null)
                 .milestoneName(t.getMilestone() != null ? t.getMilestone().getName() : null)
                 .isVisibleToAssignees(t.isVisibleToAssignees())
+                .difficulty(t.getDifficulty() != null ? t.getDifficulty().name() : null)
                 .build();
     }
 

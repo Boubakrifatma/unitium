@@ -16,6 +16,7 @@ public class TaskService {
     private final ProjectService projectService;
     private final PulseEventBus pulseEventBus;
     private final SmartMilestoneService smartMilestoneService;
+    private final NotificationService notificationService;
 
     public List<Task> getAll() {
         return repository.findAll();
@@ -42,6 +43,8 @@ public class TaskService {
     public Task update(Long id, Task t) {
         Task existing = getById(id);
 
+        Task.TaskStatus previousStatus = existing.getStatus();
+
         existing.setTitle(t.getTitle());
         existing.setDescription(t.getDescription());
         existing.setTaskType(t.getTaskType());
@@ -66,6 +69,11 @@ public class TaskService {
         }
         if (saved.getMilestone() != null) {
             smartMilestoneService.recalculateOnTaskChange(saved.getMilestone().getId());
+        }
+
+        // Notify managers when a task is marked as done
+        if (t.getStatus() == Task.TaskStatus.done && previousStatus != Task.TaskStatus.done) {
+            notificationService.notifyManagersOnTaskCompleted(saved, saved.getAssignedTo());
         }
 
         return saved;

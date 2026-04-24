@@ -19484,6 +19484,10 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
             this.loadPendingReportCount();
         } else if (this.isMember) {
             this.loadMyRooms();
+            // PRODUCT_OWNER: reload room list whenever a new po_manager room is created for them
+            if (this.currentUserRole === 'PRODUCT_OWNER') {
+                this._subscribeToDeliverableRoomNotifications();
+            }
         }
 
         const token = this.authService.getToken();
@@ -19670,6 +19674,21 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
                 this.error.set(err?.error?.message ?? 'Failed to load your rooms.');
                 this.loading.set(false);
             },
+        });
+    }
+
+    /**
+     * Subscribe to DELIVERABLE_ROOM_READY WebSocket notifications.
+     * When the backend creates a po_manager room for this PO, reload
+     * the room list so the room appears instantly without a page refresh.
+     */
+    private _subscribeToDeliverableRoomNotifications(): void {
+        const userId = this.authService.currentUser()?.id;
+        if (!userId) return;
+        this.chatMessageService.subscribeToUserNotifications(userId).subscribe((notification: any) => {
+            if (notification?.type === 'DELIVERABLE_ROOM_READY') {
+                this.loadMyRooms();
+            }
         });
     }
 
@@ -19998,7 +20017,7 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
 
     get isMember(): boolean {
         const role = this.currentUserRole;
-        return role === 'EMPLOYEE' || role === 'STUDENT';
+        return role === 'EMPLOYEE' || role === 'STUDENT' || role === 'PRODUCT_OWNER';
     }
 
     get allowedTargetRole(): string {
@@ -20976,6 +20995,7 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         if (event.type === 'MEETING_REMINDER') { this._handleMeetingReminderNotif(event); return; }
         if (event.type === 'ADDED_TO_ROOM') { this._handleAddedToRoomNotif(event); return; }
         if (event.type === 'REMOVED_FROM_ROOM') { this._handleRemovedFromRoomNotif(event); return; }
+        if (event.type === 'DELIVERABLE_ROOM_READY') { this._handleDeliverableRoomReady(event); return; }
         if (event.type === 'NEW_REPORT') { this._handleNewReportNotif(event); return; }
         if (event.type === 'MODERATION_WARNING') { this._handleModerationWarningNotif(event); return; }
         if (event.type === 'REPORT_RESOLVED') { this._handleReportResolvedNotif(event); return; }
@@ -21092,6 +21112,15 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         const shortText = `You have been added to the chatroom ${event.roomName} by ${event.addedByName}`;
         const fullText = `${event.addedByName} added you to the chatroom ${event.roomName}. Open the chatroom to start messaging.`;
         this._voiceAnnounce(shortText, fullText);
+    }
+
+    private _handleDeliverableRoomReady(event: any): void {
+        this.snackBar.open(
+            `✅ Deliverable accepted — chatroom "${event.roomName}" is ready`,
+            'Open', { duration: 8000, panelClass: ['snack-success'], horizontalPosition: 'end' }
+        );
+        // Refresh room list so the new / reused room appears immediately
+        if (this.canManageMembers) { this.loadRooms(); } else { this.loadMyRooms(); }
     }
 
     private _handleRemovedFromRoomNotif(event: any): void {

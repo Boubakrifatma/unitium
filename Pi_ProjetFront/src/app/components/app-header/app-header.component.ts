@@ -1,4 +1,4 @@
-import { Component, Input, Renderer2, Output, EventEmitter, signal, Inject, inject, effect } from "@angular/core";
+import { Component, Input, Renderer2, Output, EventEmitter, signal, computed, Inject, inject, effect } from "@angular/core";
 import { DOCUMENT } from "@angular/common";
 import { AuthService } from "../../auth/auth.service";
 import { CommonModule } from "@angular/common";
@@ -12,6 +12,7 @@ import { MatSidenav } from "@angular/material/sidenav";
 import { Router, RouterLink } from "@angular/router";
 import { MatListModule } from "@angular/material/list";
 import { ScheduledNotificationService, ScheduledNotification } from "../../pages/app/applications/chat/scheduled-notification.service";
+import { NotificationService, DeliverableNotification } from "../../services/notification.service";
 
 @Component({
     selector: "app-app-header",
@@ -72,8 +73,8 @@ import { ScheduledNotificationService, ScheduledNotification } from "../../pages
                 <!-- Notifications -->
                 <button matIconButton class="hdr-icon-btn"
                         [matMenuTriggerFor]="notifMenu"
-                        (menuOpened)="notifService.markAllRead()"
-                        [matBadge]="notifService.unreadCount() > 0 ? notifService.unreadCount() : null"
+                        (menuOpened)="onNotifMenuOpened()"
+                        [matBadge]="totalUnread() > 0 ? totalUnread() : null"
                         [class.notif-bell-pulse]="notifService.bellPulsing()"
                         matBadgeColor="warn"
                         matBadgeSize="small">
@@ -87,22 +88,22 @@ import { ScheduledNotificationService, ScheduledNotification } from "../../pages
                                     (click)="toggleMute()" [title]="notifMuted() ? 'Unmute' : 'Mute'">
                                 <mat-icon style="font-size:18px;width:18px;height:18px">{{ notifMuted() ? 'volume_off' : 'volume_up' }}</mat-icon>
                             </button>
-                            @if (notifService.notifications().length > 0) {
+                            @if (allNotifications().length > 0) {
                                 <button mat-button style="font-size:11px;min-width:0;padding:0 6px;height:24px;color:#94a3b8"
                                         (click)="onClearAll()">Clear all</button>
                                 <button mat-button style="font-size:11px;min-width:0;padding:0 6px;height:24px"
-                                        (click)="notifService.markAllRead()">Mark read</button>
+                                        (click)="onNotifMenuOpened()">Mark read</button>
                             }
                         </div>
                     </div>
                     <mat-divider></mat-divider>
-                    @if (notifService.notifications().length === 0) {
+                    @if (allNotifications().length === 0) {
                         <div class="notif-empty">
                             <mat-icon style="font-size:32px;width:32px;height:32px;opacity:.35">notifications_none</mat-icon>
                             <p>No notifications yet</p>
                         </div>
                     }
-                    @for (n of notifService.notifications(); track n.id) {
+                    @for (n of allNotifications(); track n.id) {
                         <div class="notif-entry" [class.notif-unread]="!n.read" (click)="$event.stopPropagation()">
                             <mat-icon [style.color]="n.iconColor" style="font-size:20px;width:20px;height:20px;flex-shrink:0;margin-top:1px">{{ n.icon }}</mat-icon>
                             <div class="notif-entry-body">
@@ -136,6 +137,9 @@ import { ScheduledNotificationService, ScheduledNotification } from "../../pages
                                     @if ($any(n).originalContent) {
                                         <div class="notif-msg-preview" style="font-style:italic">"{{ ($any(n).originalContent || '').slice(0, 60) }}"</div>
                                     }
+                                }
+                                @if (['TASK_COMPLETED','SUBMITTED_TO_MANAGER','ACCEPTED_BY_MANAGER','REVISION_REQUIRED_BY_MANAGER','VALIDATED_BY_PO','REJECTED_BY_PO','VALIDATED_EMPLOYEE','REVISION_REQUIRED_BY_PO','MANAGER_VIEWED'].includes($any(n).type)) {
+                                    <button mat-stroked-button class="notif-action-btn" (click)="onViewDeliverableNotif($any(n))">View</button>
                                 }
                                 <button mat-icon-button class="notif-tts-btn"
                                         [style.opacity]="speakingNotifId() === n.id ? '1' : '.4'"
@@ -588,10 +592,25 @@ export class AppHeaderComponent {
     @Output() openSettingsMenu = new EventEmitter<void>();
 
     readonly notifService = inject(ScheduledNotificationService);
+    readonly deliverableNotifSvc = inject(NotificationService);
+
     notifMuted = signal<boolean>(false);
     speakingNotifId = signal<string | null>(null);
     private notifLoaded = false;
     private availableVoices: SpeechSynthesisVoice[] = [];
+
+    // Merged list: chat notifs + deliverable/task notifs, newest first
+    readonly allNotifications = computed(() => {
+        const chat = this.notifService.notifications();
+        const deliverable = this.deliverableNotifSvc.notifications().map(n => this._mapDeliverableNotif(n));
+        return [...chat, ...deliverable].sort((a, b) =>
+            new Date((b as any).timestamp ?? 0).getTime() - new Date((a as any).timestamp ?? 0).getTime()
+        );
+    });
+
+    readonly totalUnread = computed(() =>
+        this.notifService.unreadCount() + this.deliverableNotifSvc.unreadCount()
+    );
 
     authService = inject(AuthService);
 
@@ -606,6 +625,9 @@ export class AppHeaderComponent {
     }
 
     ngOnInit() {
+        // Connect backend deliverable/task notification stream
+        this.deliverableNotifSvc.connect();
+
         if (this.currentMode() === "true") {
             this.isDarkMode = true;
         }
@@ -668,9 +690,51 @@ export class AppHeaderComponent {
         }
     }
 
+    onNotifMenuOpened(): void {
+        this.notifService.markAllRead();
+        this.deliverableNotifSvc.markAllAsRead();
+    }
+
     onClearAll(): void {
         this.notifService.notifications.set([]);
         this.notifService.unreadCount.set(0);
+        this.deliverableNotifSvc.markAllAsRead();
+    }
+
+    onViewDeliverableNotif(n: any): void {
+        const managerTypes = ['TASK_COMPLETED', 'SUBMITTED_TO_MANAGER', 'VALIDATED_BY_PO', 'REJECTED_BY_PO', 'MANAGER_VIEWED'];
+        if (managerTypes.includes(n.type)) {
+            this.router.navigate(['/app/manager-deliverables']);
+        } else {
+            this.router.navigate(['/app/deliverables']);
+        }
+    }
+
+    private _mapDeliverableNotif(n: DeliverableNotification): ScheduledNotification & { deliverableId?: number | null } {
+        const iconMap: Record<string, { icon: string; color: string }> = {
+            TASK_COMPLETED:               { icon: 'task_alt',    color: '#22c55e' },
+            SUBMITTED_TO_MANAGER:         { icon: 'upload_file', color: '#6366f1' },
+            ACCEPTED_BY_MANAGER:          { icon: 'check_circle',color: '#22c55e' },
+            REVISION_REQUIRED_BY_MANAGER: { icon: 'edit_note',   color: '#f59e0b' },
+            VALIDATED_BY_PO:              { icon: 'verified',    color: '#8b5cf6' },
+            REJECTED_BY_PO:               { icon: 'cancel',      color: '#ef4444' },
+            VALIDATED_EMPLOYEE:           { icon: 'celebration', color: '#22c55e' },
+            REVISION_REQUIRED_BY_PO:      { icon: 'edit_note',   color: '#f59e0b' },
+            MANAGER_VIEWED:               { icon: 'visibility',  color: '#94a3b8' },
+        };
+        const { icon, color } = iconMap[n.eventType] ?? { icon: 'notifications', color: '#6366f1' };
+        return {
+            id: `del-${n.id}`,
+            type: n.eventType as any,
+            icon,
+            iconColor: color,
+            message: n.title + (n.message ? ' — ' + n.message : ''),
+            roomId: 0,
+            roomName: '',
+            timestamp: new Date(n.createdAt),
+            read: n.isRead,
+            deliverableId: n.deliverableId,
+        } as any;
     }
 
     readNotifAloud(n: ScheduledNotification): void {

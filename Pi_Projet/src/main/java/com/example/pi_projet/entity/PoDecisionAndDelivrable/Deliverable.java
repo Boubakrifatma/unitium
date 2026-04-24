@@ -1,5 +1,6 @@
 package com.example.pi_projet.entity.PoDecisionAndDelivrable;
 
+import com.example.pi_projet.entity.ChatRoom;
 import com.example.pi_projet.entity.Project;
 import com.example.pi_projet.entity.TimeLineAndDeadLine.Task;
 import com.example.pi_projet.entity.User;
@@ -53,6 +54,15 @@ public class Deliverable {
     @Enumerated(EnumType.STRING)
     @Column(name = "po_decision_field")
     private PoDecisionField poDecisionField;
+
+    /**
+     * The shared PO-Manager chatroom linked to this deliverable.
+     * Set automatically when the PO accepts the deliverable (status = validated).
+     * Null until then.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "chat_room_id")
+    private ChatRoom chatRoom;
 
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt;

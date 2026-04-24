@@ -64,6 +64,8 @@ public class DeliverableNotification {
         /** PO valide → Employé notifié */
         VALIDATED_EMPLOYEE,
         /** PO demande révision → Employé notifié */
-        REVISION_REQUIRED_BY_PO
+        REVISION_REQUIRED_BY_PO,
+        /** Employé marque une tâche comme done → Manager notifié */
+        TASK_COMPLETED
     }
 }

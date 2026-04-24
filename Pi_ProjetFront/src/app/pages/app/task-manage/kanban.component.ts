@@ -32,6 +32,7 @@ import { UserService, UserDTO } from "../../../users/user.service";
 import { ProjectService, Project } from "../../../services/project-service";
 import { DeliverableDialogComponent, DeliverableFormData } from "../deliverable/deliverable-dialog.component";
 import { AuthService } from "../../../auth/auth.service";
+import { WorkloadService, WorkloadPressure } from "../../../services/workload.service";
 
 export type TaskStatus   = "new" | "in-progress" | "ready to test" | "completed" | "resolved";
 export type TaskType     = "task" | "bug" | "epic" | "story" | "subtask";
@@ -51,8 +52,8 @@ export interface TaskItem {
   assignHours:     string;
   loggedHours:     string;
   dueDate:         string;
-  hasDeliverable?: boolean;  // ✅ Indique si la tâche a un livrable
-  deliverableId?:  number;   // ✅ ID du livrable associé
+  hasDeliverable?: boolean;
+  deliverableId?:  number;
 }
 
 @Component({
@@ -76,9 +77,13 @@ export class KanbanComponent implements OnInit {
   private deliverableService = inject(DeliverableService);
   private userService = inject(UserService);
   private projectService = inject(ProjectService);
-  private authService = inject(AuthService);
+  private authService    = inject(AuthService);
+  private workloadSvc    = inject(WorkloadService);
 
-  // ── State (tous signals pour réactivité) ───────────────────────
+  // ── Pressure indicator (loaded once after tasks) ───────────────
+  pressureData = signal<WorkloadPressure | null>(null);
+
+  // ── State (all signals for reactivity) ───────────────────────
   tasks                = signal<TaskItem[]>([]);
   loading              = signal(true);
   error                = signal('');
@@ -86,7 +91,7 @@ export class KanbanComponent implements OnInit {
   dialogLoading        = signal(false);
   taskDeliverables     = signal<Map<number, { hasDeliverable: boolean; deliverableId?: number }>>(new Map());
 
-  // ── Projets distincts extraits des tâches ──────────────────────
+  // ── Distinct projects from tasks ─────────────────────────────
   projectList = computed(() => {
     const seen = new Map<string, string>();
     this.tasks().forEach(t => {
@@ -97,39 +102,39 @@ export class KanbanComponent implements OnInit {
     return Array.from(seen.entries()).map(([id, name]) => ({ id, name }));
   });
 
-  // ── Tâches filtrées selon le projet sélectionné ────────────────
+  // ── Filtered tasks by selected project ───────────────────────
   filteredTasks = computed(() => {
     const pid = this.selectedProjectId();
     if (pid === 'all') return this.tasks();
     return this.tasks().filter(t => t.projectId === pid);
   });
 
-  // ── Projet sélectionné (pour afficher les infos) ───────────────
+  // ── Selected project (for displaying info) ───────────────────
   selectedProject = computed(() =>
     this.projectList().find(p => p.id === this.selectedProjectId()) ?? null
   );
 
-  // ── Summary metrics ────────────────────────────────────────────
+  // ── Summary metrics ──────────────────────────────────────────
   summaryMetrics = computed(() => {
     const all = this.filteredTasks();
     return [
-      { title: 'Total Tâches', value: all.length,                                           icon: 'checklist', colorClass: 'theme-blue'   },
-      { title: 'En cours',     value: all.filter(t => t.status === 'in-progress').length,   icon: 'autorenew', colorClass: 'theme-orange' },
-      { title: 'À tester',     value: all.filter(t => t.status === 'ready to test').length, icon: 'verified',  colorClass: 'theme-red'    },
-      { title: 'Terminées',    value: all.filter(t => t.status === 'completed').length,      icon: 'done_all',  colorClass: 'theme-green'  },
+      { title: 'Total Tasks', value: all.length,                                           icon: 'checklist', colorClass: 'theme-blue'   },
+      { title: 'In Progress', value: all.filter(t => t.status === 'in-progress').length,   icon: 'autorenew', colorClass: 'theme-orange' },
+      { title: 'To Test',     value: all.filter(t => t.status === 'ready to test').length, icon: 'verified',  colorClass: 'theme-red'    },
+      { title: 'Completed',   value: all.filter(t => t.status === 'completed').length,      icon: 'done_all',  colorClass: 'theme-green'  },
     ];
   });
 
-  // ── Colonnes Kanban ────────────────────────────────────────────
-  kanbanColumns: { id: TaskStatus; title: string; icon: string; accent: string }[] = [
-    { id: 'new',           title: 'To Do',         icon: 'assignment', accent: '#8b5cf6' },
-    { id: 'in-progress',   title: 'In Progress',   icon: 'autorenew',  accent: '#3b82f6' },
-    { id: 'ready to test', title: 'Ready to Test', icon: 'verified',   accent: '#f59e0b' },
-    { id: 'completed',     title: 'Completed',     icon: 'done_all',   accent: '#10b981' },
+  // ── Kanban Columns ───────────────────────────────────────────
+  kanbanColumns: { id: TaskStatus; title: string; icon: string; gradient: string; badgeColor: string }[] = [
+    { id: 'new',           title: 'To Do',         icon: 'assignment', gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', badgeColor: '#764ba2' },
+    { id: 'in-progress',   title: 'In Progress',   icon: 'autorenew',  gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', badgeColor: '#f5576c' },
+    { id: 'ready to test', title: 'Ready to Test', icon: 'verified',   gradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', badgeColor: '#fa709a' },
+    { id: 'completed',     title: 'Completed',     icon: 'done_all',   gradient: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', badgeColor: '#a8edea' },
   ];
   columnIds = this.kanbanColumns.map(c => c.id);
 
-  // ── View state ─────────────────────────────────────────────────
+  // ── View state ────────────────────────────────────────────────
   viewMode = signal<'comfortable' | 'compact'>('comfortable');
   searchText = signal<string>('');
   priorityFilter = signal<TaskPriority | 'all'>('all');
@@ -160,7 +165,7 @@ export class KanbanComponent implements OnInit {
     );
   }
 
-  // ── UI helpers for card rendering ──────────────────────────────
+  // ── UI helpers for card rendering ─────────────────────────────
   getInitials(name: string): string {
     if (!name) return '?';
     const parts = name.trim().split(/\s+/).slice(0, 2);
@@ -199,6 +204,13 @@ export class KanbanComponent implements OnInit {
     return Math.min(100, Math.round((done / est) * 100));
   }
 
+  // Pressure arc: circumference of r=20 circle = 125.6; half = 62.8
+  pressureArcDash(score: number): string {
+    const circ = 125.6;
+    const pct  = Math.min(circ, (score / 15) * circ);
+    return `${pct} ${circ}`;
+  }
+
   getDueUrgency(dueDate: string): 'overdue' | 'soon' | 'normal' | '' {
     if (!dueDate) return '';
     const due = new Date(dueDate);
@@ -209,7 +221,7 @@ export class KanbanComponent implements OnInit {
     return 'normal';
   }
 
-  // ── Lifecycle ──────────────────────────────────────────────────
+  // ── Lifecycle ─────────────────────────────────────────────────
   ngOnInit() {
     this.loadMyTasks();
   }
@@ -222,23 +234,29 @@ export class KanbanComponent implements OnInit {
         const mappedTasks = data.map(t => this.mapToTaskItem(t));
         this.tasks.set(mappedTasks);
         
-        // ✅ Charger les livrables pour chaque tâche
+        // Load deliverables for each task
         this.loadTaskDeliverables(mappedTasks);
         
-        // ✅ Sélectionner automatiquement le premier projet
+        // Auto-select first project
         const first = this.projectList()[0];
         if (first) this.selectedProjectId.set(first.id);
         this.loading.set(false);
+
+        // Load pressure indicator
+        this.workloadSvc.loadPressure().subscribe({
+          next: p => this.pressureData.set(p),
+          error: () => {}
+        });
       },
       error: (err) => {
-        this.error.set('Impossible de charger les tâches.');
+        this.error.set('Unable to load tasks.');
         this.loading.set(false);
         console.error(err);
       }
     });
   }
 
-  // ── Charger les livrables pour chaque tâche ────────────────────
+  // ── Load deliverables for each task ───────────────────────────
   private loadTaskDeliverables(tasks: TaskItem[]) {
     const deliverableMap = new Map<number, { hasDeliverable: boolean; deliverableId?: number }>();
     
@@ -264,18 +282,18 @@ export class KanbanComponent implements OnInit {
     });
   }
 
-  // ── Changer de projet ──────────────────────────────────────────
+  // ── Change project ────────────────────────────────────────────
   selectProject(projectId: string) {
     this.selectedProjectId.set(projectId);
   }
 
-  // ── Mapping backend → frontend ─────────────────────────────────
+  // ── Mapping backend → frontend ────────────────────────────────
   private mapToTaskItem(t: TaskResponseDto): TaskItem {
     const deliverableInfo = this.taskDeliverables().get(t.id);
     return {
       taskId:          t.id,
       projectId:       t.projectId ?? '',
-      projectName:     t.projectName ?? 'Sans projet',
+      projectName:     t.projectName ?? 'No project',
       title:           t.title,
       description:     t.description ?? '',
       status:          this.mapStatus(t.status),
@@ -291,16 +309,10 @@ export class KanbanComponent implements OnInit {
     };
   }
 
-  /**
-   * Vérifie si une tâche a un livrable
-   */
   hasDeliverable(taskId: number): boolean {
     return this.taskDeliverables().get(taskId)?.hasDeliverable ?? false;
   }
 
-  /**
-   * Récupère l'ID du livrable d'une tâche
-   */
   getDeliverableId(taskId: number): number | undefined {
     return this.taskDeliverables().get(taskId)?.deliverableId;
   }
@@ -327,7 +339,7 @@ export class KanbanComponent implements OnInit {
     return map[status];
   }
 
-  // ── Helpers ────────────────────────────────────────────────────
+  // ── Helpers ───────────────────────────────────────────────────
   getTasksForStatus(status: string): TaskItem[] {
     return this.filteredTasks().filter(t => t.status === status);
   }
@@ -358,13 +370,18 @@ export class KanbanComponent implements OnInit {
     return new Date(dueDate) < new Date();
   }
 
-  // ── Drag & Drop ────────────────────────────────────────────────
+  // ── Enhanced Drag & Drop with better animation ────────────────
   drop(event: CdkDragDrop<TaskItem[]>) {
     if (event.previousContainer === event.container) {
       moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
       return;
     }
 
+    // Add haptic feedback for smoother experience
+    const movedTask = event.previousContainer.data[event.previousIndex];
+    const newStatus = event.container.id as TaskStatus;
+
+    // Optimistic update with smooth transition
     transferArrayItem(
       event.previousContainer.data,
       event.container.data,
@@ -372,36 +389,33 @@ export class KanbanComponent implements OnInit {
       event.currentIndex
     );
 
-    const movedTask = event.container.data[event.currentIndex];
-    const newStatus = event.container.id as TaskStatus;
-
-    // Mise à jour locale
+    // Update local state
     this.tasks.update(tasks =>
       tasks.map(t =>
         t.taskId === movedTask.taskId ? { ...t, status: newStatus } : t
       )
     );
 
-    // Persistance backend
+    // Persist to backend
     const backendStatus = this.mapStatusToBackend(newStatus);
     this.taskService.updateStatus(movedTask.taskId, backendStatus).subscribe({
       error: (err) => {
-        console.error('Erreur mise à jour statut:', err);
+        console.error('Error updating status:', err);
+        // Rollback on error
         this.loadMyTasks();
       }
     });
 
-    // ✅ Auto-open deliverable dialog if task is completed
+    // Auto-open deliverable dialog if task is completed
     if (newStatus === 'completed') {
-      this.openDeliverableDialog(movedTask);
+      setTimeout(() => this.openDeliverableDialog(movedTask), 300);
     }
   }
 
-  // ── Open Deliverable Dialog ────────────────────────────────────
+  // ── Open Deliverable Dialog ───────────────────────────────────
   openDeliverableDialog(task: TaskItem, mode: 'create' | 'add-version' = 'create') {
     this.dialogLoading.set(true);
 
-    // Load only users and projects (we already have tasks from current view)
     forkJoin({
       users: this.userService.getAll(),
       projects: this.projectService.getAll(),
@@ -410,20 +424,17 @@ export class KanbanComponent implements OnInit {
         this.dialogLoading.set(false);
 
         const activeUsers = users.filter(u => u.isActive !== false);
-
-        // The submitter is the currently logged-in user (the one performing the action)
         const userId = this.authService.getUserId() ?? this.authService.currentUser()?.id;
+        
         if (!userId) {
-          this.error.set('Utilisateur non authentifié. Veuillez vous reconnecter.');
+          this.error.set('User not authenticated. Please log in again.');
           return;
         }
 
-        // Determine mode based on whether task has deliverable
         const hasExistingDeliverable = this.hasDeliverable(task.taskId);
         const dialogMode = hasExistingDeliverable ? 'add-version' : 'create';
         const deliverableId = this.getDeliverableId(task.taskId);
 
-        // Open dialog with appropriate mode
         const dialogRef = this.dialog.open(DeliverableDialogComponent, {
           width: '600px',
           maxWidth: '95vw',
@@ -450,14 +461,13 @@ export class KanbanComponent implements OnInit {
         dialogRef.afterClosed().subscribe(saved => {
           if (saved) {
             console.log('Deliverable action completed successfully');
-            // Refresh deliverables info
             this.loadTaskDeliverables(this.tasks());
           }
         });
       },
       error: (err) => {
         this.dialogLoading.set(false);
-        this.error.set('Erreur lors du chargement des utilisateurs et projets.');
+        this.error.set('Error loading users and projects.');
         console.error('Error loading deliverable dialog data:', err);
       }
     });

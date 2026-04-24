@@ -2,6 +2,7 @@ package com.example.pi_projet.service;
 
 import com.example.pi_projet.dto.*;
 import com.example.pi_projet.entity.*;
+import com.example.pi_projet.entity.ChatRoom;
 import com.example.pi_projet.entity.PoDecisionAndDelivrable.Deliverable;
 import com.example.pi_projet.entity.PoDecisionAndDelivrable.DeliverableReview;
 import com.example.pi_projet.entity.PoDecisionAndDelivrable.DeliverableVersion;
@@ -27,6 +28,7 @@ public class DeliverableReviewService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final TaskRepository taskRepository;
+    private final DeliverableChatService deliverableChatService;
 
     /**
      * Manager submits review with score and feedback.
@@ -243,6 +245,12 @@ public class DeliverableReviewService {
             // Manager : le PO a validé, suggérer une réunion
             if (managerWhoReviewed != null) {
                 notificationService.notifyManagerOnPOValidated(deliverable, po, managerWhoReviewed);
+            }
+            // ── Auto-create (or reuse) the PO-Manager shared chatroom ──────────
+            ChatRoom poManagerRoom = deliverableChatService.ensurePoManagerRoom(deliverable, po);
+            if (poManagerRoom != null && deliverable.getChatRoom() == null) {
+                deliverable.setChatRoom(poManagerRoom);
+                deliverableRepository.save(deliverable);
             }
         } else if (reviewDecision == DeliverableReview.ReviewDecision.REJECTED) {
             // Manager : le PO a rejeté

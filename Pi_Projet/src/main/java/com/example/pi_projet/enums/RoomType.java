@@ -5,5 +5,6 @@ public enum RoomType {
     task_thread,
     deliverable_review,
     private_room,
-    meeting
+    meeting,
+    po_manager          // auto-created when PO accepts a deliverable
 }

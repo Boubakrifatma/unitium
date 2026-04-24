@@ -358,6 +358,7 @@ public class DeliverableService {
                 .submittedById(d.getSubmittedBy() != null ? d.getSubmittedBy().getId() : null)
                 .submittedByName(d.getSubmittedBy() != null ? d.getSubmittedBy().getFullName() : null)
                 .submittedByEmail(d.getSubmittedBy() != null ? d.getSubmittedBy().getEmail() : null)
+                .chatRoomId(d.getChatRoom() != null ? d.getChatRoom().getId() : null)
                 .build();
     }
 }

@@ -49,6 +49,10 @@ public class Task {
     @Enumerated(EnumType.STRING)
     private TaskPriority priority;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "difficulty")
+    private TaskDifficulty difficulty;
+
     @Column(name = "estimated_hours")
     private Float estimatedHours;
 
@@ -100,5 +104,9 @@ public class Task {
 
     public enum TaskPriority {
         low, medium, high, critical
+    }
+
+    public enum TaskDifficulty {
+        easy, medium, hard
     }
 }

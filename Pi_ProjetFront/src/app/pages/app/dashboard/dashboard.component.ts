@@ -1,5 +1,7 @@
-import { Component, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA, ViewChild, signal, computed, HostListener } from "@angular/core";
+import { Component, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA, ViewChild, signal, computed, HostListener, inject } from "@angular/core";
 import { CommonModule } from "@angular/common";
+import { Router } from "@angular/router";
+import { AuthService } from "../../../auth/auth.service";
 import { MatCardModule } from "@angular/material/card";
 import { MatIconModule } from "@angular/material/icon";
 import { MatButtonModule } from "@angular/material/button";
@@ -668,6 +670,9 @@ interface Employee {
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class DashboardComponent implements OnInit {
+    private readonly router   = inject(Router);
+    private readonly authSvc  = inject(AuthService);
+
     filterOn = true;
     currentWidth = signal(0);
 
@@ -680,7 +685,12 @@ export class DashboardComponent implements OnInit {
         this.checkWidthAndSetFilter();
     }
 
-    ngOnInit() {}
+    ngOnInit() {
+        const role = this.authSvc.currentUser()?.role;
+        if (role === 'EMPLOYEE' || role === 'STUDENT' || role === 'TUTOR') {
+            this.router.navigate(['/app/workload'], { replaceUrl: true });
+        }
+    }
     ngAfterViewInit() {
         // width check
         this.checkWidthAndSetFilter();

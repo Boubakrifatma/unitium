@@ -164,12 +164,20 @@ public class RoomMemberService {
     }
 
     public List<ChatRoomDTO> getMyRooms(User currentUser) {
-        if (currentUser.getRole() != User.RoleName.EMPLOYEE && currentUser.getRole() != User.RoleName.STUDENT) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only EMPLOYEE or STUDENT can use this endpoint.");
+        User.RoleName role = currentUser.getRole();
+
+        // PRODUCT_OWNER, EMPLOYEE and STUDENT all use the membership table.
+        // PRODUCT_OWNER is automatically added to po_manager rooms on deliverable acceptance.
+        if (role == User.RoleName.PRODUCT_OWNER
+                || role == User.RoleName.EMPLOYEE
+                || role == User.RoleName.STUDENT) {
+            return roomMemberRepository.findByUser(currentUser)
+                    .stream()
+                    .map(m -> ChatRoomDTO.from(m.getRoom()))
+                    .toList();
         }
-        return roomMemberRepository.findByUser(currentUser)
-                .stream()
-                .map(m -> ChatRoomDTO.from(m.getRoom()))
-                .toList();
+
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                "Only EMPLOYEE, STUDENT or PRODUCT_OWNER can use this endpoint.");
     }
 }

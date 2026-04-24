@@ -1,0 +1,16 @@
+PRESSURE CALCULATION LOGIC
+
+Define a scoring system:
+
+Deadline < 2 days → +3 points
+Deadline < 5 days → +2 points
+Difficulty:
+easy → +1
+medium → +2
+hard → +3
+
+Total score:
+
+0–5 → Calm
+6–10 → Medium
+11+ → High Stress

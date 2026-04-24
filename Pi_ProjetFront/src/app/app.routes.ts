@@ -151,6 +151,10 @@ export const routes: Routes = [
                 path: "kanban",
                 loadComponent: () => import("./pages/app/task-manage/kanban.component").then((c) => c.KanbanComponent),
             },
+            {
+                path: "workload",
+                loadComponent: () => import("./pages/app/workload/workload-dashboard.component").then((c) => c.WorkloadDashboardComponent),
+            },
             
             {
                 path: "all-tasks",

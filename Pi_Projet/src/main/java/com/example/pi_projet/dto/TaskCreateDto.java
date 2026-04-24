@@ -27,4 +27,6 @@ public class TaskCreateDto {
 
     @JsonProperty("isVisibleToAssignees")
     private Boolean isVisibleToAssignees;
+
+    private String difficulty; // easy | medium | hard
 }
