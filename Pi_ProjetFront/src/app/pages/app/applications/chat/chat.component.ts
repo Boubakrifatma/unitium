@@ -161,159 +161,228 @@ import { ModerationService, ModerationReport, ReportRequest } from './moderation
                     }
                 </div>
 
-                <!-- Room type pills -->
+                <!-- Channel Type selector — full-width radio rows -->
                 <div class="mb-3" [class.wiz-shake]="formShaking() && !formRoomType">
                     <div class="wiz-type-label">
                         Channel Type *
-                        @if (formRoomType) {
-                            <mat-icon class="field-check-icon-inline material-icons-outlined">check_circle</mat-icon>
-                        }
                     </div>
-                    <div class="wiz-type-pills">
-                        @for (t of roomTypes; track t.value) {
-                            <button class="wiz-type-pill" type="button"
-                                    [class.wiz-type-pill-active]="formRoomType === t.value"
-                                    (click)="onRoomTypeSelect(t.value)">
-                                {{ t.label }}
-                            </button>
-                        }
+                    <div class="wiz-type-list">
+
+                        <!-- General -->
+                        <button class="wiz-type-row" type="button"
+                                [class.wiz-type-row-active]="formRoomType === 'general'"
+                                (click)="onRoomTypeSelect('general')">
+                            <div class="wiz-type-row-icon-box">
+                                <mat-icon class="material-icons-outlined wiz-type-row-icon">chat</mat-icon>
+                            </div>
+                            <div class="wiz-type-row-text">
+                                <span class="wiz-type-row-name">General</span>
+                                <span class="wiz-type-row-desc">Open team conversations</span>
+                            </div>
+                            <div class="wiz-type-row-right">
+                                <div class="wiz-type-radio" [class.wiz-type-radio-on]="formRoomType === 'general'">
+                                    @if (formRoomType === 'general') {
+                                        <div class="wiz-type-radio-dot"></div>
+                                    }
+                                </div>
+                            </div>
+                        </button>
+
+                        <!-- Task Thread -->
+                        <button class="wiz-type-row" type="button"
+                                [class.wiz-type-row-active]="formRoomType === 'task_thread'"
+                                (click)="onRoomTypeSelect('task_thread')">
+                            <div class="wiz-type-row-icon-box">
+                                <mat-icon class="material-icons-outlined wiz-type-row-icon">task_alt</mat-icon>
+                            </div>
+                            <div class="wiz-type-row-text">
+                                <span class="wiz-type-row-name">Task Thread</span>
+                                <span class="wiz-type-row-desc">Linked to tasks, structured updates</span>
+                            </div>
+                            <div class="wiz-type-row-right">
+                                <div class="wiz-type-radio" [class.wiz-type-radio-on]="formRoomType === 'task_thread'">
+                                    @if (formRoomType === 'task_thread') {
+                                        <div class="wiz-type-radio-dot"></div>
+                                    }
+                                </div>
+                            </div>
+                        </button>
+
+                        <!-- Deliverable Review -->
+                        <button class="wiz-type-row" type="button"
+                                [class.wiz-type-row-active]="formRoomType === 'deliverable_review'"
+                                (click)="onRoomTypeSelect('deliverable_review')">
+                            <div class="wiz-type-row-icon-box">
+                                <mat-icon class="material-icons-outlined wiz-type-row-icon">description</mat-icon>
+                            </div>
+                            <div class="wiz-type-row-text">
+                                <span class="wiz-type-row-name">Deliverable Review</span>
+                                <span class="wiz-type-row-desc">Share and review work before submission</span>
+                            </div>
+                            <div class="wiz-type-row-right">
+                                <div class="wiz-type-radio" [class.wiz-type-radio-on]="formRoomType === 'deliverable_review'">
+                                    @if (formRoomType === 'deliverable_review') {
+                                        <div class="wiz-type-radio-dot"></div>
+                                    }
+                                </div>
+                            </div>
+                        </button>
+
+                        <!-- Private Room -->
+                        <button class="wiz-type-row" type="button"
+                                [class.wiz-type-row-active]="formRoomType === 'private_room'"
+                                (click)="onRoomTypeSelect('private_room')">
+                            <div class="wiz-type-row-icon-box">
+                                <mat-icon class="material-icons-outlined wiz-type-row-icon">lock</mat-icon>
+                            </div>
+                            <div class="wiz-type-row-text">
+                                <span class="wiz-type-row-name">Private Room</span>
+                                <span class="wiz-type-row-desc">Invite-only, hidden from others</span>
+                            </div>
+                            <div class="wiz-type-row-right">
+                                <span class="wiz-type-row-badge">Private</span>
+                                <div class="wiz-type-radio" [class.wiz-type-radio-on]="formRoomType === 'private_room'">
+                                    @if (formRoomType === 'private_room') {
+                                        <div class="wiz-type-radio-dot"></div>
+                                    }
+                                </div>
+                            </div>
+                        </button>
+
+                        <!-- Meeting -->
+                        <button class="wiz-type-row" type="button"
+                                [class.wiz-type-row-active]="formRoomType === 'meeting'"
+                                (click)="onRoomTypeSelect('meeting')">
+                            <div class="wiz-type-row-icon-box">
+                                <mat-icon class="material-icons-outlined wiz-type-row-icon">videocam</mat-icon>
+                            </div>
+                            <div class="wiz-type-row-text">
+                                <span class="wiz-type-row-name">Meeting</span>
+                                <span class="wiz-type-row-desc">Scheduled video or voice sessions</span>
+                            </div>
+                            <div class="wiz-type-row-right">
+                                <span class="wiz-type-row-badge wiz-type-row-badge-scheduled">Scheduled</span>
+                                <div class="wiz-type-radio" [class.wiz-type-radio-on]="formRoomType === 'meeting'">
+                                    @if (formRoomType === 'meeting') {
+                                        <div class="wiz-type-radio-dot"></div>
+                                    }
+                                </div>
+                            </div>
+                        </button>
+
                     </div>
                     @if (formTouched() && !formRoomType) {
                         <div class="wiz-inline-error">Please select a channel type.</div>
                     }
                 </div>
 
-                <!-- ── MEETING FIELDS (premium redesign) ── -->
+                <!-- ── MEETING FIELDS (clean, professional redesign with animations) ── -->
                 @if (formRoomType === 'meeting') {
-                    <div class="wiz-meeting-card">
-                        <div class="wiz-meeting-card-header">
-                            <mat-icon class="material-icons-outlined" style="font-size:15px;width:15px;height:15px;color:var(--mat-sys-primary)">event_available</mat-icon>
-                            <span>Meeting Details</span>
+                    <!-- ══ Schedule meeting card ══ -->
+                    <div class="wiz-meeting-card-clean">
+                        <div class="wiz-meeting-card-title">
+                            <mat-icon class="material-icons-outlined" style="font-size:16px;width:16px;height:16px">schedule</mat-icon>
+                            Schedule Meeting
                         </div>
 
-                        <div class="wiz-meeting-two-col">
-                            <!-- Left: mini calendar -->
-                            <div class="wiz-meeting-col">
-                                <div class="wiz-section-label">DATE</div>
-                                <div class="wiz-mini-cal">
-                                    <div class="wiz-mini-cal-nav">
-                                        <button type="button" class="wiz-cal-nav-btn" (click)="prevCalMonth()">&#8249;</button>
-                                        <span class="wiz-cal-month-label">{{ CAL_MONTHS[calDisplayMonth] }} {{ calDisplayYear }}</span>
-                                        <button type="button" class="wiz-cal-nav-btn" (click)="nextCalMonth()">&#8250;</button>
-                                    </div>
-                                    <div class="wiz-mini-cal-grid">
-                                        @for (d of CAL_DAYS_OF_WEEK; track d) {
-                                            <div class="wiz-cal-dow">{{ d }}</div>
-                                        }
-                                        @for (cell of getCalendarGrid(); track $index) {
-                                            <button type="button"
-                                                    class="wiz-cal-day"
-                                                    [class.wiz-cal-day-today]="cell.isToday"
-                                                    [class.wiz-cal-day-selected]="cell.isSelected"
-                                                    [class.wiz-cal-day-past]="cell.isPast"
-                                                    [class.wiz-cal-day-empty]="!cell.date"
-                                                    [disabled]="!cell.date || cell.isPast"
-                                                    (click)="selectCalDate(cell.date)">
-                                                {{ cell.date ? cell.date.getDate() : '' }}
-                                            </button>
-                                        }
-                                    </div>
-                                    @if (formMeetingDate) {
-                                        <div class="wiz-cal-selected-label">
-                                            <mat-icon class="material-icons-outlined" style="font-size:12px;width:12px;height:12px;color:#4caf50">check_circle</mat-icon>
-                                            {{ formMeetingDate | date:'EEE, MMM d, y' }}
-                                        </div>
-                                    }
-                                </div>
+                        <!-- Date & Time Grid -->
+                        <div class="wiz-meeting-grid">
+                            <!-- Date Picker -->
+                            <div class="wiz-meeting-field">
+                                <label class="wiz-meeting-label">
+                                    <mat-icon class="material-icons-outlined" style="font-size:12px;width:12px;height:12px;margin-right:4px">calendar_today</mat-icon>
+                                    Meeting Date
+                                </label>
+                                <input type="date" [(ngModel)]="formMeetingDate" class="wiz-meeting-input" />
+                                @if (formMeetingDate) {
+                                    <div class="wiz-meeting-hint">{{ formMeetingDate | date:'EEEE, MMMM d, y' }}</div>
+                                }
                             </div>
 
-                            <!-- Right: time selection -->
-                            <div class="wiz-meeting-col">
-                                <div class="wiz-section-label">START TIME</div>
-                                <div class="wiz-time-scroll-wrap">
-                                    @for (t of meetingTimePills; track t) {
-                                        <button type="button" class="wiz-time-pill-h"
-                                                [class.wiz-time-pill-h-active]="formStartTime === t"
-                                                (click)="formStartTime = t">
-                                            @if (formStartTime === t) {
-                                                <mat-icon style="font-size:11px;width:11px;height:11px;margin-right:2px">check</mat-icon>
-                                            }
-                                            {{ t }}
-                                        </button>
-                                    }
-                                </div>
+                            <!-- Start Time -->
+                            <div class="wiz-meeting-field">
+                                <label class="wiz-meeting-label">
+                                    <mat-icon class="material-icons-outlined" style="font-size:12px;width:12px;height:12px;margin-right:4px">schedule</mat-icon>
+                                    Start Time
+                                </label>
+                                <input type="time" [(ngModel)]="formStartTimeInput" class="wiz-meeting-input" (change)="onStartTimeChange()" />
+                                <div class="wiz-meeting-hint">{{ formStartTime }}</div>
+                            </div>
 
-                                <div class="wiz-section-label" style="margin-top:10px">END TIME</div>
-                                <div class="wiz-time-scroll-wrap">
-                                    @for (t of meetingTimePills; track t) {
-                                        <button type="button" class="wiz-time-pill-h"
-                                                [class.wiz-time-pill-h-active]="formEndTime === t"
-                                                (click)="formEndTime = t">
-                                            @if (formEndTime === t) {
-                                                <mat-icon style="font-size:11px;width:11px;height:11px;margin-right:2px">check</mat-icon>
-                                            }
-                                            {{ t }}
-                                        </button>
-                                    }
-                                </div>
-
-                                <!-- Auto-link note -->
-                                <div class="wiz-auto-link-note">
-                                    <mat-icon class="material-icons-outlined" style="font-size:12px;width:12px;height:12px;color:#4caf50">video_call</mat-icon>
-                                    <span>Google Meet link auto-generated</span>
-                                </div>
+                            <!-- End Time -->
+                            <div class="wiz-meeting-field">
+                                <label class="wiz-meeting-label">
+                                    <mat-icon class="material-icons-outlined" style="font-size:12px;width:12px;height:12px;margin-right:4px">event_busy</mat-icon>
+                                    End Time
+                                </label>
+                                <input type="time" [(ngModel)]="formEndTimeInput" class="wiz-meeting-input" (change)="onEndTimeChange()" />
+                                <div class="wiz-meeting-hint">{{ formEndTime }}</div>
                             </div>
                         </div>
 
-                        <!-- Participants note -->
-                        <div class="wiz-meeting-participants-note">
-                            <mat-icon class="material-icons-outlined" style="font-size:13px;width:13px;height:13px;color:#4caf50">group</mat-icon>
-                            <span>All room members will be notified automatically</span>
+                        <!-- Quick Duration Buttons -->
+                        <div class="wiz-meeting-durations">
+                            <button type="button" class="wiz-duration-btn" (click)="setDuration(30)" title="Set meeting duration to 30 minutes">30 min</button>
+                            <button type="button" class="wiz-duration-btn" (click)="setDuration(60)" title="Set meeting duration to 1 hour">1 hour</button>
+                            <button type="button" class="wiz-duration-btn" (click)="setDuration(90)" title="Set meeting duration to 1.5 hours">1.5 h</button>
+                            <button type="button" class="wiz-duration-btn" (click)="setDuration(120)" title="Set meeting duration to 2 hours">2 hours</button>
+                        </div>
+
+                        <!-- Meeting Link Info -->
+                        <div class="wiz-meeting-link-info">
+                            <mat-icon class="material-icons-outlined">auto_awesome</mat-icon>
+                            <span>Google Meet link will be auto-generated</span>
                         </div>
                     </div>
 
-                    <!-- ── Add Participants ── -->
-                    <div class="wiz-participants-section">
-                        <div class="wiz-participants-header">
-                            <mat-icon class="material-icons-outlined" style="font-size:16px;width:16px;height:16px;color:var(--mat-sys-primary)">group_add</mat-icon>
-                            <span>Add Participants</span>
+                    <!-- ── Add Participants (Clean Design with animations) ── -->
+                    <div class="wiz-participants-card-clean">
+                        <div class="wiz-participants-title">
+                            <span>
+                                <mat-icon class="material-icons-outlined" style="font-size:14px;width:14px;height:14px;margin-right:6px;vertical-align:middle">group</mat-icon>
+                                Participants
+                            </span>
                             @if (selectedParticipantIds.length > 0) {
-                                <span class="wiz-participants-count">{{ selectedParticipantIds.length }} selected</span>
+                                <span class="wiz-selected-count">{{ selectedParticipantIds.length }}</span>
                             }
                         </div>
+                        
+                        @if (selectedParticipantIds.length > 0) {
+                            <div class="wiz-selected-chips-clean">
+                                @for (pid of selectedParticipantIds; track pid) {
+                                    <span class="wiz-chip-clean">
+                                        {{ getParticipantName(pid) }}
+                                        <button type="button" class="wiz-chip-remove" (click)="toggleParticipant(pid)" title="Remove participant">
+                                            <mat-icon class="material-icons-outlined">close</mat-icon>
+                                        </button>
+                                    </span>
+                                }
+                            </div>
+                        }
 
                         @if (participantsLoading()) {
-                            <div style="text-align:center;padding:14px 0">
-                                <mat-spinner diameter="22"></mat-spinner>
+                            <div style="text-align:center;padding:20px 0">
+                                <mat-spinner diameter="24"></mat-spinner>
                             </div>
                         } @else if (participantUsers().length === 0) {
-                            <p style="font-size:12px;color:var(--mat-sys-on-surface-variant);text-align:center;margin:8px 0 4px">No users available</p>
+                            <p class="wiz-no-participants">No participants available</p>
                         } @else {
-                            @if (selectedParticipantIds.length > 0) {
-                                <div class="wiz-selected-chips">
-                                    @for (pid of selectedParticipantIds; track pid) {
-                                        <span class="wiz-selected-chip">
-                                            {{ getParticipantName(pid) }}
-                                            <button type="button" class="wiz-chip-remove-btn" (click)="toggleParticipant(pid)">&#215;</button>
-                                        </span>
-                                    }
-                                </div>
-                            }
-                            <div class="wiz-participant-grid">
+                            <div class="wiz-participant-grid-clean">
                                 @for (u of participantUsers(); track u.id) {
-                                    <button type="button" class="wiz-participant-card"
-                                            [class.wiz-participant-selected]="selectedParticipantIds.includes(u.id)"
-                                            (click)="toggleParticipant(u.id)">
-                                        <div class="wiz-participant-avatar" [ngStyle]="getParticipantAvatarStyle(u.fullName)">
+                                    <button type="button" class="wiz-participant-item"
+                                            [class.wiz-participant-item-selected]="selectedParticipantIds.includes(u.id)"
+                                            (click)="toggleParticipant(u.id)"
+                                            [title]="selectedParticipantIds.includes(u.id) ? 'Remove ' + u.fullName : 'Add ' + u.fullName">
+                                        <div class="wiz-participant-avatar-clean" [ngStyle]="getParticipantAvatarStyle(u.fullName)">
                                             {{ getParticipantInitials(u.fullName) }}
                                         </div>
+                                        <div class="wiz-participant-info">
+                                            <div class="wiz-participant-name-clean">{{ u.fullName }}</div>
+                                            <div class="wiz-participant-role-clean">{{ u.role }}</div>
+                                        </div>
                                         @if (selectedParticipantIds.includes(u.id)) {
-                                            <div class="wiz-participant-check">
-                                                <mat-icon style="font-size:14px;width:14px;height:14px;color:#fff">check</mat-icon>
-                                            </div>
+                                            <mat-icon class="wiz-participant-check-clean">check_circle</mat-icon>
                                         }
-                                        <span class="wiz-participant-name">{{ u.fullName }}</span>
-                                        <span class="wiz-participant-role">{{ u.role }}</span>
                                     </button>
                                 }
                             </div>
@@ -357,20 +426,8 @@ import { ModerationService, ModerationReport, ReportRequest } from './moderation
                     </div>
                     @if (formRoomType === 'meeting' && formMeetingDate) {
                         <div class="wiz-review-row">
-                            <span class="wiz-review-key">Date</span>
-                            <span class="wiz-review-val">{{ formMeetingDate | date:'mediumDate' }}</span>
-                        </div>
-                    }
-                    @if (formRoomType === 'meeting' && formStartTime) {
-                        <div class="wiz-review-row">
-                            <span class="wiz-review-key">Start</span>
-                            <span class="wiz-review-val">{{ formStartTime }}</span>
-                        </div>
-                    }
-                    @if (formRoomType === 'meeting' && formEndTime) {
-                        <div class="wiz-review-row">
-                            <span class="wiz-review-key">End</span>
-                            <span class="wiz-review-val">{{ formEndTime }}</span>
+                            <span class="wiz-review-key">Date & Time</span>
+                            <span class="wiz-review-val">{{ formMeetingDate | date:'short' }} • {{ formStartTime }} - {{ formEndTime }}</span>
                         </div>
                     }
                     @if (formRoomType === 'meeting') {
@@ -568,42 +625,356 @@ import { ModerationService, ModerationReport, ReportRequest } from './moderation
             margin-left: 4px;
         }
 
-        /* ── Room type pills ── */
+        /* ── Channel type label ── */
         .wiz-type-label {
             font-size: 12px;
             font-weight: 600;
             color: var(--mat-sys-on-surface-variant);
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             display: flex;
             align-items: center;
         }
-        .wiz-type-pills {
+
+        /* ── Channel type — full-width radio row list ── */
+        @keyframes wiz-row-in {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .wiz-type-list {
             display: flex;
-            flex-wrap: wrap;
+            flex-direction: column;
             gap: 8px;
         }
-        .wiz-type-pill {
-            padding: 6px 14px;
+        .wiz-type-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            background: var(--mat-sys-surface);
+            cursor: pointer;
+            text-align: left;
+            font-family: inherit;
+            transition:
+                border-color 0.2s ease,
+                background   0.2s ease,
+                box-shadow   0.2s ease;
+            animation: wiz-row-in 0.22s ease both;
+        }
+        .wiz-type-row:nth-child(1) { animation-delay:  0ms; }
+        .wiz-type-row:nth-child(2) { animation-delay: 35ms; }
+        .wiz-type-row:nth-child(3) { animation-delay: 70ms; }
+        .wiz-type-row:nth-child(4) { animation-delay:105ms; }
+        .wiz-type-row:nth-child(5) { animation-delay:140ms; }
+        .wiz-type-row:hover:not(.wiz-type-row-active) {
+            border-color: color-mix(in srgb, var(--mat-sys-primary) 50%, var(--mat-sys-outline-variant));
+            background: color-mix(in srgb, var(--mat-sys-primary) 4%, var(--mat-sys-surface));
+        }
+        .wiz-type-row-active {
+            border-color: var(--mat-sys-primary) !important;
+            background: color-mix(in srgb, var(--mat-sys-primary) 8%, var(--mat-sys-surface)) !important;
+            box-shadow: 0 0 0 0.5px var(--mat-sys-primary);
+        }
+
+        /* Icon box */
+        .wiz-type-row-icon-box {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: color-mix(in srgb, var(--mat-sys-on-surface) 7%, var(--mat-sys-surface-container));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: background 0.2s;
+        }
+        .wiz-type-row-active .wiz-type-row-icon-box {
+            background: color-mix(in srgb, var(--mat-sys-primary) 14%, var(--mat-sys-surface));
+        }
+        .wiz-type-row-icon {
+            font-size: 19px !important;
+            width: 19px !important;
+            height: 19px !important;
+            color: var(--mat-sys-on-surface-variant);
+            transition: color 0.2s;
+        }
+        .wiz-type-row-active .wiz-type-row-icon {
+            color: var(--mat-sys-primary) !important;
+        }
+
+        /* Text block */
+        .wiz-type-row-text {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .wiz-type-row-name {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--mat-sys-on-surface);
+            letter-spacing: -0.01em;
+            line-height: 1.2;
+            transition: color 0.2s;
+        }
+        .wiz-type-row-active .wiz-type-row-name {
+            color: var(--mat-sys-primary);
+        }
+        .wiz-type-row-desc {
+            font-size: 11.5px;
+            color: var(--mat-sys-on-surface-variant);
+            font-weight: 400;
+            line-height: 1.35;
+        }
+
+        /* Right side: optional badge + radio */
+        .wiz-type-row-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        /* Badge pills */
+        .wiz-type-row-badge {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            padding: 2px 8px;
             border-radius: 20px;
+            background: color-mix(in srgb, var(--mat-sys-on-surface) 8%, var(--mat-sys-surface-container));
+            color: var(--mat-sys-on-surface-variant);
+            white-space: nowrap;
+            line-height: 1.5;
+        }
+        .wiz-type-row-badge-scheduled {
+            background: color-mix(in srgb, var(--mat-sys-primary) 12%, var(--mat-sys-surface-container));
+            color: var(--mat-sys-primary);
+        }
+        .wiz-type-row-active .wiz-type-row-badge {
+            background: color-mix(in srgb, var(--mat-sys-primary) 15%, var(--mat-sys-surface));
+            color: var(--mat-sys-primary);
+        }
+
+        /* Radio circle */
+        .wiz-type-radio {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid var(--mat-sys-outline);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: border-color 0.18s, background 0.18s;
+        }
+        .wiz-type-radio-on {
+            border-color: var(--mat-sys-primary);
+            background: var(--mat-sys-primary);
+        }
+        .wiz-type-radio-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #fff;
+        }
+
+        /* ── Meeting time section label ── */
+        .wiz-meeting-time-lbl {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        /* ── Start / End toggle ── */
+        .wiz-time-toggle {
+            display: flex;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 14px;
+        }
+        .wiz-time-tog-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 8px 4px;
+            border: none;
+            background: transparent;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--mat-sys-on-surface-variant);
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.18s, color 0.18s;
+        }
+        .wiz-time-tog-btn:first-child {
+            border-right: 1px solid var(--mat-sys-outline-variant);
+        }
+        .wiz-time-tog-active {
+            background: var(--mat-sys-primary) !important;
+            color: var(--mat-sys-on-primary) !important;
+        }
+        .wiz-time-tog-btn:hover:not(.wiz-time-tog-active) {
+            background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
+            color: var(--mat-sys-primary);
+        }
+
+        /* ── Drum wheel row ── */
+        .wiz-drum-row {
+            display: flex;
+            align-items: flex-end;
+            gap: 4px;
+            margin-bottom: 10px;
+        }
+        .wiz-drum-col {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+        .wiz-drum-col-lbl {
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: var(--mat-sys-on-surface-variant);
+            opacity: 0.65;
+        }
+        .wiz-drum-colon {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--mat-sys-on-surface-variant);
+            padding-bottom: 12px;
+            opacity: 0.4;
+            flex-shrink: 0;
+            line-height: 1;
+        }
+        .wiz-drum-cylinder {
+            width: 100%;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            border-radius: 12px;
+            background: var(--mat-sys-surface-container-low);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .wiz-drum-adj {
+            width: 100%;
+            height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            background: transparent;
+            font-size: 13.5px;
+            font-weight: 500;
+            color: var(--mat-sys-on-surface-variant);
+            opacity: 0.4;
+            cursor: pointer;
+            font-family: inherit;
+            transition: opacity 0.15s, background 0.15s;
+            flex-shrink: 0;
+            letter-spacing: -0.01em;
+        }
+        .wiz-drum-adj:hover {
+            opacity: 0.8;
+            background: color-mix(in srgb, var(--mat-sys-primary) 7%, transparent);
+        }
+        .wiz-drum-adj:active { opacity: 1; }
+        .wiz-drum-selected {
+            width: 100%;
+            height: 46px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--mat-sys-on-surface);
+            background: color-mix(in srgb, var(--mat-sys-primary) 10%, var(--mat-sys-surface));
+            letter-spacing: -0.03em;
+            flex-shrink: 0;
+            border-top: 1px solid color-mix(in srgb, var(--mat-sys-primary) 20%, var(--mat-sys-outline-variant));
+            border-bottom: 1px solid color-mix(in srgb, var(--mat-sys-primary) 20%, var(--mat-sys-outline-variant));
+        }
+
+        /* ── Time display summary box ── */
+        .wiz-time-display-box {
+            width: 100%;
+            background: color-mix(in srgb, var(--mat-sys-primary) 8%, var(--mat-sys-surface-container));
+            border-radius: 10px;
+            padding: 7px 11px;
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            margin-bottom: 10px;
+            border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 20%, transparent);
+        }
+        .wiz-time-display-label {
+            font-size: 9.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--mat-sys-primary);
+            opacity: 0.8;
+        }
+        .wiz-time-display-val {
+            font-size: 19px;
+            font-weight: 800;
+            color: var(--mat-sys-on-surface);
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+        }
+
+        /* ── Quick pick ── */
+        .wiz-quick-lbl {
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: var(--mat-sys-on-surface-variant);
+            opacity: 0.6;
+            margin-bottom: 6px;
+        }
+        .wiz-quick-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+        .wiz-quick-pill {
+            padding: 4px 9px;
+            border-radius: 16px;
             border: 1.5px solid var(--mat-sys-outline-variant);
             background: transparent;
-            font-size: 12.5px;
+            font-size: 10.5px;
             font-weight: 500;
             color: var(--mat-sys-on-surface-variant);
             cursor: pointer;
-            transition: all 0.18s ease;
+            font-family: inherit;
+            transition: border-color 0.15s, color 0.15s, background 0.15s;
+            white-space: nowrap;
             line-height: 1.4;
         }
-        .wiz-type-pill:hover {
+        .wiz-quick-pill:hover {
             border-color: var(--mat-sys-primary);
             color: var(--mat-sys-primary);
             background: color-mix(in srgb, var(--mat-sys-primary) 6%, transparent);
         }
-        .wiz-type-pill-active {
-            background: var(--mat-sys-primary-container) !important;
+        .wiz-quick-pill-active {
+            background: var(--mat-sys-primary) !important;
             border-color: var(--mat-sys-primary) !important;
-            color: var(--mat-sys-on-primary-container) !important;
+            color: var(--mat-sys-on-primary) !important;
             font-weight: 600 !important;
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 30%, transparent);
         }
 
         /* ── Review card ── */
@@ -996,6 +1367,586 @@ import { ModerationService, ModerationReport, ReportRequest } from './moderation
             text-transform: uppercase;
             letter-spacing: 0.04em;
         }
+
+        /* ═══════════════════════════════════════════════════════
+           CLEAN PROFESSIONAL MEETING SECTION STYLES - WITH ANIMATIONS
+           ═══════════════════════════════════════════════════════ */
+        
+        @keyframes slideInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.96);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        /* Meeting Card - Enhanced with animations */
+        .wiz-meeting-card-clean {
+            border: 1px solid var(--mat-sys-outline);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 18px;
+            background: var(--mat-sys-surface);
+            animation: slideInDown 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+            transition: box-shadow 0.3s ease, border-color 0.3s ease;
+            box-shadow: 0 1px 3px color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
+        }
+
+        .wiz-meeting-card-clean:hover {
+            box-shadow: 0 4px 12px color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+            border-color: var(--mat-sys-primary);
+        }
+        
+        .wiz-meeting-card-title {
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: var(--mat-sys-on-surface);
+            margin-bottom: 18px;
+            text-transform: uppercase;
+            animation: slideInDown 0.3s ease 0.05s both;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .wiz-meeting-card-title::before {
+            content: '';
+            display: inline-block;
+            width: 3px;
+            height: 16px;
+            background: var(--mat-sys-primary);
+            border-radius: 2px;
+            animation: slideInDown 0.4s ease both;
+        }
+
+        /* Meeting Grid Layout */
+        .wiz-meeting-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+        @media (min-width: 540px) {
+            .wiz-meeting-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        @media (min-width: 700px) {
+            .wiz-meeting-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        /* Meeting Field - Staggered animation */
+        .wiz-meeting-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            animation: slideInUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
+
+        .wiz-meeting-grid .wiz-meeting-field:nth-child(1) { animation-delay: 0.08s; }
+        .wiz-meeting-grid .wiz-meeting-field:nth-child(2) { animation-delay: 0.12s; }
+        .wiz-meeting-grid .wiz-meeting-field:nth-child(3) { animation-delay: 0.16s; }
+
+        .wiz-meeting-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--mat-sys-on-surface-variant);
+            transition: color 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .wiz-meeting-field:focus-within .wiz-meeting-label {
+            color: var(--mat-sys-primary);
+        }
+
+        .wiz-meeting-field:focus-within .wiz-meeting-label mat-icon {
+            transform: scale(1.15);
+        }
+
+        .wiz-meeting-label mat-icon {
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .wiz-meeting-input {
+            padding: 10px 12px;
+            border: 1px solid var(--mat-sys-outline);
+            border-radius: 8px;
+            background: var(--mat-sys-surface-container-low);
+            font-size: 14px;
+            color: var(--mat-sys-on-surface);
+            font-family: inherit;
+            transition: 
+                border-color 0.2s ease,
+                box-shadow 0.2s ease,
+                background 0.2s ease,
+                transform 0.2s ease;
+            outline: none;
+        }
+
+        .wiz-meeting-input:hover {
+            border-color: var(--mat-sys-primary);
+            transform: translateY(-1px);
+        }
+
+        .wiz-meeting-input:focus {
+            border-color: var(--mat-sys-primary);
+            box-shadow: 
+                0 0 0 3px color-mix(in srgb, var(--mat-sys-primary) 12%, transparent),
+                0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 20%, transparent);
+            transform: translateY(-2px);
+        }
+
+        .wiz-meeting-hint {
+            font-size: 11px;
+            color: var(--mat-sys-on-surface-variant);
+            font-weight: 400;
+            animation: fadeInScale 0.3s ease;
+        }
+
+        /* ── Duration Buttons - Animated ── */
+        .wiz-meeting-durations {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            animation: slideInUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
+        }
+
+        .wiz-duration-btn {
+            flex: 1;
+            min-width: 80px;
+            padding: 8px 12px;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            border-radius: 8px;
+            background: transparent;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--mat-sys-on-surface-variant);
+            cursor: pointer;
+            font-family: inherit;
+            transition: 
+                all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .wiz-duration-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--mat-sys-primary) 20%, transparent), transparent);
+            animation: none;
+            transition: left 0.3s ease;
+        }
+
+        .wiz-duration-btn:hover::before {
+            animation: slideEffect 0.5s ease;
+        }
+
+        @keyframes slideEffect {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .wiz-duration-btn:hover {
+            border-color: var(--mat-sys-primary);
+            color: var(--mat-sys-primary);
+            background: color-mix(in srgb, var(--mat-sys-primary) 6%, transparent);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px color-mix(in srgb, var(--mat-sys-primary) 15%, transparent);
+        }
+
+        .wiz-duration-btn:active {
+            border-color: var(--mat-sys-primary);
+            background: var(--mat-sys-primary);
+            color: var(--mat-sys-on-primary);
+            transform: translateY(0);
+        }
+
+        @media (max-width: 540px) {
+            .wiz-duration-btn {
+                font-size: 11px;
+                padding: 6px 10px;
+                min-width: 70px;
+            }
+        }
+
+        /* Meeting Link Info - Animated */
+        .wiz-meeting-link-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: color-mix(in srgb, #4caf50 8%, var(--mat-sys-surface-container));
+            font-size: 12px;
+            color: #2e7d32;
+            font-weight: 500;
+            border: 1px solid color-mix(in srgb, #4caf50 30%, var(--mat-sys-outline));
+            animation: slideInUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.25s both;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .wiz-meeting-link-info:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px color-mix(in srgb, #4caf50 20%, transparent);
+        }
+
+        .wiz-meeting-link-info mat-icon {
+            font-size: 16px !important;
+            width: 16px !important;
+            height: 16px !important;
+            color: #4caf50;
+            flex-shrink: 0;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        /* Participants Card - Animated */
+        .wiz-participants-card-clean {
+            border: 1px solid var(--mat-sys-outline);
+            border-radius: 12px;
+            padding: 20px;
+            background: var(--mat-sys-surface);
+            animation: slideInUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both;
+            transition: box-shadow 0.3s ease, border-color 0.3s ease;
+            box-shadow: 0 1px 3px color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
+        }
+
+        .wiz-participants-card-clean:hover {
+            box-shadow: 0 4px 12px color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+            border-color: var(--mat-sys-primary);
+        }
+
+        .wiz-participants-title {
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: var(--mat-sys-on-surface);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            animation: slideInDown 0.3s ease 0.08s both;
+            position: relative;
+        }
+
+        .wiz-participants-title span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .wiz-participants-title::before {
+            content: '';
+            display: inline-block;
+            width: 3px;
+            height: 16px;
+            background: var(--mat-sys-primary);
+            border-radius: 2px;
+            margin-right: 6px;
+        }
+
+        .wiz-participants-title mat-icon {
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .wiz-participants-card-clean:hover .wiz-participants-title mat-icon {
+            transform: rotate(-8deg) scale(1.1);
+        }
+
+        .wiz-selected-count {
+            font-size: 12px;
+            background: var(--mat-sys-primary);
+            color: var(--mat-sys-on-primary);
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-weight: 600;
+            animation: fadeInScale 0.3s ease;
+        }
+
+        /* Selected Chips - Animated */
+        .wiz-selected-chips-clean {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 14px;
+            animation: slideInUp 0.4s ease 0.1s both;
+        }
+
+        .wiz-chip-clean {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--mat-sys-primary-container);
+            color: var(--mat-sys-on-primary-container);
+            padding: 4px 10px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 500;
+            animation: slideInDown 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .wiz-chip-clean:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 25%, transparent);
+        }
+
+        .wiz-chip-remove {
+            border: none;
+            background: none;
+            cursor: pointer;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.7;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+
+        .wiz-chip-remove:hover {
+            opacity: 1;
+            transform: scale(1.2);
+        }
+
+        .wiz-chip-remove mat-icon {
+            font-size: 16px !important;
+            width: 16px !important;
+            height: 16px !important;
+        }
+
+        .wiz-no-participants {
+            text-align: center;
+            padding: 20px;
+            color: var(--mat-sys-on-surface-variant);
+            font-size: 12px;
+            animation: fadeInScale 0.3s ease;
+        }
+
+        /* Participant Grid - Staggered animation */
+        .wiz-participant-grid-clean {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 10px;
+            max-height: 280px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--mat-sys-outline-variant) transparent;
+        }
+
+        .wiz-participant-grid-clean::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .wiz-participant-grid-clean::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .wiz-participant-grid-clean::-webkit-scrollbar-thumb {
+            background: var(--mat-sys-outline-variant);
+            border-radius: 3px;
+            transition: background 0.2s ease;
+        }
+
+        .wiz-participant-grid-clean::-webkit-scrollbar-thumb:hover {
+            background: var(--mat-sys-outline);
+        }
+
+        /* Participant Item - Enhanced with animations */
+        .wiz-participant-item {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            border-radius: 10px;
+            background: var(--mat-sys-surface-container-low);
+            cursor: pointer;
+            font-family: inherit;
+            transition: 
+                all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+                border-color 0.2s ease;
+            animation: fadeInScale 0.3s ease both;
+            overflow: hidden;
+        }
+
+        .wiz-participant-item:nth-child(1) { animation-delay: 0.05s; }
+        .wiz-participant-item:nth-child(2) { animation-delay: 0.1s; }
+        .wiz-participant-item:nth-child(3) { animation-delay: 0.15s; }
+        .wiz-participant-item:nth-child(4) { animation-delay: 0.2s; }
+        .wiz-participant-item:nth-child(5) { animation-delay: 0.25s; }
+        .wiz-participant-item:nth-child(n+6) { animation-delay: 0.3s; }
+
+        .wiz-participant-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--mat-sys-primary) 25%, transparent), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .wiz-participant-item:hover {
+            border-color: var(--mat-sys-primary);
+            box-shadow: 0 6px 20px color-mix(in srgb, var(--mat-sys-primary) 15%, transparent);
+            transform: translateY(-4px);
+        }
+
+        .wiz-participant-item:hover::before {
+            opacity: 1;
+        }
+
+        .wiz-participant-item-selected {
+            border-color: var(--mat-sys-primary) !important;
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 35%, var(--mat-sys-surface-container-low)) !important;
+            animation: slideInScale 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+        }
+
+        @keyframes slideInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* Participant Avatar - Animated */
+        .wiz-participant-avatar-clean {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: #fff;
+            flex-shrink: 0;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 20%, transparent);
+        }
+
+        .wiz-participant-item:hover .wiz-participant-avatar-clean {
+            transform: scale(1.15) rotate(5deg);
+        }
+
+        .wiz-participant-item-selected .wiz-participant-avatar-clean {
+            transform: scale(1.1);
+        }
+
+        /* Participant Info */
+        .wiz-participant-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            min-width: 0;
+            text-align: center;
+            transition: transform 0.2s ease;
+        }
+
+        .wiz-participant-item:hover .wiz-participant-info {
+            transform: translateY(-1px);
+        }
+
+        .wiz-participant-name-clean {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--mat-sys-on-surface);
+            word-break: break-word;
+            line-height: 1.3;
+            transition: color 0.2s ease;
+        }
+
+        .wiz-participant-item:hover .wiz-participant-name-clean {
+            color: var(--mat-sys-primary);
+        }
+
+        .wiz-participant-role-clean {
+            font-size: 10px;
+            color: var(--mat-sys-on-surface-variant);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            transition: color 0.2s ease;
+        }
+
+        .wiz-participant-item:hover .wiz-participant-role-clean {
+            color: var(--mat-sys-primary);
+        }
+
+        /* Participant Check - Animated */
+        .wiz-participant-check-clean {
+            font-size: 20px !important;
+            width: 20px !important;
+            height: 20px !important;
+            color: var(--mat-sys-primary) !important;
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            animation: slideInScale 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+            filter: drop-shadow(0 2px 4px color-mix(in srgb, var(--mat-sys-primary) 30%, transparent));
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     `],
 })
 export class RoomWizardDialogComponent {
@@ -1010,9 +1961,187 @@ export class RoomWizardDialogComponent {
     formDescription = '';
     formRoomType: RoomType | '' = '';
     formError = '';
+    activeTimeTab: 'start' | 'end' = 'start';
     formMeetingDate: Date | null = null;
-    formStartTime   = '';
-    formEndTime     = '';
+    formStartTime = '9:00 AM';
+    formEndTime   = '10:00 AM';
+
+    /* ── New Simple Time Input for Clean Design ─────────────────────────────── */
+    formStartTimeInput = '09:00'; // HTML time input format (24-hour)
+    formEndTimeInput   = '10:00';
+
+    onStartTimeChange(): void {
+        if (this.formStartTimeInput) {
+            this.formStartTime = this.convertTo12Hour(this.formStartTimeInput);
+        }
+    }
+
+    onEndTimeChange(): void {
+        if (this.formEndTimeInput) {
+            this.formEndTime = this.convertTo12Hour(this.formEndTimeInput);
+        }
+    }
+
+    private convertTo12Hour(time24: string): string {
+        const [hStr, mStr] = time24.split(':');
+        let h = parseInt(hStr, 10);
+        const m = parseInt(mStr, 10);
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        if (h > 12) h -= 12;
+        if (h === 0) h = 12;
+        return `${h}:${String(m).padStart(2, '0')} ${ampm}`;
+    }
+
+    private convertTo24Hour(time12: string): string {
+        const [timePart, ampm] = time12.split(' ');
+        const [hStr, mStr] = timePart.split(':');
+        let h = parseInt(hStr, 10);
+        const m = parseInt(mStr, 10);
+        if (ampm === 'PM' && h !== 12) h += 12;
+        if (ampm === 'AM' && h === 12) h = 0;
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    }
+
+    setDuration(minutes: number): void {
+        if (!this.formStartTimeInput) return;
+        const [hStr, mStr] = this.formStartTimeInput.split(':');
+        let h = parseInt(hStr, 10);
+        let m = parseInt(mStr, 10);
+        m += minutes;
+        if (m >= 60) {
+            h += Math.floor(m / 60);
+            m = m % 60;
+            if (h >= 24) h = h % 24;
+        }
+        this.formEndTimeInput = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        this.onEndTimeChange();
+    }
+
+    /* ── Drum-wheel time picker ─────────────────────────────────── */
+    readonly WIZ_HOURS       = [1,2,3,4,5,6,7,8,9,10,11,12];
+    readonly WIZ_MINS        = [0,5,10,15,20,25,30,35,40,45,50,55];
+    readonly WIZ_AMPM        = ['AM','PM'];
+    readonly WIZ_QUICK_PICKS = ['8:00 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM','2:00 PM','3:30 PM'];
+    readonly WIZ_RANGES = [
+        { label: '10–11 AM',    start: '10:00 AM', end: '11:00 AM' },
+        { label: '11 AM–12 PM', start: '11:00 AM', end: '12:00 PM' },
+        { label: '2–3 PM',      start: '2:00 PM',  end: '3:00 PM'  },
+        { label: '3–4 PM',      start: '3:00 PM',  end: '4:00 PM'  },
+    ];
+    wizShowDrum = false;
+
+    // start = hour 9, min 0, AM  (index 8 in HOURS)
+    wizStartHourIdx = 8; wizStartMinIdx = 0; wizStartAmPmIdx = 0;
+    // end   = hour 10, min 0, AM (index 9 in HOURS)
+    wizEndHourIdx   = 9; wizEndMinIdx   = 0; wizEndAmPmIdx   = 0;
+
+    get wizCurHourIdx(): number { return this.activeTimeTab === 'start' ? this.wizStartHourIdx : this.wizEndHourIdx; }
+    get wizCurMinIdx():  number { return this.activeTimeTab === 'start' ? this.wizStartMinIdx  : this.wizEndMinIdx;  }
+    get wizCurAmPmIdx(): number { return this.activeTimeTab === 'start' ? this.wizStartAmPmIdx : this.wizEndAmPmIdx; }
+
+    get wizCurrentTimeStr(): string {
+        const h  = this.WIZ_HOURS[this.wizCurHourIdx];
+        const m  = this.WIZ_MINS[this.wizCurMinIdx];
+        const ap = this.WIZ_AMPM[this.wizCurAmPmIdx];
+        return `${h}:${String(m).padStart(2,'0')} ${ap}`;
+    }
+
+    wizPad(n: number): string { return String(n).padStart(2,'0'); }
+
+    wizInc(col: 'hour' | 'min' | 'ampm'): void {
+        if (col === 'hour') {
+            const i = (this.wizCurHourIdx + 1) % 12;
+            if (this.activeTimeTab === 'start') this.wizStartHourIdx = i; else this.wizEndHourIdx = i;
+        } else if (col === 'min') {
+            const i = (this.wizCurMinIdx + 1) % 12;
+            if (this.activeTimeTab === 'start') this.wizStartMinIdx = i; else this.wizEndMinIdx = i;
+        } else {
+            const i = this.wizCurAmPmIdx === 0 ? 1 : 0;
+            if (this.activeTimeTab === 'start') this.wizStartAmPmIdx = i; else this.wizEndAmPmIdx = i;
+        }
+        this._syncWizTime();
+    }
+
+    wizDec(col: 'hour' | 'min' | 'ampm'): void {
+        if (col === 'hour') {
+            const i = this.wizCurHourIdx === 0 ? 11 : this.wizCurHourIdx - 1;
+            if (this.activeTimeTab === 'start') this.wizStartHourIdx = i; else this.wizEndHourIdx = i;
+        } else if (col === 'min') {
+            const i = this.wizCurMinIdx === 0 ? 11 : this.wizCurMinIdx - 1;
+            if (this.activeTimeTab === 'start') this.wizStartMinIdx = i; else this.wizEndMinIdx = i;
+        } else {
+            const i = this.wizCurAmPmIdx === 0 ? 1 : 0;
+            if (this.activeTimeTab === 'start') this.wizStartAmPmIdx = i; else this.wizEndAmPmIdx = i;
+        }
+        this._syncWizTime();
+    }
+
+    private _syncWizTime(): void {
+        const s = `${this.WIZ_HOURS[this.wizStartHourIdx]}:${String(this.WIZ_MINS[this.wizStartMinIdx]).padStart(2,'0')} ${this.WIZ_AMPM[this.wizStartAmPmIdx]}`;
+        const e = `${this.WIZ_HOURS[this.wizEndHourIdx]}:${String(this.WIZ_MINS[this.wizEndMinIdx]).padStart(2,'0')} ${this.WIZ_AMPM[this.wizEndAmPmIdx]}`;
+        this.formStartTime = s;
+        this.formEndTime   = e;
+    }
+
+    wizApplyQuick(t: string): void {
+        const [timePart, ap] = t.split(' ');
+        const [hStr, mStr]   = timePart.split(':');
+        const hi = this.WIZ_HOURS.indexOf(parseInt(hStr, 10));
+        const mi = this.WIZ_MINS.indexOf(parseInt(mStr, 10));
+        const ai = ap === 'AM' ? 0 : 1;
+        if (this.activeTimeTab === 'start') {
+            this.wizStartHourIdx = hi >= 0 ? hi : 0;
+            this.wizStartMinIdx  = mi >= 0 ? mi : 0;
+            this.wizStartAmPmIdx = ai;
+        } else {
+            this.wizEndHourIdx   = hi >= 0 ? hi : 0;
+            this.wizEndMinIdx    = mi >= 0 ? mi : 0;
+            this.wizEndAmPmIdx   = ai;
+        }
+        this._syncWizTime();
+    }
+
+    wizIsQuickActive(t: string): boolean {
+        return this.activeTimeTab === 'start' ? this.formStartTime === t : this.formEndTime === t;
+    }
+
+    wizOpenDrum(tab: 'start' | 'end'): void {
+        if (this.activeTimeTab === tab && this.wizShowDrum) {
+            this.wizShowDrum = false;
+        } else {
+            this.activeTimeTab = tab;
+            this.wizShowDrum   = true;
+        }
+    }
+
+    wizApplyRange(r: { start: string; end: string }): void {
+        this.formStartTime = r.start;
+        this.formEndTime   = r.end;
+        this._syncWizIndicesFromStr('start', r.start);
+        this._syncWizIndicesFromStr('end',   r.end);
+        this.wizShowDrum = false;
+    }
+
+    wizIsRangeActive(r: { start: string; end: string }): boolean {
+        return this.formStartTime === r.start && this.formEndTime === r.end;
+    }
+
+    private _syncWizIndicesFromStr(which: 'start' | 'end', t: string): void {
+        const parts = (t ?? '').split(' ');
+        const ap    = parts[1] === 'PM' ? 1 : 0;
+        const [hStr, mStr] = (parts[0] ?? '9:00').split(':');
+        const hi = this.WIZ_HOURS.indexOf(parseInt(hStr, 10));
+        const mi = this.WIZ_MINS.indexOf(parseInt(mStr, 10));
+        if (which === 'start') {
+            this.wizStartHourIdx  = hi >= 0 ? hi : 8;
+            this.wizStartMinIdx   = mi >= 0 ? mi : 0;
+            this.wizStartAmPmIdx  = ap;
+        } else {
+            this.wizEndHourIdx    = hi >= 0 ? hi : 9;
+            this.wizEndMinIdx     = mi >= 0 ? mi : 0;
+            this.wizEndAmPmIdx    = ap;
+        }
+    }
     formMeetingLink = '';
     readonly today  = new Date();
     projects: ProjectDTO[] = [];
@@ -1206,12 +2335,14 @@ export class RoomWizardDialogComponent {
                 const h = d.getHours(); const m = d.getMinutes();
                 const h12 = h > 12 ? h - 12 : (h === 0 ? 12 : h);
                 this.formStartTime = `${h12}:${String(m).padStart(2,'0')} ${h < 12 ? 'AM' : 'PM'}`;
+                this._syncWizIndicesFromStr('start', this.formStartTime);
             }
             if (data.editingRoom.endTime) {
                 const d = new Date(data.editingRoom.endTime);
                 const h = d.getHours(); const m = d.getMinutes();
                 const h12 = h > 12 ? h - 12 : (h === 0 ? 12 : h);
                 this.formEndTime = `${h12}:${String(m).padStart(2,'0')} ${h < 12 ? 'AM' : 'PM'}`;
+                this._syncWizIndicesFromStr('end', this.formEndTime);
             }
             this.formMeetingLink = data.editingRoom.meetingLink ?? '';
         }
@@ -1501,33 +2632,91 @@ export class DeleteRoomDialogComponent {
     selector: 'app-schedule-dialog',
     standalone: true,
     imports: [CommonModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatDialogModule],
+    animations: [
+        trigger('headerFade', [
+            transition(':enter', [
+                style({ opacity: 0, transform: 'translateY(-8px)' }),
+                animate('0.6s 0.1s cubic-bezier(0.34, 1.56, 0.64, 1)')
+            ])
+        ]),
+        trigger('tabsEnter', [
+            transition(':enter', [
+                style({ opacity: 0, transform: 'translateY(4px)' }),
+                animate('0.6s 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)', style({ opacity: 1, transform: 'translateY(0)' }))
+            ])
+        ]),
+        trigger('stepTransition', [
+            transition(':enter', [
+                style({ opacity: 0, transform: 'translateX(16px)' }),
+                animate('0.4s cubic-bezier(0.34, 1.56, 0.64, 1)', style({ opacity: 1, transform: 'translateX(0)' }))
+            ])
+        ]),
+        trigger('progressAnimation', [
+            transition(':enter', [
+                animate('0.4s cubic-bezier(0.34, 1.56, 0.64, 1)')
+            ])
+        ]),
+        trigger('successAnimation', [
+            transition(':enter', [
+                style({ transform: 'scale(0.8)', opacity: 0 }),
+                animate('0.5s cubic-bezier(0.34, 1.56, 0.64, 1)', style({ transform: 'scale(1)', opacity: 1 }))
+            ])
+        ])
+    ],
     template: `
-        <div class="scd-wrap">
-            <div class="scd-shimmer-line" aria-hidden="true"></div>
+        @if (done()) {
+            <div class="scd-success-state" [@successAnimation]>
+                <div class="scd-success-icon-wrap">
+                    <div class="scd-success-icon">
+                        <mat-icon class="material-icons-outlined">check_circle</mat-icon>
+                    </div>
+                </div>
+                <h2 class="scd-success-title">Message Scheduled!</h2>
+                <p class="scd-success-subtitle">Your message will be sent on<br/><strong>{{ getSuccessBriefDate() }}</strong></p>
+                <button mat-flat-button (click)="dialogRef.close()" class="scd-success-btn">
+                    <mat-icon style="margin-right:6px">check</mat-icon>
+                    Done
+                </button>
+            </div>
+        } @else {
+            <div class="scd-wrap">
 
             <!-- Icon ring (primary) -->
-            <div class="scd-icon-ring">
+            <div class="scd-icon-ring" [@headerFade]>
+                <div class="scd-icon-pulse"></div>
                 <mat-icon class="scd-icon">schedule_send</mat-icon>
             </div>
-            <h2 class="scd-title">Schedule Message</h2>
-            <p class="scd-subtitle">Choose when your message is delivered</p>
+            <h2 class="scd-title" [@headerFade]>Schedule Message</h2>
+            <p class="scd-subtitle" [@headerFade]>Choose when your message is delivered</p>
 
             <!-- Message preview chip -->
-            <div class="scd-preview-chip">
+            <div class="scd-preview-chip" [@headerFade]>
+                <mat-icon class="scd-preview-icon">comment</mat-icon>
                 <span class="scd-preview-text">{{ data.content || 'Your message…' }}</span>
             </div>
 
+            <!-- Step progress indicator -->
+            <div class="scd-progress-bar">
+                <div class="scd-progress-fill" [style.width.%]="(step() / 3) * 100" [@progressAnimation]></div>
+            </div>
+
             <!-- Step tabs: Date / Time / Repeat -->
-            <div class="scd-tabs">
+            <div class="scd-tabs" [@tabsEnter]>
                 @for (tab of scTabs; track tab.step) {
                     <button class="scd-tab"
                             [class.scd-tab-active]="step() === tab.step"
                             [class.scd-tab-done]="step() > tab.step"
                             (click)="jumpStep(tab.step)">
-                        @if (step() > tab.step) {
-                            <mat-icon class="scd-tab-check-icon">check</mat-icon>
-                        }
-                        {{ tab.label }}
+                        <div class="scd-tab-indicator">
+                            @if (step() > tab.step) {
+                                <mat-icon class="scd-tab-check-icon">check</mat-icon>
+                            } @else if (step() === tab.step) {
+                                <div class="scd-tab-dot"></div>
+                            } @else {
+                                <span class="scd-tab-number">{{ tab.step }}</span>
+                            }
+                        </div>
+                        <span class="scd-tab-label">{{ tab.label }}</span>
                     </button>
                 }
             </div>
@@ -1537,17 +2726,38 @@ export class DeleteRoomDialogComponent {
 
                 <!-- STEP 1: DATE -->
                 @if (step() === 1) {
-                    <div class="scd-step">
-                        <div class="scd-step-label">Pick a date</div>
-                        <div class="scd-date-strip">
-                            @for (d of availableDates; track d.isoDate; let i = $index) {
-                                <button class="scd-date-card"
-                                        [class.scd-date-card-active]="selectedDateIdx() === i"
-                                        (click)="selectDate(i)">
-                                    <span class="scd-date-weekday">{{ d.weekday }}</span>
-                                    <span class="scd-date-num">{{ d.dateNum }}</span>
-                                    <span class="scd-date-month">{{ d.month }}</span>
-                                    @if (i === 0) { <span class="scd-date-today-dot"></span> }
+                    <div class="scd-step" [@stepTransition]>
+                        <!-- Month header with nav -->
+                        <div class="scd-cal-header">
+                            <button class="scd-cal-nav-btn" (click)="prevMonth()">
+                                <mat-icon>chevron_left</mat-icon>
+                            </button>
+                            <span class="scd-cal-month-label">{{ monthYearLabel }}</span>
+                            <button class="scd-cal-nav-btn" (click)="nextMonth()">
+                                <mat-icon>chevron_right</mat-icon>
+                            </button>
+                        </div>
+                        <!-- Weekday headers -->
+                        <div class="scd-cal-dow-row">
+                            <div class="scd-cal-dow">Sun</div>
+                            <div class="scd-cal-dow">Mon</div>
+                            <div class="scd-cal-dow">Tue</div>
+                            <div class="scd-cal-dow">Wed</div>
+                            <div class="scd-cal-dow">Thu</div>
+                            <div class="scd-cal-dow">Fri</div>
+                            <div class="scd-cal-dow">Sat</div>
+                        </div>
+                        <!-- Calendar days grid -->
+                        <div class="scd-cal-grid">
+                            @for (day of calendarDays; track $index) {
+                                <button class="scd-cal-day"
+                                        [class.scd-cal-day-inactive]="!day.isCurrentMonth"
+                                        [class.scd-cal-day-today]="day.isToday"
+                                        [class.scd-cal-day-selected]="day.isCurrentMonth && day.date === selectedDay()"
+                                        [class.scd-cal-day-past]="day.isPast"
+                                        [disabled]="!day.isCurrentMonth || day.isPast"
+                                        (click)="day.isCurrentMonth && !day.isPast && selectDay(day.date)">
+                                    {{ day.date }}
                                 </button>
                             }
                         </div>
@@ -1556,59 +2766,92 @@ export class DeleteRoomDialogComponent {
 
                 <!-- STEP 2: TIME -->
                 @if (step() === 2) {
-                    <div class="scd-step">
-                        <div class="scd-time-cols">
-                            <div class="scd-time-col">
-                                <div class="scd-time-col-label">Hour</div>
-                                <div class="scd-hours-grid">
+                    <div class="scd-step" [@stepTransition]>
+                        <div class="scd-time-picker-row">
+                            <!-- Hour Wheel -->
+                            <div class="scd-time-picker-col">
+                                <div class="scd-time-label">Hour</div>
+                                <div class="scd-wheel-picker" (scroll)="onHourScroll($event)">
+                                    <div class="scd-wheel-spacer"></div>
                                     @for (h of [1,2,3,4,5,6,7,8,9,10,11,12]; track h) {
-                                        <button class="scd-time-pill"
-                                                [class.scd-time-pill-active]="hour() === h"
-                                                (click)="setHour(h)">{{ h }}</button>
+                                        <div class="scd-wheel-item"
+                                             [class.scd-wheel-item-active]="hour() === h"
+                                             (click)="setHour(h)">
+                                            {{ padNumber(h) }}
+                                        </div>
                                     }
+                                    <div class="scd-wheel-spacer"></div>
                                 </div>
                             </div>
-                            <div class="scd-time-col scd-time-col-mins">
-                                <div class="scd-time-col-label">Minute</div>
-                                <div class="scd-mins-col">
-                                    @for (m of [0,15,30,45]; track m) {
-                                        <button class="scd-time-pill scd-time-pill-min"
-                                                [class.scd-time-pill-active]="minute() === m"
-                                                (click)="setMinute(m)">{{ m === 0 ? '00' : m }}</button>
+                            <!-- Minute Wheel -->
+                            <div class="scd-time-picker-col">
+                                <div class="scd-time-label">Minute</div>
+                                <div class="scd-wheel-picker" (scroll)="onMinuteScroll($event)">
+                                    <div class="scd-wheel-spacer"></div>
+                                    @for (m of [0,5,10,15,20,25,30,35,40,45,50,55]; track m) {
+                                        <div class="scd-wheel-item"
+                                             [class.scd-wheel-item-active]="minute() === m"
+                                             (click)="setMinute(m)">
+                                            {{ padNumber(m) }}
+                                        </div>
                                     }
+                                    <div class="scd-wheel-spacer"></div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="scd-ampm-row">
-                            <button class="scd-ampm-btn" [class.scd-ampm-active]="ampm() === 'AM'" (click)="setAmPm('AM')">AM</button>
-                            <button class="scd-ampm-btn" [class.scd-ampm-active]="ampm() === 'PM'" (click)="setAmPm('PM')">PM</button>
+                            <!-- AM/PM -->
+                            <div class="scd-time-picker-col">
+                                <div class="scd-time-label">AM/PM</div>
+                                <div class="scd-wheel-picker">
+                                    <div class="scd-wheel-spacer"></div>
+                                    <div class="scd-wheel-item"
+                                         [class.scd-wheel-item-active]="ampm() === 'AM'"
+                                         (click)="setAmPm('AM')">
+                                        AM
+                                    </div>
+                                    <div class="scd-wheel-item"
+                                         [class.scd-wheel-item-active]="ampm() === 'PM'"
+                                         (click)="setAmPm('PM')">
+                                        PM
+                                    </div>
+                                    <div class="scd-wheel-spacer"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 }
 
                 <!-- STEP 3: REPEAT -->
                 @if (step() === 3) {
-                    <div class="scd-step">
-                        <div class="scd-rec-row">
+                    <div class="scd-step" [@stepTransition]>
+                        <div class="scd-recurrence-cards">
                             @for (rec of recurrenceCards; track rec.type) {
-                                <button class="scd-rec-card"
-                                        [class.scd-rec-card-active]="recurrence() === rec.type"
+                                <button class="scd-recurrence-card"
+                                        [class.scd-recurrence-card-active]="recurrence() === rec.type"
                                         (click)="setRecurrence(rec.type)">
-                                    <span class="scd-rec-emoji">{{ rec.emoji }}</span>
-                                    <span class="scd-rec-label">{{ rec.label }}</span>
-                                    <span class="scd-rec-sub">{{ rec.sub }}</span>
+                                    <div class="scd-recurrence-radio">
+                                        @if (recurrence() === rec.type) {
+                                            <mat-icon class="scd-recurrence-check">check</mat-icon>
+                                        }
+                                    </div>
+                                    <div class="scd-recurrence-content">
+                                        <span class="scd-recurrence-label">{{ rec.label }}</span>
+                                        <span class="scd-recurrence-sub">{{ rec.sub }}</span>
+                                    </div>
                                 </button>
                             }
                         </div>
                         @if (recurrence() === 'CUSTOM') {
-                            <div class="scd-day-circles">
-                                @for (d of daysList; track d.key) {
-                                    <button class="scd-day-circle"
-                                            [class.scd-day-circle-active]="customDays().has(d.key)"
-                                            (click)="toggleDay(d.key)">
-                                        {{ d.label.charAt(0) }}
-                                    </button>
-                                }
+                            <div class="scd-custom-days">
+                                <span class="scd-custom-days-label">Choose specific days:</span>
+                                <div class="scd-day-buttons">
+                                    @for (d of daysList; track d.key) {
+                                        <button class="scd-day-btn"
+                                                [class.scd-day-btn-active]="customDays().has(d.key)"
+                                                (click)="toggleDay(d.key)">
+                                            {{ d.label }}
+                                        </button>
+                                    }
+                                </div>
                             </div>
                         }
                     </div>
@@ -1668,314 +2911,284 @@ export class DeleteRoomDialogComponent {
                 </div>
             </div>
 
-        </div>
+            </div>
+        }
     `,
     styles: [`
+        /* ── ANIMATIONS ─────────────────────────────────────────────────── */
+        @keyframes scdEnter       { from { transform: scale(0.94); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes scdHeaderFade  { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes scdSuccessPulse{ from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes scdWheelSlide  { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ── WRAPPER ─────────────────────────────────────────────────────── */
         .scd-wrap {
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 32px 28px 8px;
+            width: 100%;
+            box-sizing: border-box;
+            display: flex; flex-direction: column; align-items: stretch;
+            padding: 28px 36px 24px;
             text-align: center;
-            overflow: hidden;
+            animation: scdEnter 350ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
-        .scd-shimmer-line {
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 3px;
-            background: linear-gradient(
-                90deg,
-                var(--mat-sys-primary) 0%,
-                color-mix(in srgb, var(--mat-sys-primary) 60%, var(--mat-sys-tertiary, var(--mat-sys-primary))) 50%,
-                var(--mat-sys-primary) 100%
-            );
-            background-size: 200% 100%;
-            animation: scdShimmer 2s linear infinite;
-        }
-        @keyframes scdShimmer {
-            0%   { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-        @keyframes scd-pulse {
-            0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--mat-sys-primary) 35%, transparent); }
-            50%       { box-shadow: 0 0 0 10px color-mix(in srgb, var(--mat-sys-primary) 0%, transparent); }
-        }
+        /* ── HEADER ─────────────────────────────────────────────────────── */
+        .scd-shimmer-line { display: none !important; }
         .scd-icon-ring {
-            width: 64px; height: 64px;
-            border-radius: 50%;
-            background: linear-gradient(135deg,
-                color-mix(in srgb, var(--mat-sys-primary) 15%, transparent),
-                color-mix(in srgb, var(--mat-sys-primary) 8%, transparent));
-            border: 2px solid color-mix(in srgb, var(--mat-sys-primary) 30%, transparent);
+            width: 56px; height: 56px; border-radius: 50%; position: relative; overflow: hidden;
+            background: color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+            border: 2px solid color-mix(in srgb, var(--mat-sys-primary) 20%, transparent);
             display: flex; align-items: center; justify-content: center;
-            margin-bottom: 16px;
-            animation: scd-pulse 2s ease-in-out infinite;
+            margin: 0 auto 14px;
+            box-shadow: 0 4px 14px color-mix(in srgb, var(--mat-sys-primary) 18%, transparent);
+            animation: scdHeaderFade 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
         }
-        .scd-icon {
-            font-size: 28px !important; width: 28px !important; height: 28px !important;
-            color: var(--mat-sys-primary);
-        }
+        .scd-icon-pulse { display: none; }
+        .scd-icon { font-size: 26px !important; width: 26px !important; height: 26px !important; color: var(--mat-sys-primary); }
         .scd-title {
-            font-size: 18px; font-weight: 700; margin: 0 0 6px;
-            letter-spacing: -0.02em;
+            font-size: 19px; font-weight: 700; margin: 0 0 5px; color: var(--mat-sys-on-surface);
+            letter-spacing: -0.02em; animation: scdHeaderFade 0.5s 0.06s both;
         }
         .scd-subtitle {
-            font-size: 13px; color: var(--mat-sys-on-surface-variant);
-            margin: 0 0 14px; line-height: 1.6;
+            font-size: 13px; color: var(--mat-sys-on-surface-variant); margin: 0 0 20px;
+            font-weight: 400; animation: scdHeaderFade 0.5s 0.1s both;
         }
-        .scd-preview-chip {
-            width: 100%; margin: 0 0 6px;
-            padding: 6px 12px; border-radius: 8px;
-            background: color-mix(in srgb, var(--mat-sys-surface-container-high) 60%, transparent);
-            border-left: 3px solid var(--mat-sys-primary);
-            border-top: 1px solid var(--mat-sys-outline-variant);
-            border-right: 1px solid var(--mat-sys-outline-variant);
-            border-bottom: 1px solid var(--mat-sys-outline-variant);
-            text-align: left;
+        .scd-preview-chip { display: none; }
+
+        /* ── PROGRESS BAR ────────────────────────────────────────────────── */
+        .scd-progress-bar {
+            width: 100%; height: 2px; border-radius: 1px;
+            background: color-mix(in srgb, var(--mat-sys-primary) 10%, transparent);
+            margin-bottom: 0; overflow: hidden;
         }
-        .scd-preview-text {
-            font-size: 12px; font-style: italic;
-            color: var(--mat-sys-on-surface-variant);
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;
+        .scd-progress-fill {
+            height: 100%; background: var(--mat-sys-primary);
+            transition: width 0.45s cubic-bezier(0.4, 0, 0.2, 1);
         }
+
+        /* ── TABS ────────────────────────────────────────────────────────── */
         .scd-tabs {
-            display: flex; width: 100%;
-            border-bottom: 1px solid var(--mat-sys-outline-variant);
+            display: flex; width: 100%; margin-bottom: 0; overflow: hidden;
+            border-bottom: 1px solid color-mix(in srgb, var(--mat-sys-outline) 15%, transparent);
         }
         .scd-tab {
-            display: flex; align-items: center; gap: 4px;
-            padding: 8px 16px;
-            border: none; background: transparent;
+            flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px;
+            padding: 11px 4px; border: none; background: transparent;
             color: var(--mat-sys-on-surface-variant);
-            font-size: 12.5px; font-weight: 600; cursor: pointer;
-            position: relative; transition: color 0.15s ease; letter-spacing: 0.2px;
+            font-size: 12px; font-weight: 600; cursor: pointer;
+            position: relative; transition: color 0.2s ease; white-space: nowrap;
         }
         .scd-tab::after {
-            content: ''; position: absolute;
-            bottom: -1px; left: 0; right: 0;
-            height: 2px; background: var(--mat-sys-primary);
-            border-radius: 2px 2px 0 0;
-            transform: scaleX(0);
-            transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
+            content: ''; position: absolute; bottom: -1px; left: 0; right: 0;
+            height: 2px; background: var(--mat-sys-primary); border-radius: 2px 2px 0 0;
+            transform: scaleX(0); transition: transform 0.25s ease;
         }
         .scd-tab-active { color: var(--mat-sys-primary); }
         .scd-tab-active::after { transform: scaleX(1); }
-        .scd-tab-done { color: var(--mat-sys-on-surface-variant); }
-        .scd-tab-check-icon {
-            font-size: 11px !important; width: 11px !important; height: 11px !important;
-            color: var(--mat-sys-primary); border-radius: 50%;
-            background: color-mix(in srgb, var(--mat-sys-primary) 15%, transparent); padding: 1px;
-        }
+        .scd-tab-done { color: var(--mat-sys-on-surface-variant); opacity: 0.6; }
+        .scd-tab-indicator { display: flex; align-items: center; justify-content: center; width: 14px; height: 14px; }
+        .scd-tab-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--mat-sys-primary); }
+        .scd-tab-number { font-size: 10px; font-weight: 700; color: inherit; }
+        .scd-tab-check-icon { font-size: 13px !important; width: 13px !important; height: 13px !important; color: var(--mat-sys-primary); }
+        .scd-tab-label { font-size: 12px; }
+
+        /* ── BODY (fixed height — all 3 steps same size) ─────────────────── */
         .scd-body {
-            width: 100%; padding: 14px 0 8px;
-            min-height: 168px; text-align: left;
+            width: 100%; padding: 16px 0 0;
+            height: 290px; overflow: hidden;
+            display: flex; align-items: flex-start;
         }
         .scd-step { width: 100%; }
-        .scd-step-label {
-            font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
-            color: var(--mat-sys-on-surface-variant);
-            text-transform: uppercase; margin-bottom: 10px;
+        .scd-step-label { display: none; }
+
+        /* ── STEP 1: CALENDAR ────────────────────────────────────────────── */
+        .scd-cal-header {
+            display: flex; align-items: center; justify-content: space-between;
+            width: 100%; margin-bottom: 10px;
         }
-        /* DATE STRIP */
-        .scd-date-strip {
-            display: flex; gap: 6px;
-            overflow-x: auto; padding-bottom: 4px;
-            scrollbar-width: none; scroll-snap-type: x mandatory;
-            -webkit-overflow-scrolling: touch;
-        }
-        .scd-date-strip::-webkit-scrollbar { display: none; }
-        .scd-date-card {
-            flex-shrink: 0; position: relative;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            gap: 1px; width: 60px; height: 80px;
-            border-radius: 14px;
-            border: 1.5px solid var(--mat-sys-outline-variant);
-            background: var(--mat-sys-surface-container-low);
-            cursor: pointer; scroll-snap-align: center;
-            transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
-        }
-        .scd-date-card:hover:not(.scd-date-card-active) { transform: translateY(-2px); border-color: var(--mat-sys-primary); }
-        .scd-date-card-active {
-            background: var(--mat-sys-primary) !important;
-            border-color: var(--mat-sys-primary) !important;
-            color: var(--mat-sys-on-primary) !important;
-            transform: translateY(-4px);
-            box-shadow: 0 6px 18px color-mix(in srgb, var(--mat-sys-primary) 38%, transparent);
-        }
-        .scd-date-weekday {
-            font-size: 9px; font-weight: 700; letter-spacing: 0.6px;
-            text-transform: uppercase; color: var(--mat-sys-on-surface-variant);
-        }
-        .scd-date-card-active .scd-date-weekday { color: color-mix(in srgb, var(--mat-sys-on-primary) 75%, transparent); }
-        .scd-date-num { font-size: 22px; font-weight: 800; color: var(--mat-sys-on-surface); line-height: 1; }
-        .scd-date-card-active .scd-date-num { color: var(--mat-sys-on-primary); }
-        .scd-date-month {
-            font-size: 9px; font-weight: 500; color: var(--mat-sys-on-surface-variant);
-            text-transform: uppercase; letter-spacing: 0.4px;
-        }
-        .scd-date-card-active .scd-date-month { color: color-mix(in srgb, var(--mat-sys-on-primary) 75%, transparent); }
-        .scd-date-today-dot {
-            width: 5px; height: 5px; border-radius: 50%;
-            background: var(--mat-sys-primary); position: absolute; bottom: 7px;
-        }
-        .scd-date-card-active .scd-date-today-dot { background: var(--mat-sys-on-primary); }
-        /* TIME STEP */
-        .scd-time-cols { display: flex; gap: 16px; align-items: flex-start; }
-        .scd-time-col { flex: 1; }
-        .scd-time-col-mins { flex: 0 0 auto; width: 88px; }
-        .scd-time-col-label {
-            font-size: 10px; font-weight: 700; letter-spacing: 1px;
-            text-transform: uppercase; color: var(--mat-sys-on-surface-variant); margin-bottom: 8px;
-        }
-        .scd-hours-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
-        .scd-mins-col { display: flex; flex-direction: column; gap: 5px; }
-        .scd-time-pill {
+        .scd-cal-nav-btn {
+            background: none; border: none; cursor: pointer; padding: 4px 6px;
             display: flex; align-items: center; justify-content: center;
-            padding: 7px 6px; border-radius: 8px;
-            border: 1.5px solid var(--mat-sys-outline-variant);
-            background: transparent; font-size: 13px; font-weight: 600;
-            color: var(--mat-sys-on-surface); cursor: pointer;
-            transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+            border-radius: 6px; transition: background 0.15s ease;
         }
-        .scd-time-pill:hover:not(.scd-time-pill-active) {
-            border-color: var(--mat-sys-primary);
-            background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
+        .scd-cal-nav-btn:hover { background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent); }
+        .scd-cal-nav-btn mat-icon { font-size: 18px; width: 18px; height: 18px; color: var(--mat-sys-primary); }
+        .scd-cal-month-label { font-size: 14px; font-weight: 600; color: var(--mat-sys-on-surface); }
+        .scd-cal-dow-row {
+            display: grid; grid-template-columns: repeat(7, 1fr);
+            margin-bottom: 4px; width: 100%;
+        }
+        .scd-cal-dow {
+            text-align: center; font-size: 10px; font-weight: 600;
+            color: var(--mat-sys-on-surface-variant); padding: 4px 0;
+        }
+        .scd-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; width: 100%; }
+        .scd-cal-day {
+            height: 32px; width: 100%; border-radius: 6px; border: none;
+            background: transparent; color: var(--mat-sys-on-surface);
+            font-size: 12px; font-weight: 500; cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .scd-cal-day:hover:not(:disabled) {
+            background: color-mix(in srgb, var(--mat-sys-primary) 10%, transparent);
             color: var(--mat-sys-primary);
         }
-        .scd-time-pill-active {
+        .scd-cal-day-selected {
             background: var(--mat-sys-primary) !important;
-            border-color: var(--mat-sys-primary) !important;
             color: var(--mat-sys-on-primary) !important;
-            transform: scale(1.05);
+            font-weight: 700;
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 30%, transparent);
         }
-        .scd-time-pill-min { padding: 9px 6px; }
-        .scd-ampm-row { display: flex; gap: 6px; margin-top: 12px; }
-        .scd-ampm-btn {
-            flex: 1; padding: 7px 0; border-radius: 8px;
-            border: 1.5px solid var(--mat-sys-outline-variant);
-            background: transparent; font-size: 12px; font-weight: 700; cursor: pointer;
-            color: var(--mat-sys-on-surface-variant); transition: all 0.15s ease; letter-spacing: 0.5px;
+        .scd-cal-day-today { color: var(--mat-sys-primary); font-weight: 700; }
+        .scd-cal-day-inactive { opacity: 0.25; pointer-events: none; }
+        .scd-cal-day-past { opacity: 0.3; cursor: not-allowed; }
+        .scd-cal-day:disabled { cursor: not-allowed; }
+
+        /* ── STEP 2: TIME WHEEL ──────────────────────────────────────────── */
+        .scd-time-picker-row { display: flex; gap: 12px; justify-content: center; align-items: flex-start; width: 100%; padding-top: 4px; }
+        .scd-time-picker-col { flex: 1; max-width: 80px; display: flex; flex-direction: column; align-items: center; }
+        .scd-time-label {
+            font-size: 10px; font-weight: 700; color: var(--mat-sys-on-surface-variant);
+            text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;
         }
-        .scd-ampm-btn:hover:not(.scd-ampm-active) { border-color: var(--mat-sys-primary); color: var(--mat-sys-primary); }
-        .scd-ampm-active {
-            background: var(--mat-sys-primary) !important;
-            border-color: var(--mat-sys-primary) !important;
-            color: var(--mat-sys-on-primary) !important;
+        .scd-wheel-picker {
+            height: 160px; width: 100%; overflow-y: scroll; border-radius: 10px;
+            background: color-mix(in srgb, var(--mat-sys-primary) 4%, var(--mat-sys-surface-container));
+            border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+            scroll-behavior: smooth; scrollbar-width: none;
+            position: relative; display: flex; flex-direction: column;
         }
-        /* RECURRENCE CARDS */
-        .scd-rec-row {
-            display: flex; gap: 5px;
-            overflow-x: auto; scrollbar-width: none; padding-bottom: 2px;
+        .scd-wheel-picker::-webkit-scrollbar { display: none; }
+        .scd-wheel-picker::before {
+            content: ''; position: sticky; top: 50%; left: 0; right: 0;
+            height: 0; z-index: 2; pointer-events: none;
+            box-shadow: 0 -20px 0 0 color-mix(in srgb, var(--mat-sys-surface) 60%, transparent),
+                        0  20px 0 0 color-mix(in srgb, var(--mat-sys-surface) 60%, transparent);
         }
-        .scd-rec-row::-webkit-scrollbar { display: none; }
-        .scd-rec-card {
-            flex-shrink: 0; display: flex; flex-direction: column; align-items: center;
-            gap: 3px; padding: 9px 8px; border-radius: 12px;
-            border: 1.5px solid var(--mat-sys-outline-variant);
-            background: var(--mat-sys-surface-container-low);
-            cursor: pointer; min-width: 66px;
-            transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+        .scd-wheel-spacer { height: 56px; flex-shrink: 0; }
+        .scd-wheel-item {
+            height: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+            font-size: 15px; font-weight: 500; color: var(--mat-sys-on-surface-variant);
+            cursor: pointer; transition: all 0.2s ease; border-radius: 6px; margin: 0 4px;
+            animation: scdWheelSlide 0.35s ease backwards;
         }
-        .scd-rec-card:hover:not(.scd-rec-card-active) { transform: translateY(-3px); border-color: var(--mat-sys-primary); }
-        .scd-rec-card-active {
-            border-color: var(--mat-sys-primary) !important;
-            background: color-mix(in srgb, var(--mat-sys-primary) 12%, var(--mat-sys-surface-container-low)) !important;
-            transform: translateY(-4px);
-            box-shadow: 0 4px 14px color-mix(in srgb, var(--mat-sys-primary) 25%, transparent);
+        .scd-wheel-item:hover:not(.scd-wheel-item-active) { color: var(--mat-sys-primary); }
+        .scd-wheel-item-active {
+            background: var(--mat-sys-primary); color: var(--mat-sys-on-primary);
+            font-weight: 700; font-size: 16px;
+            box-shadow: 0 2px 10px color-mix(in srgb, var(--mat-sys-primary) 28%, transparent);
         }
-        .scd-rec-emoji { font-size: 18px; line-height: 1; }
-        .scd-rec-label { font-size: 10px; font-weight: 800; color: var(--mat-sys-on-surface); letter-spacing: 0.2px; }
-        .scd-rec-card-active .scd-rec-label { color: var(--mat-sys-primary); }
-        .scd-rec-sub { font-size: 9px; color: var(--mat-sys-on-surface-variant); white-space: nowrap; }
-        /* DAY CIRCLES */
-        .scd-day-circles { display: flex; gap: 4px; margin-top: 10px; justify-content: space-between; }
-        .scd-day-circle {
-            width: 36px; height: 36px; border-radius: 50%;
-            border: 1.5px solid var(--mat-sys-outline-variant);
-            background: transparent; font-size: 11px; font-weight: 700; cursor: pointer;
+
+        /* ── STEP 3: RECURRENCE ──────────────────────────────────────────── */
+        .scd-recurrence-cards { display: flex; flex-direction: column; gap: 7px; width: 100%; }
+        .scd-recurrence-card {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 14px; border-radius: 8px;
+            border: 1.5px solid color-mix(in srgb, var(--mat-sys-outline) 20%, transparent);
+            background: transparent; cursor: pointer; transition: all 0.15s ease; text-align: left;
+        }
+        .scd-recurrence-card:hover {
+            border-color: var(--mat-sys-primary);
+            background: color-mix(in srgb, var(--mat-sys-primary) 4%, transparent);
+        }
+        .scd-recurrence-card-active {
+            border-color: var(--mat-sys-primary);
+            background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
+        }
+        .scd-recurrence-radio {
+            width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+            border: 2px solid var(--mat-sys-outline-variant);
             display: flex; align-items: center; justify-content: center;
-            color: var(--mat-sys-on-surface-variant); transition: all 0.15s ease;
-            animation: scdCircleIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both;
+            transition: all 0.2s ease;
         }
-        .scd-day-circle:nth-child(1) { animation-delay:  0ms; }
-        .scd-day-circle:nth-child(2) { animation-delay: 40ms; }
-        .scd-day-circle:nth-child(3) { animation-delay: 80ms; }
-        .scd-day-circle:nth-child(4) { animation-delay:120ms; }
-        .scd-day-circle:nth-child(5) { animation-delay:160ms; }
-        .scd-day-circle:nth-child(6) { animation-delay:200ms; }
-        .scd-day-circle:nth-child(7) { animation-delay:240ms; }
-        @keyframes scdCircleIn {
-            from { transform: scale(0); opacity: 0; }
-            to   { transform: scale(1); opacity: 1; }
+        .scd-recurrence-card-active .scd-recurrence-radio {
+            border-color: var(--mat-sys-primary); background: var(--mat-sys-primary);
         }
-        .scd-day-circle:hover:not(.scd-day-circle-active) { border-color: var(--mat-sys-primary); color: var(--mat-sys-primary); }
-        .scd-day-circle-active {
-            background: var(--mat-sys-primary) !important;
-            border-color: var(--mat-sys-primary) !important;
-            color: var(--mat-sys-on-primary) !important;
+        .scd-recurrence-check { font-size: 12px !important; width: 12px !important; height: 12px !important; color: var(--mat-sys-on-primary); }
+        .scd-recurrence-content { flex: 1; min-width: 0; }
+        .scd-recurrence-label { display: block; font-size: 13px; font-weight: 600; color: var(--mat-sys-on-surface); }
+        .scd-recurrence-sub { display: block; font-size: 11px; color: var(--mat-sys-on-surface-variant); margin-top: 1px; }
+        .scd-custom-days { margin-top: 10px; }
+        .scd-custom-days-label { display: block; font-size: 10px; font-weight: 700; color: var(--mat-sys-on-surface-variant); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .scd-day-buttons { display: flex; gap: 5px; flex-wrap: wrap; }
+        .scd-day-btn {
+            padding: 6px 11px; border-radius: 6px;
+            border: 1.5px solid color-mix(in srgb, var(--mat-sys-primary) 15%, transparent);
+            background: transparent; color: var(--mat-sys-on-surface);
+            cursor: pointer; font-size: 11px; font-weight: 500; transition: all 0.15s ease;
         }
-        /* LIVE BRIEF */
+        .scd-day-btn:hover { border-color: var(--mat-sys-primary); color: var(--mat-sys-primary); }
+        .scd-day-btn-active { background: var(--mat-sys-primary); color: var(--mat-sys-on-primary); border-color: var(--mat-sys-primary); }
+
+        /* ── LIVE BRIEF ──────────────────────────────────────────────────── */
         .scd-brief {
-            width: 100%; padding: 8px 0 6px;
-            border-top: 1px solid var(--mat-sys-outline-variant);
+            width: 100%; padding: 11px 0 0;
+            border-top: 1px solid color-mix(in srgb, var(--mat-sys-outline) 12%, transparent);
             font-size: 12px; color: var(--mat-sys-on-surface-variant);
-            line-height: 1.5; text-align: left; margin-top: 4px;
+            text-align: center; margin-top: 14px;
         }
         .scd-brief-val { color: var(--mat-sys-primary); font-weight: 700; }
-        .scd-brief-sep { margin: 0 2px; }
-        .scd-error {
-            margin-top: 5px; font-size: 11px; color: var(--mat-sys-error);
-            display: flex; align-items: center; gap: 4px;
-        }
-        /* FOOTER */
-        .scd-footer {
-            display: flex; align-items: center; justify-content: space-between;
-            width: 100%; padding: 12px 0 4px;
-        }
-        .scd-step-dots { display: flex; gap: 5px; align-items: center; }
-        .scd-dot {
-            height: 6px; border-radius: 50px;
-            background: var(--mat-sys-outline-variant); cursor: pointer;
-            transition: width 0.25s cubic-bezier(0.34,1.56,0.64,1), background 0.2s ease;
-            width: 6px;
-        }
-        .scd-dot-active { width: 18px; background: var(--mat-sys-primary); }
-        .scd-dot-done { background: color-mix(in srgb, var(--mat-sys-primary) 45%, var(--mat-sys-outline-variant)); }
-        .scd-footer-btns { display: flex; gap: 6px; align-items: center; }
-        .scd-cancel-btn { height: 36px; font-size: 13px; }
+        .scd-brief-sep { margin: 0 4px; opacity: 0.5; }
+        .scd-error { margin-top: 6px; font-size: 11px; color: var(--mat-sys-error); display: flex; align-items: center; gap: 4px; justify-content: center; }
+
+        /* ── FOOTER ──────────────────────────────────────────────────────── */
+        .scd-footer { display: flex; align-items: center; width: 100%; padding: 14px 0 0; gap: 8px; }
+        .scd-step-dots { display: none; }
+        .scd-footer-btns { display: flex; gap: 8px; align-items: center; width: 100%; }
+        .scd-cancel-btn { height: 38px; font-size: 13px; flex: 1; border-radius: 8px !important; font-weight: 600; }
         .scd-btn-back {
-            padding: 7px 14px; border-radius: 50px;
-            border: 1.5px solid var(--mat-sys-outline-variant);
+            height: 38px; padding: 0 18px; border-radius: 8px;
+            border: 1.5px solid color-mix(in srgb, var(--mat-sys-outline) 30%, transparent);
             background: transparent; color: var(--mat-sys-on-surface-variant);
-            font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s ease;
+            font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s ease; white-space: nowrap;
         }
         .scd-btn-back:hover:not(:disabled) { border-color: var(--mat-sys-primary); color: var(--mat-sys-primary); }
-        .scd-btn-back:disabled { opacity: 0.5; cursor: not-allowed; }
+        .scd-btn-back:disabled { opacity: 0.4; cursor: not-allowed; }
         .scd-btn-next {
-            padding: 7px 18px; border-radius: 50px; border: none;
+            height: 38px; padding: 0 22px; border-radius: 8px; border: none;
             background: var(--mat-sys-primary); color: var(--mat-sys-on-primary);
-            font-size: 12px; font-weight: 700; cursor: pointer;
-            transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.15s ease;
-            box-shadow: 0 2px 10px color-mix(in srgb, var(--mat-sys-primary) 35%, transparent);
+            font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 22%, transparent);
         }
-        .scd-btn-next:hover { transform: translateY(-1px) scale(1.04); box-shadow: 0 5px 16px color-mix(in srgb, var(--mat-sys-primary) 45%, transparent); }
+        .scd-btn-next:hover { box-shadow: 0 4px 14px color-mix(in srgb, var(--mat-sys-primary) 32%, transparent); transform: translateY(-1px); }
         .scd-schedule-btn {
-            height: 36px !important;
-            background: var(--mat-sys-primary) !important;
-            color: var(--mat-sys-on-primary) !important;
+            height: 38px !important; flex: 1;
+            background: var(--mat-sys-primary) !important; color: var(--mat-sys-on-primary) !important;
             display: flex !important; align-items: center !important; justify-content: center !important;
-            gap: 2px !important; border-radius: 50px !important;
+            gap: 6px !important; border-radius: 8px !important;
             font-size: 13px !important; font-weight: 700 !important;
-            box-shadow: 0 2px 10px color-mix(in srgb, var(--mat-sys-primary) 35%, transparent) !important;
-            transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 22%, transparent) !important;
+            transition: all 0.2s ease !important;
         }
-        .scd-schedule-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 5px 16px color-mix(in srgb, var(--mat-sys-primary) 45%, transparent) !important; }
-        .scd-schedule-btn:disabled { opacity: 0.75; }
-        .scd-spinner { display: inline-block; }
-        ::ng-deep .scd-spinner circle { stroke: var(--mat-sys-on-primary) !important; }
+        .scd-schedule-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 14px color-mix(in srgb, var(--mat-sys-primary) 32%, transparent) !important; }
+        .scd-schedule-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+        .scd-spinner-mat { display: inline-block; }
+        ::ng-deep .scd-schedule-btn .mat-mdc-progress-spinner circle { stroke: var(--mat-sys-on-primary) !important; }
         .scd-success-inline { display: flex; align-items: center; gap: 6px; color: var(--mat-sys-primary); font-size: 13px; font-weight: 700; }
-        .scd-success-text { color: var(--mat-sys-primary); }
+
+        /* ── SUCCESS STATE ───────────────────────────────────────────────── */
+        .scd-success-state {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 40px 32px 32px; text-align: center;
+            animation: scdSuccessPulse 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        .scd-success-icon-wrap { display: flex; align-items: center; justify-content: center; }
+        .scd-success-icon {
+            width: 64px; height: 64px; border-radius: 50%; margin-bottom: 18px;
+            background: color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+            border: 2px solid color-mix(in srgb, var(--mat-sys-primary) 22%, transparent);
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 16px color-mix(in srgb, var(--mat-sys-primary) 18%, transparent);
+        }
+        .scd-success-icon mat-icon { font-size: 32px; width: 32px; height: 32px; color: var(--mat-sys-primary); }
+        .scd-success-title { font-size: 20px; font-weight: 700; margin: 0 0 8px; color: var(--mat-sys-on-surface); letter-spacing: -0.02em; }
+        .scd-success-subtitle { font-size: 13px; color: var(--mat-sys-on-surface-variant); margin: 0 0 24px; line-height: 1.6; }
+        .scd-success-btn { width: 100%; border-radius: 8px !important; height: 40px !important; font-size: 13px !important; font-weight: 600 !important; }
+
+        /* ── DIALOG SURFACE ──────────────────────────────────────────────── */
+        ::ng-deep .schedule-dialog-panel .mdc-dialog__surface {
+            padding: 0 !important; border-radius: 16px !important; overflow: hidden !important;
+        }
     `],
 })
 export class ScheduleDialogComponent {
@@ -1983,7 +3196,8 @@ export class ScheduleDialogComponent {
     hour            = signal(9);
     minute          = signal(0);
     ampm            = signal<'AM' | 'PM'>('AM');
-    selectedDateIdx = signal(1);
+    selectedDay     = signal<number>(new Date().getDate());
+    currentMonth    = signal<Date>(new Date());
     recurrence      = signal<'ONCE' | 'DAILY' | 'WEEKDAYS' | 'WEEKLY' | 'CUSTOM'>('ONCE');
     customDays      = signal<Set<string>>(new Set());
     formError       = signal('');
@@ -2014,28 +3228,46 @@ export class ScheduleDialogComponent {
         { key: 'SUNDAY',    label: 'Sun' },
     ];
 
-    get availableDates(): Array<{ weekday: string; dateNum: string; month: string; isoDate: string; date: Date }> {
-        const result: Array<{ weekday: string; dateNum: string; month: string; isoDate: string; date: Date }> = [];
-        const now = new Date();
-        for (let i = 0; i < 14; i++) {
-            const d = new Date(now);
-            d.setDate(d.getDate() + i);
-            d.setHours(0, 0, 0, 0);
-            const weekday = i === 0 ? 'Today' : i === 1 ? 'Tmrw'
-                          : d.toLocaleDateString('en', { weekday: 'short' });
+    get calendarDays(): Array<{ date: number; isCurrentMonth: boolean; isToday: boolean; isPast: boolean }> {
+        const month = this.currentMonth();
+        const year = month.getFullYear();
+        const monthNum = month.getMonth();
+
+        const firstDay = new Date(year, monthNum, 1);
+        const startDate = new Date(firstDay);
+        startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+        const result = [];
+        let current = new Date(startDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        for (let i = 0; i < 42; i++) {
+            const isCurrentMonth = current.getMonth() === monthNum;
+            const isToday = current.getTime() === today.getTime();
+            const isPast = current < today;
+
             result.push({
-                weekday,
-                dateNum: String(d.getDate()),
-                month:   d.toLocaleDateString('en', { month: 'short' }),
-                isoDate: d.toISOString(),
-                date:    d,
+                date: current.getDate(),
+                isCurrentMonth,
+                isToday,
+                isPast,
             });
+            current.setDate(current.getDate() + 1);
         }
         return result;
     }
 
     get selectedDate(): Date {
-        return this.availableDates[this.selectedDateIdx()]?.date ?? new Date();
+        const month = this.currentMonth();
+        const d = new Date(month.getFullYear(), month.getMonth(), this.selectedDay());
+        d.setHours(0, 0, 0, 0);
+        return d;
+    }
+
+    get monthYearLabel(): string {
+        const month = this.currentMonth();
+        return month.toLocaleDateString('en', { month: 'long', year: 'numeric' });
     }
 
     get scheduleTime(): string {
@@ -2052,7 +3284,17 @@ export class ScheduleDialogComponent {
         private chatMessageService: ChatMessageService,
     ) {}
 
-    selectDate(i: number): void { this.selectedDateIdx.set(i); }
+    selectDay(day: number): void { this.selectedDay.set(day); }
+    prevMonth(): void {
+        const m = new Date(this.currentMonth());
+        m.setMonth(m.getMonth() - 1);
+        this.currentMonth.set(m);
+    }
+    nextMonth(): void {
+        const m = new Date(this.currentMonth());
+        m.setMonth(m.getMonth() + 1);
+        this.currentMonth.set(m);
+    }
     setHour(h: number):    void { this.hour.set(h); }
     setMinute(m: number):  void { this.minute.set(m); }
     setAmPm(ap: 'AM' | 'PM'): void { this.ampm.set(ap); }
@@ -2061,12 +3303,34 @@ export class ScheduleDialogComponent {
         this.recurrence.set(t);
     }
 
+    padNumber(n: number): string {
+        return String(n).padStart(2, '0');
+    }
+
     toggleDay(key: string): void {
         this.customDays.update(s => {
             const n = new Set(s);
             n.has(key) ? n.delete(key) : n.add(key);
             return n;
         });
+    }
+
+    onHourScroll(event: Event): void {
+        const target = event.target as HTMLElement;
+        const scrollTop = target.scrollTop;
+        const itemHeight = 40 + 4;
+        const index = Math.round(scrollTop / itemHeight);
+        const hours = [1,2,3,4,5,6,7,8,9,10,11,12];
+        if (hours[index]) this.hour.set(hours[index]);
+    }
+
+    onMinuteScroll(event: Event): void {
+        const target = event.target as HTMLElement;
+        const scrollTop = target.scrollTop;
+        const itemHeight = 40 + 4;
+        const index = Math.round(scrollTop / itemHeight);
+        const minutes = [0,5,10,15,20,25,30,35,40,45,50,55];
+        if (minutes[index] !== undefined) this.minute.set(minutes[index]);
     }
 
     nextStep(): void { if (this.step() < 3) this.step.update(s => (s + 1) as 1 | 2 | 3); }
@@ -2096,6 +3360,15 @@ export class ScheduleDialogComponent {
     private formatIso(d: Date): string {
         const pad = (n: number) => String(n).padStart(2, '0');
         return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+    }
+
+    getSuccessBriefDate(): string {
+        const d = new Date(this.selectedDate);
+        const [hh, mm] = this.scheduleTime.split(':').map(Number);
+        d.setHours(hh, mm, 0, 0);
+        const dayName = d.toLocaleDateString('en', { weekday: 'short' });
+        const monthDay = d.toLocaleDateString('en', { month: 'short', day: 'numeric' });
+        return `${dayName} ${monthDay} · ${this.hour()}:${String(this.minute()).padStart(2, '0')} ${this.ampm()}`;
     }
 
     submit(): void {
@@ -2576,6 +3849,189 @@ export class RemoveMemberDialogComponent {
     }
 }
 
+/* ══ Pinned Messages Dialog ═════════════════════════════════════════════ */
+@Component({
+    selector: 'app-pinned-messages-dialog',
+    standalone: true,
+    imports: [CommonModule, MatButtonModule, MatIconModule, MatDialogModule, MatTooltipModule, MatDividerModule],
+    animations: [
+        trigger('pmEnter', [
+            transition(':enter', [
+                style({ opacity: 0, transform: 'translateY(12px)' }),
+                animate('0.35s cubic-bezier(0.34, 1.56, 0.64, 1)', style({ opacity: 1, transform: 'translateY(0)' })),
+            ]),
+        ]),
+    ],
+    template: `
+        <div class="pmd-wrap">
+            <!-- Header -->
+            <div class="pmd-header">
+                <div class="pmd-header-left">
+                    <div class="pmd-header-icon">
+                        <mat-icon>push_pin</mat-icon>
+                    </div>
+                    <div>
+                        <h2 class="pmd-title">Pinned Messages</h2>
+                        <p class="pmd-sub">{{ data.messages.length }} pinned message{{ data.messages.length !== 1 ? 's' : '' }}</p>
+                    </div>
+                </div>
+                <button class="pmd-close-btn" mat-icon-button (click)="dialogRef.close()">
+                    <mat-icon>close</mat-icon>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="pmd-body">
+                @if (data.messages.length === 0) {
+                    <div class="pmd-empty">
+                        <mat-icon class="pmd-empty-icon material-icons-outlined">push_pin</mat-icon>
+                        <p class="pmd-empty-title">No pinned messages</p>
+                        <p class="pmd-empty-sub">Pin important messages to keep them here for easy access</p>
+                    </div>
+                }
+                @for (msg of data.messages; track msg.id; let i = $index) {
+                    <div class="pmd-card" [@pmEnter] [style.animation-delay]="i * 50 + 'ms'">
+                        <div class="pmd-card-accent"></div>
+                        <div class="pmd-card-inner">
+                            <!-- Card header -->
+                            <div class="pmd-card-header">
+                                <div class="pmd-avatar">{{ msg.senderName?.charAt(0)?.toUpperCase() }}</div>
+                                <div class="pmd-meta">
+                                    <span class="pmd-sender">{{ msg.senderName }}</span>
+                                    <span class="pmd-time">{{ formatTime(msg.createdAt) }}</span>
+                                </div>
+                                <button class="pmd-unpin-btn" matTooltip="Unpin message" (click)="unpin(msg)">
+                                    <mat-icon style="font-size:15px;width:15px;height:15px">push_pin</mat-icon>
+                                    Unpin
+                                </button>
+                            </div>
+
+                            <!-- Content -->
+                            @if (msg.contentText) {
+                                <div class="pmd-content" [innerHTML]="msg.contentText"></div>
+                            }
+                            @if (msg.fileName) {
+                                <div class="pmd-file">
+                                    <mat-icon style="font-size:14px;width:14px;height:14px">attach_file</mat-icon>
+                                    {{ msg.fileName }}
+                                </div>
+                            }
+
+                            <!-- Footer -->
+                            @if (msg.pinnedByName) {
+                                <div class="pmd-pinned-by">
+                                    <mat-icon style="font-size:10px;width:10px;height:10px">push_pin</mat-icon>
+                                    Pinned by {{ msg.pinnedByName }}
+                                    @if (msg.pinnedAt) { · {{ formatTime(msg.pinnedAt) }} }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    `,
+    styles: [`
+        .pmd-wrap { display: flex; flex-direction: column; height: 100%; max-height: 80vh; }
+
+        /* Header */
+        .pmd-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 20px 24px 18px; border-bottom: 1px solid var(--mat-sys-outline-variant);
+            flex-shrink: 0;
+        }
+        .pmd-header-left { display: flex; align-items: center; gap: 12px; }
+        .pmd-header-icon {
+            width: 40px; height: 40px; border-radius: 10px;
+            background: rgba(217,119,6,0.1); border: 1.5px solid rgba(217,119,6,0.2);
+            display: flex; align-items: center; justify-content: center;
+            color: #d97706;
+        }
+        .pmd-title { font-size: 17px; font-weight: 700; margin: 0 0 2px; color: var(--mat-sys-on-surface); letter-spacing: -0.015em; }
+        .pmd-sub { font-size: 12px; color: var(--mat-sys-on-surface-variant); margin: 0; }
+        .pmd-close-btn { color: var(--mat-sys-on-surface-variant) !important; }
+
+        /* Body */
+        .pmd-body {
+            flex: 1; overflow-y: auto; padding: 16px 24px 20px;
+            display: flex; flex-direction: column; gap: 12px;
+        }
+        .pmd-body::-webkit-scrollbar { width: 5px; }
+        .pmd-body::-webkit-scrollbar-track { background: transparent; }
+        .pmd-body::-webkit-scrollbar-thumb { background: var(--mat-sys-outline-variant); border-radius: 3px; }
+
+        /* Empty */
+        .pmd-empty { display: flex; flex-direction: column; align-items: center; padding: 60px 24px; text-align: center; }
+        .pmd-empty-icon { font-size: 48px !important; width: 48px !important; height: 48px !important; color: var(--mat-sys-outline-variant); margin-bottom: 14px; }
+        .pmd-empty-title { font-size: 15px; font-weight: 600; color: var(--mat-sys-on-surface); margin: 0 0 6px; }
+        .pmd-empty-sub { font-size: 13px; color: var(--mat-sys-on-surface-variant); margin: 0; line-height: 1.5; }
+
+        /* Card */
+        .pmd-card {
+            position: relative; border-radius: 12px; overflow: hidden;
+            border: 1px solid var(--mat-sys-outline-variant);
+            background: var(--mat-sys-surface-container-low);
+            transition: all 0.2s ease;
+        }
+        .pmd-card:hover { border-color: rgba(217,119,6,0.35); box-shadow: 0 4px 20px rgba(0,0,0,0.07); transform: translateY(-1px); }
+        .pmd-card-accent { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(180deg, #f59e0b, #d97706); }
+        .pmd-card-inner { padding: 14px 16px 12px 20px; }
+        .pmd-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .pmd-avatar {
+            width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+            background: linear-gradient(135deg, var(--mat-sys-primary), color-mix(in srgb, var(--mat-sys-primary) 70%, #000));
+            color: var(--mat-sys-on-primary); font-size: 13px; font-weight: 700;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .pmd-meta { flex: 1; min-width: 0; }
+        .pmd-sender { display: block; font-size: 13px; font-weight: 700; color: var(--mat-sys-on-surface); }
+        .pmd-time { display: block; font-size: 11px; color: var(--mat-sys-on-surface-variant); margin-top: 1px; }
+        .pmd-unpin-btn {
+            display: flex; align-items: center; gap: 5px; padding: 5px 12px;
+            border-radius: 7px; border: 1.5px solid rgba(217,119,6,0.25);
+            background: transparent; cursor: pointer; flex-shrink: 0;
+            font-size: 12px; font-weight: 600; color: #d97706;
+            transition: all 0.15s ease;
+        }
+        .pmd-unpin-btn:hover { background: rgba(217,119,6,0.1); border-color: #d97706; }
+        .pmd-content {
+            font-size: 14px; line-height: 1.6; color: var(--mat-sys-on-surface);
+            margin-bottom: 8px;
+        }
+        .pmd-file {
+            display: flex; align-items: center; gap: 6px; font-size: 12px;
+            color: var(--mat-sys-on-surface-variant);
+            background: var(--mat-sys-surface-container); border-radius: 6px;
+            padding: 5px 10px; margin-top: 6px; width: fit-content;
+        }
+        .pmd-pinned-by {
+            display: flex; align-items: center; gap: 4px; font-size: 11px;
+            color: #d97706; opacity: 0.7; margin-top: 8px;
+        }
+
+        /* Dialog surface */
+        ::ng-deep .pinned-dialog-panel .mdc-dialog__surface { border-radius: 16px !important; padding: 0 !important; overflow: hidden !important; }
+    `],
+})
+export class PinnedMessagesDialogComponent {
+    constructor(
+        public dialogRef: MatDialogRef<PinnedMessagesDialogComponent>,
+        @Inject(MAT_DIALOG_DATA) public data: { messages: MessageDTO[]; onUnpin: (msg: MessageDTO) => void },
+    ) {}
+
+    unpin(msg: MessageDTO): void {
+        this.data.onUnpin(msg);
+        this.data.messages = this.data.messages.filter(m => m.id !== msg.id);
+    }
+
+    formatTime(iso: string): string {
+        if (!iso) return '';
+        const d = new Date(iso);
+        return d.toLocaleDateString('en', { month: 'short', day: 'numeric' }) + ' · ' +
+               d.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' });
+    }
+}
+
 /* ══ Report Message Dialog (2-step wizard) ══════════════════════════════ */
 @Component({
     selector: 'app-report-message-dialog',
@@ -2770,7 +4226,10 @@ export class ReportMessageDialogComponent {
     }
 
     stripHtml(html: string): string {
-        return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!html) return '';
+        const div = document.createElement('div');
+        div.innerHTML = html;
+        return div.textContent || div.innerText || '';
     }
 
     submit(): void {
@@ -2886,24 +4345,24 @@ export class ModActionConfirmDialogComponent {
     }
 
     get actionColor(): string {
-        if (this.data.action === 'BAN') return '#ef4444';
-        if (this.data.action === 'REMOVE_FROM_ROOM' || this.data.action === 'DELETE_MESSAGE') return '#dc2626';
+        if (this.data.action === 'BAN') return '#6366f1';
+        if (this.data.action === 'REMOVE_FROM_ROOM' || this.data.action === 'DELETE_MESSAGE') return '#7c3aed';
         if (this.data.action === 'DISMISS') return '#16a34a';
-        return '#d97706';
+        return '#8b5cf6';
     }
 
     get actionBgColor(): string {
-        if (this.data.action === 'BAN') return 'rgba(239,68,68,0.12)';
-        if (this.data.action === 'REMOVE_FROM_ROOM' || this.data.action === 'DELETE_MESSAGE') return 'rgba(220,38,38,0.10)';
+        if (this.data.action === 'BAN') return 'rgba(99,102,241,0.12)';
+        if (this.data.action === 'REMOVE_FROM_ROOM' || this.data.action === 'DELETE_MESSAGE') return 'rgba(124,58,237,0.10)';
         if (this.data.action === 'DISMISS') return 'rgba(22,163,74,0.12)';
-        return 'rgba(217,119,6,0.12)';
+        return 'rgba(139,92,246,0.12)';
     }
 
     get actionBorderColor(): string {
-        if (this.data.action === 'BAN') return 'rgba(239,68,68,0.3)';
-        if (this.data.action === 'REMOVE_FROM_ROOM' || this.data.action === 'DELETE_MESSAGE') return 'rgba(220,38,38,0.25)';
+        if (this.data.action === 'BAN') return 'rgba(99,102,241,0.3)';
+        if (this.data.action === 'REMOVE_FROM_ROOM' || this.data.action === 'DELETE_MESSAGE') return 'rgba(124,58,237,0.25)';
         if (this.data.action === 'DISMISS') return 'rgba(22,163,74,0.3)';
-        return 'rgba(217,119,6,0.3)';
+        return 'rgba(139,92,246,0.3)';
     }
 
     confirm(): void {
@@ -2926,10 +4385,308 @@ export class ModActionConfirmDialogComponent {
     }
 }
 
-interface MessageGroup {
-    senderId: number;
-    senderName: string;
-    messages: MessageDTO[];
+@Component({
+    selector: 'app-report-detail-dialog',
+    standalone: true,
+    imports: [CommonModule, MatButtonModule, MatIconModule, MatDividerModule],
+    template: `
+        <div class="report-detail-dialog">
+            <div class="rd-header">
+                <div class="rd-header-left">
+                    <mat-icon class="rd-close-btn" (click)="dialogRef.close()">close</mat-icon>
+                </div>
+                <h2 class="rd-title">Report Details</h2>
+                <div class="rd-spacer"></div>
+            </div>
+            <mat-divider></mat-divider>
+
+            <div class="rd-content">
+                <!-- Category Badge -->
+                <div class="rd-section">
+                    <div class="rd-category-row">
+                        <span class="rd-cat-badge" [ngClass]="'rd-cat-' + report.category.toLowerCase()">
+                            {{ report.category.replace('_', ' ') }}
+                        </span>
+                        <span class="rd-status-badge" [ngClass]="'rd-status-' + report.status.toLowerCase()">
+                            {{ report.status }}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Room Info -->
+                <div class="rd-section">
+                    <div class="rd-label">Channel</div>
+                    <div class="rd-room-info">
+                        <mat-icon style="font-size:14px;width:14px;height:14px">tag</mat-icon>
+                        <span>{{ report.roomName }}</span>
+                    </div>
+                </div>
+
+                <!-- Reporter Info -->
+                <div class="rd-section">
+                    <div class="rd-label">Reported by</div>
+                    <div class="rd-reporter-info">
+                        @if (report.anonymous) {
+                            <mat-icon style="font-size:14px;width:14px;height:14px">visibility_off</mat-icon>
+                            <em>Anonymous</em>
+                        } @else {
+                            <mat-icon style="font-size:14px;width:14px;height:14px">account_circle</mat-icon>
+                            <span>{{ report.reporterName }}</span>
+                        }
+                    </div>
+                </div>
+
+                <!-- Reported Message -->
+                <div class="rd-section">
+                    <div class="rd-label">Reported Message</div>
+                    <div class="rd-quote" [ngClass]="'rd-quote-' + report.category.toLowerCase()">
+                        <div class="rd-quote-author">
+                            <mat-icon style="font-size:12px;width:12px;height:12px">account_circle</mat-icon>
+                            <strong>{{ report.senderName }}</strong>
+                        </div>
+                        <p class="rd-quote-text">{{ stripHtml(report.messageContent) }}</p>
+                    </div>
+                </div>
+
+                <!-- Report Description -->
+                @if (report.description) {
+                    <div class="rd-section">
+                        <div class="rd-label">Report Description</div>
+                        <p class="rd-description">{{ report.description }}</p>
+                    </div>
+                }
+
+                <!-- AI Suggestion -->
+                @if (report.aiSuggestion && report.aiSuggestion !== 'NONE') {
+                    <div class="rd-section">
+                        <div class="rd-label">AI Suggestion</div>
+                        <div class="rd-ai-chip">
+                            <mat-icon style="font-size:13px;width:13px;height:13px">auto_awesome</mat-icon>
+                            <span>{{ report.aiSuggestion }}</span>
+                        </div>
+                    </div>
+                }
+
+                <!-- Metadata -->
+                <div class="rd-section">
+                    <div class="rd-metadata">
+                        <div class="rd-meta-item">
+                            <span class="rd-meta-label">Reported on</span>
+                            <span class="rd-meta-value">{{ formatDate(report.createdAt) }}</span>
+                        </div>
+                        @if (report.resolvedAt) {
+                            <div class="rd-meta-item">
+                                <span class="rd-meta-label">Resolved on</span>
+                                <span class="rd-meta-value">{{ formatDate(report.resolvedAt) }}</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Action Taken -->
+                @if (report.actionTaken) {
+                    <div class="rd-section">
+                        <div class="rd-label">Action Taken</div>
+                        <div class="rd-action-taken">
+                            <mat-icon style="font-size:14px;width:14px;height:14px">check_circle</mat-icon>
+                            <span>{{ report.actionTaken }}</span>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <mat-divider></mat-divider>
+            <div class="rd-footer">
+                <button mat-button (click)="dialogRef.close()">Close</button>
+            </div>
+        </div>
+    `,
+    styles: [`
+        .report-detail-dialog {
+            width: 100%; max-width: 600px; background: #fff; border-radius: 12px;
+            display: flex; flex-direction: column; font-family: inherit;
+        }
+        .rd-header {
+            display: flex; align-items: center; gap: 12px; padding: 16px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .rd-close-btn {
+            width: 28px; height: 28px; font-size: 20px; cursor: pointer;
+            color: #64748b; transition: all 0.15s ease; border-radius: 6px;
+            padding: 2px; display: flex; align-items: center; justify-content: center;
+        }
+        .rd-close-btn:hover {
+            background: #f1f5f9; color: #1e293b;
+        }
+        .rd-title {
+            font-size: 16px; font-weight: 700; color: #1e293b; margin: 0;
+        }
+        .rd-spacer { flex: 1; }
+
+        .rd-content {
+            flex: 1; overflow-y: auto; max-height: 60vh; padding: 16px;
+            display: flex; flex-direction: column; gap: 16px;
+        }
+
+        .rd-section { display: flex; flex-direction: column; gap: 8px; }
+        .rd-label { font-size: 12px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.05em; color: #64748b;
+        }
+
+        .rd-category-row { display: flex; align-items: center; gap: 8px; }
+        .rd-cat-badge { font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.05em; padding: 4px 10px; border-radius: 20px;
+        }
+        .rd-cat-harassment { background: rgba(99,102,241,0.12); color: #6366f1; }
+        .rd-cat-inappropriate { background: rgba(139,92,246,0.12); color: #8b5cf6; }
+        .rd-cat-hate_speech { background: rgba(124,58,237,0.12); color: #7c3aed; }
+        .rd-cat-spam { background: rgba(167,139,250,0.12); color: #a78bfa; }
+        .rd-cat-misinformation { background: rgba(139,92,246,0.12); color: #8b5cf6; }
+        .rd-cat-other { background: #f1f5f9; color: #64748b; }
+
+        .rd-status-badge { font-size: 10px; font-weight: 700; padding: 3px 8px;
+            border-radius: 6px; text-transform: uppercase;
+        }
+        .rd-status-pending { background: rgba(99,102,241,0.12); color: #6366f1; }
+        .rd-status-resolved { background: rgba(34,197,94,0.12); color: #16a34a; }
+        .rd-status-dismissed { background: #f1f5f9; color: #64748b; }
+
+        .rd-room-info, .rd-reporter-info {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 13px; color: #1e293b;
+        }
+
+        .rd-quote { border-left: 3px solid #e2e8f0; border-radius: 0 8px 8px 0;
+            padding: 10px 12px; background: #f8fafc; margin-bottom: 4px;
+        }
+        .rd-quote-harassment { border-left-color: #6366f1; background: rgba(99,102,241,0.04); }
+        .rd-quote-inappropriate { border-left-color: #8b5cf6; background: rgba(139,92,246,0.04); }
+        .rd-quote-hate_speech { border-left-color: #7c3aed; background: rgba(124,58,237,0.04); }
+        .rd-quote-spam { border-left-color: #a78bfa; background: rgba(167,139,250,0.04); }
+        .rd-quote-misinformation { border-left-color: #8b5cf6; background: rgba(139,92,246,0.04); }
+
+        .rd-quote-author { display: flex; align-items: center; gap: 4px;
+            font-size: 11px; color: #64748b; margin-bottom: 6px;
+        }
+        .rd-quote-text { font-size: 13px; color: #334155; font-style: italic;
+            line-height: 1.5; margin: 0; word-break: break-word;
+        }
+
+        .rd-description { font-size: 13px; color: #475569; line-height: 1.6;
+            margin: 0; padding: 10px 12px; background: #f8fafc; border-radius: 8px;
+        }
+
+        .rd-ai-chip { display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+            background: rgba(139,92,246,0.1); color: #7c3aed;
+            border: 1px solid rgba(139,92,246,0.15); width: fit-content;
+        }
+
+        .rd-metadata { display: flex; flex-direction: column; gap: 12px; }
+        .rd-meta-item { display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 0; border-bottom: 1px solid #f1f5f9;
+        }
+        .rd-meta-label { font-size: 12px; font-weight: 600; color: #64748b; }
+        .rd-meta-value { font-size: 12px; color: #1e293b; font-weight: 500; }
+
+        .rd-action-taken { display: flex; align-items: center; gap: 6px;
+            padding: 8px 12px; background: rgba(34,197,94,0.08); border-radius: 8px;
+            font-size: 12px; font-weight: 600; color: #16a34a;
+        }
+
+        .rd-footer { display: flex; justify-content: flex-end; gap: 8px;
+            padding: 12px 16px; background: #f8fafc; border-radius: 0 0 12px 12px;
+        }
+        .rd-footer button { min-width: 80px; }
+    `],
+})
+export class ReportDetailDialogComponent {
+    constructor(
+        public dialogRef: MatDialogRef<ReportDetailDialogComponent>,
+        @Inject(MAT_DIALOG_DATA) public report: ModerationReport,
+    ) {}
+
+    stripHtml(html: string): string {
+        if (!html) return '';
+        const div = document.createElement('div');
+        div.innerHTML = html;
+        return div.textContent || div.innerText || '';
+    }
+
+    formatDate(dateStr: string): string {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+}
+
+@Component({
+    selector: 'app-scheduled-details-dialog',
+    standalone: true,
+    imports: [CommonModule, MatButtonModule, MatIconModule, MatDividerModule, MatDialogModule],
+    template: `
+        <div class="scheduled-details-dialog">
+            <h2 mat-dialog-title style="margin-bottom: 20px;">
+                <mat-icon class="material-icons-outlined" style="vertical-align:middle;margin-right:8px;font-size:24px;width:24px;height:24px">schedule</mat-icon>
+                Scheduled Message
+            </h2>
+            <mat-dialog-content>
+                <div class="detail-section">
+                    <div class="detail-row">
+                        <span class="detail-label">Status:</span>
+                        <span class="detail-value">{{ data.item.status }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Type:</span>
+                        <span class="detail-value">{{ data.recType }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Next Send:</span>
+                        <span class="detail-value">{{ data.nextDate | date:'MMM d, y · h:mm a' }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Created:</span>
+                        <span class="detail-value">{{ data.createdDate | date:'MMM d, y · h:mm a' }}</span>
+                    </div>
+                </div>
+                <mat-divider style="margin: 20px 0;"></mat-divider>
+                <div class="detail-section">
+                    <p style="font-size:12px;color:var(--mat-sys-outline);margin-bottom:8px;">Message Content:</p>
+                    <div class="message-content">{{ data.item.content }}</div>
+                </div>
+            </mat-dialog-content>
+            <mat-dialog-actions align="end">
+                <button mat-button (click)="dialogRef.close()">Close</button>
+            </mat-dialog-actions>
+        </div>
+    `,
+    styles: [`
+        .scheduled-details-dialog {
+            min-width: 300px;
+        }
+        .detail-section {
+            display: flex; flex-direction: column; gap: 12px;
+        }
+        .detail-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px; background: rgba(99, 102, 241, 0.04); border-radius: 6px;
+        }
+        .detail-label {
+            font-weight: 500; color: var(--mat-sys-on-surface-variant); font-size: 12px;
+        }
+        .detail-value {
+            color: var(--mat-sys-on-surface); font-size: 13px; text-align: right;
+        }
+        .message-content {
+            padding: 12px; background: var(--mat-sys-surface-dim); border-radius: 6px;
+            word-break: break-word; line-height: 1.5; font-size: 13px;
+        }
+    `]
+})
+export class ScheduledDetailsDialogComponent {
+    constructor(
+        public dialogRef: MatDialogRef<ScheduledDetailsDialogComponent>,
+        @Inject(MAT_DIALOG_DATA) public data: { item: ScheduledMessageDTO; nextDate: Date; createdDate: Date; recType: string },
+    ) {}
 }
 
 @Component({
@@ -2959,35 +4716,21 @@ interface MessageGroup {
         VoiceSendChoiceDialogComponent,
         ReportMessageDialogComponent,
         ModActionConfirmDialogComponent,
+        ReportDetailDialogComponent,
+        ScheduledDetailsDialogComponent,
         SnackbarSuccessComponent,
     ],
     template: `
-        <!-- ══ Page breadcrumb header ══════════════════════════════════════ -->
-        <div class="container-fluid fade-in mb-4">
-            <div class="chat-header-card">
-                <div class="chat-header-content">
-                    <div class="chat-header-left">
-                        <div class="chat-header-icon-wrapper">
-                            <mat-icon class="chat-header-main-icon">forum</mat-icon>
-                        </div>
-                        <div class="chat-header-text">
-                            <h2 class="chat-header-title">Chat Rooms</h2>
-                            <p class="chat-header-subtitle">Collaborate with your team in real time</p>
-                        </div>
-                    </div>
-                    <div class="chat-header-actions">
-                        @if (canManageMembers) {
-                            <button mat-icon-button (click)="openDashboard()"
-                                    matTooltip="My Dashboard"
-                                    class="chat-header-btn">
-                                <mat-icon class="material-icons-outlined">bar_chart</mat-icon>
-                            </button>
-                        }
-                        <app-page-right></app-page-right>
-                    </div>
-                </div>
+        <!-- ══ Dashboard Access ══════════════════════════════════════════════ -->
+        @if (canManageMembers) {
+            <div class="mb-3">
+                <button mat-icon-button (click)="openDashboard()"
+                        matTooltip="My Dashboard"
+                        class="chat-header-btn">
+                    <mat-icon class="material-icons-outlined">bar_chart</mat-icon>
+                </button>
             </div>
-        </div>
+        }
 
         <!-- ══ Main chat layout ════════════════════════════════════════════ -->
         <div class="container-fluid px-3 px-lg-4">
@@ -3114,7 +4857,10 @@ interface MessageGroup {
                                             <!-- Main content -->
                                             <div class="wa-room-content">
                                                 <div class="wa-room-top-row">
-                                                    <span class="wa-room-name">{{ room.name }}</span>
+                                                    <span class="wa-room-name" [class.wa-room-unread]="(unreadCounts().get(room.id) ?? 0) > 0">{{ room.name }}</span>
+                                                    @if (favoriteRoomIds().has(room.id)) {
+                                                        <mat-icon style="font-size:12px;width:12px;height:12px;color:#f59e0b;margin-left:4px;vertical-align:middle">star</mat-icon>
+                                                    }
                                                     @if (room.roomType === 'meeting' && room.startTime) {
                                                         <span class="wa-meeting-dot"
                                                               [class.wa-meeting-dot-live]="getMeetingStatus(room) === 'IN_PROGRESS'"
@@ -3134,7 +4880,7 @@ interface MessageGroup {
                                                     }
                                                 </div>
                                                 <div class="wa-room-bottom-row">
-                                                    <span class="wa-room-preview">
+                                                    <span class="wa-room-preview" [class.wa-room-unread]="(unreadCounts().get(room.id) ?? 0) > 0">
                                                         @if (translatedRooms().has(room.id)) {
                                                             <span class="wa-translated-globe" title="You translated a message in this room">🌐</span>
                                                         }
@@ -3155,6 +4901,13 @@ interface MessageGroup {
                                                         <mat-icon style="font-size:16px;width:16px;height:16px">more_vert</mat-icon>
                                                     </button>
                                                     <mat-menu #roomItemMenu="matMenu" xPosition="before">
+                                                        <button mat-menu-item (click)="toggleFavorite(room.id, $event)">
+                                                            <mat-icon [style.color]="favoriteRoomIds().has(room.id) ? '#f59e0b' : 'inherit'">
+                                                                {{ favoriteRoomIds().has(room.id) ? 'star' : 'star_outline' }}
+                                                            </mat-icon>
+                                                            <span>{{ favoriteRoomIds().has(room.id) ? 'Remove from Favorites' : 'Add to Favorites' }}</span>
+                                                        </button>
+                                                        <mat-divider></mat-divider>
                                                         <button mat-menu-item (click)="openEdit(room, $event)">
                                                             <mat-icon class="material-icons-outlined">edit</mat-icon>
                                                             <span>Edit</span>
@@ -3173,13 +4926,27 @@ interface MessageGroup {
 
                                 @if (filteredRooms().length === 0) {
                                     <div class="text-center py-5 px-3">
-                                        <mat-icon class="material-icons-outlined mb-2"
-                                                  style="font-size:36px;width:36px;height:36px;color:var(--mat-sys-outline-variant)">
-                                            forum
-                                        </mat-icon>
-                                        <p class="small text-secondary mb-0">
-                                            {{ searchQuery() ? 'No channels matched your search.' : (canManageMembers ? 'No channels yet — click + to create one.' : 'You haven\'t been added to any channels yet.') }}
-                                        </p>
+                                        @if (activeFilter() === 'unread') {
+                                            <mat-icon class="material-icons-outlined mb-2"
+                                                      style="font-size:36px;width:36px;height:36px;color:var(--mat-sys-outline-variant)">
+                                                mark_chat_read
+                                            </mat-icon>
+                                            <p class="small text-secondary mb-0">No unread messages</p>
+                                        } @else if (activeFilter() === 'favorites') {
+                                            <mat-icon class="material-icons-outlined mb-2"
+                                                      style="font-size:36px;width:36px;height:36px;color:var(--mat-sys-outline-variant)">
+                                                star_outline
+                                            </mat-icon>
+                                            <p class="small text-secondary mb-0">No favorites yet — star a room to pin it here</p>
+                                        } @else {
+                                            <mat-icon class="material-icons-outlined mb-2"
+                                                      style="font-size:36px;width:36px;height:36px;color:var(--mat-sys-outline-variant)">
+                                                forum
+                                            </mat-icon>
+                                            <p class="small text-secondary mb-0">
+                                                {{ searchQuery() ? 'No channels matched your search.' : (canManageMembers ? 'No channels yet — click + to create one.' : 'You haven\'t been added to any channels yet.') }}
+                                            </p>
+                                        }
                                     </div>
                                 }
                             }
@@ -3319,18 +5086,19 @@ interface MessageGroup {
                                                 <mat-icon class="material-icons-outlined" style="font-size:19px;width:19px;height:19px">shield</mat-icon>
                                             </button>
                                         }
-                                        <button matIconButton matTooltip="Summarize conversation"
-                                                (click)="openSummary()"
-                                                [class.header-btn-active]="showSummaryPanel()">
-                                            <mat-icon class="material-icons-outlined ai-summary-icon"
-                                                      style="font-size:19px;width:19px;height:19px">auto_awesome</mat-icon>
-                                        </button>
                                         <button matIconButton matTooltip="{{ isSearchVisible() ? 'Close search' : 'Search messages' }}"
                                                 (click)="toggleSearch()"
                                                 [class.header-btn-active]="isSearchVisible()">
                                             <mat-icon class="material-icons-outlined" style="font-size:19px;width:19px;height:19px">
                                                 {{ isSearchVisible() ? 'close' : 'search' }}
                                             </mat-icon>
+                                        </button>
+                                        <button matIconButton
+                                                matTooltip="Record video clip"
+                                                [disabled]="!activeRoom()"
+                                                [class.header-btn-active]="videoPhase() !== 'idle'"
+                                                (click)="startVideoRecording()">
+                                            <mat-icon class="material-icons-outlined" style="font-size:19px;width:19px;height:19px">video_call</mat-icon>
                                         </button>
                                         @if (canManageMembers) {
                                             <button matIconButton [matMenuTriggerFor]="actionsMenu"
@@ -3441,7 +5209,9 @@ interface MessageGroup {
                                             <mat-icon matPrefix class="material-icons-outlined"
                                                       style="font-size:18px;width:18px;height:18px">search</mat-icon>
                                             <mat-label>Search in channel…</mat-label>
-                                            <input matInput placeholder="Search within this channel…" />
+                                            <input matInput placeholder="Search within this channel…"
+                                                   [ngModel]="messageSearchQuery()"
+                                                   (ngModelChange)="messageSearchQuery.set($event)" />
                                         </mat-form-field>
                                     </div>
                                 }
@@ -3584,13 +5354,29 @@ interface MessageGroup {
                                                                             <span class="sp-meta-date">{{ formatDateSep(file.createdAt) }}</span>
                                                                         </div>
                                                                     </div>
-                                                                    <a [href]="'http://localhost:8084' + file.fileUrl"
-                                                                       target="_blank"
-                                                                       class="sp-download-btn"
-                                                                       matTooltip="Download"
-                                                                       (click)="$event.stopPropagation()">
-                                                                        <mat-icon class="material-icons-outlined" style="font-size:17px;width:17px;height:17px">download</mat-icon>
-                                                                    </a>
+                                                                    <div class="sp-card-actions">
+                                                                        <a [href]="'http://localhost:8084' + file.fileUrl"
+                                                                           target="_blank"
+                                                                           class="sp-action-btn sp-download-btn"
+                                                                           matTooltip="Download"
+                                                                           (click)="$event.stopPropagation()">
+                                                                            <mat-icon class="material-icons-outlined" style="font-size:17px;width:17px;height:17px">download</mat-icon>
+                                                                        </a>
+                                                                        <button class="sp-action-btn sp-more-btn" [matMenuTriggerFor]="fileMenu"
+                                                                                matTooltip="Options" (click)="$event.stopPropagation()">
+                                                                            <mat-icon style="font-size:18px;width:18px;height:18px">more_vert</mat-icon>
+                                                                        </button>
+                                                                        <mat-menu #fileMenu="matMenu" class="sp-options-menu">
+                                                                            <button mat-menu-item (click)="copyFileLink(file)">
+                                                                                <mat-icon>content_copy</mat-icon>
+                                                                                <span>Copy link</span>
+                                                                            </button>
+                                                                            <button mat-menu-item (click)="shareFileDetails(file)">
+                                                                                <mat-icon>info</mat-icon>
+                                                                                <span>View details</span>
+                                                                            </button>
+                                                                        </mat-menu>
+                                                                    </div>
                                                                 </div>
                                                             }
                                                         </div>
@@ -3607,9 +5393,7 @@ interface MessageGroup {
                                                     } @else {
                                                         <div class="sp-link-list">
                                                             @for (link of sharedLinks(); track link.id) {
-                                                                <a class="sp-link-card" [@sharedItemEnter]
-                                                                   [href]="link.extractedUrl" target="_blank" rel="noopener noreferrer"
-                                                                   (click)="$event.stopPropagation()">
+                                                                <div class="sp-link-card" [@sharedItemEnter]>
                                                                     <div class="sp-link-globe">
                                                                         <mat-icon class="material-icons-outlined" style="font-size:18px;width:18px;height:18px">language</mat-icon>
                                                                     </div>
@@ -3624,8 +5408,29 @@ interface MessageGroup {
                                                                             <span class="sp-meta-date">{{ formatDateSep(link.createdAt) }}</span>
                                                                         </div>
                                                                     </div>
-                                                                    <mat-icon class="material-icons-outlined sp-link-arrow" style="font-size:14px;width:14px;height:14px">open_in_new</mat-icon>
-                                                                </a>
+                                                                    <div class="sp-link-actions">
+                                                                        <a [href]="link.extractedUrl" target="_blank" rel="noopener noreferrer"
+                                                                           class="sp-action-btn sp-open-link-btn"
+                                                                           matTooltip="Open link"
+                                                                           (click)="$event.stopPropagation()">
+                                                                            <mat-icon class="material-icons-outlined" style="font-size:18px;width:18px;height:18px">open_in_new</mat-icon>
+                                                                        </a>
+                                                                        <button class="sp-action-btn sp-more-btn" [matMenuTriggerFor]="linkMenu"
+                                                                                matTooltip="Options" (click)="$event.stopPropagation()">
+                                                                            <mat-icon style="font-size:18px;width:18px;height:18px">more_vert</mat-icon>
+                                                                        </button>
+                                                                        <mat-menu #linkMenu="matMenu" class="sp-options-menu">
+                                                                            <button mat-menu-item (click)="copyLinkUrl(link)">
+                                                                                <mat-icon>content_copy</mat-icon>
+                                                                                <span>Copy URL</span>
+                                                                            </button>
+                                                                            <button mat-menu-item (click)="viewLinkDetails(link)">
+                                                                                <mat-icon>info</mat-icon>
+                                                                                <span>View details</span>
+                                                                            </button>
+                                                                        </mat-menu>
+                                                                    </div>
+                                                                </div>
                                                             }
                                                         </div>
                                                     }
@@ -3678,202 +5483,441 @@ interface MessageGroup {
                                 <!-- Pinned panel overlay -->
                                 @if (pinnedPanelOpen()) {
                                     <div class="pinned-panel" [@pinnedPanelSlide] (click)="$event.stopPropagation()">
+                                        <!-- Header -->
                                         <div class="pinned-panel-header">
-                                            <div class="pinned-panel-title">
-                                                <span class="pp-icon">📌</span>
-                                                <span>Pinned Messages</span>
-                                                <span class="pp-count">{{ pinnedCount() }}</span>
+                                            <div class="pp-header-left">
+                                                <div class="pp-header-icon">
+                                                    <mat-icon style="font-size:16px;width:16px;height:16px;color:#d97706">push_pin</mat-icon>
+                                                </div>
+                                                <div>
+                                                    <div class="pp-header-title">Pinned Messages</div>
+                                                    <div class="pp-header-sub">{{ pinnedCount() }} pinned</div>
+                                                </div>
                                             </div>
-                                            <button class="pp-close-btn" (click)="pinnedPanelOpen.set(false)">
-                                                <mat-icon style="font-size:18px;width:18px;height:18px">close</mat-icon>
-                                            </button>
+                                            <div class="pp-header-actions">
+                                                <button class="pp-icon-btn" matTooltip="Open in dialog" (click)="openPinnedDialog()">
+                                                    <mat-icon style="font-size:17px;width:17px;height:17px">open_in_full</mat-icon>
+                                                </button>
+                                                <button class="pp-icon-btn" (click)="pinnedPanelOpen.set(false)">
+                                                    <mat-icon style="font-size:17px;width:17px;height:17px">close</mat-icon>
+                                                </button>
+                                            </div>
                                         </div>
+
+                                        <!-- Body -->
                                         <div class="pinned-panel-body">
                                             @if (pinnedMessages().length === 0) {
-                                                <p class="pp-empty">Nothing has been pinned yet.</p>
-                                            }
-                                            @for (pm of pinnedMessages(); track pm.id) {
-                                                <div class="pp-item" [@ppItemEnter]>
-                                                    <div class="pp-item-meta">
-                                                        <span class="pp-sender">{{ pm.senderName }}</span>
-                                                        <span class="pp-time">{{ formatMessageTime(pm.createdAt) }}</span>
-                                                    </div>
-                                                    @if (pm.contentText) {
-                                                        <div class="pp-content" [innerHTML]="pm.contentText"></div>
-                                                    }
-                                                    @if (pm.fileName) {
-                                                        <div class="pp-file">📎 {{ pm.fileName }}</div>
-                                                    }
-                                                    @if (pm.pinnedByName) {
-                                                        <div class="pp-pinned-by">Pinned by {{ pm.pinnedByName }}</div>
-                                                    }
-                                                    <button class="pp-unpin-btn" (click)="pinOrUnpin(pm)">Unpin</button>
+                                                <div class="pp-empty-state">
+                                                    <mat-icon class="pp-empty-icon material-icons-outlined">push_pin</mat-icon>
+                                                    <p class="pp-empty-title">No pinned messages</p>
+                                                    <p class="pp-empty-sub">Pin important messages to keep them here</p>
                                                 </div>
                                             }
-                                        </div>
-                                    </div>
-                                }
+                                            @for (pm of pinnedMessages(); track pm.id; let i = $index) {
+                                                <div class="pp-card" [@ppItemEnter] [style.animation-delay]="i * 40 + 'ms'">
+                                                    <!-- Card accent bar -->
+                                                    <div class="pp-card-accent"></div>
 
-                                <!-- Members panel overlay -->
-                                @if (membersPanelOpen() && canManageMembers) {
-                                    <div class="members-panel" [@sidebarSlide] (click)="$event.stopPropagation()">
-                                        <div class="members-panel-header">
-                                            <div class="members-panel-title">
-                                                <mat-icon class="material-icons-outlined"
-                                                          style="font-size:18px;width:18px;height:18px">group</mat-icon>
-                                                <span>Members</span>
-                                                @if (members().length > 0) {
-                                                    <span class="mp-count">{{ members().length }}</span>
-                                                }
-                                            </div>
-                                            <button class="pp-close-btn" (click)="membersPanelOpen.set(false)">
-                                                <mat-icon style="font-size:18px;width:18px;height:18px">close</mat-icon>
-                                            </button>
-                                        </div>
-
-                                        @if (membersError()) {
-                                            <div class="chat-error mx-3 mb-2 mt-2 px-2 py-1 small">
-                                                <mat-icon class="material-icons-outlined"
-                                                          style="font-size:14px;width:14px;height:14px">error_outline</mat-icon>
-                                                {{ membersError() }}
-                                            </div>
-                                        }
-
-                                        <!-- Add member form -->
-                                        @if (showAddMemberForm()) {
-                                            <div class="add-member-form mx-3 mb-3 mt-2" [@fadeSlide]>
-                                                <p class="small fw-semibold mb-2">
-                                                    Add a {{ allowedTargetRole }} to this channel
-                                                </p>
-                                                <mat-form-field appearance="outline" class="w-100 inline-small mb-2">
-                                                    <mat-label>Select user</mat-label>
-                                                    <mat-select [(ngModel)]="selectedUserId">
-                                                        @for (u of filteredUsers; track u.id) {
-                                                            <mat-option [value]="u.id">
-                                                                {{ u.fullName }} ({{ u.email }})
-                                                            </mat-option>
-                                                        }
-                                                        @if (filteredUsers.length === 0) {
-                                                            <mat-option [value]="null" disabled>No eligible users available</mat-option>
-                                                        }
-                                                    </mat-select>
-                                                </mat-form-field>
-                                                <div class="row gx-2">
-                                                    <div class="col">
-                                                        <button mat-flat-button color="primary" class="w-100 button-sm"
-                                                                [disabled]="!selectedUserId || addMemberLoading()"
-                                                                (click)="confirmAddMember()">
-                                                            {{ addMemberLoading() ? 'Adding…' : 'Confirm' }}
+                                                    <!-- Card header -->
+                                                    <div class="pp-card-header">
+                                                        <div class="pp-avatar">{{ pm.senderName?.charAt(0)?.toUpperCase() }}</div>
+                                                        <div class="pp-card-meta">
+                                                            <span class="pp-sender">{{ pm.senderName }}</span>
+                                                            <span class="pp-time">{{ formatMessageTime(pm.createdAt) }}</span>
+                                                        </div>
+                                                        <button class="pp-unpin-icon-btn" matTooltip="Unpin" (click)="pinOrUnpin(pm)">
+                                                            <mat-icon style="font-size:14px;width:14px;height:14px">push_pin</mat-icon>
                                                         </button>
                                                     </div>
-                                                    <div class="col-auto">
-                                                        <button matButton class="button-sm"
-                                                                (click)="cancelAddMemberForm()"
-                                                                [disabled]="addMemberLoading()">Cancel</button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        }
 
-                                        <!-- Add member button -->
-                                        @if (!showAddMemberForm()) {
-                                            <div class="px-3 mb-3 mt-2">
-                                                <button matButton color="primary" class="w-100 button-sm"
-                                                        (click)="openAddMemberForm()">
-                                                    <mat-icon class="material-icons-outlined align-middle me-1"
-                                                              style="font-size:16px;width:16px;height:16px">person_add</mat-icon>
-                                                    Add Member
+                                                    <!-- Content -->
+                                                    @if (pm.contentText) {
+                                                        <div class="pp-card-content" [innerHTML]="pm.contentText"></div>
+                                                    }
+                                                    @if (pm.fileName) {
+                                                        <div class="pp-card-file">
+                                                            <mat-icon style="font-size:13px;width:13px;height:13px">attach_file</mat-icon>
+                                                            <span>{{ pm.fileName }}</span>
+                                                        </div>
+                                                    }
+
+                                                    <!-- Footer -->
+                                                    @if (pm.pinnedByName) {
+                                                        <div class="pp-card-footer">
+                                                            <mat-icon style="font-size:10px;width:10px;height:10px">push_pin</mat-icon>
+                                                            Pinned by {{ pm.pinnedByName }}
+                                                        </div>
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+
+                                        <!-- Footer action -->
+                                        @if (pinnedMessages().length > 0) {
+                                            <div class="pp-panel-footer">
+                                                <button class="pp-expand-btn" (click)="openPinnedDialog()">
+                                                    <mat-icon style="font-size:15px;width:15px;height:15px">open_in_full</mat-icon>
+                                                    View all in full screen
                                                 </button>
                                             </div>
                                         }
+                                    </div>
+                                }
 
-                                        <mat-divider></mat-divider>
+                                <!-- Members panel overlay - Screenshot design -->
+                                @if (membersPanelOpen() && canManageMembers) {
+                                    <div class="sc-members-panel" [@sidebarSlide] (click)="$event.stopPropagation()">
 
-                                        <!-- Members list -->
-                                        <div class="members-panel-body">
-                                            @if (membersLoading()) {
-                                                <div class="text-center py-4">
-                                                    <mat-spinner diameter="24"></mat-spinner>
+                                        <!-- ── VIEW 1: Member list ──────────────────── -->
+                                        @if (!showAddMemberForm()) {
+                                            <!-- Header -->
+                                            <div class="sc-mp-header">
+                                                <div class="sc-mp-header-content">
+                                                    <mat-icon>group</mat-icon>
+                                                    <div>
+                                                        <h3>Members</h3>
+                                                        <p>{{ members().length }} member{{ members().length !== 1 ? 's' : '' }}</p>
+                                                    </div>
                                                 </div>
-                                            } @else if (members().length > 0) {
-                                                @for (member of members(); track member.id) {
-                                                    <div class="member-row px-3 py-2">
-                                                        <div class="member-avatar"
-                                                             [ngStyle]="getAvatarGradient(member.userFullName)">
-                                                            {{ getInitials(member.userFullName) }}
+                                                <button class="sc-mp-close" (click)="membersPanelOpen.set(false)">
+                                                    <mat-icon>close</mat-icon>
+                                                </button>
+                                            </div>
+
+                                            <!-- Search bar -->
+                                            <div class="sc-mp-search">
+                                                <div class="sc-mp-search-field">
+                                                    <mat-icon>search</mat-icon>
+                                                    <input type="text" placeholder="Search members..."
+                                                           [value]="memberSearchQuery()"
+                                                           (input)="memberSearchQuery.set($any($event.target).value)">
+                                                </div>
+                                                <button class="sc-mp-filter-btn" matIconButton>
+                                                    <mat-icon>tune</mat-icon>
+                                                </button>
+                                            </div>
+                                            <div class="sc-mp-divider"></div>
+
+                                            <!-- Members content -->
+                                            <div class="sc-mp-content">
+                                                @if (membersLoading()) {
+                                                    <div class="sc-mp-loading">
+                                                        <mat-spinner diameter="32"></mat-spinner>
+                                                    </div>
+                                                } @else {
+                                                    <!-- Channel Owner section -->
+                                                    @if (channelOwner()) {
+                                                        <div class="sc-mp-section">
+                                                            <div class="sc-mp-section-label">CHANNEL OWNER</div>
+                                                            <div class="sc-mp-owner-card">
+                                                                <div class="sc-mp-owner-avatar" [ngStyle]="getAvatarGradient(channelOwner()!.userFullName)">
+                                                                    {{ getInitials(channelOwner()!.userFullName) }}
+                                                                </div>
+                                                                <div class="sc-mp-owner-info">
+                                                                    <div class="sc-mp-owner-name">
+                                                                        {{ channelOwner()!.userFullName }}
+                                                                        @if (channelOwner()!.userId === currentUser?.id) {
+                                                                            <span class="sc-mp-you-badge">You</span>
+                                                                        }
+                                                                    </div>
+                                                                    <div class="sc-mp-owner-role">
+                                                                        <mat-icon style="font-size:12px;width:12px;height:12px;vertical-align:middle">workspace_premium</mat-icon>
+                                                                        Owner
+                                                                    </div>
+                                                                </div>
+                                                                <div class="sc-mp-online-dot"></div>
+                                                            </div>
                                                         </div>
-                                                        <div class="member-info">
-                                                            <p class="mb-0 fw-medium small">{{ member.userFullName }}</p>
-                                                            <p class="mb-0 text-secondary" style="font-size:11px">{{ member.userEmail }}</p>
+                                                    }
+
+                                                    <!-- Admins section -->
+                                                    @if (memberAdmins().length > 0) {
+                                                        <div class="sc-mp-section">
+                                                            <div class="sc-mp-section-label">ADMINS</div>
+                                                            <div class="sc-mp-members-list">
+                                                                @for (member of memberAdmins(); track member.id) {
+                                                                    <div class="sc-mp-member-item" [@memberCardEnter]>
+                                                                        <div class="sc-mp-member-avatar" [ngStyle]="getAvatarGradient(member.userFullName)">
+                                                                            {{ getInitials(member.userFullName) }}
+                                                                        </div>
+                                                                        <div class="sc-mp-member-info">
+                                                                            <div class="sc-mp-member-name">{{ member.userFullName }}</div>
+                                                                            <div class="sc-mp-member-role">{{ member.userRole }}</div>
+                                                                        </div>
+                                                                        <button class="sc-mp-menu-btn" matIconButton [matMenuTriggerFor]="memberContextMenu" (click)="selectedMemberForMenu.set(member)">
+                                                                            <mat-icon>more_horiz</mat-icon>
+                                                                        </button>
+                                                                    </div>
+                                                                }
+                                                            </div>
                                                         </div>
-                                                        <div class="member-meta ms-auto d-flex align-items-center gap-1">
-                                                            <span class="room-type-pill">{{ member.userRole }}</span>
-                                                            <button matIconButton color="warn"
-                                                                    matTooltip="Remove member"
-                                                                    style="width:28px;height:28px;line-height:28px"
-                                                                    (click)="removeMember(member)">
-                                                                <mat-icon class="material-icons-outlined"
-                                                                          style="font-size:15px;width:15px;height:15px">
-                                                                    person_remove
-                                                                </mat-icon>
+                                                    }
+
+                                                    <!-- Members section -->
+                                                    <div class="sc-mp-section">
+                                                        <div class="sc-mp-section-header">
+                                                            <div class="sc-mp-section-label">MEMBERS ({{ memberMembers().length }})</div>
+                                                            <button class="sc-mp-add-members-btn" (click)="openAddMemberForm()">
+                                                                <mat-icon>person_add_alt_1</mat-icon>
+                                                                <span>Add Members</span>
                                                             </button>
                                                         </div>
+                                                        @if (memberMembers().length > 0) {
+                                                            <div class="sc-mp-members-list">
+                                                                @for (member of memberMembers(); track member.id) {
+                                                                    <div class="sc-mp-member-item" [@memberCardEnter]>
+                                                                        <div class="sc-mp-member-avatar" [ngStyle]="getAvatarGradient(member.userFullName)">
+                                                                            {{ getInitials(member.userFullName) }}
+                                                                        </div>
+                                                                        <div class="sc-mp-member-info">
+                                                                            <div class="sc-mp-member-name">{{ member.userFullName }}</div>
+                                                                            <div class="sc-mp-member-role">{{ member.userRole }}</div>
+                                                                        </div>
+                                                                        <button class="sc-mp-menu-btn" matIconButton [matMenuTriggerFor]="memberContextMenu" (click)="selectedMemberForMenu.set(member)">
+                                                                            <mat-icon>more_horiz</mat-icon>
+                                                                        </button>
+                                                                    </div>
+                                                                }
+                                                            </div>
+                                                        }
                                                     </div>
                                                 }
-                                            } @else {
-                                                <p class="small text-secondary text-center py-4 mb-0">No members have been added yet.</p>
-                                            }
-                                        </div>
+                                            </div>
+                                        }
+
+                                        <!-- ── VIEW 2: Add Members flow ─────────────── -->
+                                        @if (showAddMemberForm()) {
+                                            <div class="sc-add-view" [@addViewEnter]>
+                                                <!-- Back header -->
+                                                <div class="sc-add-header">
+                                                    <button class="sc-add-back-btn" (click)="cancelAddMemberForm()">
+                                                        <mat-icon>arrow_back</mat-icon>
+                                                    </button>
+                                                    <span class="sc-add-title">Add Members</span>
+                                                    <span class="sc-add-role-badge">{{ allowedTargetRole }}</span>
+                                                </div>
+
+                                                <!-- Search -->
+                                                <div class="sc-add-search-wrap">
+                                                    <mat-icon>search</mat-icon>
+                                                    <input type="text" class="sc-add-search"
+                                                           placeholder="Search by name or email…"
+                                                           [value]="addMemberSearchQuery()"
+                                                           (input)="addMemberSearchQuery.set($any($event.target).value)"
+                                                           autocomplete="off">
+                                                </div>
+
+                                                <!-- Selected chips -->
+                                                @if (selectedUserIds().size > 0) {
+                                                    <div class="sc-add-chips" [@fadeSlide]>
+                                                        @for (uid of selectedUsersArray(); track uid.id) {
+                                                            <div class="sc-add-chip">
+                                                                <div class="sc-add-chip-avatar" [ngStyle]="getAvatarGradient(uid.fullName)">
+                                                                    {{ getInitials(uid.fullName) }}
+                                                                </div>
+                                                                <span>{{ uid.fullName.split(' ')[0] }}</span>
+                                                                <button (click)="toggleUserSelection(uid.id)">
+                                                                    <mat-icon>close</mat-icon>
+                                                                </button>
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                }
+
+                                                <div class="sc-mp-divider"></div>
+
+                                                <!-- Users list -->
+                                                <div class="sc-add-list">
+                                                    @if (addMemberUsersLoading()) {
+                                                        <div class="sc-add-skeleton-wrap">
+                                                            @for (i of [1,2,3,4,5]; track i) {
+                                                                <div class="sc-add-skeleton">
+                                                                    <div class="sc-add-sk-avatar"></div>
+                                                                    <div class="sc-add-sk-lines">
+                                                                        <div class="sc-add-sk-line sc-add-sk-line-name"></div>
+                                                                        <div class="sc-add-sk-line sc-add-sk-line-email"></div>
+                                                                    </div>
+                                                                </div>
+                                                            }
+                                                        </div>
+                                                    } @else if (addableMembersFiltered().length === 0) {
+                                                        <div class="sc-add-empty">
+                                                            <mat-icon class="material-icons-outlined">person_off</mat-icon>
+                                                            <p>No {{ allowedTargetRole | lowercase }}s available</p>
+                                                        </div>
+                                                    } @else {
+                                                        @for (u of addableMembersFiltered(); track u.id; let i = $index) {
+                                                            <div class="sc-add-user-row"
+                                                                 [class.sc-add-user-selected]="selectedUserIds().has(u.id)"
+                                                                 [class.sc-add-user-already]="existingMemberIds().has(u.id)"
+                                                                 [style.animation-delay]="i * 40 + 'ms'"
+                                                                 [@memberCardEnter]
+                                                                 (click)="existingMemberIds().has(u.id) ? null : toggleUserSelection(u.id)">
+                                                                <div class="sc-add-user-avatar" [ngStyle]="getAvatarGradient(u.fullName)">
+                                                                    {{ getInitials(u.fullName) }}
+                                                                </div>
+                                                                <div class="sc-add-user-info">
+                                                                    <div class="sc-add-user-name">{{ u.fullName }}</div>
+                                                                    <div class="sc-add-user-email">{{ u.email }}</div>
+                                                                </div>
+                                                                <div class="sc-add-user-check">
+                                                                    @if (existingMemberIds().has(u.id)) {
+                                                                        <span class="sc-already-badge">In room</span>
+                                                                    } @else if (selectedUserIds().has(u.id)) {
+                                                                        <mat-icon class="sc-check-icon">check_circle</mat-icon>
+                                                                    } @else {
+                                                                        <mat-icon class="sc-add-icon">add_circle_outline</mat-icon>
+                                                                    }
+                                                                </div>
+                                                            </div>
+                                                        }
+                                                    }
+                                                </div>
+
+                                                <!-- Confirm button -->
+                                                <div class="sc-add-footer">
+                                                    <button class="sc-add-confirm-btn"
+                                                            [class.sc-add-confirm-loading]="addMemberLoading()"
+                                                            [disabled]="selectedUserIds().size === 0 || addMemberLoading()"
+                                                            (click)="confirmAddMember()">
+                                                        @if (addMemberLoading()) {
+                                                            <mat-spinner diameter="18" style="margin-right:8px"></mat-spinner>
+                                                            <span>Adding…</span>
+                                                        } @else {
+                                                            <mat-icon>person_add_alt_1</mat-icon>
+                                                            <span>Add {{ selectedUserIds().size > 0 ? selectedUserIds().size : '' }} member{{ selectedUserIds().size !== 1 ? 's' : '' }}</span>
+                                                        }
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        }
+
                                     </div>
+
+                                    <!-- Member context menu -->
+                                    <mat-menu #memberContextMenu="matMenu">
+                                        @if (selectedMemberForMenu()) {
+                                            <button mat-menu-item (click)="removeMember(selectedMemberForMenu()!)">
+                                                <mat-icon>person_remove</mat-icon>
+                                                <span>Remove</span>
+                                            </button>
+                                        }
+                                    </mat-menu>
                                 }
 
                                 <!-- Scheduled messages side panel -->
                                 @if (scheduledPanelOpen() && canManageMembers) {
-                                    <div class="members-panel sched-panel" [@scheduledPanelSlide] (click)="$event.stopPropagation()">
-                                        <div class="members-panel-header">
-                                            <div class="members-panel-title">
-                                                <mat-icon class="material-icons-outlined" style="font-size:18px;width:18px;height:18px">schedule_send</mat-icon>
-                                                <span>Scheduled Messages</span>
-                                                @if (scheduledMessages().length > 0) {
-                                                    <span class="mp-count">{{ scheduledMessages().length }}</span>
-                                                }
+                                    <div class="sp-panel" [@scheduledPanelSlide] (click)="$event.stopPropagation()">
+
+                                        <!-- Animated top bar -->
+                                        <div class="sp-shimmer-bar"></div>
+
+                                        <!-- Header -->
+                                        <div class="sp-header">
+                                            <div class="sp-header-left">
+                                                <div class="sp-header-icon">
+                                                    <mat-icon class="material-icons-outlined">schedule_send</mat-icon>
+                                                </div>
+                                                <div>
+                                                    <h3 class="sp-title">Scheduled</h3>
+                                                    <p class="sp-subtitle">
+                                                        @if (scheduledMessages().length > 0) {
+                                                            {{ scheduledMessages().length }} pending message{{ scheduledMessages().length !== 1 ? 's' : '' }}
+                                                        } @else {
+                                                            No pending messages
+                                                        }
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <button class="pp-close-btn" (click)="scheduledPanelOpen.set(false)">
-                                                <mat-icon style="font-size:18px;width:18px;height:18px">close</mat-icon>
+                                            <button class="sp-close-btn" (click)="scheduledPanelOpen.set(false)">
+                                                <mat-icon>close</mat-icon>
                                             </button>
                                         </div>
 
-                                        <div class="pinned-panel-body" style="overflow-y:auto;flex:1">
+                                        <div class="sp-divider"></div>
+
+                                        <!-- Body -->
+                                        <div class="sp-body">
                                             @if (scheduledLoading()) {
-                                                <div class="d-flex justify-content-center py-4">
-                                                    <mat-spinner diameter="28"></mat-spinner>
+                                                <!-- Skeleton cards -->
+                                                <div class="sp-skeleton-wrap">
+                                                    @for (i of [1,2,3]; track i) {
+                                                        <div class="sp-skeleton-card">
+                                                            <div class="sp-sk-line sp-sk-line-long"></div>
+                                                            <div class="sp-sk-line sp-sk-line-short"></div>
+                                                            <div class="sp-sk-row">
+                                                                <div class="sp-sk-pill"></div>
+                                                                <div class="sp-sk-pill sp-sk-pill-sm"></div>
+                                                            </div>
+                                                        </div>
+                                                    }
                                                 </div>
                                             } @else if (scheduledError()) {
-                                                <p class="pp-empty" style="color:var(--mat-sys-error)">{{ scheduledError() }}</p>
+                                                <div class="sp-error-state">
+                                                    <mat-icon class="material-icons-outlined">error_outline</mat-icon>
+                                                    <p>{{ scheduledError() }}</p>
+                                                </div>
                                             } @else if (scheduledMessages().length === 0) {
-                                                <div class="sched-empty">
-                                                    <mat-icon class="sched-empty-icon material-icons-outlined">schedule_send</mat-icon>
-                                                    <p>No scheduled messages yet</p>
+                                                <div class="sp-empty-state" [@fadeScale]>
+                                                    <div class="sp-empty-icon-wrap">
+                                                        <mat-icon class="material-icons-outlined">schedule_send</mat-icon>
+                                                    </div>
+                                                    <p class="sp-empty-title">Nothing scheduled yet</p>
+                                                    <p class="sp-empty-sub">Use the <mat-icon style="font-size:13px;width:13px;height:13px;vertical-align:middle">schedule</mat-icon> button in the message bar to schedule a message.</p>
                                                 </div>
                                             } @else {
-                                                @for (item of scheduledMessages(); track item.id; let i = $index) {
-                                                    <div class="sched-item" [style.animation-delay]="i * 55 + 'ms'" [@schedItemLeave]>
-                                                        <div class="sched-item-preview">{{ item.content | slice:0:60 }}{{ item.content.length > 60 ? '…' : '' }}</div>
-                                                        <div class="sched-item-meta">
-                                                            <span class="sched-date">{{ formatScheduledDate(item.nextSendAt || item.scheduledAt) }}</span>
-                                                            <span class="sched-chip" [style.background]="getRecurrenceChipStyle(item.recurrenceType)">{{ item.recurrenceType }}</span>
+                                                <div class="sp-list">
+                                                    @for (item of scheduledMessages(); track item.id; let i = $index) {
+                                                        <div class="sp-card" [style.animation-delay]="i * 60 + 'ms'" [@memberCardEnter] [@schedItemLeave] (click)="openScheduledDetailsDialog(item)" style="cursor:pointer">
+
+                                                            <!-- Recurrence dot -->
+                                                            <div class="sp-card-dot" [style.background]="getRecurrenceChipStyle(item.recurrenceType)"></div>
+
+                                                            <!-- Preview -->
+                                                            <div class="sp-card-preview">{{ item.content | slice:0:80 }}{{ item.content.length > 80 ? '…' : '' }}</div>
+
+                                                            <!-- Meta row -->
+                                                            <div class="sp-card-meta">
+                                                                <mat-icon class="material-icons-outlined sp-meta-icon">event</mat-icon>
+                                                                <span class="sp-card-date">{{ formatScheduledDate(item.nextSendAt || item.scheduledAt) }}</span>
+                                                                <span class="sp-recurrence-chip" [style.background]="getRecurrenceChipStyle(item.recurrenceType)">{{ item.recurrenceType }}</span>
+                                                            </div>
+
+                                                            <!-- Countdown -->
+                                                            <div class="sp-card-countdown">
+                                                                <mat-icon class="material-icons-outlined" style="font-size:12px;width:12px;height:12px">timer</mat-icon>
+                                                                {{ getScheduledCountdown(item.nextSendAt || item.scheduledAt) }}
+                                                            </div>
+
+                                                            <!-- Actions (hover) -->
+                                                            <div class="sp-card-actions">
+                                                                <button class="sp-action-btn sp-action-view" matTooltip="View details" [matMenuTriggerFor]="schedMenu"
+                                                                        (click)="$event.stopPropagation()">
+                                                                    <mat-icon>more_vert</mat-icon>
+                                                                </button>
+                                                                <button class="sp-action-btn sp-action-cancel" matTooltip="Cancel" (click)="confirmCancelScheduled(item)">
+                                                                    <mat-icon>cancel_schedule_send</mat-icon>
+                                                                    <span>Cancel</span>
+                                                                </button>
+                                                                <mat-menu #schedMenu="matMenu" class="sp-sched-menu">
+                                                                    <button mat-menu-item (click)="viewScheduledDetails(item)">
+                                                                        <mat-icon>info</mat-icon>
+                                                                        <span>View details</span>
+                                                                    </button>
+                                                                    <button mat-menu-item (click)="copyScheduledContent(item)">
+                                                                        <mat-icon>content_copy</mat-icon>
+                                                                        <span>Copy message</span>
+                                                                    </button>
+                                                                    <mat-divider></mat-divider>
+                                                                    <button mat-menu-item (click)="duplicateScheduled(item)">
+                                                                        <mat-icon>content_duplicate</mat-icon>
+                                                                        <span>Duplicate</span>
+                                                                    </button>
+                                                                </mat-menu>
+                                                            </div>
                                                         </div>
-                                                        <div class="sched-item-countdown">{{ getScheduledCountdown(item.nextSendAt || item.scheduledAt) }}</div>
-                                                        <div class="sched-item-actions">
-                                                            <button class="hover-action-btn" matTooltip="Edit" (click)="editScheduled(item)">
-                                                                <mat-icon style="font-size:16px;width:16px;height:16px">edit</mat-icon>
-                                                            </button>
-                                                            <button class="hover-action-btn" matTooltip="Cancel" (click)="confirmCancelScheduled(item)">
-                                                                <mat-icon style="font-size:16px;width:16px;height:16px;color:var(--mat-sys-error)">cancel_schedule_send</mat-icon>
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                }
+                                                    }
+                                                </div>
                                             }
                                         </div>
                                     </div>
@@ -3979,368 +6023,246 @@ interface MessageGroup {
 
                                 <!-- ── Moderation Center Panel ── -->
                                 @if (moderationPanelOpen() && canManageMembers) {
-                                    <div class="members-panel mod-panel" [@moderationPanelSlide] (click)="$event.stopPropagation()">
+                                    <div class="mc-panel" [@moderationPanelSlide] (click)="$event.stopPropagation()">
 
-                                        <!-- Shimmer gradient bar -->
-                                        <div class="mod-shimmer-bar"></div>
+                                        <!-- Animated top bar -->
+                                        <div class="mc-shimmer-bar"></div>
 
                                         <!-- Header -->
-                                        <div class="mod-panel-header">
-                                            <div class="mod-header-left">
-                                                <div class="mod-header-icon-wrap">
-                                                    <mat-icon style="font-size:18px;width:18px;height:18px;color:#ef4444">shield</mat-icon>
+                                        <div class="mc-header">
+                                            <div class="mc-header-left">
+                                                <div class="mc-header-icon">
+                                                    <mat-icon>shield</mat-icon>
                                                 </div>
                                                 <div>
-                                                    <div class="mod-header-title-row">
-                                                        <span class="mod-header-title">Moderation Center</span>
+                                                    <div class="mc-title-row">
+                                                        <h3 class="mc-title">Moderation</h3>
                                                         @if (pendingReportCount() > 0) {
-                                                            <span class="mod-header-badge">{{ pendingReportCount() }}</span>
+                                                            <span class="mc-alert-badge">{{ pendingReportCount() }}</span>
                                                         }
                                                     </div>
-                                                    <div class="mod-header-stats">
-                                                        {{ pendingReportCount() }} pending · {{ moderationHistory().length }} in history
-                                                    </div>
+                                                    <p class="mc-subtitle">{{ pendingReportCount() }} pending · {{ moderationHistory().length }} resolved</p>
                                                 </div>
                                             </div>
-                                            <button class="pp-close-btn" (click)="moderationPanelOpen.set(false)">
-                                                <mat-icon style="font-size:18px;width:18px;height:18px">close</mat-icon>
-                                            </button>
-                                        </div>
-
-                                        <mat-divider></mat-divider>
-
-                                        <!-- Pill tabs -->
-                                        <div class="mod-pill-tabs-row">
-                                            <div class="mod-pill-tabs">
-                                                <button class="mod-pill-tab" [class.mod-pill-active]="moderationTab() === 'pending'"
-                                                        (click)="moderationTab.set('pending'); loadModerationReports()">
-                                                    Pending
-                                                    <span class="mod-pill-count" [class.mod-pill-count-zero]="pendingReportCount() === 0">{{ pendingReportCount() }}</span>
+                                            <div class="mc-header-actions">
+                                                <button class="mc-icon-btn" matTooltip="Refresh" (click)="refreshModeration()">
+                                                    <mat-icon class="mod-refresh-icon" [class.mod-refresh-spinning]="refreshSpinning()">refresh</mat-icon>
                                                 </button>
-                                                <button class="mod-pill-tab" [class.mod-pill-active]="moderationTab() === 'history'"
-                                                        (click)="moderationTab.set('history'); loadModerationHistory()">
-                                                    History
+                                                <button class="mc-icon-btn" (click)="moderationPanelOpen.set(false)">
+                                                    <mat-icon>close</mat-icon>
                                                 </button>
                                             </div>
+                                        </div>
+
+                                        <!-- Tabs -->
+                                        <div class="mc-tabs">
+                                            <button class="mc-tab" [class.mc-tab-active]="moderationTab() === 'pending'"
+                                                    (click)="moderationTab.set('pending'); loadModerationReports()">
+                                                <mat-icon class="material-icons-outlined">pending_actions</mat-icon>
+                                                Pending
+                                                @if (pendingReportCount() > 0) {
+                                                    <span class="mc-tab-badge">{{ pendingReportCount() }}</span>
+                                                }
+                                            </button>
+                                            <button class="mc-tab" [class.mc-tab-active]="moderationTab() === 'history'"
+                                                    (click)="moderationTab.set('history'); loadModerationHistory()">
+                                                <mat-icon class="material-icons-outlined">history</mat-icon>
+                                                History
+                                            </button>
                                         </div>
 
                                         <!-- Body -->
-                                        <div class="mod-panel-body">
+                                        <div class="mc-body">
                                             @if (moderationLoading()) {
-                                                <div class="d-flex justify-content-center py-4">
-                                                    <mat-spinner diameter="32"></mat-spinner>
+                                                <div class="mc-skeleton-wrap">
+                                                    @for (i of [1,2]; track i) {
+                                                        <div class="mc-skeleton-card">
+                                                            <div class="mc-sk-row">
+                                                                <div class="mc-sk-pill"></div>
+                                                                <div class="mc-sk-pill mc-sk-sm"></div>
+                                                            </div>
+                                                            <div class="mc-sk-line mc-sk-long"></div>
+                                                            <div class="mc-sk-line mc-sk-medium"></div>
+                                                            <div class="mc-sk-line mc-sk-short"></div>
+                                                        </div>
+                                                    }
                                                 </div>
                                             } @else if (moderationError()) {
-                                                <div class="mod-error-state">
-                                                    <mat-icon style="font-size:20px;width:20px;height:20px;color:var(--mat-sys-error)">error_outline</mat-icon>
-                                                    <span>{{ moderationError() }}</span>
+                                                <div class="mc-error-state">
+                                                    <mat-icon class="material-icons-outlined">error_outline</mat-icon>
+                                                    <p>{{ moderationError() }}</p>
                                                 </div>
                                             } @else if (moderationTab() === 'pending') {
                                                 @if (moderationReports().length === 0) {
-                                                    <!-- Empty state -->
-                                                    <div class="mod-empty-state">
-                                                        <div class="mod-empty-shield-wrap">
-                                                            <mat-icon class="material-icons-outlined mod-empty-shield-icon">shield</mat-icon>
+                                                    <div class="mc-empty-state" [@fadeScale]>
+                                                        <div class="mc-empty-icon-wrap">
+                                                            <mat-icon class="material-icons-outlined">verified_user</mat-icon>
                                                         </div>
-                                                        <div class="mod-empty-title">No pending reports</div>
-                                                        <div class="mod-empty-sub">Your community is safe 🎉</div>
+                                                        <p class="mc-empty-title">All clear!</p>
+                                                        <p class="mc-empty-sub">No pending reports. Your community is safe 🎉</p>
                                                     </div>
                                                 } @else {
-                                                    @for (report of moderationReports(); track report.id; let i = $index) {
-                                                        <div class="mod-report-card mod-card-cat-{{ report.category.toLowerCase() }}"
-                                                             [style.animation-delay]="i * 80 + 'ms'"
-                                                             [@reportCardEnter]>
-                                                            <!-- Top row -->
-                                                            <div class="mod-card-top">
-                                                                <span class="mod-category-badge mod-cat-{{ report.category.toLowerCase() }}">{{ report.category.replace('_', ' ') }}</span>
-                                                                <span class="mod-status-dot"></span>
-                                                                <span class="mod-timestamp">{{ formatMessageTime(report.createdAt) }}</span>
-                                                            </div>
-                                                            <!-- Room -->
-                                                            <div class="mod-room-name" (click)="viewReportInChat(report)" style="cursor:pointer">
-                                                                <mat-icon style="font-size:13px;width:13px;height:13px;vertical-align:middle;margin-right:3px">chat_bubble_outline</mat-icon>
-                                                                #{{ report.roomName }}
-                                                            </div>
-                                                            <!-- Quoted message -->
-                                                            <div class="mod-quote mod-quote-cat-{{ report.category.toLowerCase() }}">
-                                                                <span class="mod-quote-author">{{ report.senderName }}</span>
-                                                                <span class="mod-quote-text">
-                                                                    {{ stripHtmlMod(report.messageContent) | slice:0:(expandedQuoteIds().has(report.id) ? 9999 : 160) }}
-                                                                    @if (!expandedQuoteIds().has(report.id) && (report.messageContent?.length ?? 0) > 160) {
-                                                                        <button class="mod-show-more-btn" (click)="toggleExpandQuote(report.id)">Show more</button>
-                                                                    }
-                                                                    @if (expandedQuoteIds().has(report.id)) {
-                                                                        <button class="mod-show-more-btn" (click)="toggleExpandQuote(report.id)">Show less</button>
-                                                                    }
-                                                                </span>
-                                                            </div>
-                                                            <!-- Reporter row -->
-                                                            <div class="mod-reporter-row">
-                                                                <mat-icon style="font-size:12px;width:12px;height:12px;opacity:0.55">{{ report.anonymous ? 'visibility_off' : 'flag' }}</mat-icon>
-                                                                <span class="mod-reporter-name">
+                                                    <div class="mc-cards-list">
+                                                        @for (report of moderationReports(); track report.id; let i = $index) {
+                                                            <div class="mc-report-card mc-cat-{{ report.category.toLowerCase() }}"
+                                                                 [style.animation-delay]="i * 70 + 'ms'" [@reportCardEnter]
+                                                                 (click)="viewReportDetails(report)"
+                                                                 style="cursor: pointer;">
+
+                                                                <!-- Card header row -->
+                                                                <div class="mc-card-header">
+                                                                    <span class="mc-category-badge mc-cat-badge-{{ report.category.toLowerCase() }}">
+                                                                        {{ report.category.replace('_', ' ') }}
+                                                                    </span>
+                                                                    <span class="mc-live-dot"></span>
+                                                                    <span class="mc-timestamp">{{ formatMessageTime(report.createdAt) }}</span>
+                                                                </div>
+
+                                                                <!-- Room link -->
+                                                                <button class="mc-room-link" (click)="viewReportInChat(report)">
+                                                                    <mat-icon>tag</mat-icon>
+                                                                    {{ report.roomName }}
+                                                                    <mat-icon class="mc-room-arrow">arrow_forward</mat-icon>
+                                                                </button>
+
+                                                                <!-- Quoted message -->
+                                                                <div class="mc-quote mc-quote-{{ report.category.toLowerCase() }}">
+                                                                    <div class="mc-quote-author">
+                                                                        <mat-icon style="font-size:11px;width:11px;height:11px">account_circle</mat-icon>
+                                                                        {{ report.senderName }}
+                                                                    </div>
+                                                                    <p class="mc-quote-text">
+                                                                        {{ stripHtmlMod(report.messageContent) | slice:0:(expandedQuoteIds().has(report.id) ? 9999 : 120) }}
+                                                                        @if (!expandedQuoteIds().has(report.id) && (report.messageContent?.length ?? 0) > 120) {
+                                                                            <button class="mc-show-more" (click)="toggleExpandQuote(report.id)">more</button>
+                                                                        }
+                                                                        @if (expandedQuoteIds().has(report.id)) {
+                                                                            <button class="mc-show-more" (click)="toggleExpandQuote(report.id)">less</button>
+                                                                        }
+                                                                    </p>
+                                                                </div>
+
+                                                                <!-- Reporter -->
+                                                                <div class="mc-reporter">
+                                                                    <mat-icon style="font-size:11px;width:11px;height:11px">{{ report.anonymous ? 'visibility_off' : 'flag' }}</mat-icon>
                                                                     @if (report.anonymous) {
                                                                         <em>Reported anonymously</em>
                                                                     } @else {
-                                                                        Reported by {{ report.reporterName }}
+                                                                        Reported by <strong>{{ report.reporterName }}</strong>
                                                                     }
-                                                                </span>
-                                                            </div>
-                                                            <!-- AI suggestion -->
-                                                            @if (report.aiSuggestion && report.aiSuggestion !== 'NONE') {
-                                                                <div class="mod-ai-badge">
-                                                                    <mat-icon style="font-size:12px;width:12px;height:12px">auto_awesome</mat-icon>
-                                                                    AI suggests: {{ report.aiSuggestion }}
                                                                 </div>
-                                                            }
-                                                            <!-- Actions -->
-                                                            <div class="mod-card-actions">
-                                                                <button mat-stroked-button class="mod-view-btn" (click)="viewReportInChat(report)">
-                                                                    <mat-icon style="font-size:13px;width:13px;height:13px">open_in_new</mat-icon>
-                                                                    View in Chat
-                                                                </button>
-                                                                <button mat-flat-button color="warn" class="mod-action-btn" [matMenuTriggerFor]="actionMenu">
-                                                                    <mat-icon style="font-size:13px;width:13px;height:13px">gavel</mat-icon>
-                                                                    Take Action
-                                                                    <mat-icon style="font-size:13px;width:13px;height:13px">expand_more</mat-icon>
-                                                                </button>
-                                                                <mat-menu #actionMenu="matMenu" class="mod-action-menu">
-                                                                    <button mat-menu-item (click)="confirmModAction(report, 'WARN', 'Send a warning notification to this user')">
-                                                                        <mat-icon>notifications_active</mat-icon>
-                                                                        <span class="mod-menu-item-wrap">
-                                                                            <span>Warn User</span>
-                                                                            <span class="mod-menu-sub">Send a warning notification</span>
-                                                                        </span>
+
+                                                                <!-- AI suggestion -->
+                                                                @if (report.aiSuggestion && report.aiSuggestion !== 'NONE') {
+                                                                    <div class="mc-ai-chip">
+                                                                        <mat-icon style="font-size:12px;width:12px;height:12px">auto_awesome</mat-icon>
+                                                                        AI: {{ report.aiSuggestion }}
+                                                                    </div>
+                                                                }
+
+                                                                <!-- Actions -->
+                                                                <div class="mc-card-actions">
+                                                                    <button class="mc-btn-ghost" (click)="viewReportInChat(report)">
+                                                                        <mat-icon>open_in_new</mat-icon>
+                                                                        View
                                                                     </button>
-                                                                    <button mat-menu-item (click)="confirmModAction(report, 'MUTE_1H', 'Mute user for 1 hour in this room')">
-                                                                        <mat-icon>volume_off</mat-icon>
-                                                                        <span class="mod-menu-item-wrap">
-                                                                            <span>Mute 1 hour</span>
-                                                                            <span class="mod-menu-sub">Temporarily silence this user</span>
-                                                                        </span>
+                                                                    <button class="mc-btn-danger" [matMenuTriggerFor]="actionMenu">
+                                                                        <mat-icon>gavel</mat-icon>
+                                                                        Take Action
+                                                                        <mat-icon>expand_more</mat-icon>
                                                                     </button>
-                                                                    <button mat-menu-item (click)="confirmModAction(report, 'MUTE_24H', 'Mute user for 24 hours in this room')">
-                                                                        <mat-icon>volume_off</mat-icon>
-                                                                        <span class="mod-menu-item-wrap">
-                                                                            <span>Mute 24 hours</span>
-                                                                            <span class="mod-menu-sub">Full day silence</span>
-                                                                        </span>
-                                                                    </button>
-                                                                    <button mat-menu-item (click)="confirmModAction(report, 'MUTE_7D', 'Mute user for 7 days in this room')">
-                                                                        <mat-icon>volume_off</mat-icon>
-                                                                        <span class="mod-menu-item-wrap">
-                                                                            <span>Mute 7 days</span>
-                                                                            <span class="mod-menu-sub">Extended silence</span>
-                                                                        </span>
-                                                                    </button>
-                                                                    <button mat-menu-item (click)="confirmModAction(report, 'REMOVE_FROM_ROOM', 'Remove this user from the chatroom')">
-                                                                        <mat-icon>exit_to_app</mat-icon>
-                                                                        <span class="mod-menu-item-wrap">
-                                                                            <span>Remove from Room</span>
-                                                                            <span class="mod-menu-sub">Remove access to this chatroom</span>
-                                                                        </span>
-                                                                    </button>
-                                                                    <button mat-menu-item (click)="confirmModAction(report, 'DELETE_MESSAGE', 'Permanently delete the reported message')">
-                                                                        <mat-icon>delete_forever</mat-icon>
-                                                                        <span class="mod-menu-item-wrap">
-                                                                            <span>Delete Message</span>
-                                                                            <span class="mod-menu-sub">Remove the reported message</span>
-                                                                        </span>
-                                                                    </button>
-                                                                    @if (currentUser?.role === 'MANAGER') {
-                                                                        <button mat-menu-item class="mod-ban-item" (click)="confirmModAction(report, 'BAN', 'Permanently ban this user from the platform')">
-                                                                            <mat-icon>block</mat-icon>
-                                                                            <span class="mod-menu-item-wrap">
-                                                                                <span>Ban User</span>
-                                                                                <span class="mod-menu-sub">Permanently disable account</span>
-                                                                            </span>
+                                                                    <mat-menu #actionMenu="matMenu" class="mod-action-menu">
+                                                                        <button mat-menu-item (click)="confirmModAction(report,'WARN','Send a warning notification to this user')">
+                                                                            <mat-icon>notifications_active</mat-icon>
+                                                                            <span class="mod-menu-item-wrap"><span>Warn User</span><span class="mod-menu-sub">Send a warning notification</span></span>
                                                                         </button>
-                                                                    }
-                                                                    <mat-divider></mat-divider>
-                                                                    <button mat-menu-item (click)="confirmModAction(report, 'DISMISS', 'Dismiss this report — no action needed')">
-                                                                        <mat-icon>check_circle</mat-icon>
-                                                                        <span class="mod-menu-item-wrap">
-                                                                            <span>Dismiss</span>
-                                                                            <span class="mod-menu-sub">No action needed</span>
-                                                                        </span>
-                                                                    </button>
-                                                                </mat-menu>
+                                                                        <button mat-menu-item (click)="confirmModAction(report,'MUTE_1H','Mute user for 1 hour in this room')">
+                                                                            <mat-icon>volume_off</mat-icon>
+                                                                            <span class="mod-menu-item-wrap"><span>Mute 1 hour</span><span class="mod-menu-sub">Temporarily silence this user</span></span>
+                                                                        </button>
+                                                                        <button mat-menu-item (click)="confirmModAction(report,'MUTE_24H','Mute user for 24 hours in this room')">
+                                                                            <mat-icon>volume_off</mat-icon>
+                                                                            <span class="mod-menu-item-wrap"><span>Mute 24 hours</span><span class="mod-menu-sub">Full day silence</span></span>
+                                                                        </button>
+                                                                        <button mat-menu-item (click)="confirmModAction(report,'MUTE_7D','Mute user for 7 days in this room')">
+                                                                            <mat-icon>volume_off</mat-icon>
+                                                                            <span class="mod-menu-item-wrap"><span>Mute 7 days</span><span class="mod-menu-sub">Extended silence</span></span>
+                                                                        </button>
+                                                                        <button mat-menu-item (click)="confirmModAction(report,'REMOVE_FROM_ROOM','Remove this user from the chatroom')">
+                                                                            <mat-icon>exit_to_app</mat-icon>
+                                                                            <span class="mod-menu-item-wrap"><span>Remove from Room</span><span class="mod-menu-sub">Remove access to this chatroom</span></span>
+                                                                        </button>
+                                                                        <button mat-menu-item (click)="confirmModAction(report,'DELETE_MESSAGE','Permanently delete the reported message')">
+                                                                            <mat-icon>delete_forever</mat-icon>
+                                                                            <span class="mod-menu-item-wrap"><span>Delete Message</span><span class="mod-menu-sub">Remove the reported message</span></span>
+                                                                        </button>
+                                                                        @if (currentUser?.role === 'MANAGER') {
+                                                                            <button mat-menu-item class="mod-ban-item" (click)="confirmModAction(report,'BAN','Permanently ban this user from the platform')">
+                                                                                <mat-icon>block</mat-icon>
+                                                                                <span class="mod-menu-item-wrap"><span>Ban User</span><span class="mod-menu-sub">Permanently disable account</span></span>
+                                                                            </button>
+                                                                        }
+                                                                        <mat-divider></mat-divider>
+                                                                        <button mat-menu-item (click)="confirmModAction(report,'DISMISS','Dismiss this report — no action needed')">
+                                                                            <mat-icon>check_circle</mat-icon>
+                                                                            <span class="mod-menu-item-wrap"><span>Dismiss</span><span class="mod-menu-sub">No action needed</span></span>
+                                                                        </button>
+                                                                    </mat-menu>
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    }
+                                                        }
+                                                    </div>
                                                 }
                                             } @else {
                                                 <!-- History tab -->
-                                                <div class="mod-filter-chips-row">
-                                                    <button class="mod-filter-chip" [class.mod-filter-chip-active]="historyFilter() === 'all'" (click)="historyFilter.set('all')">All</button>
-                                                    <button class="mod-filter-chip" [class.mod-filter-chip-active]="historyFilter() === 'resolved'" (click)="historyFilter.set('resolved')">Resolved</button>
-                                                    <button class="mod-filter-chip" [class.mod-filter-chip-active]="historyFilter() === 'dismissed'" (click)="historyFilter.set('dismissed')">Dismissed</button>
+                                                <div class="mc-filter-row">
+                                                    <button class="mc-filter-chip" [class.mc-filter-active]="historyFilter() === 'all'" (click)="historyFilter.set('all')">All</button>
+                                                    <button class="mc-filter-chip" [class.mc-filter-active]="historyFilter() === 'resolved'" (click)="historyFilter.set('resolved')">Resolved</button>
+                                                    <button class="mc-filter-chip" [class.mc-filter-active]="historyFilter() === 'dismissed'" (click)="historyFilter.set('dismissed')">Dismissed</button>
                                                 </div>
                                                 @if (filteredHistory().length === 0) {
-                                                    <p class="pp-empty">No {{ historyFilter() === 'all' ? 'resolved' : historyFilter() }} reports yet.</p>
-                                                } @else {
-                                                    @for (report of filteredHistory(); track report.id; let i = $index) {
-                                                        <div class="mod-report-card mod-card-resolved mod-card-cat-{{ report.category.toLowerCase() }}"
-                                                             [style.animation-delay]="i * 50 + 'ms'" [@reportCardEnter]>
-                                                            <div class="mod-card-top">
-                                                                <span class="mod-category-badge mod-cat-{{ report.category.toLowerCase() }}">{{ report.category.replace('_', ' ') }}</span>
-                                                                <span class="mod-status-badge" [class.mod-status-resolved]="report.status === 'RESOLVED'" [class.mod-status-dismissed]="report.status === 'DISMISSED'">{{ report.status }}</span>
-                                                                <span class="mod-timestamp">{{ formatMessageTime(report.createdAt) }}</span>
-                                                            </div>
-                                                            <div class="mod-room-name">
-                                                                <mat-icon style="font-size:13px;width:13px;height:13px;vertical-align:middle;margin-right:3px">chat_bubble_outline</mat-icon>
-                                                                #{{ report.roomName }}
-                                                            </div>
-                                                            <div class="mod-quote mod-quote-cat-{{ report.category.toLowerCase() }}">
-                                                                <span class="mod-quote-author">{{ report.senderName }}</span>
-                                                                <span class="mod-quote-text">{{ stripHtmlMod(report.messageContent) | slice:0:80 }}{{ (report.messageContent?.length ?? 0) > 80 ? '…' : '' }}</span>
-                                                            </div>
-                                                            @if (report.actionTaken) {
-                                                                <div class="mod-action-taken">
-                                                                    <mat-icon style="font-size:11px;width:11px;height:11px">check</mat-icon>
-                                                                    Action: {{ report.actionTaken }}
-                                                                </div>
-                                                            }
+                                                    <div class="mc-empty-state" [@fadeScale]>
+                                                        <div class="mc-empty-icon-wrap">
+                                                            <mat-icon class="material-icons-outlined">history</mat-icon>
                                                         </div>
-                                                    }
+                                                        <p class="mc-empty-title">No history yet</p>
+                                                        <p class="mc-empty-sub">Resolved reports will appear here</p>
+                                                    </div>
+                                                } @else {
+                                                    <div class="mc-cards-list">
+                                                        @for (report of filteredHistory(); track report.id; let i = $index) {
+                                                            <div class="mc-report-card mc-card-resolved mc-cat-{{ report.category.toLowerCase() }}"
+                                                                 [style.animation-delay]="i * 50 + 'ms'" [@reportCardEnter]
+                                                                 (click)="viewReportDetails(report)"
+                                                                 style="cursor: pointer;">
+                                                                <div class="mc-card-header">
+                                                                    <span class="mc-category-badge mc-cat-badge-{{ report.category.toLowerCase() }}">{{ report.category.replace('_', ' ') }}</span>
+                                                                    <span class="mc-status-badge" [class.mc-status-resolved]="report.status === 'RESOLVED'" [class.mc-status-dismissed]="report.status === 'DISMISSED'">{{ report.status }}</span>
+                                                                    <span class="mc-timestamp">{{ formatMessageTime(report.createdAt) }}</span>
+                                                                </div>
+                                                                <div class="mc-room-link mc-room-link-static">
+                                                                    <mat-icon>tag</mat-icon>
+                                                                    {{ report.roomName }}
+                                                                </div>
+                                                                <div class="mc-quote mc-quote-{{ report.category.toLowerCase() }}">
+                                                                    <div class="mc-quote-author">
+                                                                        <mat-icon style="font-size:11px;width:11px;height:11px">account_circle</mat-icon>
+                                                                        {{ report.senderName }}
+                                                                    </div>
+                                                                    <p class="mc-quote-text">{{ stripHtmlMod(report.messageContent) | slice:0:80 }}{{ (report.messageContent?.length ?? 0) > 80 ? '…' : '' }}</p>
+                                                                </div>
+                                                                @if (report.actionTaken) {
+                                                                    <div class="mc-action-taken">
+                                                                        <mat-icon style="font-size:11px;width:11px;height:11px">check_circle</mat-icon>
+                                                                        {{ report.actionTaken }}
+                                                                    </div>
+                                                                }
+                                                            </div>
+                                                        }
+                                                    </div>
                                                 }
                                             }
                                         </div>
-
-                                        <!-- Footer -->
-                                        <mat-divider></mat-divider>
-                                        <div class="mod-panel-footer">
-                                            <span class="mod-footer-text">Moderation keeps your community safe</span>
-                                            <button class="mod-refresh-btn" matTooltip="Refresh" (click)="refreshModeration()">
-                                                <mat-icon class="mod-refresh-icon" [class.mod-refresh-spinning]="refreshSpinning()">refresh</mat-icon>
-                                            </button>
-                                        </div>
-                                    </div>
-                                }
-
-                                <!-- ── AI Summary Panel ── -->
-                                @if (showSummaryPanel()) {
-                                    <div class="members-panel summary-panel" [@summaryPanelSlide] (click)="$event.stopPropagation()">
-                                        <!-- Shimmer gradient accent bar -->
-                                        <div class="summary-accent-bar"></div>
-
-                                        <!-- Header -->
-                                        <div class="members-panel-header">
-                                            <div class="members-panel-title">
-                                                <mat-icon class="material-icons-outlined summary-header-icon"
-                                                          style="font-size:18px;width:18px;height:18px">auto_awesome</mat-icon>
-                                                <span>AI Summary</span>
-                                                <span class="summary-claude-badge">Powered by Claude</span>
-                                            </div>
-                                            <button class="pp-close-btn" (click)="closeSummary()">
-                                                <mat-icon style="font-size:18px;width:18px;height:18px">close</mat-icon>
-                                            </button>
-                                        </div>
-
-                                        <!-- Subheader: room name + message count -->
-                                        @if (summaryRoomName()) {
-                                            <div class="summary-subheader">
-                                                <mat-icon class="material-icons-outlined" style="font-size:12px;width:12px;height:12px">tag</mat-icon>
-                                                <span>{{ summaryRoomName() }}</span>
-                                                <span class="summary-subheader-sep">·</span>
-                                                <span>{{ messages().filter(msg => !msg.isSystemMessage && !msg.isAgendaItem && msg.contentText).length }} messages</span>
-                                            </div>
-                                        }
-
-                                        <!-- Content area -->
-                                        <div class="pinned-panel-body summary-body">
-
-                                            <!-- Empty state: not enough messages -->
-                                            @if (!summaryHasEnoughMessages() && !summaryLoading()) {
-                                                <div class="summary-empty-state">
-                                                    <mat-icon class="material-icons-outlined summary-empty-icon">auto_awesome</mat-icon>
-                                                    <p class="summary-empty-title">Not enough messages</p>
-                                                    <p class="summary-empty-sub">Send some messages first to use AI summary.</p>
-                                                </div>
-                                            }
-
-                                            <!-- Loading state: premium AI-thinking animation -->
-                                            @if (summaryLoading()) {
-                                                <div class="summary-loading-wrap">
-                                                    <mat-icon class="material-icons-outlined summary-spin-icon"
-                                                              style="font-size:32px;width:32px;height:32px">auto_awesome</mat-icon>
-                                                    <div class="summary-dots">
-                                                        <span class="summary-dot"></span>
-                                                        <span class="summary-dot"></span>
-                                                        <span class="summary-dot"></span>
-                                                    </div>
-                                                    <div class="summary-skeleton-wrap">
-                                                        <div class="summary-skeleton" style="width:100%"></div>
-                                                        <div class="summary-skeleton" style="width:85%"></div>
-                                                        <div class="summary-skeleton" style="width:70%"></div>
-                                                    </div>
-                                                    <p class="summary-loading-text">Analyzing conversation…</p>
-                                                </div>
-                                            }
-
-                                            <!-- Error state -->
-                                            @if (summaryError() && !summaryLoading()) {
-                                                <div class="summary-error-card">
-                                                    <mat-icon class="material-icons-outlined"
-                                                              style="color:var(--mat-sys-error);font-size:32px;width:32px;height:32px">error_outline</mat-icon>
-                                                    <p class="summary-error-msg">{{ summaryError() }}</p>
-                                                    <button mat-stroked-button color="primary" (click)="openSummary()">Try Again</button>
-                                                </div>
-                                            }
-
-                                            <!-- Summary content: typewriter effect, section-styled -->
-                                            @if (summaryDisplayText() && !summaryLoading() && !summaryError()) {
-                                                <div class="summary-content">
-                                                    @for (line of summaryDisplayText().split('\n'); track $index) {
-                                                        @if (line.startsWith('- ') || line.startsWith('• ')) {
-                                                            <div class="sum-bullet" [@summaryLineIn]>
-                                                                <span class="sum-dot"></span>
-                                                                <span>{{ line.slice(2) }}</span>
-                                                            </div>
-                                                        } @else if (line.trim() === '') {
-                                                            <div class="sum-spacer"></div>
-                                                        } @else if ($index === 0) {
-                                                            <div class="sum-overview" [@summaryLineIn]>{{ line }}</div>
-                                                        } @else {
-                                                            <p class="sum-para" [@summaryLineIn]>{{ line }}</p>
-                                                        }
-                                                    }
-                                                    <!-- Sentiment badge — shown only when typewriter completes -->
-                                                    @if (summaryText() === summaryDisplayText()) {
-                                                        <div class="sum-sentiment" [@summaryLineIn]>
-                                                            <span [class]="'sum-sentiment-badge sum-sentiment-' + summarySentiment()">
-                                                                @if (summarySentiment() === 'positive') { ✅ Positive }
-                                                                @if (summarySentiment() === 'neutral') { 🔵 Neutral }
-                                                                @if (summarySentiment() === 'concerns') { ⚠️ Concerns }
-                                                            </span>
-                                                        </div>
-                                                    }
-                                                </div>
-                                            }
-                                        </div>
-
-                                        <!-- Footer: Copy + Pin actions -->
-                                        @if (summaryText() && !summaryLoading()) {
-                                            <div class="summary-footer">
-                                                <button matButton
-                                                        class="summary-copy-btn"
-                                                        (click)="copySummary()"
-                                                        [class.summary-copy-done]="summaryCopied()">
-                                                    <mat-icon style="font-size:16px;width:16px;height:16px">
-                                                        {{ summaryCopied() ? 'check' : 'content_copy' }}
-                                                    </mat-icon>
-                                                    {{ summaryCopied() ? 'Copied!' : 'Copy' }}
-                                                </button>
-                                                <button mat-flat-button color="primary"
-                                                        class="summary-pin-btn"
-                                                        (click)="pinSummaryAsMessage()"
-                                                        [disabled]="summaryPinning() || summaryPinned()">
-                                                    <mat-icon style="font-size:16px;width:16px;height:16px">
-                                                        {{ summaryPinned() ? 'check_circle' : (summaryPinning() ? 'hourglass_empty' : 'push_pin') }}
-                                                    </mat-icon>
-                                                    {{ summaryPinned() ? 'Pinned!' : (summaryPinning() ? 'Pinning…' : 'Pin to Room') }}
-                                                </button>
-                                            </div>
-                                        }
                                     </div>
                                 }
 
@@ -4356,7 +6278,7 @@ interface MessageGroup {
                                     }
 
                                     <div class="chat-list py-3">
-                                        @for (message of messages(); track message.id; let i = $index) {
+                                        @for (message of filteredMessages(); track message.id; let i = $index) {
 
                                             @if (message.isSystemMessage) {
                                                 <!-- System message pill -->
@@ -4484,11 +6406,12 @@ interface MessageGroup {
                                                         </div>
                                                     }
 
-                                                    <div class="msg-bubble"
+                                                    <div class="msg-bubble msg-bubble-animated"
                                                          [class.msg-bubble-own]="message.senderId === currentUser?.id"
                                                          [class.msg-bubble-other]="message.senderId !== currentUser?.id"
                                                          [class.pinned-msg]="message.isPinned"
-                                                         [class.msg-bubble-deleted]="message.isDeleted">
+                                                         [class.msg-bubble-deleted]="message.isDeleted"
+                                                         [@messageBubbleIn]>
 
                                                         @if (message.isDeleted) {
                                                             <!-- Moderator removed -->
@@ -4533,35 +6456,34 @@ interface MessageGroup {
                                                                          (click)="lightboxItem.set(message)"
                                                                          style="cursor:pointer">
                                                                 } @else if (isAudio(message.fileType)) {
-                                                                    <div class="voice-bubble"
-                                                                         [class.voice-bubble-own]="message.senderId === currentUser?.id">
+                                                                    <div class="audio-message"
+                                                                         [class.audio-message-own]="message.senderId === currentUser?.id">
                                                                         <audio #voiceAudio
                                                                                style="display:none"
                                                                                preload="metadata"
                                                                                [src]="getFileDownloadUrl(message.fileUrl!)"
                                                                                (loadedmetadata)="onAudioMetadata(message.id, voiceAudio)"
-                                                                               (ended)="onAudioEnded(message.id)">
+                                                                               (ended)="onAudioEnded(message.id)"
+                                                                               (timeupdate)="onAudioTimeUpdate(message.id, voiceAudio)">
                                                                         </audio>
-                                                                        <button class="vb-play-btn"
-                                                                                (click)="toggleAudioPlayback(message.id, voiceAudio)">
-                                                                            <mat-icon style="font-size:20px;width:20px;height:20px">
+                                                                        <button class="audio-play-btn"
+                                                                                (click)="toggleAudioPlayback(message.id, voiceAudio)"
+                                                                                [attr.aria-label]="playingAudioId() === message.id ? 'Pause' : 'Play'"
+                                                                                title="Play audio message">
+                                                                            <mat-icon class="audio-play-icon">
                                                                                 {{ playingAudioId() === message.id ? 'pause' : 'play_arrow' }}
                                                                             </mat-icon>
                                                                         </button>
-                                                                        <div class="vb-waveform">
+                                                                        <div class="audio-waveform">
                                                                             @for (h of getWaveformHeights(message.id); track $index) {
-                                                                                <span class="vb-bar"
+                                                                                <span class="audio-bar"
                                                                                       [style.height.px]="h"
                                                                                       [style.animation-play-state]="playingAudioId() === message.id ? 'running' : 'paused'"
-                                                                                      [style.animation-delay]="($index * 55) + 'ms'">
+                                                                                      [style.animation-delay]="($index * 50) + 'ms'">
                                                                                 </span>
                                                                             }
                                                                         </div>
-                                                                        <span class="vb-time">
-                                                                            {{ playingAudioId() === message.id
-                                                                               ? formatAudioTime(audioCurrentTime())
-                                                                               : formatAudioTime(audioDurationMap().get(message.id) ?? 0) }}
-                                                                        </span>
+                                                                        <span class="audio-duration">{{ formatAudioTime(audioDurationMap().get(message.id) ?? 0) }}</span>
                                                                     </div>
                                                                 } @else if (isVideo(message.fileType)) {
                                                                     <!-- Video clip bubble -->
@@ -4670,41 +6592,6 @@ interface MessageGroup {
                                                 </div>
                                             </div>
                                             } <!-- /else not system message -->
-
-                                            <!-- ── Inline group summarize pill (3+ consecutive msgs from same sender) ── -->
-                                            @if (!message.isSystemMessage && !message.isAgendaItem && isGroupEnd(i) && groupSize(i) >= 3) {
-                                                @let gid = getGroupFirstId(i);
-                                                <div class="group-summarize-row"
-                                                     [class.own]="message.senderId === currentUser?.id">
-                                                    <button class="summarize-pill"
-                                                            (click)="summarizeGroupAtIndex(i)"
-                                                            [class.loading]="summarizingGroupId() === gid"
-                                                            [class.done]="groupSummaries().has(gid)">
-                                                        @if (summarizingGroupId() === gid) {
-                                                            <span class="pill-spinner"></span>
-                                                            <span>Summarizing…</span>
-                                                        } @else if (groupSummaries().has(gid)) {
-                                                            <span>✨</span>
-                                                            <span>{{ groupSummaries().get(gid)?.collapsed ? groupSize(i) + ' messages · tap to expand' : 'Hide summary' }}</span>
-                                                        } @else if (groupErrors().has(gid)) {
-                                                            @let errMsg = groupErrors().get(gid) ?? '';
-                                                            <span>⚠️</span>
-                                                            <span title="{{ errMsg }}">{{ errMsg.length > 40 ? errMsg.slice(0, 40) + '…' : errMsg }} · tap to retry</span>
-                                                        } @else {
-                                                            <span>✨</span>
-                                                            <span>Summarize {{ groupSize(i) }} messages</span>
-                                                        }
-                                                    </button>
-
-                                                    @if (groupSummaries().has(gid) && !groupSummaries().get(gid)?.collapsed) {
-                                                        <div class="inline-summary" [@summaryReveal]
-                                                             [class.own]="message.senderId === currentUser?.id">
-                                                            <div class="inline-summary-text"
-                                                                 [id]="'summary-' + gid"></div>
-                                                        </div>
-                                                    }
-                                                </div>
-                                            }
 
                                         }
 
@@ -5613,6 +7500,7 @@ interface MessageGroup {
             flex: 1 1 0 !important;
             width: 0 !important;
             min-width: 0 !important;
+            position: relative;
         }
 
         /* ── Sidebar brand / workspace ───────────────────────────────── */
@@ -6175,24 +8063,28 @@ interface MessageGroup {
             align-items: flex-end;
         }
 
-        /* Message action toolbar (hover) */
+        /* ── Message action toolbar (hover) — smooth and animated ──────── */
         .msg-hover-actions {
             position: absolute;
             top: -34px;
             right: 2px;
             display: flex;
             align-items: center;
-            gap: 1px;
+            gap: 2px;
             background: var(--mat-sys-surface-container-low);
             border: 1px solid var(--mat-sys-outline-variant);
             border-radius: 22px;
-            padding: 3px 5px;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.14), 0 1px 3px rgba(0,0,0,0.08);
+            padding: 4px 6px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15),
+                        0 2px 6px rgba(0,0,0,0.1),
+                        inset 0 1px 0 rgba(255,255,255,0.08);
+            backdrop-filter: blur(8px);
             opacity: 0;
-            transform: translateY(-4px) scale(0.95);
+            transform: translateY(-8px) scale(0.92);
             pointer-events: none;
-            transition: opacity 180ms cubic-bezier(0.34,1.56,0.64,1),
-                        transform 180ms cubic-bezier(0.34,1.56,0.64,1);
+            transition: opacity 220ms cubic-bezier(0.34,1.56,0.64,1),
+                        transform 220ms cubic-bezier(0.34,1.56,0.64,1),
+                        box-shadow 220ms ease;
             z-index: 20;
         }
         .msg-hover-actions-own {
@@ -6203,10 +8095,13 @@ interface MessageGroup {
             opacity: 1;
             transform: translateY(0) scale(1);
             pointer-events: auto;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.18),
+                        0 3px 8px rgba(0,0,0,0.12),
+                        inset 0 1px 0 rgba(255,255,255,0.12);
         }
         .hover-action-btn {
-            width: 28px;
-            height: 28px;
+            width: 30px;
+            height: 30px;
             border-radius: 50%;
             border: none;
             background: transparent;
@@ -6215,11 +8110,23 @@ interface MessageGroup {
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: background 0.12s, color 0.12s, transform 0.12s cubic-bezier(0.34,1.56,0.64,1);
+            transition: all 0.18s cubic-bezier(0.34,1.56,0.64,1);
             padding: 0;
             text-decoration: none;
             flex-shrink: 0;
+            position: relative;
+            overflow: hidden;
         }
+
+        .hover-action-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
         .hover-action-btn:hover {
             background: var(--mat-sys-primary-container);
             color: var(--mat-sys-primary);
@@ -6236,6 +8143,25 @@ interface MessageGroup {
             min-width: 60px;
             backdrop-filter: blur(6px);
         }
+
+        /* ── New Smooth Message Bubble Animations ─────────────────────── */
+        .msg-bubble-animated {
+            animation: bubbleEnter 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+        }
+
+        @keyframes bubbleEnter {
+            from {
+                opacity: 0;
+                transform: translateY(12px) scale(0.95);
+                filter: blur(4px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+                filter: blur(0);
+            }
+        }
+
         .msg-row:hover .msg-bubble {
             transform: translateY(-3px) scale(1.02);
         }
@@ -6264,18 +8190,35 @@ interface MessageGroup {
                 0 6px 20px color-mix(in srgb, var(--mat-sys-primary) 32%, transparent),
                 0 2px 8px rgba(0,0,0,0.1),
                 inset 0 1px 0 rgba(255,255,255,0.25);
-            animation: msg-own-enter 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+            animation: msg-own-enter 0.5s cubic-bezier(0.34,1.56,0.64,1) both, bubbleGlow 3s ease-in-out 0.5s infinite;
         }
+
         @keyframes msg-own-enter {
             from {
                 opacity: 0;
-                transform: translateX(20px) scale(0.96);
+                transform: translateX(20px) translateY(12px) scale(0.96);
             }
             to {
                 opacity: 1;
-                transform: translateX(0) scale(1);
+                transform: translateX(0) translateY(0) scale(1);
             }
         }
+
+        @keyframes bubbleGlow {
+            0%, 100% {
+                box-shadow:
+                    0 6px 20px color-mix(in srgb, var(--mat-sys-primary) 32%, transparent),
+                    0 2px 8px rgba(0,0,0,0.1),
+                    inset 0 1px 0 rgba(255,255,255,0.25);
+            }
+            50% {
+                box-shadow:
+                    0 8px 28px color-mix(in srgb, var(--mat-sys-primary) 42%, transparent),
+                    0 3px 10px rgba(0,0,0,0.12),
+                    inset 0 1px 0 rgba(255,255,255,0.35);
+            }
+        }
+
         .msg-bubble-own::after {
             content: '';
             position: absolute;
@@ -6287,6 +8230,18 @@ interface MessageGroup {
             clip-path: polygon(0 0, 0 100%, 100% 100%);
             border-bottom-right-radius: 1px;
             box-shadow: -2px 2px 4px rgba(0,0,0,0.1);
+            animation: tailSlideIn 0.4s cubic-bezier(0.34,1.56,0.64,1) 0.15s both;
+        }
+
+        @keyframes tailSlideIn {
+            from {
+                opacity: 0;
+                transform: translateX(8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
         }
 
         /* Other message — premium styling left side */
@@ -6301,18 +8256,20 @@ interface MessageGroup {
                 0 4px 14px color-mix(in srgb, var(--mat-sys-on-surface) 10%, transparent),
                 0 2px 4px rgba(0,0,0,0.05),
                 inset 0 1px 0 rgba(255,255,255,0.1);
-            animation: msg-other-enter 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+            animation: msg-other-enter 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
         }
+
         @keyframes msg-other-enter {
             from {
                 opacity: 0;
-                transform: translateX(-20px) scale(0.96);
+                transform: translateX(-20px) translateY(12px) scale(0.96);
             }
             to {
                 opacity: 1;
-                transform: translateX(0) scale(1);
+                transform: translateX(0) translateY(0) scale(1);
             }
         }
+
         .msg-bubble-other::after {
             content: '';
             position: absolute;
@@ -6324,6 +8281,18 @@ interface MessageGroup {
             clip-path: polygon(100% 0, 0 100%, 100% 100%);
             border-bottom-left-radius: 1px;
             border-left: 1.5px solid color-mix(in srgb, var(--mat-sys-primary) 12%, var(--mat-sys-outline-variant));
+            animation: tailSlideInLeft 0.4s cubic-bezier(0.34,1.56,0.64,1) 0.15s both;
+        }
+
+        @keyframes tailSlideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
         }
 
         /* Consecutive bubbles — no tail, fully rounded with special spacing */
@@ -6429,82 +8398,332 @@ interface MessageGroup {
         }
 
         /* ── Members panel ───────────────────────────────────────────── */
-        .members-panel {
+        .mp-panel {
             position: absolute;
             top: 0;
             right: 0;
             bottom: 0;
-            width: 300px;
-            background: var(--mat-sys-surface-container-lowest);
+            width: 340px;
+            background: var(--mat-sys-surface);
             border-left: 1px solid var(--mat-sys-outline-variant);
-            box-shadow: -8px 0 40px color-mix(in srgb, var(--mat-sys-primary) 5%, rgba(0,0,0,0.1));
+            box-shadow: -4px 0 32px rgba(0,0,0,0.12);
             display: flex;
             flex-direction: column;
             z-index: 110;
-            backdrop-filter: blur(12px);
+            animation: membersPanelSlide 0.3s cubic-bezier(0.34,1.56,0.64,1);
         }
-        .members-panel-header {
+
+        @keyframes membersPanelSlide {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .mp-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--mat-sys-outline-variant);
+            flex-shrink: 0;
+        }
+
+        .mp-header-top {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 12px 14px;
-            border-bottom: 1px solid var(--mat-sys-outline-variant);
-            flex-shrink: 0;
+            margin-bottom: 4px;
         }
-        .members-panel-title {
+
+        .mp-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--mat-sys-on-surface);
+            margin: 0;
+        }
+
+        .mp-close-btn {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+            color: var(--mat-sys-on-surface-variant);
+        }
+
+        .mp-close-btn:hover {
+            background: var(--mat-sys-surface-container);
+            color: var(--mat-sys-on-surface);
+        }
+
+        .mp-count-text {
+            font-size: 12px;
+            color: var(--mat-sys-on-surface-variant);
+            margin: 0;
+        }
+
+        .mp-search-wrap {
+            position: relative;
+            padding: 0 16px 12px;
+        }
+
+        .mp-search-icon {
+            position: absolute;
+            left: 24px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 18px;
+            color: var(--mat-sys-on-surface-variant);
+            pointer-events: none;
+        }
+
+        .mp-search-input {
+            width: 100%;
+            padding: 8px 12px 8px 36px;
+            border: 1px solid var(--mat-sys-outline-variant);
+            border-radius: 20px;
+            font-size: 13px;
+            color: var(--mat-sys-on-surface);
+            background: var(--mat-sys-surface-container-low);
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .mp-search-input:focus {
+            border-color: var(--mat-sys-primary);
+            background: var(--mat-sys-surface-container);
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--mat-sys-primary) 20%, transparent);
+        }
+
+        .mp-search-input::placeholder {
+            color: var(--mat-sys-on-surface-variant);
+        }
+
+        .mp-error {
             display: flex;
             align-items: center;
             gap: 8px;
-            font-weight: 600;
-            font-size: 14px;
-            color: var(--mat-sys-on-surface);
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: color-mix(in srgb, #f44336 15%, transparent);
+            color: #c62828;
+            font-size: 12px;
         }
-        .mp-count {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 20px;
-            height: 20px;
-            border-radius: 10px;
-            background: var(--mat-sys-primary-container);
-            color: var(--mat-sys-primary);
-            font-size: 11px;
-            font-weight: 700;
-            padding: 0 5px;
-        }
-        .members-panel-body {
-            flex: 1;
-            overflow-y: auto;
-        }
-        .member-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            border-bottom: 1px solid var(--mat-sys-outline-variant);
-            transition: background 0.12s;
-        }
-        .member-row:hover {
-            background: var(--mat-sys-surface-container);
-        }
-        .member-avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: var(--mat-sys-tertiary-container);
-            color: var(--mat-sys-on-surface);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 11px;
-            font-weight: 700;
+
+        .mp-error mat-icon {
+            font-size: 16px;
+            width: 16px;
+            height: 16px;
             flex-shrink: 0;
         }
-        .member-info { flex: 1; min-width: 0; }
-        .add-member-form {
+
+        .mp-add-btn-wrap {
+            padding: 8px 16px;
+        }
+
+        .mp-add-btn {
+            width: 100%;
+            padding: 10px 14px;
+            border: none;
+            border-radius: 8px;
+            background: var(--mat-sys-primary);
+            color: var(--mat-sys-on-primary);
+            font-weight: 600;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .mp-add-btn:hover {
+            background: color-mix(in srgb, var(--mat-sys-primary) 90%, var(--mat-sys-on-primary));
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 30%, transparent);
+        }
+
+        .mp-add-btn mat-icon {
+            font-size: 16px;
+            width: 16px;
+            height: 16px;
+        }
+
+        .mp-add-form {
+            padding: 16px;
+            border-bottom: 1px solid var(--mat-sys-outline-variant);
+            background: var(--mat-sys-surface-container-low);
+            animation: slideDown 0.3s cubic-bezier(0.34,1.56,0.64,1);
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .mp-form-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--mat-sys-on-surface-variant);
+            margin: 0 0 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .mp-form-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .mp-form-actions button {
+            flex: 1;
+        }
+
+        .mp-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+        }
+
+        .mp-section-header {
+            padding: 12px 16px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--mat-sys-on-surface-variant);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+        }
+
+        .mp-member-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            margin: 0 8px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .mp-member-card:hover {
+            background: var(--mat-sys-surface-container-low);
+        }
+
+        .mp-member-avatar {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 12px;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .mp-online-dot {
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #31a24c;
+            border: 2px solid var(--mat-sys-surface);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .mp-member-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .mp-member-name {
+            margin: 0;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--mat-sys-on-surface);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .mp-you {
+            font-size: 10px;
+            padding: 2px 6px;
+            background: color-mix(in srgb, var(--mat-sys-primary) 20%, transparent);
+            color: var(--mat-sys-primary);
+            border-radius: 4px;
+            font-weight: 700;
+        }
+
+        .mp-member-role {
+            margin: 2px 0 0;
+            font-size: 11px;
+            color: var(--mat-sys-on-surface-variant);
+        }
+
+        .mp-member-status {
+            font-size: 11px;
+            color: #31a24c;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .mp-member-menu {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            color: var(--mat-sys-on-surface-variant);
+            transition: all 0.2s ease;
+            opacity: 0;
+        }
+
+        .mp-member-card:hover .mp-member-menu {
+            opacity: 1;
+        }
+
+        .mp-member-menu:hover {
             background: var(--mat-sys-surface-container);
-            border-radius: 10px;
-            padding: 12px;
-            border: 1px solid var(--mat-sys-outline-variant);
+            color: var(--mat-sys-on-surface);
+        }
+
+        .mp-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 16px;
+            text-align: center;
+        }
+
+        .mp-empty mat-icon {
+            font-size: 48px;
+            width: 48px;
+            height: 48px;
+            margin-bottom: 12px;
+            color: var(--mat-sys-on-surface-variant);
+            opacity: 0.4;
+        }
+
+        .mp-empty p {
+            color: var(--mat-sys-on-surface-variant);
+            font-size: 13px;
+            margin: 0;
         }
 
         /* ── Chat input ──────────────────────────────────────────────── */
@@ -6753,8 +8972,6 @@ interface MessageGroup {
             transform: scale(1.25);
         }
 
-        /* ── File attachment ─────────────────────────────────────────── */
-        .file-attachment { margin-top: 6px; }
         .attachment-image {
             max-width: 240px;
             max-height: 200px;
@@ -6768,54 +8985,123 @@ interface MessageGroup {
             box-shadow: 0 6px 20px rgba(0,0,0,0.18);
         }
 
-        /* Rich file card inside bubble */
-        .msg-file-card {
-            display: flex;
+        /* ── Voice Message ─────────────────────────────────────────────── */
+        .audio-message {
+            display: inline-flex;
             align-items: center;
-            gap: 10px;
-            margin-top: 8px;
-            padding: 9px 12px;
-            border-radius: 12px;
-            background: color-mix(in srgb, var(--mat-sys-surface-container-highest) 60%, transparent);
-            border: 1px solid var(--mat-sys-outline-variant);
-            max-width: 260px;
+            gap: 12px;
+            padding: 10px 14px;
+            margin-top: 6px;
+            border-radius: 18px;
+            background: rgba(0,0,0,0.04);
+            width: fit-content;
         }
-        .msg-bubble-own .msg-file-card {
-            background: color-mix(in srgb, var(--mat-sys-surface-container-highest) 40%, transparent);
-            border-color: color-mix(in srgb, var(--mat-sys-primary) 20%, var(--mat-sys-outline-variant));
+        .msg-bubble-own .audio-message {
+            background: rgba(255,255,255,0.16);
         }
-        .msg-file-icon-wrap {
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
+
+        .audio-play-btn {
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            border-radius: 50%;
+            background: var(--mat-sys-primary);
+            color: var(--mat-sys-on-primary);
+            border: none;
+            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
+            transition: all 0.2s ease;
+            padding: 0;
         }
-        .msg-file-info {
-            flex: 1;
-            min-width: 0;
+        .audio-play-btn:hover {
+            transform: scale(1.08);
+        }
+        .audio-play-btn:active {
+            transform: scale(0.95);
+        }
+        .msg-bubble-own .audio-play-btn {
+            background: rgba(255,255,255,0.3);
+            color: white;
+        }
+        .audio-play-btn:hover .audio-play-icon {
+        }
+        .audio-play-icon {
+            font-size: 18px;
+            width: 18px;
+            height: 18px;
+        }
+
+        .audio-waveform {
             display: flex;
-            flex-direction: column;
+            align-items: center;
             gap: 2px;
+            flex: 1;
+            height: 28px;
+            min-width: 100px;
+            max-width: 160px;
         }
-        .msg-file-name {
-            font-size: 12.5px;
+        .audio-bar {
+            width: 2px;
+            border-radius: 1px;
+            background: var(--mat-sys-primary);
+            opacity: 0.65;
+            animation: wave 0.6s ease-in-out infinite alternate;
+            animation-play-state: paused;
+            min-height: 4px;
+        }
+        .msg-bubble-own .audio-bar {
+            background: rgba(255,255,255,0.8);
+        }
+        @keyframes wave {
+            0% { transform: scaleY(0.3); opacity: 0.4; }
+            100% { transform: scaleY(1); opacity: 0.8; }
+        }
+
+        .audio-duration {
+            font-size: 12px;
             font-weight: 600;
-            color: var(--mat-sys-on-surface);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            max-width: 140px;
-        }
-        .msg-file-size {
-            font-size: 10.5px;
             color: var(--mat-sys-on-surface-variant);
+            white-space: nowrap;
+            min-width: 30px;
+            text-align: right;
+            flex-shrink: 0;
         }
-        .msg-file-download {
-            width: 30px;
-            height: 30px;
+        .msg-bubble-own .audio-duration {
+            color: rgba(255,255,255,0.85);
+        }
+
+        /* ── File Card ─────────────────────────────────────────────────── */
+        .msg-file-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            margin-top: 6px;
+            border-radius: 14px;
+            background: rgba(0,0,0,0.04);
+            border: 1px solid rgba(0,0,0,0.08);
+            width: fit-content;
+            max-width: 280px;
+            transition: all 0.2s ease;
+        }
+        .msg-file-card:hover {
+            background: rgba(0,0,0,0.08);
+            border-color: rgba(0,0,0,0.12);
+        }
+        .msg-bubble-own .msg-file-card {
+            background: rgba(255,255,255,0.16);
+            border-color: rgba(255,255,255,0.2);
+        }
+        .msg-bubble-own .msg-file-card:hover {
+            background: rgba(255,255,255,0.24);
+        }
+
+        .msg-file-icon-wrap {
+            width: 38px;
+            height: 38px;
             border-radius: 8px;
             background: var(--mat-sys-primary-container);
             color: var(--mat-sys-primary);
@@ -6823,14 +9109,66 @@ interface MessageGroup {
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            text-decoration: none;
-            transition: background 0.15s, transform 0.15s cubic-bezier(0.34,1.56,0.64,1);
         }
-        .msg-file-download:hover {
+        .msg-bubble-own .msg-file-icon-wrap {
+            background: rgba(255,255,255,0.25);
+            color: white;
+        }
+
+        .msg-file-info {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .msg-file-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--mat-sys-on-surface);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .msg-bubble-own .msg-file-name {
+            color: white;
+        }
+
+        .msg-file-size {
+            font-size: 11px;
+            color: var(--mat-sys-on-surface-variant);
+        }
+        .msg-bubble-own .msg-file-size {
+            color: rgba(255,255,255,0.75);
+        }
+
+        .msg-file-download {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
             background: var(--mat-sys-primary);
             color: var(--mat-sys-on-primary);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            padding: 0;
+        }
+        .msg-file-download:hover {
             transform: scale(1.1);
         }
+        .msg-file-download:active {
+            transform: scale(0.95);
+        }
+        .msg-bubble-own .msg-file-download {
+            background: rgba(255,255,255,0.3);
+        }
+
         .file-size { color: var(--mat-sys-on-surface-variant); font-size: 12px; }
 
         /* ── Pin badge ───────────────────────────────────────────────── */
@@ -6916,111 +9254,113 @@ interface MessageGroup {
 
         /* ── Pinned side panel ───────────────────────────────────────── */
         .pinned-panel {
-            position: absolute;
-            top: 0;
-            right: 0;
-            bottom: 0;
-            width: 300px;
-            background: var(--mat-sys-surface-container-lowest);
-            border-left: 1px solid rgba(234,179,8,0.3);
-            box-shadow: -8px 0 40px rgba(0,0,0,0.1), -2px 0 0 rgba(234,179,8,0.12);
-            display: flex;
-            flex-direction: column;
-            z-index: 100;
-            backdrop-filter: blur(12px);
+            position: absolute; top: 0; right: 0; bottom: 0; width: 320px;
+            background: var(--mat-sys-surface);
+            border-left: 1px solid var(--mat-sys-outline-variant);
+            box-shadow: -4px 0 32px rgba(0,0,0,0.08);
+            display: flex; flex-direction: column; z-index: 100;
         }
         .pinned-panel-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px 14px;
-            border-bottom: 1px solid rgba(234,179,8,0.25);
-            background: linear-gradient(135deg, rgba(234,179,8,0.1) 0%, rgba(251,191,36,0.05) 100%);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 16px 14px 14px;
+            border-bottom: 1px solid var(--mat-sys-outline-variant);
             flex-shrink: 0;
+            background: var(--mat-sys-surface);
         }
-        .pinned-panel-title {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-weight: 600;
-            font-size: 14px;
+        .pp-header-left { display: flex; align-items: center; gap: 10px; }
+        .pp-header-icon {
+            width: 32px; height: 32px; border-radius: 8px;
+            background: rgba(217,119,6,0.1); border: 1px solid rgba(217,119,6,0.2);
+            display: flex; align-items: center; justify-content: center;
         }
-        .pp-icon { font-size: 16px; }
-        .pp-count {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 20px;
-            height: 20px;
-            border-radius: 10px;
-            background: rgba(234,179,8,0.3);
-            color: #92400e;
-            font-size: 11px;
-            font-weight: 700;
-            padding: 0 5px;
+        .pp-header-title { font-size: 14px; font-weight: 700; color: var(--mat-sys-on-surface); line-height: 1.2; }
+        .pp-header-sub { font-size: 11px; color: var(--mat-sys-on-surface-variant); margin-top: 1px; }
+        .pp-header-actions { display: flex; gap: 4px; align-items: center; }
+        .pp-icon-btn {
+            width: 30px; height: 30px; border-radius: 7px; border: none;
+            background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center;
+            color: var(--mat-sys-on-surface-variant); transition: all 0.15s ease;
         }
-        .pp-close-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: none;
-            border: none;
-            cursor: pointer;
-            color: var(--mat-sys-on-surface-variant);
-            padding: 4px;
-            border-radius: 6px;
-            transition: background 0.15s, color 0.15s;
-        }
-        .pp-close-btn:hover { background: var(--mat-sys-surface-container-high); color: var(--mat-sys-on-surface); }
+        .pp-icon-btn:hover { background: var(--mat-sys-surface-container); color: var(--mat-sys-on-surface); }
         .pinned-panel-body {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
+            flex: 1; overflow-y: auto; padding: 12px;
+            display: flex; flex-direction: column; gap: 10px;
         }
-        .pp-empty { font-size: 13px; color: var(--mat-sys-on-surface-variant); text-align: center; margin-top: 24px; }
-        .pp-item {
-            background: var(--mat-sys-surface-container);
-            border: 1px solid rgba(234,179,8,0.25);
-            border-radius: 10px;
-            padding: 10px 12px;
-            position: relative;
-            transition: box-shadow 0.2s;
-        }
-        .pp-item:hover { box-shadow: 0 2px 10px rgba(234,179,8,0.15); }
-        .pp-item-meta {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 5px;
-        }
-        .pp-sender { font-size: 12px; font-weight: 600; color: var(--mat-sys-on-surface); }
-        .pp-time { font-size: 10px; color: var(--mat-sys-on-surface-variant); }
-        .pp-content {
-            font-size: 13px;
-            line-height: 1.45;
+        .pinned-panel-body::-webkit-scrollbar { width: 4px; }
+        .pinned-panel-body::-webkit-scrollbar-track { background: transparent; }
+        .pinned-panel-body::-webkit-scrollbar-thumb { background: var(--mat-sys-outline-variant); border-radius: 2px; }
+
+        /* Empty state */
+        .pp-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; text-align: center; }
+        .pp-empty-icon { font-size: 40px !important; width: 40px !important; height: 40px !important; color: var(--mat-sys-outline-variant); margin-bottom: 12px; }
+        .pp-empty-title { font-size: 14px; font-weight: 600; color: var(--mat-sys-on-surface); margin: 0 0 6px; }
+        .pp-empty-sub { font-size: 12px; color: var(--mat-sys-on-surface-variant); margin: 0; line-height: 1.5; }
+
+        /* Cards */
+        .pp-card {
+            position: relative; border-radius: 12px; padding: 12px 12px 10px 16px;
+            background: var(--mat-sys-surface-container-low);
+            border: 1px solid var(--mat-sys-outline-variant);
+            cursor: default; transition: all 0.2s ease;
             overflow: hidden;
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-            color: var(--mat-sys-on-surface);
         }
-        .pp-file { font-size: 12px; color: var(--mat-sys-on-surface-variant); margin-top: 4px; }
-        .pp-pinned-by { font-size: 10px; color: #b45309; margin-top: 6px; opacity: 0.8; }
-        .pp-unpin-btn {
-            margin-top: 8px;
-            background: none;
-            border: 1px solid rgba(234,179,8,0.4);
-            border-radius: 6px;
-            padding: 2px 10px;
-            font-size: 11px;
-            color: #92400e;
-            cursor: pointer;
-            transition: background 0.15s, border-color 0.15s;
+        .pp-card:hover { background: var(--mat-sys-surface-container); box-shadow: 0 4px 16px rgba(0,0,0,0.07); transform: translateY(-1px); border-color: rgba(217,119,6,0.3); }
+        .pp-card-accent {
+            position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+            background: linear-gradient(180deg, #f59e0b, #d97706);
+            border-radius: 12px 0 0 12px;
         }
-        .pp-unpin-btn:hover { background: rgba(234,179,8,0.15); border-color: rgba(234,179,8,0.7); }
+        .pp-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .pp-avatar {
+            width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+            background: linear-gradient(135deg, var(--mat-sys-primary), color-mix(in srgb, var(--mat-sys-primary) 70%, #000));
+            color: var(--mat-sys-on-primary); font-size: 11px; font-weight: 700;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .pp-card-meta { flex: 1; min-width: 0; }
+        .pp-sender { display: block; font-size: 12px; font-weight: 700; color: var(--mat-sys-on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .pp-time { display: block; font-size: 10px; color: var(--mat-sys-on-surface-variant); margin-top: 1px; }
+        .pp-unpin-icon-btn {
+            width: 26px; height: 26px; border-radius: 6px; border: none;
+            background: transparent; cursor: pointer; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            color: #d97706; transition: all 0.15s ease; opacity: 0;
+        }
+        .pp-card:hover .pp-unpin-icon-btn { opacity: 1; }
+        .pp-unpin-icon-btn:hover { background: rgba(217,119,6,0.12); }
+        .pp-card-content {
+            font-size: 13px; line-height: 1.5; color: var(--mat-sys-on-surface);
+            overflow: hidden; display: -webkit-box;
+            -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+            margin-bottom: 6px;
+        }
+        .pp-card-file {
+            display: flex; align-items: center; gap: 4px;
+            font-size: 11px; color: var(--mat-sys-on-surface-variant);
+            background: var(--mat-sys-surface-container); border-radius: 6px;
+            padding: 4px 8px; margin-top: 4px;
+        }
+        .pp-card-footer {
+            display: flex; align-items: center; gap: 4px;
+            font-size: 10px; color: #d97706; opacity: 0.75; margin-top: 6px;
+        }
+
+        /* Panel footer */
+        .pp-panel-footer {
+            padding: 10px 12px; border-top: 1px solid var(--mat-sys-outline-variant); flex-shrink: 0;
+        }
+        .pp-expand-btn {
+            width: 100%; height: 34px; border-radius: 8px;
+            border: 1.5px solid var(--mat-sys-outline-variant);
+            background: transparent; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            font-size: 12px; font-weight: 600; color: var(--mat-sys-on-surface-variant);
+            transition: all 0.2s ease;
+        }
+        .pp-expand-btn:hover {
+            border-color: #d97706; color: #d97706;
+            background: rgba(217,119,6,0.06);
+        }
 
         /* ── Context menu ────────────────────────────────────────────── */
         .ctx-menu {
@@ -7057,38 +9397,90 @@ interface MessageGroup {
             display: flex;
             align-items: center;
             flex-wrap: wrap;
-            gap: 4px;
-            margin-top: 4px;
+            gap: 6px;
+            margin-top: 6px;
             padding: 0 2px;
             position: relative;
         }
         .reaction-strip.my-msg { justify-content: flex-end; }
+
         .reaction-pill {
             display: inline-flex;
             align-items: center;
-            gap: 3px;
-            padding: 1px 8px 1px 6px;
+            gap: 4px;
+            padding: 3px 10px 3px 7px;
             border-radius: 20px;
             background: var(--mat-sys-surface-container-high);
-            border: 1px solid transparent;
+            border: 1.5px solid transparent;
             font-size: 13px;
-            line-height: 1.6;
+            line-height: 1.4;
             cursor: pointer;
-            transition: background 0.15s, border-color 0.15s, transform 0.12s cubic-bezier(0.34,1.56,0.64,1);
+            transition: all 0.18s cubic-bezier(0.34,1.56,0.64,1);
+            position: relative;
+            overflow: hidden;
+            animation: reactionPillEnter 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
         }
+
+        @keyframes reactionPillEnter {
+            from {
+                opacity: 0;
+                transform: scale(0.75) translateY(4px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .reaction-pill::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
         .reaction-pill:hover {
             background: var(--mat-sys-surface-container-highest);
-            transform: scale(1.1);
+            border-color: var(--mat-sys-outline-variant);
+            transform: scale(1.15);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.12);
         }
+
+        .reaction-pill:hover::before {
+            opacity: 1;
+        }
+
+        .reaction-pill:active {
+            transform: scale(1.08);
+        }
+
         .reaction-pill.my-reaction {
-            background: var(--mat-sys-primary-container);
+            background: linear-gradient(135deg,
+                var(--mat-sys-primary-container) 0%,
+                color-mix(in srgb, var(--mat-sys-primary-container) 70%, var(--mat-sys-tertiary-container)) 100%);
             border-color: var(--mat-sys-primary);
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 20%, transparent);
         }
+
+        .reaction-pill.my-reaction:hover {
+            box-shadow: 0 4px 14px color-mix(in srgb, var(--mat-sys-primary) 30%, transparent);
+        }
+
         .reaction-count {
             font-size: 11px;
-            font-weight: 600;
+            font-weight: 700;
             color: var(--mat-sys-on-surface-variant);
+            letter-spacing: 0.01em;
+            font-variant-numeric: tabular-nums;
         }
+
+        .reaction-pill.my-reaction .reaction-count {
+            color: var(--mat-sys-primary);
+            font-weight: 800;
+        }
+
         .reaction-trigger {
             display: inline-flex;
             align-items: center;
@@ -7464,15 +9856,16 @@ interface MessageGroup {
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 10px 12px;
+            padding: 12px;
             border-radius: 12px;
-            background: var(--mat-sys-surface-container);
-            border: 1px solid var(--mat-sys-outline-variant);
-            transition: background 0.15s, box-shadow 0.15s, transform 0.14s cubic-bezier(0.34,1.56,0.64,1);
+            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+            border: 1px solid rgba(99,102,241,0.1);
+            transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1);
         }
         .sp-file-card:hover {
-            background: color-mix(in srgb, var(--mat-sys-primary-container) 20%, var(--mat-sys-surface-container));
-            box-shadow: 0 3px 14px color-mix(in srgb, var(--mat-sys-primary) 8%, rgba(0,0,0,0.06));
+            background: linear-gradient(135deg, rgba(99,102,241,0.04), rgba(139,92,246,0.02));
+            border-color: rgba(99,102,241,0.2);
+            box-shadow: 0 4px 20px rgba(99,102,241,0.12);
             transform: translateY(-2px);
         }
         .sp-file-icon-wrap {
@@ -7484,14 +9877,14 @@ interface MessageGroup {
             justify-content: center;
             flex-shrink: 0;
         }
-        .fi-pdf   { background: linear-gradient(135deg, #fef2f2, #fee2e2); color: #dc2626; }
-        .fi-word  { background: linear-gradient(135deg, #eff6ff, #dbeafe); color: #2563eb; }
-        .fi-excel { background: linear-gradient(135deg, #f0fdf4, #dcfce7); color: #16a34a; }
-        .fi-ppt   { background: linear-gradient(135deg, #fff7ed, #fed7aa); color: #ea580c; }
-        .fi-zip   { background: linear-gradient(135deg, #faf5ff, #ede9fe); color: #7c3aed; }
-        .fi-audio { background: linear-gradient(135deg, #fdf4ff, #fae8ff); color: #a21caf; }
-        .fi-video { background: linear-gradient(135deg, #eff6ff, #dbeafe); color: #1d4ed8; }
-        .fi-default { background: linear-gradient(135deg, var(--mat-sys-surface-container), var(--mat-sys-surface-container-high)); color: var(--mat-sys-on-surface-variant); }
+        .fi-pdf   { background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08)); color: #6366f1; }
+        .fi-word  { background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08)); color: #6366f1; }
+        .fi-excel { background: linear-gradient(135deg, rgba(139,92,246,0.12), rgba(167,139,250,0.08)); color: #8b5cf6; }
+        .fi-ppt   { background: linear-gradient(135deg, rgba(124,58,237,0.12), rgba(99,102,241,0.08)); color: #7c3aed; }
+        .fi-zip   { background: linear-gradient(135deg, rgba(139,92,246,0.12), rgba(167,139,250,0.08)); color: #8b5cf6; }
+        .fi-audio { background: linear-gradient(135deg, rgba(167,139,250,0.12), rgba(139,92,246,0.08)); color: #a78bfa; }
+        .fi-video { background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(124,58,237,0.08)); color: #6366f1; }
+        .fi-default { background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.06)); color: #6366f1; }
         .sp-file-info { flex: 1; min-width: 0; }
         .sp-file-name {
             font-size: 12.5px;
@@ -7511,8 +9904,8 @@ interface MessageGroup {
             color: var(--mat-sys-on-surface-variant);
         }
         .sp-badge-size {
-            background: var(--mat-sys-primary-container);
-            color: var(--mat-sys-primary);
+            background: rgba(99,102,241,0.12);
+            color: #6366f1;
             border-radius: 6px;
             padding: 0 5px;
             font-size: 10px;
@@ -7521,24 +9914,45 @@ interface MessageGroup {
         .sp-meta-dot { opacity: 0.4; }
         .sp-meta-sender { font-weight: 600; color: var(--mat-sys-on-surface); }
         .sp-meta-date { opacity: 0.7; }
-        .sp-download-btn {
-            width: 32px;
-            height: 32px;
+
+        .sp-card-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+            opacity: 0;
+            transform: translateX(8px);
+            transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        .sp-file-card:hover .sp-card-actions,
+        .sp-link-card:hover .sp-link-actions {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .sp-action-btn {
+            width: 34px;
+            height: 34px;
             border-radius: 8px;
-            background: var(--mat-sys-primary-container);
-            color: var(--mat-sys-primary);
+            border: 1px solid transparent;
+            background: rgba(99,102,241,0.08);
+            color: #6366f1;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            transition: background 0.15s, transform 0.15s cubic-bezier(0.34,1.56,0.64,1);
+            cursor: pointer;
+            transition: all 0.15s ease;
             text-decoration: none;
         }
-        .sp-download-btn:hover {
-            background: var(--mat-sys-primary);
-            color: var(--mat-sys-on-primary);
-            transform: scale(1.1);
+        .sp-action-btn:hover {
+            background: #6366f1;
+            color: #fff;
+            transform: scale(1.05);
         }
+
+        .sp-download-btn { }
+        .sp-more-btn { }
+        .sp-open-link-btn { }
 
         /* ── Link list ── */
         .sp-link-list {
@@ -7549,38 +9963,38 @@ interface MessageGroup {
         }
         .sp-link-card {
             display: flex;
-            align-items: flex-start;
+            align-items: center;
             gap: 10px;
-            padding: 10px 12px;
+            padding: 12px;
             border-radius: 12px;
-            background: var(--mat-sys-surface-container);
-            border: 1px solid var(--mat-sys-outline-variant);
+            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+            border: 1px solid rgba(99,102,241,0.1);
             text-decoration: none;
-            transition: background 0.15s, box-shadow 0.15s, transform 0.14s cubic-bezier(0.34,1.56,0.64,1);
+            transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1);
             cursor: pointer;
         }
         .sp-link-card:hover {
-            background: color-mix(in srgb, var(--mat-sys-tertiary-container) 20%, var(--mat-sys-surface-container));
-            box-shadow: 0 3px 14px color-mix(in srgb, var(--mat-sys-tertiary) 8%, rgba(0,0,0,0.06));
+            background: linear-gradient(135deg, rgba(99,102,241,0.04), rgba(139,92,246,0.02));
+            border-color: rgba(99,102,241,0.2);
+            box-shadow: 0 4px 20px rgba(99,102,241,0.12);
             transform: translateY(-2px);
         }
         .sp-link-globe {
-            width: 34px;
-            height: 34px;
+            width: 40px;
+            height: 40px;
             border-radius: 10px;
-            background: linear-gradient(135deg, var(--mat-sys-tertiary-container), var(--mat-sys-primary-container));
-            color: var(--mat-sys-tertiary);
+            background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1));
+            color: #6366f1;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            margin-top: 1px;
         }
         .sp-link-info { flex: 1; min-width: 0; }
         .sp-link-url {
             font-size: 12px;
             font-weight: 600;
-            color: var(--mat-sys-primary);
+            color: #6366f1;
             margin: 0 0 3px;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -7595,15 +10009,24 @@ interface MessageGroup {
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
-        .sp-link-arrow {
-            color: var(--mat-sys-on-surface-variant);
+
+        .sp-link-actions {
+            display: flex;
+            gap: 6px;
             flex-shrink: 0;
-            margin-top: 2px;
-            transition: color 0.15s, transform 0.15s;
+            opacity: 0;
+            transform: translateX(8px);
+            transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1);
         }
-        .sp-link-card:hover .sp-link-arrow {
-            color: var(--mat-sys-primary);
             transform: translate(2px, -2px);
+        }
+
+        /* ── Options Menus ── */
+        .sp-options-menu,
+        .sp-sched-menu { }
+        .sp-options-menu ::ng-deep .mat-mdc-menu-content,
+        .sp-sched-menu ::ng-deep .mat-mdc-menu-content {
+            padding: 8px 0 !important;
         }
 
         /* ── Lightbox ── */
@@ -8041,81 +10464,6 @@ interface MessageGroup {
             margin-left: 4px;
             opacity: 0.75;
         }
-
-        /* ── Voice message bubble ────────────────────────────────────── */
-        .voice-bubble {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 9px 14px 9px 10px;
-            border-radius: 24px;
-            min-width: 200px;
-            max-width: 280px;
-            background: var(--mat-sys-surface-container);
-            border: 1px solid var(--mat-sys-outline-variant);
-        }
-        .voice-bubble-own {
-            background: linear-gradient(140deg,
-                var(--mat-sys-primary-container) 0%,
-                color-mix(in srgb, var(--mat-sys-primary-container) 50%, var(--mat-sys-tertiary-container)) 100%);
-            border: none;
-            box-shadow: 0 2px 10px color-mix(in srgb, var(--mat-sys-primary) 16%, transparent);
-        }
-        .vb-play-btn {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            border: none;
-            background: var(--mat-sys-primary);
-            color: var(--mat-sys-on-primary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            flex-shrink: 0;
-            padding: 0;
-            transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1),
-                        box-shadow 0.15s ease;
-            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 35%, transparent);
-        }
-        .vb-play-btn:hover {
-            transform: scale(1.1);
-            box-shadow: 0 4px 14px color-mix(in srgb, var(--mat-sys-primary) 45%, transparent);
-        }
-        .vb-waveform {
-            display: flex;
-            align-items: center;
-            gap: 2px;
-            flex: 1;
-            height: 28px;
-        }
-        .vb-bar {
-            width: 3px;
-            border-radius: 3px;
-            background: var(--mat-sys-primary);
-            opacity: 0.6;
-            animation: vb-wave 0.75s ease-in-out infinite alternate;
-            animation-play-state: paused;
-        }
-        .voice-bubble-own .vb-bar {
-            background: color-mix(in srgb, var(--mat-sys-primary) 70%, var(--mat-sys-on-surface));
-            opacity: 0.75;
-        }
-        @keyframes vb-wave {
-            from { transform: scaleY(0.25); opacity: 0.4; }
-            to   { transform: scaleY(1);    opacity: 1;   }
-        }
-        .vb-time {
-            font-size: 11px;
-            font-weight: 600;
-            font-variant-numeric: tabular-nums;
-            color: var(--mat-sys-on-surface-variant);
-            white-space: nowrap;
-            min-width: 30px;
-            text-align: right;
-            letter-spacing: 0.02em;
-        }
-        .voice-bubble-own .vb-time { color: var(--mat-sys-on-surface); }
 
         /* ── Video recording experience ──────────────────────────────── */
         /* Two separate position:fixed elements.                         */
@@ -8565,20 +10913,40 @@ interface MessageGroup {
             pointer-events: none;
         }
 
-        /* ── Video message bubble ─────────────────────────────────────── */
+        /* ── Sleek Video Message ────────────────────────────────────────── */
         .vvb-player-wrap {
             position: relative;
-            width: 260px;
-            border-radius: 12px;
+            width: 280px;
+            border-radius: 16px;
             overflow: hidden;
             background: #000;
-            box-shadow: 0 3px 14px rgba(0,0,0,0.3);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.25),
+                        0 0 0 1px color-mix(in srgb, var(--mat-sys-primary) 20%, rgba(0,0,0,0.1));
+            animation: videoMessageEnter 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+            transition: box-shadow 0.3s ease, transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+        }
+
+        @keyframes videoMessageEnter {
+            from {
+                opacity: 0;
+                transform: translateY(12px) scale(0.93);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .vvb-player-wrap:hover {
+            box-shadow: 0 12px 32px rgba(0,0,0,0.32),
+                        0 0 0 1px color-mix(in srgb, var(--mat-sys-primary) 35%, rgba(0,0,0,0.1));
         }
         .vvb-video {
             width: 100%;
-            max-height: 180px;
+            height: 200px;
             object-fit: cover;
             display: block;
+            background: #000;
         }
         .vvb-overlay {
             position: absolute;
@@ -8587,54 +10955,73 @@ interface MessageGroup {
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            background: rgba(0,0,0,0.18);
-            transition: background 0.15s;
+            background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.2) 100%);
+            transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1);
         }
-        .vvb-overlay:hover { background: rgba(0,0,0,0.30); }
+
+        .vvb-overlay:hover {
+            background: linear-gradient(180deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.35) 100%);
+        }
         .vvb-play-btn {
-            width: 48px;
-            height: 48px;
+            width: 56px;
+            height: 56px;
             border-radius: 50%;
             border: none;
-            background: rgba(255,255,255,0.88);
-            color: #111;
+            background: rgba(255,255,255,0.92);
+            color: #000;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             padding: 0;
-            transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1),
-                        box-shadow 0.15s;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+            transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+            font-size: 28px;
         }
-        .vvb-play-btn:hover { transform: scale(1.1); }
+
+        .vvb-play-btn:hover {
+            transform: scale(1.12);
+            background: rgba(255,255,255,0.98);
+            box-shadow: 0 6px 24px rgba(0,0,0,0.5);
+        }
+
+        .vvb-play-btn:active {
+            transform: scale(1.04);
+        }
         .vvb-bottom-bar {
-            padding: 5px 10px 7px;
-            background: rgba(0,0,0,0.72);
+            padding: 8px 12px;
+            background: linear-gradient(180deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.85) 100%);
+            backdrop-filter: blur(4px);
         }
         .vvb-progress {
-            height: 3px;
-            border-radius: 3px;
-            background: rgba(255,255,255,0.25);
-            margin-bottom: 4px;
+            height: 2.5px;
+            border-radius: 2px;
+            background: rgba(255,255,255,0.2);
+            margin-bottom: 6px;
             overflow: hidden;
+            cursor: pointer;
         }
+
         .vvb-progress-fill {
             height: 100%;
-            border-radius: 3px;
-            background: var(--mat-sys-primary);
-            transition: width 0.25s linear;
+            border-radius: 2px;
+            background: linear-gradient(90deg, var(--mat-sys-primary), color-mix(in srgb, var(--mat-sys-primary) 75%, var(--mat-sys-tertiary)));
+            transition: width 0.1s linear;
+            box-shadow: 0 0 4px rgba(var(--mat-sys-primary), 0.3);
         }
         .vvb-times {
             display: flex;
             justify-content: space-between;
+            gap: 4px;
         }
+
         .vvb-current,
         .vvb-duration {
             font-size: 10px;
-            font-weight: 600;
-            color: rgba(255,255,255,0.8);
+            font-weight: 700;
+            color: rgba(255,255,255,0.9);
             font-variant-numeric: tabular-nums;
+            letter-spacing: 0.01em;
         }
 
         /* ── Chat header accent bar ──────────────────────────────────── */
@@ -9022,6 +11409,10 @@ interface MessageGroup {
         }
         .wa-room-active .wa-room-preview {
             color: color-mix(in srgb, var(--mat-sys-primary) 60%, var(--mat-sys-on-surface-variant));
+        }
+
+        .wa-room-unread {
+            font-weight: 700 !important;
         }
 
         /* ── Unread badge ── */
@@ -9873,288 +12264,228 @@ interface MessageGroup {
         }
 
         /* Scheduled side panel */
-        .sched-panel {
+        /* ── Scheduled Panel (sp-) ─────────────────────────────────── */
+        .sp-panel {
+            position: absolute;
+            right: 0; top: 0; bottom: 0;
             width: 320px;
-        }
-        .sched-item {
-            padding: 10px 14px;
-            border-bottom: 1px solid var(--mat-sys-outline-variant);
-            animation: schedItemFadeIn 220ms cubic-bezier(0.34,1.56,0.64,1) both;
-        }
-        .sched-item:last-child { border-bottom: none; }
-        .sched-item-preview {
-            font-size: 12.5px;
-            font-weight: 500;
-            color: var(--mat-sys-on-surface);
-            margin-bottom: 5px;
-            line-height: 1.4;
-        }
-        .sched-item-meta {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 3px;
-        }
-        .sched-date {
-            font-size: 11px;
-            color: var(--mat-sys-on-surface-variant);
-        }
-        .sched-chip {
-            font-size: 10px;
-            font-weight: 700;
-            color: #fff;
-            padding: 2px 7px;
-            border-radius: 10px;
-            letter-spacing: 0.3px;
-        }
-        .sched-item-countdown {
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--mat-sys-primary);
-            margin-bottom: 4px;
-        }
-        .sched-item-actions {
-            display: flex;
-            gap: 4px;
-            justify-content: flex-end;
-        }
-        .sched-empty {
+            background: #ffffff;
+            border-left: 1px solid #e2e8f0;
+            box-shadow: -4px 0 24px rgba(0,0,0,0.08);
             display: flex;
             flex-direction: column;
-            align-items: center;
-            padding: 32px 16px;
-            text-align: center;
-            color: var(--mat-sys-on-surface-variant);
+            z-index: 10;
+            overflow: hidden;
         }
-        .sched-empty-icon {
-            font-size: 56px !important;
-            width: 56px !important;
-            height: 56px !important;
-            margin-bottom: 12px;
-            animation: schedPulse 2.5s ease-in-out infinite;
-            color: var(--mat-sys-outline);
-        }
-        .sched-empty p { font-size: 13px; margin: 0; }
-
-        /* ══ MODERATION PANEL ════════════════════════════════════════ */
-        .mod-panel { min-width: 360px; max-width: 400px; display: flex; flex-direction: column; border-radius: 0 !important; }
-
-        /* Shimmer bar */
-        @keyframes modShimmer { 0%{background-position:0% 50%} 100%{background-position:200% 50%} }
-        .mod-shimmer-bar {
+        @keyframes spShimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+        .sp-shimmer-bar {
             height: 3px; flex-shrink: 0;
-            background: linear-gradient(90deg, #ef4444, var(--mat-sys-primary), #ef4444);
+            background: linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4, #6366f1);
             background-size: 200% 100%;
-            animation: modShimmer 2s linear infinite;
+            animation: spShimmer 2.4s linear infinite;
         }
-
-        /* Header */
-        .mod-panel-header {
+        .sp-header {
             display: flex; align-items: center; justify-content: space-between;
-            padding: 14px 16px 12px; flex-shrink: 0;
+            padding: 14px 16px; flex-shrink: 0;
         }
-        .mod-header-left { display: flex; align-items: center; gap: 10px; }
-        .mod-header-icon-wrap {
-            width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
-            background: color-mix(in srgb,#ef4444 12%,transparent);
-            border: 1px solid color-mix(in srgb,#ef4444 25%,transparent);
+        .sp-header-left { display: flex; align-items: center; gap: 12px; }
+        .sp-header-icon {
+            width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+            background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08));
             display: flex; align-items: center; justify-content: center;
+            color: #6366f1;
         }
-        .mod-header-title-row { display: flex; align-items: center; gap: 7px; }
-        .mod-header-title { font-size: 14px; font-weight: 700; letter-spacing: -0.01em; }
-        .mod-header-badge {
-            display: inline-flex; align-items: center; justify-content: center;
-            min-width: 20px; height: 20px; border-radius: 10px; padding: 0 6px;
-            background: #ef4444; color: #fff; font-size: 10px; font-weight: 700;
+        .sp-header-icon mat-icon { font-size: 20px !important; width: 20px !important; height: 20px !important; }
+        .sp-title { font-size: 15px; font-weight: 700; color: #1e293b; margin: 0; }
+        .sp-subtitle { font-size: 12px; color: #64748b; margin: 2px 0 0 0; }
+        .sp-close-btn {
+            width: 32px; height: 32px; background: none; border: none; border-radius: 8px;
+            cursor: pointer; color: #64748b; display: flex; align-items: center; justify-content: center;
+            transition: all 0.15s ease;
         }
-        .mod-header-stats { font-size: 11px; color: var(--mat-sys-on-surface-variant); margin-top: 2px; }
+        .sp-close-btn:hover { background: #f1f5f9; color: #1e293b; }
+        .sp-close-btn mat-icon { font-size: 20px !important; width: 20px !important; height: 20px !important; }
+        .sp-divider { height: 1px; background: #e2e8f0; flex-shrink: 0; }
+        .sp-body { flex: 1; overflow-y: auto; padding: 12px; }
 
-        /* Pill tabs */
-        .mod-pill-tabs-row { padding: 10px 14px 0; flex-shrink: 0; }
-        .mod-pill-tabs {
-            display: inline-flex; gap: 4px;
-            background: var(--mat-sys-surface-container-high);
-            border-radius: 12px; padding: 3px;
+        /* Skeleton */
+        .sp-skeleton-wrap { display: flex; flex-direction: column; gap: 10px; }
+        .sp-skeleton-card {
+            padding: 14px; border-radius: 12px; border: 1px solid #f1f5f9;
+            display: flex; flex-direction: column; gap: 8px;
+            background: linear-gradient(90deg,#f8fafc 25%,#f1f5f9 50%,#f8fafc 75%);
+            background-size: 200% 100%; animation: spShimmer 1.5s linear infinite;
         }
-        .mod-pill-tab {
-            display: flex; align-items: center; gap: 5px;
-            padding: 5px 14px; border-radius: 9px; font-size: 12px; font-weight: 600;
-            border: none; cursor: pointer; background: transparent;
-            color: var(--mat-sys-on-surface-variant);
-            transition: background 200ms ease, color 200ms ease;
-        }
-        .mod-pill-active { background: var(--mat-sys-surface) !important; color: var(--mat-sys-primary) !important; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
-        .mod-pill-count {
-            display: inline-flex; align-items: center; justify-content: center;
-            min-width: 17px; height: 17px; border-radius: 9px; padding: 0 4px;
-            background: #ef4444; color: #fff; font-size: 9px; font-weight: 700;
-        }
-        .mod-pill-count-zero { background: var(--mat-sys-outline-variant); color: var(--mat-sys-on-surface-variant); }
+        .sp-sk-line { height: 10px; border-radius: 5px; background: #e2e8f0; }
+        .sp-sk-line-long { width: 80%; }
+        .sp-sk-line-short { width: 50%; }
+        .sp-sk-row { display: flex; gap: 8px; }
+        .sp-sk-pill { height: 18px; width: 60px; border-radius: 9px; background: #e2e8f0; }
+        .sp-sk-pill-sm { width: 40px; }
 
-        /* Body */
-        .mod-panel-body { flex: 1; overflow-y: auto; padding: 10px 0; }
-
-        /* Error state */
-        .mod-error-state {
-            display: flex; align-items: center; gap: 8px; padding: 16px 14px;
-            font-size: 13px; color: var(--mat-sys-error);
+        /* Error */
+        .sp-error-state {
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+            padding: 40px 20px; text-align: center; color: #ef4444;
         }
+        .sp-error-state mat-icon { font-size: 36px !important; width: 36px !important; height: 36px !important; }
+        .sp-error-state p { font-size: 13px; margin: 0; }
 
         /* Empty state */
-        .mod-empty-state {
-            display: flex; flex-direction: column; align-items: center;
-            padding: 40px 16px; text-align: center;
+        .sp-empty-state {
+            display: flex; flex-direction: column; align-items: center; gap: 10px;
+            padding: 48px 24px; text-align: center;
         }
-        @keyframes modShieldPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
-        .mod-empty-shield-wrap {
-            width: 72px; height: 72px; border-radius: 20px;
-            background: color-mix(in srgb,var(--mat-sys-primary) 10%,transparent);
+        .sp-empty-icon-wrap {
+            width: 64px; height: 64px; border-radius: 18px;
+            background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.06));
             display: flex; align-items: center; justify-content: center;
-            margin-bottom: 16px; animation: modShieldPulse 2s ease-in-out infinite;
+            animation: spEmptyPulse 2.8s ease-in-out infinite;
         }
-        .mod-empty-shield-icon {
-            font-size: 36px !important; width: 36px !important; height: 36px !important;
-            color: var(--mat-sys-primary); opacity: 0.7;
+        @keyframes spEmptyPulse {
+            0%,100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99,102,241,0.15); }
+            50% { transform: scale(1.04); box-shadow: 0 0 0 8px rgba(99,102,241,0); }
         }
-        .mod-empty-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
-        .mod-empty-sub { font-size: 12px; color: var(--mat-sys-on-surface-variant); }
+        .sp-empty-icon-wrap mat-icon { font-size: 28px !important; width: 28px !important; height: 28px !important; color: #6366f1; }
+        .sp-empty-title { font-size: 14px; font-weight: 700; color: #1e293b; margin: 0; }
+        .sp-empty-sub { font-size: 12px; color: #94a3b8; margin: 0; line-height: 1.6; }
 
-        /* Report cards */
-        .mod-report-card {
-            margin: 6px 12px; padding: 12px 12px 10px;
-            border: 0.5px solid var(--mat-sys-outline-variant);
-            border-radius: 16px;
-            background: var(--mat-sys-surface-container);
-            transition: box-shadow 150ms ease, transform 150ms ease;
-            border-left: 3px solid var(--mat-sys-outline-variant);
+        /* Cards */
+        .sp-list { display: flex; flex-direction: column; gap: 10px; }
+        .sp-card {
+            position: relative;
+            padding: 14px;
+            border-radius: 12px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1);
+            overflow: hidden;
         }
-        .mod-report-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,0.1); transform: translateY(-1px); }
-        .mod-card-resolved { opacity: 0.78; }
-
-        /* Category left-border accent */
-        .mod-card-cat-harassment    { border-left-color: #ef4444; }
-        .mod-card-cat-inappropriate { border-left-color: #f97316; }
-        .mod-card-cat-hate_speech   { border-left-color: #dc2626; }
-        .mod-card-cat-spam          { border-left-color: #f59e0b; }
-        .mod-card-cat-misinformation{ border-left-color: #8b5cf6; }
-        .mod-card-cat-other         { border-left-color: var(--mat-sys-outline-variant); }
-
-        .mod-card-top {
-            display: flex; align-items: center; gap: 7px; margin-bottom: 7px; flex-wrap: wrap;
+        .sp-card:hover {
+            background: #fff;
+            border-color: #c7d2fe;
+            box-shadow: 0 4px 18px rgba(99,102,241,0.1);
+            transform: translateY(-1px);
         }
-        .mod-category-badge {
-            padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700;
-            text-transform: uppercase; letter-spacing: 0.4px;
+        .sp-card-dot {
+            position: absolute; top: 14px; right: 14px;
+            width: 8px; height: 8px; border-radius: 50%;
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.8);
         }
-        .mod-cat-harassment    { background: color-mix(in srgb,#ef4444 14%,transparent); color: #dc2626; }
-        .mod-cat-inappropriate { background: color-mix(in srgb,#f97316 14%,transparent); color: #ea580c; }
-        .mod-cat-hate_speech   { background: color-mix(in srgb,#dc2626 14%,transparent); color: #b91c1c; }
-        .mod-cat-spam          { background: color-mix(in srgb,#f59e0b 14%,transparent); color: #d97706; }
-        .mod-cat-misinformation{ background: color-mix(in srgb,#8b5cf6 14%,transparent); color: #7c3aed; }
-        .mod-cat-other         { background: var(--mat-sys-surface-container-high); color: var(--mat-sys-on-surface-variant); }
-
-        @keyframes modDotPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
-        .mod-status-dot {
-            width: 7px; height: 7px; border-radius: 50%; background: #ef4444; flex-shrink: 0;
-            animation: modDotPulse 1.4s ease-in-out infinite;
+        .sp-card-preview {
+            font-size: 13px; font-weight: 500; color: #1e293b;
+            line-height: 1.5; margin-bottom: 10px; padding-right: 18px;
         }
-        .mod-status-badge {
-            padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700;
-            text-transform: uppercase; letter-spacing: 0.3px;
+        .sp-card-meta {
+            display: flex; align-items: center; gap: 6px; margin-bottom: 5px;
         }
-        .mod-status-resolved  { background: color-mix(in srgb,#22c55e 14%,transparent); color: #16a34a; }
-        .mod-status-dismissed { background: var(--mat-sys-surface-container-high); color: var(--mat-sys-on-surface-variant); }
-        .mod-timestamp { font-size: 11px; color: var(--mat-sys-on-surface-variant); margin-left: auto; }
-
-        .mod-room-name {
-            display: flex; align-items: center; font-size: 12px; font-weight: 700;
-            color: var(--mat-sys-primary); margin-bottom: 8px;
+        .sp-meta-icon { font-size: 13px !important; width: 13px !important; height: 13px !important; color: #94a3b8 !important; }
+        .sp-card-date { font-size: 12px; color: #475569; font-weight: 500; flex: 1; }
+        .sp-recurrence-chip {
+            font-size: 10px; font-weight: 700; color: #fff;
+            padding: 2px 8px; border-radius: 10px; letter-spacing: 0.04em;
+            text-transform: uppercase; flex-shrink: 0;
         }
-        .mod-room-name:hover { opacity: 0.8; }
-
-        /* Quote block */
-        .mod-quote {
-            border-left: 3px solid var(--mat-sys-outline-variant);
-            padding: 7px 10px; border-radius: 0 10px 10px 0;
-            background: var(--mat-sys-surface-container-high);
-            margin-bottom: 8px;
-        }
-        .mod-quote-cat-harassment    { border-left-color: #ef4444; background: color-mix(in srgb,#ef4444 5%,var(--mat-sys-surface-container-high)); }
-        .mod-quote-cat-inappropriate { border-left-color: #f97316; background: color-mix(in srgb,#f97316 5%,var(--mat-sys-surface-container-high)); }
-        .mod-quote-cat-hate_speech   { border-left-color: #dc2626; background: color-mix(in srgb,#dc2626 5%,var(--mat-sys-surface-container-high)); }
-        .mod-quote-cat-spam          { border-left-color: #f59e0b; background: color-mix(in srgb,#f59e0b 5%,var(--mat-sys-surface-container-high)); }
-        .mod-quote-cat-misinformation{ border-left-color: #8b5cf6; background: color-mix(in srgb,#8b5cf6 5%,var(--mat-sys-surface-container-high)); }
-        .mod-quote-author { font-size: 10px; font-weight: 700; color: var(--mat-sys-on-surface-variant); display: block; margin-bottom: 3px; }
-        .mod-quote-text   { font-size: 12px; color: var(--mat-sys-on-surface); font-style: italic; line-height: 1.5; }
-        .mod-show-more-btn {
-            background: none; border: none; padding: 0; margin-left: 4px;
-            font-size: 11px; font-weight: 600; color: var(--mat-sys-primary);
-            cursor: pointer; text-decoration: underline;
-        }
-
-        /* Reporter row */
-        .mod-reporter-row {
-            display: flex; align-items: center; gap: 5px; font-size: 11px;
-            color: var(--mat-sys-on-surface-variant); margin-bottom: 7px;
-        }
-        .mod-reporter-name { font-weight: 600; }
-
-        /* AI badge */
-        .mod-ai-badge {
-            display: inline-flex; align-items: center; gap: 5px;
-            padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600;
-            background: color-mix(in srgb,#8b5cf6 10%,transparent);
-            color: #7c3aed; margin-bottom: 9px;
-        }
-
-        /* Action row */
-        .mod-card-actions { display: flex; gap: 7px; margin-top: 9px; flex-wrap: wrap; }
-        .mod-view-btn { font-size: 11px !important; height: 30px !important; padding: 0 10px !important; border-radius: 8px !important; gap: 4px; }
-        .mod-action-btn { font-size: 11px !important; height: 30px !important; padding: 0 10px !important; border-radius: 8px !important; gap: 4px; }
-
-        /* Action menu */
-        .mod-menu-item-wrap { display: flex; flex-direction: column; line-height: 1.2; }
-        .mod-menu-sub { font-size: 10px; color: var(--mat-sys-on-surface-variant); font-weight: 400; margin-top: 2px; }
-        .mod-ban-item { color: #ef4444 !important; }
-        .mod-ban-item mat-icon { color: #ef4444 !important; }
-
-        /* Action taken (history) */
-        .mod-action-taken {
+        .sp-card-countdown {
             display: flex; align-items: center; gap: 4px;
-            font-size: 11px; color: var(--mat-sys-on-surface-variant);
-            margin-top: 5px; font-style: italic;
+            font-size: 11px; font-weight: 600; color: #6366f1; margin-bottom: 10px;
         }
+        .sp-card-actions {
+            display: flex; gap: 6px; opacity: 0; transform: translateY(4px);
+            transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        .sp-card:hover .sp-card-actions { opacity: 1; transform: translateY(0); }
+        .sp-action-btn {
+            display: flex; align-items: center; gap: 5px;
+            padding: 5px 10px; border-radius: 7px; border: none; cursor: pointer;
+            font-size: 12px; font-weight: 600; transition: all 0.15s ease;
+        }
+        .sp-action-btn mat-icon { font-size: 15px !important; width: 15px !important; height: 15px !important; }
+        .sp-action-edit { background: #f1f5f9; color: #475569; }
+        .sp-action-edit:hover { background: #e0e7ff; color: #6366f1; }
+        .sp-action-cancel { background: #fff1f2; color: #f43f5e; }
+        .sp-action-cancel:hover { background: #ffe4e6; color: #e11d48; }
 
-        /* History filter chips */
-        .mod-filter-chips-row { display: flex; gap: 6px; padding: 6px 12px 4px; flex-wrap: wrap; }
-        .mod-filter-chip {
-            padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600;
-            border: 1px solid var(--mat-sys-outline-variant);
-            background: transparent; color: var(--mat-sys-on-surface-variant);
-            cursor: pointer; transition: background 180ms ease, color 180ms ease, border-color 180ms ease;
-        }
-        .mod-filter-chip-active {
-            background: color-mix(in srgb,var(--mat-sys-primary) 12%,transparent) !important;
-            color: var(--mat-sys-primary) !important;
-            border-color: var(--mat-sys-primary) !important;
-        }
+        /* ══ MODERATION PANEL ════════════════════════════════════════ */
 
-        /* Footer */
-        .mod-panel-footer {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 8px 14px; flex-shrink: 0;
-        }
-        .mod-footer-text { font-size: 10px; color: var(--mat-sys-on-surface-variant); opacity: 0.7; }
-        .mod-refresh-btn {
-            display: flex; align-items: center; justify-content: center;
-            width: 28px; height: 28px; border-radius: 8px; border: none;
-            background: none; cursor: pointer; color: var(--mat-sys-on-surface-variant);
-            transition: background 150ms ease;
-        }
-        .mod-refresh-btn:hover { background: var(--mat-sys-surface-container-high); }
-        .mod-refresh-icon { font-size: 17px !important; width: 17px !important; height: 17px !important; transition: transform 800ms ease; }
+        /* === MODERATION CENTER PANEL (mc-) === */
+        .mc-panel { position:absolute; right:0; top:0; bottom:0; width:380px; background:#fff; border-left:1px solid #e2e8f0; box-shadow:-4px 0 28px rgba(0,0,0,0.09); display:flex; flex-direction:column; z-index:10; overflow:hidden; }
+        @keyframes mcShimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+        .mc-shimmer-bar { height:3px; flex-shrink:0; background:linear-gradient(90deg,#6366f1,#8b5cf6,#a78bfa,#6366f1); background-size:200% 100%; animation:mcShimmer 2.2s linear infinite; }
+        .mc-header { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; flex-shrink:0; }
+        .mc-header-left { display:flex; align-items:center; gap:12px; }
+        .mc-header-icon { width:40px; height:40px; border-radius:12px; flex-shrink:0; background:linear-gradient(135deg,rgba(99,102,241,0.12),rgba(139,92,246,0.08)); display:flex; align-items:center; justify-content:center; color:#6366f1; }
+        .mc-header-icon mat-icon { font-size:22px !important; width:22px !important; height:22px !important; }
+        .mc-title-row { display:flex; align-items:center; gap:8px; }
+        .mc-title { font-size:15px; font-weight:700; color:#1e293b; margin:0; }
+        @keyframes mcBadgePulse { 0%,100%{box-shadow:0 0 0 0 rgba(99,102,241,0.4)} 50%{box-shadow:0 0 0 6px rgba(99,102,241,0)} }
+        .mc-alert-badge { display:inline-flex; align-items:center; justify-content:center; min-width:20px; height:20px; border-radius:10px; padding:0 5px; background:#6366f1; color:#fff; font-size:10px; font-weight:800; animation:mcBadgePulse 2s ease-in-out infinite; }
+        .mc-subtitle { font-size:12px; color:#64748b; margin:2px 0 0 0; }
+        .mc-header-actions { display:flex; align-items:center; gap:4px; }
+        .mc-icon-btn { width:32px; height:32px; background:none; border:none; border-radius:8px; cursor:pointer; color:#64748b; display:flex; align-items:center; justify-content:center; transition:all 0.15s ease; }
+        .mc-icon-btn:hover { background:#f1f5f9; color:#1e293b; }
+        .mc-icon-btn mat-icon { font-size:18px !important; width:18px !important; height:18px !important; }
+        .mc-tabs { display:flex; padding:0 16px 12px; flex-shrink:0; border-bottom:1px solid #e2e8f0; gap:4px; }
+        .mc-tab { flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:8px 12px; border:none; background:none; border-radius:10px; font-size:13px; font-weight:600; color:#64748b; cursor:pointer; transition:all 0.2s cubic-bezier(0.34,1.56,0.64,1); }
+        .mc-tab mat-icon { font-size:16px !important; width:16px !important; height:16px !important; }
+        .mc-tab-active { background:#eef2ff; color:#6366f1; }
+        .mc-tab-badge { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; border-radius:9px; padding:0 4px; background:#6366f1; color:#fff; font-size:10px; font-weight:800; }
+        .mc-body { flex:1; overflow-y:auto; padding:12px; }
+        .mc-skeleton-wrap { display:flex; flex-direction:column; gap:10px; }
+        .mc-skeleton-card { padding:14px; border-radius:12px; border:1px solid #f1f5f9; display:flex; flex-direction:column; gap:8px; background:linear-gradient(90deg,#f8fafc 25%,#f1f5f9 50%,#f8fafc 75%); background-size:200% 100%; animation:mcShimmer 1.5s linear infinite; }
+        .mc-sk-row{display:flex;gap:8px} .mc-sk-pill{height:18px;width:70px;border-radius:9px;background:#e2e8f0} .mc-sk-sm{width:40px}
+        .mc-sk-line{height:10px;border-radius:5px;background:#e2e8f0} .mc-sk-long{width:90%} .mc-sk-medium{width:70%} .mc-sk-short{width:45%}
+        .mc-error-state { display:flex; flex-direction:column; align-items:center; gap:8px; padding:40px 20px; text-align:center; color:#6366f1; }
+        .mc-error-state mat-icon { font-size:36px !important; width:36px !important; height:36px !important; }
+        .mc-error-state p { font-size:13px; margin:0; }
+        .mc-empty-state { display:flex; flex-direction:column; align-items:center; gap:10px; padding:48px 24px; text-align:center; }
+        .mc-empty-icon-wrap { width:64px; height:64px; border-radius:18px; background:linear-gradient(135deg,rgba(99,102,241,0.1),rgba(139,92,246,0.06)); display:flex; align-items:center; justify-content:center; animation:spEmptyPulse 2.8s ease-in-out infinite; }
+        .mc-empty-icon-wrap mat-icon { font-size:28px !important; width:28px !important; height:28px !important; color:#6366f1; }
+        .mc-empty-title { font-size:14px; font-weight:700; color:#1e293b; margin:0; }
+        .mc-empty-sub { font-size:12px; color:#94a3b8; margin:0; line-height:1.6; }
+        .mc-cards-list { display:flex; flex-direction:column; gap:10px; }
+        .mc-report-card { border-radius:12px; background:#f8fafc; border:1px solid #e2e8f0; border-left:4px solid #e2e8f0; padding:14px; transition:all 0.22s cubic-bezier(0.34,1.56,0.64,1); }
+        .mc-report-card:hover { background:#fff; border-color:#c7d2fe; box-shadow:0 4px 20px rgba(99,102,241,0.1); transform:translateY(-1px); }
+        .mc-card-resolved { opacity:0.72; }
+        .mc-cat-harassment{border-left-color:#6366f1} .mc-cat-inappropriate{border-left-color:#8b5cf6} .mc-cat-hate_speech{border-left-color:#7c3aed} .mc-cat-spam{border-left-color:#a78bfa} .mc-cat-misinformation{border-left-color:#8b5cf6} .mc-cat-other{border-left-color:#94a3b8}
+        .mc-card-header { display:flex; align-items:center; gap:7px; margin-bottom:8px; }
+        .mc-category-badge { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; padding:3px 8px; border-radius:20px; }
+        .mc-cat-badge-harassment{background:rgba(99,102,241,0.12);color:#6366f1} .mc-cat-badge-inappropriate{background:rgba(139,92,246,0.12);color:#8b5cf6} .mc-cat-badge-hate_speech{background:rgba(124,58,237,0.12);color:#7c3aed} .mc-cat-badge-spam{background:rgba(167,139,250,0.12);color:#a78bfa} .mc-cat-badge-misinformation{background:rgba(139,92,246,0.12);color:#8b5cf6} .mc-cat-badge-other{background:#f1f5f9;color:#64748b}
+        @keyframes mcLivePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
+        .mc-live-dot { width:7px; height:7px; border-radius:50%; background:#6366f1; flex-shrink:0; animation:mcLivePulse 1.6s ease-in-out infinite; }
+        .mc-status-badge { font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; background:#f1f5f9; color:#64748b; }
+        .mc-status-resolved{background:rgba(34,197,94,0.12) !important;color:#16a34a !important} .mc-status-dismissed{background:#f1f5f9 !important;color:#64748b !important}
+        .mc-timestamp { font-size:10px; color:#94a3b8; margin-left:auto; white-space:nowrap; }
+        .mc-room-link { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:600; color:#6366f1; background:none; border:none; cursor:pointer; padding:4px 8px 4px 0; border-radius:6px; margin-bottom:8px; transition:all 0.15s ease; }
+        .mc-room-link mat-icon { font-size:13px !important; width:13px !important; height:13px !important; }
+        .mc-room-arrow { opacity:0; transform:translateX(-4px); transition:all 0.15s ease; }
+        .mc-room-link:hover { color:#4f46e5; } .mc-room-link:hover .mc-room-arrow { opacity:1; transform:translateX(0); }
+        .mc-room-link-static { cursor:default; color:#64748b; pointer-events:none; }
+        .mc-quote { border-left:3px solid #e2e8f0; border-radius:0 8px 8px 0; padding:8px 10px; background:#fff; margin-bottom:8px; }
+        .mc-quote-harassment{border-left-color:#6366f1;background:rgba(99,102,241,0.04)} .mc-quote-inappropriate{border-left-color:#8b5cf6;background:rgba(139,92,246,0.04)} .mc-quote-hate_speech{border-left-color:#7c3aed;background:rgba(124,58,237,0.04)} .mc-quote-spam{border-left-color:#a78bfa;background:rgba(167,139,250,0.04)} .mc-quote-misinformation{border-left-color:#8b5cf6;background:rgba(139,92,246,0.04)}
+        .mc-quote-author { display:flex; align-items:center; gap:4px; font-size:10px; font-weight:700; color:#64748b; margin-bottom:4px; }
+        .mc-quote-text { font-size:12px; color:#334155; font-style:italic; line-height:1.55; margin:0; }
+        .mc-show-more { background:none; border:none; padding:0 4px; margin-left:2px; font-size:11px; font-weight:600; color:#6366f1; cursor:pointer; text-decoration:underline; font-style:normal; }
+        .mc-reporter { display:flex; align-items:center; gap:5px; font-size:11px; color:#94a3b8; margin-bottom:8px; }
+        .mc-ai-chip { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:20px; font-size:11px; font-weight:600; background:rgba(139,92,246,0.1); color:#7c3aed; margin-bottom:10px; border:1px solid rgba(139,92,246,0.15); }
+        .mc-card-actions { display:flex; gap:7px; flex-wrap:wrap; margin-top:10px; }
+        .mc-btn-ghost { display:flex; align-items:center; gap:5px; padding:6px 12px; border-radius:8px; border:1px solid #e2e8f0; background:#fff; color:#475569; font-size:12px; font-weight:600; cursor:pointer; transition:all 0.15s ease; }
+        .mc-btn-ghost:hover { border-color:#6366f1; color:#6366f1; background:rgba(99,102,241,0.04); }
+        .mc-btn-ghost mat-icon { font-size:14px !important; width:14px !important; height:14px !important; }
+        .mc-btn-danger { display:flex; align-items:center; gap:5px; padding:6px 12px; border-radius:8px; border:none; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; font-size:12px; font-weight:600; cursor:pointer; transition:all 0.2s cubic-bezier(0.34,1.56,0.64,1); box-shadow:0 2px 10px rgba(99,102,241,0.3); }
+        .mc-btn-danger:hover { transform:translateY(-1px); box-shadow:0 4px 16px rgba(99,102,241,0.4); }
+        .mc-btn-danger mat-icon { font-size:14px !important; width:14px !important; height:14px !important; }
+        .mc-action-taken { display:flex; align-items:center; gap:5px; margin-top:8px; font-size:11px; font-weight:600; color:#16a34a; background:rgba(34,197,94,0.08); border-radius:6px; padding:4px 8px; }
+        .mc-filter-row { display:flex; gap:6px; padding:4px 0 10px; flex-wrap:wrap; }
+        .mc-filter-chip { padding:5px 14px; border-radius:20px; font-size:12px; font-weight:600; border:1.5px solid #e2e8f0; background:#fff; color:#64748b; cursor:pointer; transition:all 0.2s cubic-bezier(0.34,1.56,0.64,1); }
+        .mc-filter-active { border-color:#6366f1 !important; color:#6366f1 !important; background:rgba(99,102,241,0.06) !important; }
+        .mod-menu-item-wrap { display:flex; flex-direction:column; line-height:1.2; }
+        .mod-menu-sub { font-size:10px; color:var(--mat-sys-on-surface-variant); font-weight:400; margin-top:2px; }
+        .mod-ban-item { color:#6366f1 !important; } .mod-ban-item mat-icon { color:#6366f1 !important; }
+        .mod-refresh-icon { font-size:17px !important; width:17px !important; height:17px !important; transition:transform 800ms ease; }
         @keyframes modRefreshSpin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-        .mod-refresh-spinning { animation: modRefreshSpin 800ms linear; }
+        .mod-refresh-spinning { animation:modRefreshSpin 800ms linear; }
+
 
         /* ══ DELETED MESSAGE ════════════════════════════════════════════ */
         .msg-bubble-deleted {
@@ -10775,355 +13106,6 @@ interface MessageGroup {
             align-items: center !important;
             gap: 4px !important;
             margin-top: auto;
-        }
-
-        /* ── Inline Group Summarize ─────────────────────────────────────── */
-        .group-summarize-row {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            margin: -2px 0 6px 48px;
-            gap: 8px;
-        }
-        .group-summarize-row.own {
-            align-items: flex-end;
-            margin: -2px 0 6px 0;
-            margin-right: 4px;
-        }
-        .summarize-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 4px 12px;
-            border-radius: 20px;
-            border: 1px dashed var(--mat-sys-primary);
-            background: transparent;
-            font-size: 12px;
-            color: var(--mat-sys-primary);
-            cursor: pointer;
-            transition: all 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
-            opacity: 0.65;
-            outline: none;
-        }
-        .summarize-pill:hover {
-            opacity: 1;
-            background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
-            transform: scale(1.03);
-            border-style: solid;
-        }
-        .summarize-pill.loading {
-            opacity: 0.6;
-            cursor: wait;
-            border-style: solid;
-        }
-        .summarize-pill.done {
-            opacity: 1;
-            border-style: solid;
-            background: color-mix(in srgb, var(--mat-sys-primary) 10%, transparent);
-        }
-        .pill-spinner {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            border: 1.5px solid color-mix(in srgb, var(--mat-sys-primary) 30%, transparent);
-            border-top-color: var(--mat-sys-primary);
-            animation: pillSpin 0.8s linear infinite;
-            flex-shrink: 0;
-        }
-        @keyframes pillSpin { to { transform: rotate(360deg); } }
-        .inline-summary {
-            max-width: 320px;
-            padding: 10px 14px;
-            background: color-mix(in srgb, var(--mat-sys-primary) 6%, var(--mat-sys-surface));
-            border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 20%, transparent);
-            border-left: 3px solid var(--mat-sys-primary);
-            border-radius: 0 12px 12px 12px;
-            overflow: hidden;
-        }
-        .inline-summary.own {
-            border-left: 1px solid color-mix(in srgb, var(--mat-sys-primary) 20%, transparent);
-            border-right: 3px solid var(--mat-sys-primary);
-            border-radius: 12px 0 12px 12px;
-        }
-        .inline-summary-text {
-            font-size: 13px;
-            color: var(--mat-sys-on-surface);
-            line-height: 1.5;
-            font-style: italic;
-            min-height: 1em;
-        }
-
-        /* ── AI Summary Panel ───────────────────────────────────────────── */
-        .summary-panel {
-            background: var(--mat-sys-surface-container-lowest);
-            overflow: hidden;
-        }
-        .summary-accent-bar {
-            height: 3px;
-            flex-shrink: 0;
-            background: linear-gradient(90deg,
-                var(--mat-sys-primary) 0%,
-                var(--mat-sys-tertiary) 50%,
-                var(--mat-sys-primary) 100%);
-            background-size: 200%;
-            animation: summaryShimmer 2s linear infinite;
-        }
-        @keyframes summaryShimmer {
-            0%   { background-position: 100% 0; }
-            100% { background-position: -100% 0; }
-        }
-        .summary-header-icon {
-            color: var(--mat-sys-primary);
-            animation: summaryIconPulse 2.5s ease-in-out infinite;
-        }
-        @keyframes summaryIconPulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50%      { opacity: 0.7; transform: scale(1.1); }
-        }
-        .ai-summary-icon { transition: color 0.2s ease, filter 0.2s ease; }
-        button:hover .ai-summary-icon {
-            animation: summarySparkle 0.55s ease-in-out infinite;
-            color: var(--mat-sys-primary);
-        }
-        @keyframes summarySparkle {
-            0%, 100% { filter: drop-shadow(0 0 0px var(--mat-sys-primary)); transform: rotate(0deg); }
-            25%      { filter: drop-shadow(0 0 5px var(--mat-sys-primary)); transform: rotate(-12deg); }
-            75%      { filter: drop-shadow(0 0 5px var(--mat-sys-tertiary)); transform: rotate(12deg); }
-        }
-        .summary-claude-badge {
-            font-size: 9px;
-            font-weight: 600;
-            padding: 2px 7px;
-            border-radius: 20px;
-            background: color-mix(in srgb, var(--mat-sys-tertiary-container) 60%, var(--mat-sys-surface));
-            color: var(--mat-sys-on-surface-variant);
-            letter-spacing: 0.3px;
-            text-transform: uppercase;
-        }
-        .summary-subheader {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 11px;
-            color: var(--mat-sys-on-surface-variant);
-            padding: 4px 14px 6px;
-            border-bottom: 1px solid var(--mat-sys-outline-variant);
-            flex-shrink: 0;
-        }
-        .summary-subheader-sep { opacity: 0.5; }
-        .summary-body {
-            overflow-y: auto;
-            flex: 1;
-            padding: 16px;
-        }
-        /* Loading */
-        .summary-loading-wrap {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 16px;
-            padding: 24px 8px;
-        }
-        .summary-spin-icon {
-            color: var(--mat-sys-primary);
-            animation: summarySpin 2s linear infinite;
-        }
-        @keyframes summarySpin {
-            from { transform: rotate(0deg); }
-            to   { transform: rotate(360deg); }
-        }
-        .summary-dots {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-        .summary-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--mat-sys-primary);
-            animation: summaryDotPulse 1.4s ease-in-out infinite;
-        }
-        .summary-dot:nth-child(1) { animation-delay: 0ms; }
-        .summary-dot:nth-child(2) { animation-delay: 200ms; }
-        .summary-dot:nth-child(3) { animation-delay: 400ms; }
-        @keyframes summaryDotPulse {
-            0%, 80%, 100% { transform: scale(0.7); opacity: 0.5; }
-            40%            { transform: scale(1.0); opacity: 1; }
-        }
-        .summary-skeleton-wrap {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .summary-skeleton {
-            height: 12px;
-            border-radius: 6px;
-            background: linear-gradient(90deg,
-                var(--mat-sys-surface-container) 25%,
-                var(--mat-sys-surface-container-high) 50%,
-                var(--mat-sys-surface-container) 75%);
-            background-size: 200%;
-            animation: summarySkeletonShimmer 1.5s linear infinite;
-        }
-        @keyframes summarySkeletonShimmer {
-            0%   { background-position: 100% 0; }
-            100% { background-position: -100% 0; }
-        }
-        .summary-loading-text {
-            font-size: 12px;
-            color: var(--mat-sys-on-surface-variant);
-            font-style: italic;
-            margin: 0;
-            animation: summaryLoadTextFade 1.8s ease-in-out infinite;
-        }
-        @keyframes summaryLoadTextFade {
-            0%, 100% { opacity: 0.6; }
-            50%      { opacity: 1; }
-        }
-        /* Error */
-        .summary-error-card {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 12px;
-            padding: 24px 16px;
-            text-align: center;
-        }
-        .summary-error-msg {
-            font-size: 13px;
-            color: var(--mat-sys-on-surface-variant);
-            margin: 0;
-        }
-        /* Empty state */
-        .summary-empty-state {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-            padding: 32px 16px;
-            text-align: center;
-        }
-        .summary-empty-icon {
-            font-size: 40px !important;
-            width: 40px !important;
-            height: 40px !important;
-            color: var(--mat-sys-outline-variant);
-            margin-bottom: 8px;
-        }
-        .summary-empty-title {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--mat-sys-on-surface);
-            margin: 0;
-        }
-        .summary-empty-sub {
-            font-size: 12px;
-            color: var(--mat-sys-on-surface-variant);
-            margin: 0;
-        }
-        /* Content */
-        .summary-content {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        .sum-overview {
-            font-size: 13px;
-            font-weight: 500;
-            line-height: 1.5;
-            color: var(--mat-sys-on-surface);
-            background: color-mix(in srgb, var(--mat-sys-primary-container) 20%, var(--mat-sys-surface));
-            border-left: 3px solid var(--mat-sys-primary);
-            border-radius: 4px;
-            padding: 10px 12px;
-            margin-bottom: 8px;
-        }
-        .sum-bullet {
-            display: flex;
-            gap: 8px;
-            align-items: flex-start;
-            font-size: 13px;
-            line-height: 1.5;
-            color: var(--mat-sys-on-surface);
-            padding: 3px 0;
-        }
-        .sum-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: var(--mat-sys-primary);
-            flex-shrink: 0;
-            margin-top: 5px;
-        }
-        .sum-para {
-            font-size: 13px;
-            line-height: 1.5;
-            color: var(--mat-sys-on-surface);
-            margin: 0;
-            padding: 3px 0;
-        }
-        .sum-spacer { height: 8px; }
-        .sum-sentiment {
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid var(--mat-sys-outline-variant);
-        }
-        .sum-sentiment-badge {
-            font-size: 12px;
-            font-weight: 600;
-            padding: 4px 12px;
-            border-radius: 20px;
-            display: inline-block;
-        }
-        .sum-sentiment-positive {
-            background: color-mix(in srgb, #16a34a 15%, var(--mat-sys-surface));
-            color: #16a34a;
-        }
-        .sum-sentiment-neutral {
-            background: color-mix(in srgb, var(--mat-sys-primary) 15%, var(--mat-sys-surface));
-            color: var(--mat-sys-primary);
-        }
-        .sum-sentiment-concerns {
-            background: color-mix(in srgb, #eab308 15%, var(--mat-sys-surface));
-            color: #a16207;
-        }
-        /* Footer */
-        .summary-footer {
-            display: flex;
-            gap: 8px;
-            padding: 12px 14px;
-            border-top: 1px solid var(--mat-sys-outline-variant);
-            flex-shrink: 0;
-            background: var(--mat-sys-surface-container-lowest);
-        }
-        .summary-copy-btn {
-            flex: 0 0 auto;
-            font-size: 12px !important;
-            height: 34px !important;
-            min-width: 0 !important;
-            padding: 0 12px !important;
-            border: 1px solid var(--mat-sys-outline-variant) !important;
-            border-radius: 8px !important;
-            transition: background 0.15s ease, color 0.15s ease !important;
-            display: flex !important;
-            align-items: center !important;
-            gap: 4px !important;
-        }
-        .summary-copy-done {
-            color: #16a34a !important;
-            border-color: #16a34a !important;
-        }
-        .summary-pin-btn {
-            flex: 1;
-            font-size: 12px !important;
-            height: 34px !important;
-            border-radius: 8px !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            gap: 4px !important;
         }
 
         /* ── Right panel (Notifications + Members) ───────────────────── */
@@ -13819,60 +15801,6 @@ interface MessageGroup {
             color: var(--mat-sys-primary) !important;
         }
 
-        /* ─── File card in bubble ────────────────────────────────────────── */
-        .msg-file-card {
-            display: flex !important;
-            align-items: center !important;
-            gap: 10px !important;
-            margin-top: 8px !important;
-            padding: 10px 14px !important;
-            border-radius: 14px !important;
-            background: color-mix(in srgb, var(--mat-sys-surface-container-high) 70%, transparent) !important;
-            border: 1.5px solid color-mix(in srgb, var(--mat-sys-primary) 10%, var(--mat-sys-outline-variant)) !important;
-            max-width: 270px !important;
-            transition: all 0.2s ease !important;
-            backdrop-filter: blur(8px) !important;
-        }
-        .msg-file-card:hover {
-            background: color-mix(in srgb, var(--mat-sys-primary-container) 30%, transparent) !important;
-            border-color: color-mix(in srgb, var(--mat-sys-primary) 25%, var(--mat-sys-outline-variant)) !important;
-            transform: translateY(-1px) !important;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.08) !important;
-        }
-        .msg-bubble-own .msg-file-card {
-            background: rgba(255,255,255,0.15) !important;
-            border-color: rgba(255,255,255,0.22) !important;
-        }
-        .msg-bubble-own .msg-file-card:hover {
-            background: rgba(255,255,255,0.22) !important;
-        }
-        .msg-file-icon-wrap {
-            width: 38px !important;
-            height: 38px !important;
-            border-radius: 10px !important;
-            flex-shrink: 0 !important;
-        }
-        .msg-file-name {
-            font-size: 12.5px !important;
-            font-weight: 700 !important;
-        }
-        .msg-file-size {
-            font-size: 10.5px !important;
-        }
-        .msg-file-download {
-            width: 32px !important;
-            height: 32px !important;
-            border-radius: 10px !important;
-            background: linear-gradient(135deg, var(--mat-sys-primary), color-mix(in srgb, var(--mat-sys-primary) 70%, var(--mat-sys-tertiary))) !important;
-            color: var(--mat-sys-on-primary) !important;
-            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 40%, transparent) !important;
-            transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease !important;
-        }
-        .msg-file-download:hover {
-            transform: scale(1.12) !important;
-            box-shadow: 0 5px 16px color-mix(in srgb, var(--mat-sys-primary) 55%, transparent) !important;
-        }
-
         /* ─── Image attachment ───────────────────────────────────────────── */
         .attachment-image {
             max-width: 260px !important;
@@ -13927,53 +15855,6 @@ interface MessageGroup {
             border-radius: 50% !important;
             background: linear-gradient(135deg, var(--mat-sys-primary), var(--mat-sys-tertiary)) !important;
             opacity: 0.7 !important;
-        }
-
-        /* ─── Group summarize pill ───────────────────────────────────────── */
-        .summarize-pill {
-            border: 1.5px solid color-mix(in srgb, var(--mat-sys-primary) 35%, transparent) !important;
-            background: color-mix(in srgb, var(--mat-sys-primary-container) 18%, transparent) !important;
-            border-radius: 24px !important;
-            font-size: 12px !important;
-            font-weight: 600 !important;
-            padding: 5px 14px !important;
-            transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1) !important;
-        }
-        .summarize-pill:hover {
-            background: color-mix(in srgb, var(--mat-sys-primary-container) 38%, transparent) !important;
-            border-color: var(--mat-sys-primary) !important;
-            transform: scale(1.04) translateY(-1px) !important;
-            box-shadow: 0 4px 14px color-mix(in srgb, var(--mat-sys-primary) 22%, transparent) !important;
-        }
-        .summarize-pill.done {
-            background: linear-gradient(135deg,
-                color-mix(in srgb, var(--mat-sys-primary-container) 45%, transparent),
-                color-mix(in srgb, var(--mat-sys-tertiary-container) 30%, transparent)) !important;
-            border-color: var(--mat-sys-primary) !important;
-        }
-
-        /* ─── Inline AI summary card ─────────────────────────────────────── */
-        .inline-summary {
-            max-width: 340px !important;
-            padding: 12px 16px !important;
-            background: linear-gradient(135deg,
-                color-mix(in srgb, var(--mat-sys-primary) 6%, var(--mat-sys-surface)),
-                color-mix(in srgb, var(--mat-sys-tertiary) 4%, var(--mat-sys-surface))) !important;
-            border: 1.5px solid color-mix(in srgb, var(--mat-sys-primary) 22%, transparent) !important;
-            border-left: 3.5px solid var(--mat-sys-primary) !important;
-            border-radius: 0 14px 14px 14px !important;
-            box-shadow: 0 3px 16px color-mix(in srgb, var(--mat-sys-primary) 12%, transparent) !important;
-        }
-        .inline-summary.own {
-            border-left-width: 1.5px !important;
-            border-right: 3.5px solid var(--mat-sys-primary) !important;
-            border-radius: 14px 0 14px 14px !important;
-        }
-        .inline-summary-text {
-            font-size: 13px !important;
-            line-height: 1.6 !important;
-            font-style: italic !important;
-            color: var(--mat-sys-on-surface) !important;
         }
 
         /* ─── In-chat empty state (no messages yet) ──────────────────────── */
@@ -15758,8 +17639,605 @@ interface MessageGroup {
             border: 1px solid #e2e8f0 !important;
         }
 
+        /* ── Screenshot Members Panel (sc-mp-) ────────────────────────────── */
+        .sc-members-panel {
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 320px;
+            background: #ffffff;
+            border-left: 1px solid #e2e8f0;
+            box-shadow: -2px 0 8px rgba(0,0,0,0.06);
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+            overflow: hidden;
+        }
+        .sc-mp-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            padding: 16px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .sc-mp-header-content {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        .sc-mp-header-content mat-icon {
+            font-size: 24px !important;
+            width: 24px !important;
+            height: 24px !important;
+            color: #6366f1;
+            margin-top: 2px;
+        }
+        .sc-mp-header-content h3 {
+            font-size: 16px;
+            font-weight: 700;
+            margin: 0;
+            color: #1e293b;
+        }
+        .sc-mp-header-content p {
+            font-size: 13px;
+            color: #64748b;
+            margin: 2px 0 0 0;
+        }
+        .sc-mp-close {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #64748b;
+            transition: all 0.15s ease;
+        }
+        .sc-mp-close:hover {
+            color: #1e293b;
+            background: #f1f5f9;
+            border-radius: 6px;
+        }
+        .sc-mp-close mat-icon {
+            font-size: 20px !important;
+            width: 20px !important;
+            height: 20px !important;
+        }
+        .sc-mp-search {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+        }
+        .sc-mp-search-field {
+            position: relative;
+            flex: 1;
+            display: flex;
+            align-items: center;
+        }
+        .sc-mp-search-field mat-icon {
+            position: absolute;
+            left: 10px;
+            font-size: 18px !important;
+            width: 18px !important;
+            height: 18px !important;
+            color: #94a3b8;
+            pointer-events: none;
+        }
+        .sc-mp-search-field input {
+            width: 100%;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 8px 10px 8px 32px;
+            font-size: 13px;
+            color: #1e293b;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+        .sc-mp-search-field input:focus {
+            border-color: #6366f1;
+            background: #ffffff;
+            box-shadow: 0 0 0 2px rgba(99,102,241,0.1);
+        }
+        .sc-mp-search-field input::placeholder {
+            color: #94a3b8;
+        }
+        .sc-mp-filter-btn {
+            width: 32px !important;
+            height: 32px !important;
+            color: #64748b;
+        }
+        .sc-mp-filter-btn mat-icon {
+            font-size: 18px !important;
+            width: 18px !important;
+            height: 18px !important;
+        }
+        .sc-mp-divider {
+            height: 1px;
+            background: #e2e8f0;
+        }
+        .sc-mp-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+        .sc-mp-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+        }
+        .sc-mp-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            gap: 10px;
+            color: #94a3b8;
+        }
+        .sc-mp-empty mat-icon {
+            font-size: 48px !important;
+            width: 48px !important;
+            height: 48px !important;
+            opacity: 0.5;
+        }
+        .sc-mp-section {
+            margin-bottom: 24px;
+        }
+        .sc-mp-section:last-child {
+            margin-bottom: 0;
+        }
+        .sc-mp-section-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #94a3b8;
+            margin-bottom: 12px;
+        }
+        .sc-mp-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .sc-mp-add-members-btn {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: none;
+            border: 1px solid #6366f1;
+            border-radius: 16px;
+            padding: 4px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #6366f1;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .sc-mp-add-members-btn:hover {
+            background: rgba(99,102,241,0.05);
+        }
+        .sc-mp-add-members-btn mat-icon {
+            font-size: 16px !important;
+            width: 16px !important;
+            height: 16px !important;
+        }
+        .sc-mp-owner-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+        }
+        .sc-mp-owner-avatar {
+            flex-shrink: 0;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            position: relative;
+        }
+        .sc-mp-owner-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .sc-mp-owner-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .sc-mp-you-badge {
+            font-size: 10px;
+            font-weight: 700;
+            background: #f1f5f9;
+            color: #6366f1;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        .sc-mp-owner-role {
+            font-size: 12px;
+            color: #64748b;
+            margin: 2px 0 0 0;
+        }
+        .sc-mp-online-dot {
+            flex-shrink: 0;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #10b981;
+            border: 2px solid #ffffff;
+        }
+        .sc-mp-members-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .sc-mp-member-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+        }
+        .sc-mp-member-item:hover {
+            background: #ffffff;
+            border-color: #cbd5e1;
+        }
+        .sc-mp-member-avatar {
+            flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 600;
+            color: white;
+        }
+        .sc-mp-member-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .sc-mp-member-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .sc-mp-member-role {
+            font-size: 12px;
+            color: #64748b;
+            margin: 2px 0 0 0;
+        }
+        .sc-mp-menu-btn {
+            flex-shrink: 0;
+            width: 28px !important;
+            height: 28px !important;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .sc-mp-member-item:hover .sc-mp-menu-btn {
+            opacity: 1;
+        }
+        .sc-mp-menu-btn mat-icon {
+            font-size: 16px !important;
+            width: 16px !important;
+            height: 16px !important;
+        }
+        .sc-add-user-row.sc-add-user-already {
+            opacity: 0.55;
+            cursor: default;
+        }
+        .sc-add-user-row.sc-add-user-already:hover {
+            background: transparent;
+        }
+        .sc-add-user-row.sc-add-user-already .sc-add-user-avatar {
+            filter: grayscale(0.4);
+        }
+        .sc-already-badge {
+            font-size: 10px;
+            font-weight: 700;
+            background: #f1f5f9;
+            color: #64748b;
+            padding: 3px 8px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            white-space: nowrap;
+        }
+
+        /* ── Add Members view ─────────────────────────────────────────── */
+        .sc-add-view {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background: #fff;
+            overflow: hidden;
+        }
+        .sc-add-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 16px;
+            border-bottom: 1px solid #e2e8f0;
+            flex-shrink: 0;
+        }
+        .sc-add-back-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            background: #f1f5f9;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #475569;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+        }
+        .sc-add-back-btn:hover { background: #e2e8f0; color: #1e293b; }
+        .sc-add-back-btn mat-icon { font-size: 18px !important; width: 18px !important; height: 18px !important; }
+        .sc-add-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1e293b;
+            flex: 1;
+        }
+        .sc-add-role-badge {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: #fff;
+            padding: 3px 8px;
+            border-radius: 10px;
+        }
+        .sc-add-search-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+            padding: 10px 16px;
+            flex-shrink: 0;
+        }
+        .sc-add-search-wrap mat-icon {
+            position: absolute;
+            left: 26px;
+            font-size: 18px !important;
+            width: 18px !important;
+            height: 18px !important;
+            color: #94a3b8;
+            pointer-events: none;
+        }
+        .sc-add-search {
+            width: 100%;
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 9px 12px 9px 36px;
+            font-size: 13px;
+            color: #1e293b;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+        .sc-add-search:focus {
+            border-color: #6366f1;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+        }
+        .sc-add-search::placeholder { color: #94a3b8; }
+        .sc-add-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 0 16px 10px;
+            flex-shrink: 0;
+        }
+        .sc-add-chip {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.08));
+            border: 1px solid rgba(99,102,241,0.2);
+            border-radius: 20px;
+            padding: 4px 8px 4px 4px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #4f46e5;
+            animation: chipPop 0.22s cubic-bezier(0.34,1.56,0.64,1) both;
+        }
+        @keyframes chipPop {
+            from { transform: scale(0.7); opacity: 0; }
+            to   { transform: scale(1);   opacity: 1; }
+        }
+        .sc-add-chip-avatar {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            font-weight: 700;
+            color: #fff;
+        }
+        .sc-add-chip button {
+            display: flex;
+            align-items: center;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            color: #6366f1;
+            margin-left: 2px;
+            transition: color 0.15s;
+        }
+        .sc-add-chip button:hover { color: #dc2626; }
+        .sc-add-chip button mat-icon { font-size: 14px !important; width: 14px !important; height: 14px !important; }
+        .sc-add-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+        .sc-add-skeleton-wrap { display: flex; flex-direction: column; gap: 8px; padding: 4px; }
+        .sc-add-skeleton {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 8px;
+            border-radius: 10px;
+            background: #f8fafc;
+            animation: shimmer 1.5s infinite linear;
+            background-size: 200% 100%;
+        }
+        @keyframes shimmer {
+            0%   { background-position: -200% 0; }
+            100% { background-position:  200% 0; }
+        }
+        .sc-add-skeleton { background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+        .sc-add-sk-avatar { width: 42px; height: 42px; border-radius: 50%; background: #e2e8f0; flex-shrink: 0; }
+        .sc-add-sk-lines { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+        .sc-add-sk-line { height: 10px; border-radius: 5px; background: #e2e8f0; }
+        .sc-add-sk-line-name { width: 55%; }
+        .sc-add-sk-line-email { width: 75%; }
+        .sc-add-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 180px;
+            gap: 10px;
+            color: #94a3b8;
+        }
+        .sc-add-empty mat-icon { font-size: 42px !important; width: 42px !important; height: 42px !important; opacity: 0.5; }
+        .sc-add-empty p { font-size: 13px; margin: 0; }
+        .sc-add-user-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.18s cubic-bezier(0.34,1.56,0.64,1);
+            position: relative;
+        }
+        .sc-add-user-row:hover {
+            background: #f1f5f9;
+        }
+        .sc-add-user-row.sc-add-user-selected {
+            background: linear-gradient(135deg, rgba(99,102,241,0.07), rgba(139,92,246,0.05));
+            outline: 1.5px solid rgba(99,102,241,0.2);
+        }
+        .sc-add-user-avatar {
+            flex-shrink: 0;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 700;
+            color: #fff;
+            transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        .sc-add-user-row:hover .sc-add-user-avatar,
+        .sc-add-user-row.sc-add-user-selected .sc-add-user-avatar { transform: scale(1.08); }
+        .sc-add-user-info { flex: 1; min-width: 0; }
+        .sc-add-user-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1e293b;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .sc-add-user-email {
+            font-size: 12px;
+            color: #64748b;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-top: 1px;
+        }
+        .sc-add-user-check mat-icon {
+            font-size: 22px !important;
+            width: 22px !important;
+            height: 22px !important;
+            transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        .sc-check-icon { color: #6366f1 !important; animation: checkPop 0.25s cubic-bezier(0.34,1.56,0.64,1); }
+        @keyframes checkPop { from { transform: scale(0.4) rotate(-20deg); } to { transform: scale(1) rotate(0); } }
+        .sc-add-icon { color: #cbd5e1 !important; }
+        .sc-add-user-row:hover .sc-add-icon { color: #94a3b8 !important; }
+        .sc-add-footer {
+            padding: 12px 16px;
+            border-top: 1px solid #e2e8f0;
+            flex-shrink: 0;
+        }
+        .sc-add-confirm-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 12px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1);
+            box-shadow: 0 4px 14px rgba(99,102,241,0.35);
+        }
+        .sc-add-confirm-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(99,102,241,0.45);
+        }
+        .sc-add-confirm-btn:active:not(:disabled) { transform: translateY(0); }
+        .sc-add-confirm-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .sc-add-confirm-btn mat-icon { font-size: 18px !important; width: 18px !important; height: 18px !important; }
+
     `],
     animations: [
+        trigger('messageBubbleIn', [
+            transition(':enter', [
+                style({ transform: 'translateY(12px) scale(0.95)', opacity: 0, filter: 'blur(4px)' }),
+                animate('500ms cubic-bezier(0.34,1.56,0.64,1)',
+                    style({ transform: 'translateY(0) scale(1)', opacity: 1, filter: 'blur(0)' })),
+            ]),
+        ]),
         trigger('pillEnter', [
             transition(':enter', [
                 style({ transform: 'scale(0.55)', opacity: 0 }),
@@ -15877,6 +18355,24 @@ interface MessageGroup {
                     style({ transform: 'translateY(0) scale(1)', opacity: 1 })),
             ]),
         ]),
+        trigger('memberCardEnter', [
+            transition(':enter', [
+                style({ transform: 'translateY(10px) scale(0.94)', opacity: 0 }),
+                animate('280ms cubic-bezier(0.34,1.56,0.64,1)',
+                    style({ transform: 'translateY(0) scale(1)', opacity: 1 })),
+            ]),
+        ]),
+        trigger('addViewEnter', [
+            transition(':enter', [
+                style({ transform: 'translateX(100%)', opacity: 0 }),
+                animate('280ms cubic-bezier(0.16,1,0.3,1)',
+                    style({ transform: 'translateX(0)', opacity: 1 })),
+            ]),
+            transition(':leave', [
+                animate('200ms cubic-bezier(0.4,0,1,1)',
+                    style({ transform: 'translateX(100%)', opacity: 0 })),
+            ]),
+        ]),
         trigger('sidebarSlide', [
             transition(':enter', [
                 style({ transform: 'translateX(100%)', opacity: 0 }),
@@ -15992,35 +18488,6 @@ interface MessageGroup {
                     style({ transform: 'translateX(0)', opacity: 1 })),
             ]),
         ]),
-        trigger('summaryReveal', [
-            transition(':enter', [
-                style({ opacity: 0, transform: 'translateY(-6px) scale(0.97)', height: '0px', overflow: 'hidden' }),
-                animate('300ms cubic-bezier(0.34, 1.56, 0.64, 1)',
-                    style({ opacity: 1, transform: 'translateY(0) scale(1)', height: '*' })),
-            ]),
-            transition(':leave', [
-                animate('200ms ease-in',
-                    style({ opacity: 0, transform: 'translateY(-4px)', height: '0px' })),
-            ]),
-        ]),
-        trigger('summaryPanelSlide', [
-            transition(':enter', [
-                style({ transform: 'translateX(100%)', opacity: 0 }),
-                animate('350ms cubic-bezier(0.16, 1, 0.3, 1)',
-                    style({ transform: 'translateX(0)', opacity: 1 })),
-            ]),
-            transition(':leave', [
-                animate('220ms cubic-bezier(0.4,0,1,1)',
-                    style({ transform: 'translateX(100%)', opacity: 0 })),
-            ]),
-        ]),
-        trigger('summaryLineIn', [
-            transition(':enter', [
-                style({ transform: 'translateX(-12px)', opacity: 0 }),
-                animate('280ms cubic-bezier(0.34,1.56,0.64,1)',
-                    style({ transform: 'translateX(0)', opacity: 1 })),
-            ]),
-        ]),
         trigger('calOverlayEnter', [
             transition(':enter', [
                 style({ opacity: 0 }),
@@ -16124,6 +18591,7 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     // ── Filter chips ───────────────────────────────────────────────
     activeFilter = signal<'all' | 'unread' | 'favorites'>('all');
+    favoriteRoomIds = signal<Set<number>>(new Set());
 
     // ── Unread counts (incremented by incoming WS msgs for inactive rooms) ──
     unreadCounts = signal<Map<number, number>>(new Map());
@@ -16146,6 +18614,9 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
         if (filter === 'unread') {
             const counts = this.unreadCounts();
             rooms = rooms.filter(r => (counts.get(r.id) ?? 0) > 0);
+        } else if (filter === 'favorites') {
+            const favs = this.favoriteRoomIds();
+            rooms = rooms.filter(r => favs.has(r.id));
         }
         return rooms;
     });
@@ -16356,6 +18827,7 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
     private scheduledNowInterval: ReturnType<typeof setInterval> | null = null;
     private scheduledRoomSub: Subscription | null = null;
     private userNotifSub: Subscription | null = null;
+    private roomMessageSubs = new Map<number, Subscription>();
     private pendingSound: (() => void) | null = null;
     private availableVoices: SpeechSynthesisVoice[] = [];
     private ttsKeyHandler: ((e: KeyboardEvent) => void) | null = null;
@@ -16455,6 +18927,7 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
 
     // ── Real-time messages ─────────────────────────────────────────
     isSearchVisible = signal(false);
+    messageSearchQuery = signal('');
     messages = signal<MessageDTO[]>([]);
     messageInput = '';
     historyError = signal('');
@@ -16473,6 +18946,15 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
     pinnedMessages = signal<MessageDTO[]>([]);
     pinnedPanelOpen = signal(false);
     pinnedCount = computed(() => this.pinnedMessages().length);
+    filteredMessages = computed(() => {
+        const query = this.messageSearchQuery().toLowerCase();
+        if (!query) return this.messages();
+        return this.messages().filter(m => {
+            const text = (m.contentText || '').toLowerCase();
+            const sender = (m.senderName || '').toLowerCase();
+            return text.includes(query) || sender.includes(query);
+        });
+    });
     contextMenu = signal<{ visible: boolean; x: number; y: number; message: MessageDTO | null }>({
         visible: false, x: 0, y: 0, message: null,
     });
@@ -16484,6 +18966,11 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
     membersError = signal('');
     showAddMemberForm = signal(false);
     addMemberLoading = signal(false);
+    addMemberUsersLoading = signal(false);
+    selectedMemberForMenu = signal<RoomMemberDTO | null>(null);
+    memberSearchQuery = signal('');
+    addMemberSearchQuery = signal('');
+    selectedUserIds = signal<Set<number>>(new Set());
     allUsers: UserDTO[] = [];
     filteredUsers: UserDTO[] = [];
     selectedUserId: number | null = null;
@@ -16499,6 +18986,37 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
     sharedImages     = computed(() => this.sharedContent().filter(m => m.category === 'IMAGE'));
     sharedFiles      = computed(() => this.sharedContent().filter(m => m.category === 'FILE'));
     sharedLinks      = computed(() => this.sharedContent().filter(m => m.category === 'LINK'));
+
+    // ── Member filtering for modern panel ────────────────────────────────
+    private filteredMembersBySearch = computed(() => {
+      const query = this.memberSearchQuery().toLowerCase();
+      if (!query) return this.members();
+      return this.members().filter(m =>
+        m.userFullName.toLowerCase().includes(query) ||
+        m.userEmail.toLowerCase().includes(query)
+      );
+    });
+    channelOwner = computed(() => {
+      const active = this.activeRoom();
+      const filtered = this.filteredMembersBySearch();
+      if (!active) return null;
+      return filtered.find(m => m.userId === active.createdById) || null;
+    });
+    memberAdmins = computed(() => this.filteredMembersBySearch().filter(m => m.userRole === 'ADMIN' && m.userId !== this.activeRoom()?.createdById));
+    memberMembers = computed(() => this.filteredMembersBySearch().filter(m => m.userRole === 'MEMBER'));
+    addableMembersFiltered = computed(() => {
+        const q = this.addMemberSearchQuery().toLowerCase();
+        if (!q) return this.filteredUsers;
+        return this.filteredUsers.filter(u =>
+            u.fullName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+        );
+    });
+    selectedUsersArray = computed(() =>
+        this.filteredUsers.filter(u => this.selectedUserIds().has(u.id))
+    );
+    existingMemberIds = computed(() =>
+        new Set(this.members().map(m => m.userId))
+    );
 
     // ── Meeting & Agenda ──────────────────────────────────────────
     agendaPanelOpen  = signal(false);
@@ -16545,32 +19063,6 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
     // Mute feedback
     isMuted               = signal(false);
     mutedUntil            = signal<string | null>(null);
-
-    // ── Inline group summarization ────────────────────────────────────────
-    summarizingGroupId = signal<number | null>(null);
-    groupSummaries     = signal<Map<number, { text: string; collapsed: boolean }>>(new Map());
-    groupErrors        = signal<Map<number, string>>(new Map());
-
-    // ── AI Summary Panel ───────────────────────────────────────────────────
-    showSummaryPanel  = signal<boolean>(false);
-    summaryLoading    = signal<boolean>(false);
-    summaryText       = signal<string>('');
-    summaryError      = signal<string>('');
-    summaryRoomName   = signal<string>('');
-    summaryDisplayText = signal<string>('');
-    summaryCopied     = signal<boolean>(false);
-    summaryPinning    = signal<boolean>(false);
-    summaryPinned     = signal<boolean>(false);
-    summaryHasEnoughMessages = computed(() =>
-        this.messages().filter(m => !m.isSystemMessage && !m.isAgendaItem && m.contentText).length >= 3
-    );
-    summarySentiment = computed<'positive' | 'neutral' | 'concerns'>(() => {
-        const t = this.summaryText().toLowerCase();
-        if (t.includes('positive')) return 'positive';
-        if (t.includes('concern') || t.includes('negative')) return 'concerns';
-        return 'neutral';
-    });
-    private summaryTypewriterInterval: ReturnType<typeof setInterval> | null = null;
 
     roomsByType = computed(() => {
         const rooms = this.filteredRooms();
@@ -16655,6 +19147,41 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
                 this.sharedLoading.set(false);
             },
             error: () => { this.sharedLoading.set(false); },
+        });
+    }
+
+    copyFileLink(file: MessageDTO): void {
+        const fullUrl = `http://localhost:8084${file.fileUrl}`;
+        navigator.clipboard?.writeText(fullUrl).then(() => {
+            this.snackBar.open('File link copied!', 'Dismiss', {
+                duration: 2000, panelClass: ['snack-success'], horizontalPosition: 'end',
+            });
+        }).catch(() => {/* ignore */});
+    }
+
+    shareFileDetails(file: MessageDTO): void {
+        const details = `📎 ${file.fileName}\n` +
+            `Size: ${this.formatFileSize(file.fileSize ?? 0)}\n` +
+            `From: ${file.senderName}\n` +
+            `Date: ${new Date(file.createdAt).toLocaleDateString()}`;
+        this.snackBar.open(details, 'Copy', {
+            duration: 4000, panelClass: ['snack-info'], horizontalPosition: 'end',
+        });
+    }
+
+    copyLinkUrl(link: MessageDTO): void {
+        if (!link.extractedUrl) return;
+        navigator.clipboard?.writeText(link.extractedUrl).then(() => {
+            this.snackBar.open('URL copied!', 'Dismiss', {
+                duration: 2000, panelClass: ['snack-success'], horizontalPosition: 'end',
+            });
+        }).catch(() => {/* ignore */});
+    }
+
+    viewLinkDetails(link: MessageDTO): void {
+        const preview = `🔗 ${link.extractedUrl}\n\n${this.stripHtml(link.contentText ?? '')}\n\nShared by: ${link.senderName}`;
+        this.snackBar.open(preview, 'Copy URL', {
+            duration: 5000, panelClass: ['snack-info'], horizontalPosition: 'end',
         });
     }
 
@@ -16928,6 +19455,9 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
     }
 
     ngOnInit(): void {
+        this._loadFavorites();
+        this._loadUnreadCounts();
+
         if (this.canManageMembers) {
             this.loadRooms();
             this.loadPendingReportCount();
@@ -16969,11 +19499,90 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
             }
         }
 
+        // Listen for page visibility changes — reset unread when page becomes visible
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && this.activeRoom()?.id) {
+                this.unreadCounts.update(m => {
+                    const n = new Map(m);
+                    n.set(this.activeRoom()!.id, 0);
+                    return n;
+                });
+                this._saveUnreadCounts();
+            }
+        });
+
         // Refresh the countdown every 60 s
         this.scheduledNowInterval = setInterval(() => this.scheduledNow.set(new Date()), 60_000);
 
         // Refresh meeting status badges every 30 s
         this.meetingStatusInterval = setInterval(() => this.meetingStatusNow.set(new Date()), 30_000);
+    }
+
+    private _loadFavorites(): void {
+        const userId = this.authService.currentUser()?.id;
+        if (!userId) return;
+        const raw = localStorage.getItem(`chat_favorites_${userId}`);
+        if (raw) {
+            try { this.favoriteRoomIds.set(new Set(JSON.parse(raw))); } catch {}
+        }
+    }
+
+    toggleFavorite(roomId: number, event: Event): void {
+        event.stopPropagation();
+        const userId = this.authService.currentUser()?.id;
+        const favs = new Set(this.favoriteRoomIds());
+        if (favs.has(roomId)) { favs.delete(roomId); } else { favs.add(roomId); }
+        this.favoriteRoomIds.set(favs);
+        if (userId) {
+            localStorage.setItem(`chat_favorites_${userId}`, JSON.stringify([...favs]));
+        }
+    }
+
+    private _loadUnreadCounts(): void {
+        const userId = this.authService.currentUser()?.id;
+        if (!userId) return;
+        const raw = localStorage.getItem(`chat_unread_${userId}`);
+        if (raw) {
+            try {
+                const data = JSON.parse(raw);
+                this.unreadCounts.set(new Map(Object.entries(data).map(([k, v]) => [Number(k), v as number])));
+            } catch {}
+        }
+    }
+
+    private _saveUnreadCounts(): void {
+        const userId = this.authService.currentUser()?.id;
+        if (!userId) return;
+        const data = Object.fromEntries(this.unreadCounts());
+        localStorage.setItem(`chat_unread_${userId}`, JSON.stringify(data));
+    }
+
+    private _subscribeToRoom(roomId: number): void {
+        if (this.roomMessageSubs.has(roomId)) return;
+
+        const sub = this.chatMessageService.subscribeToRoom(roomId).subscribe(msg => {
+            if (msg.isAgendaItem || msg.deleted) return;
+
+            const isActiveRoom = this.activeRoom()?.id === roomId;
+            const isPageVisible = document.visibilityState === 'visible';
+
+            // Only increment unread if: NOT viewing this room OR page is hidden
+            if (!isActiveRoom || !isPageVisible) {
+                this.unreadCounts.update(m => {
+                    const n = new Map(m);
+                    const current = n.get(roomId) ?? 0;
+                    n.set(roomId, current + 1);
+                    return n;
+                });
+                this._saveUnreadCounts();
+            }
+        });
+
+        this.roomMessageSubs.set(roomId, sub);
+    }
+
+    private _subscribeToAllRoomMessages(): void {
+        this.rooms().forEach(room => this._subscribeToRoom(room.id));
     }
 
     ngAfterViewChecked(): void {
@@ -17007,7 +19616,6 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         this._revokeRecordedUrl();
         if (this.audioProgressInterval) { clearInterval(this.audioProgressInterval); }
         this.audioMap.get(this.playingAudioId() ?? -1)?.pause();
-        if (this.summaryTypewriterInterval) { clearInterval(this.summaryTypewriterInterval); }
     }
 
     // ── Data loading ───────────────────────────────────────────────
@@ -17018,6 +19626,7 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         this.chatRoomService.getRooms().subscribe({
             next: (rooms) => {
                 this.rooms.set(rooms);
+                this._subscribeToAllRoomMessages();
                 this.loading.set(false);
             },
             error: (err) => {
@@ -17033,6 +19642,7 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         this.chatRoomService.getMyRooms().subscribe({
             next: (rooms) => {
                 this.rooms.set(rooms);
+                this._subscribeToAllRoomMessages();
                 this.loading.set(false);
             },
             error: (err) => {
@@ -17071,6 +19681,7 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         dialogRef.afterClosed().subscribe((result: { saved: ChatRoom; isEdit: boolean } | undefined) => {
             if (result?.saved) {
                 this.rooms.update(list => [...list, result.saved]);
+                this._subscribeToRoom(result.saved.id);
                 this.snackBar.openFromComponent(SnackbarSuccessComponent, {
                     duration: 4000, horizontalPosition: 'end', verticalPosition: 'top',
                     panelClass: ['theme-green'], data: 'Chatroom created successfully.',
@@ -17177,6 +19788,7 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
                     if (this.activeRoom()?.id === saved.id) this.activeRoom.set(saved);
                 } else {
                     this.rooms.update(list => [...list, saved]);
+                    this._subscribeToRoom(saved.id);
                 }
                 this.snackBar.openFromComponent(SnackbarSuccessComponent, {
                     duration: 4000,
@@ -17230,6 +19842,7 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
     selectRoom(room: ChatRoom): void {
         this.activeRoom.set(room);
         this.unreadCounts.update(m => { const n = new Map(m); n.set(room.id, 0); return n; });
+        this._saveUnreadCounts();
         this.deleteConfirmId.set(null);
         this.showAddMemberForm.set(false);
         this.membersError.set('');
@@ -17388,15 +20001,20 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
 
     openAddMemberForm(): void {
         this.selectedUserId = null;
+        this.selectedUserIds.set(new Set());
+        this.addMemberSearchQuery.set('');
         this.filteredUsers = [];
+        this.addMemberUsersLoading.set(true);
         this.showAddMemberForm.set(true);
         this.userService.getAll().subscribe({
             next: (users) => {
                 const target = this.allowedTargetRole;
                 this.allUsers = users;
                 this.filteredUsers = users.filter(u => u.role === target);
+                this.addMemberUsersLoading.set(false);
             },
             error: () => {
+                this.addMemberUsersLoading.set(false);
                 this.notify('Failed to load users.', true);
             },
         });
@@ -17405,26 +20023,46 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
     cancelAddMemberForm(): void {
         this.showAddMemberForm.set(false);
         this.selectedUserId = null;
+        this.selectedUserIds.set(new Set());
+        this.addMemberSearchQuery.set('');
+    }
+
+    toggleUserSelection(userId: number): void {
+        const ids = new Set(this.selectedUserIds());
+        if (ids.has(userId)) { ids.delete(userId); } else { ids.add(userId); }
+        this.selectedUserIds.set(ids);
     }
 
     confirmAddMember(): void {
         if (!this.canManageMembers) return;
         const roomId = this.activeRoom()?.id;
-        if (!roomId || !this.selectedUserId) return;
+        const ids = [...this.selectedUserIds()];
+        if (!roomId || ids.length === 0) return;
         this.addMemberLoading.set(true);
-        this.memberService.addMember(roomId, this.selectedUserId).subscribe({
-            next: (newMember) => {
-                this.members.update(list => [newMember, ...list]);
-                this.addMemberLoading.set(false);
-                this.showAddMemberForm.set(false);
-                this.selectedUserId = null;
-                this.notify('Member added successfully.');
-            },
-            error: (err) => {
-                this.addMemberLoading.set(false);
-                const msg = this.formatMemberError(err, err?.status);
-                this.notify(msg, true);
-            },
+        let completed = 0;
+        const added: RoomMemberDTO[] = [];
+        ids.forEach(uid => {
+            this.memberService.addMember(roomId, uid).subscribe({
+                next: (newMember) => {
+                    added.push(newMember);
+                    completed++;
+                    if (completed === ids.length) {
+                        this.members.update(list => [...added, ...list]);
+                        this.addMemberLoading.set(false);
+                        this.showAddMemberForm.set(false);
+                        this.selectedUserIds.set(new Set());
+                        this.notify(`${added.length} member${added.length > 1 ? 's' : ''} added successfully.`);
+                    }
+                },
+                error: (err) => {
+                    completed++;
+                    if (completed === ids.length) {
+                        this.addMemberLoading.set(false);
+                        const msg = this.formatMemberError(err, err?.status);
+                        this.notify(msg, true);
+                    }
+                },
+            });
         });
     }
 
@@ -17562,6 +20200,19 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         this.pinnedPanelOpen.update(v => !v);
     }
 
+    openPinnedDialog(): void {
+        this.pinnedPanelOpen.set(false);
+        this.dialog.open(PinnedMessagesDialogComponent, {
+            data: { messages: this.pinnedMessages(), onUnpin: (msg: MessageDTO) => this.pinOrUnpin(msg) },
+            width: '600px',
+            maxWidth: '96vw',
+            maxHeight: '90vh',
+            panelClass: 'pinned-dialog-panel',
+            enterAnimationDuration: '200ms',
+            exitAnimationDuration: '150ms',
+        });
+    }
+
     deleteMessage(message: MessageDTO): void {
         const roomId = this.activeRoom()?.id;
         if (!roomId) return;
@@ -17683,11 +20334,66 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         this.updateTcNextSends();
     }
 
+    viewScheduledDetails(item: ScheduledMessageDTO): void {
+        const recType = item.recurrenceType === 'ONCE' ? 'One-time' : item.recurrenceType;
+        const nextDate = new Date(item.nextSendAt || item.scheduledAt);
+        const details = `📅 Scheduled Message\n\n` +
+            `Type: ${recType}\n` +
+            `Next send: ${nextDate.toLocaleDateString()} at ${nextDate.toLocaleTimeString()}\n` +
+            `Created: ${new Date(item.createdAt).toLocaleDateString()}\n\n` +
+            `Message:\n${item.content.slice(0, 200)}${item.content.length > 200 ? '...' : ''}`;
+        this.snackBar.open(details, 'Edit', {
+            duration: 6000, panelClass: ['snack-info'], horizontalPosition: 'end',
+        });
+    }
+
+    copyScheduledContent(item: ScheduledMessageDTO): void {
+        navigator.clipboard?.writeText(item.content).then(() => {
+            this.snackBar.open('Message copied!', 'Dismiss', {
+                duration: 2000, panelClass: ['snack-success'], horizontalPosition: 'end',
+            });
+        }).catch(() => {/* ignore */});
+    }
+
+    duplicateScheduled(item: ScheduledMessageDTO): void {
+        this.scheduleContent = item.content;
+        this.scheduleRecurrence.set(item.recurrenceType as any);
+        this.scheduleCustomDays.set(new Set(item.recurrenceDays ?? []));
+        this.scheduleFormType.set(item.recurrenceType === 'ONCE' ? 'once' : 'recurring');
+        this.scheduleFormError.set('');
+        this.editingScheduledId.set(null);
+        const d = new Date();
+        d.setHours(d.getHours() + 1);
+        this.scheduleDate = d;
+        this.scheduleTime = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        this.timeCapsuleBtnState.set('idle');
+        this.timeCapsuleOpen.set(true);
+        this.snackBar.open('Message duplicated! Adjust the schedule as needed.', 'Dismiss', {
+            duration: 3000, panelClass: ['snack-info'], horizontalPosition: 'end',
+        });
+    }
+
     toggleCustomDay(day: string): void {
         this.scheduleCustomDays.update(s => {
             const n = new Set(s);
             n.has(day) ? n.delete(day) : n.add(day);
             return n;
+        });
+    }
+
+    openScheduledDetailsDialog(item: ScheduledMessageDTO): void {
+        const nextDate = new Date(item.nextSendAt || item.scheduledAt);
+        const createdDate = new Date(item.createdAt);
+        const recType = item.recurrenceType === 'ONCE' ? 'One-time' : item.recurrenceType;
+
+        this.dialog.open(ScheduledDetailsDialogComponent, {
+            data: { item, nextDate, createdDate, recType },
+            width: '500px',
+            maxWidth: '90vw',
+            panelClass: 'scheduled-details-dialog',
+            disableClose: false,
+            enterAnimationDuration: '200ms',
+            exitAnimationDuration: '150ms',
         });
     }
 
@@ -17705,7 +20411,7 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         this.scheduleDialogOpen.set(true);
         const dialogRef = this.dialog.open(ScheduleDialogComponent, {
             data: { content, roomId },
-            width: '520px',
+            width: '560px',
             maxWidth: '95vw',
             panelClass: 'schedule-dialog-panel',
             disableClose: false,
@@ -18586,7 +21292,10 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
     }
 
     stripHtml(html: string): string {
-        return html?.replace(/<[^>]*>/g, '') ?? '';
+        if (!html) return '';
+        const div = document.createElement('div');
+        div.innerHTML = html;
+        return div.textContent || div.innerText || '';
     }
 
     groupReactions(reactions: ReactionDTO[] | undefined): { emoji: string; count: number; myReaction: boolean }[] {
@@ -18754,7 +21463,7 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
     // ── Edit ────────────────────────────────────────────────────────
     startEdit(message: MessageDTO): void {
         this.editingMessage.set(message);
-        this.editContent.set(message.contentText ?? '');
+        this.editContent.set(this.stripHtml(message.contentText ?? ''));
     }
     cancelEdit(): void {
         this.editingMessage.set(null);
@@ -18816,12 +21525,18 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         }
     }
 
+    onAudioTimeUpdate(messageId: number, el: HTMLAudioElement): void {
+        if (this.playingAudioId() === messageId) {
+            this.audioCurrentTime.set(el.currentTime);
+        }
+    }
+
     getWaveformHeights(messageId: number): number[] {
         const result: number[] = [];
-        let s = messageId;
-        for (let i = 0; i < 20; i++) {
-            s = (s * 1664525 + 1013904223) & 0xffffffff;
-            result.push(4 + (Math.abs(s) % 20));
+        let seed = messageId;
+        for (let i = 0; i < 24; i++) {
+            seed = (seed * 1664525 + 1013904223) & 0xffffffff;
+            result.push(6 + (Math.abs(seed) % 18));
         }
         return result;
     }
@@ -19252,212 +21967,6 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         return `http://localhost:8084${fileUrl}`;
     }
 
-    // ── Inline group summarization ────────────────────────────────────────
-
-    /** True when message[index] is the last consecutive message from its sender. */
-    isGroupEnd(index: number): boolean {
-        const msgs = this.messages();
-        const current = msgs[index];
-        if (!current || current.isSystemMessage || current.isAgendaItem) return false;
-        const next = msgs[index + 1];
-        return !next || next.isSystemMessage || next.isAgendaItem || next.senderId !== current.senderId;
-    }
-
-    /** Number of consecutive messages from the same sender ending at index. */
-    groupSize(index: number): number {
-        const msgs = this.messages();
-        const current = msgs[index];
-        if (!current || current.isSystemMessage || current.isAgendaItem) return 0;
-        let size = 1;
-        let i = index - 1;
-        while (i >= 0) {
-            const m = msgs[i];
-            if (m.isSystemMessage || m.isAgendaItem || m.senderId !== current.senderId) break;
-            size++;
-            i--;
-        }
-        return size;
-    }
-
-    /** ID of the first message in the consecutive group ending at index (used as map key). */
-    getGroupFirstId(index: number): number {
-        const msgs = this.messages();
-        const current = msgs[index];
-        if (!current) return -1;
-        let i = index - 1;
-        while (i >= 0) {
-            const m = msgs[i];
-            if (m.isSystemMessage || m.isAgendaItem || m.senderId !== current.senderId) break;
-            i--;
-        }
-        return msgs[i + 1]?.id ?? current.id;
-    }
-
-    /** Called when the summarize pill is clicked. Toggles or triggers summarization. */
-    summarizeGroupAtIndex(index: number): void {
-        const key = this.getGroupFirstId(index);
-
-        // If already summarized — toggle collapse
-        const existing = this.groupSummaries().get(key);
-        if (existing) {
-            const updated = new Map(this.groupSummaries());
-            updated.set(key, { ...existing, collapsed: !existing.collapsed });
-            this.groupSummaries.set(updated);
-            return;
-        }
-
-        // Clear any previous error for this group before retrying
-        if (this.groupErrors().has(key)) {
-            const cleared = new Map(this.groupErrors());
-            cleared.delete(key);
-            this.groupErrors.set(cleared);
-        }
-
-        this.summarizingGroupId.set(key);
-
-        // Collect the group messages by walking backwards from index
-        const msgs = this.messages();
-        const current = msgs[index];
-        const groupMsgs: MessageDTO[] = [];
-        let i = index;
-        while (i >= 0) {
-            const m = msgs[i];
-            if (m.isSystemMessage || m.isAgendaItem || m.senderId !== current.senderId) break;
-            groupMsgs.unshift(m);
-            i--;
-        }
-
-        const text = groupMsgs
-            .filter(m => m.contentText)
-            .map(m => this.stripHtml(m.contentText!))
-            .filter(t => t.trim())
-            .join('\n');
-
-        if (!text.trim()) {
-            this.summarizingGroupId.set(null);
-            return;
-        }
-
-        const prompt = `Summarize these consecutive messages from ${current.senderName} in one short sentence (max 20 words), written in third person. Be concise and natural, like Instagram comment summaries:\n\n${text}`;
-
-        this.chatMessageService.summarizeGroup(prompt).subscribe({
-            next: (summary) => {
-                this.summarizingGroupId.set(null);
-                const errorsCleared = new Map(this.groupErrors());
-                errorsCleared.delete(key);
-                this.groupErrors.set(errorsCleared);
-                const updated = new Map(this.groupSummaries());
-                updated.set(key, { text: summary, collapsed: false });
-                this.groupSummaries.set(updated);
-                setTimeout(() => this.typewriteInline(`summary-${key}`, summary), 50);
-            },
-            error: (err) => {
-                const msg: string = err?.message ?? String(err);
-                console.error('Summarize group error:', msg);
-                this.summarizingGroupId.set(null);
-                const errorsUpdated = new Map(this.groupErrors());
-                errorsUpdated.set(key, msg);
-                this.groupErrors.set(errorsUpdated);
-            }
-        });
-    }
-
-    typewriteInline(elementId: string, text: string): void {
-        const el = this.document.getElementById(elementId);
-        if (!el) return;
-        el.textContent = '';
-        let i = 0;
-        const interval = setInterval(() => {
-            if (i >= text.length) { clearInterval(interval); return; }
-            el.textContent += text[i];
-            i++;
-        }, 20);
-    }
-
-    // ── AI Summary Panel ──────────────────────────────────────────────────
-
-    openSummary(): void {
-        this.showSummaryPanel.set(true);
-        this.summaryText.set('');
-        this.summaryDisplayText.set('');
-        this.summaryError.set('');
-        this.summaryRoomName.set(this.activeRoom()?.name ?? '');
-
-        if (!this.summaryHasEnoughMessages()) return;
-
-        this.summaryLoading.set(true);
-
-        this.chatMessageService.summarizeMessages(this.messages()).subscribe({
-            next: (text) => {
-                this.summaryLoading.set(false);
-                this.summaryText.set(text);
-                this.startSummaryTypewriter(text);
-            },
-            error: (err: any) => {
-                const msg: string = err?.message ?? String(err);
-                console.error('Summary panel error:', msg);
-                this.summaryLoading.set(false);
-                this.summaryError.set(msg || 'Failed to generate summary. Please try again.');
-            }
-        });
-    }
-
-    closeSummary(): void {
-        if (this.summaryTypewriterInterval) {
-            clearInterval(this.summaryTypewriterInterval);
-            this.summaryTypewriterInterval = null;
-        }
-        this.showSummaryPanel.set(false);
-    }
-
-    private startSummaryTypewriter(text: string): void {
-        if (this.summaryTypewriterInterval) {
-            clearInterval(this.summaryTypewriterInterval);
-            this.summaryTypewriterInterval = null;
-        }
-        let idx = 0;
-        this.summaryDisplayText.set('');
-        this.summaryTypewriterInterval = setInterval(() => {
-            if (idx < text.length) {
-                this.summaryDisplayText.set(text.slice(0, ++idx));
-            } else {
-                clearInterval(this.summaryTypewriterInterval!);
-                this.summaryTypewriterInterval = null;
-                this.summaryDisplayText.set(text);
-            }
-        }, 15);
-    }
-
-    copySummary(): void {
-        if (!this.summaryText()) return;
-        navigator.clipboard.writeText(this.summaryText()).then(() => {
-            this.summaryCopied.set(true);
-            setTimeout(() => this.summaryCopied.set(false), 1500);
-        });
-    }
-
-    pinSummaryAsMessage(): void {
-        const room = this.activeRoom();
-        if (!room || !this.summaryText()) return;
-        this.summaryPinning.set(true);
-        const content = '📋 AI Summary:\n' + this.summaryText();
-        const fd = new FormData();
-        fd.append('content', content);
-        this.chatMessageService.uploadMessage(room.id, fd).subscribe({
-            next: (msg) => {
-                this.chatMessageService.pinMessage(room.id, msg.id).subscribe({
-                    next: () => {
-                        this.summaryPinning.set(false);
-                        this.summaryPinned.set(true);
-                        setTimeout(() => this.summaryPinned.set(false), 2000);
-                    },
-                    error: () => { this.summaryPinning.set(false); }
-                });
-            },
-            error: () => { this.summaryPinning.set(false); }
-        });
-    }
-
     innersidebar(): void {
         const body = this.document.body;
         const cls = 'innermenu-close';
@@ -19563,6 +22072,15 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         });
     }
 
+    viewReportDetails(report: ModerationReport): void {
+        this.dialog.open(ReportDetailDialogComponent, {
+            data: report,
+            panelClass: 'report-detail-panel',
+            maxWidth: '600px',
+            width: '90vw',
+        });
+    }
+
     viewReportInChat(report: ModerationReport): void {
         const room = this.rooms().find(r => r.id === report.roomId);
         if (room) {
@@ -19573,7 +22091,9 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
 
     stripHtmlMod(html: string): string {
         if (!html) return '';
-        return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        const div = document.createElement('div');
+        div.innerHTML = html;
+        return div.textContent || div.innerText || '';
     }
 
     toggleExpandQuote(id: number): void {
