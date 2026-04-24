@@ -1,0 +1,21 @@
+====================================
+  DEMARRER UNITUM - TOUT AUTOMATIQUE
+====================================
+
+1. Ouvre ce dossier dans le terminal
+2. Tape : ng serve
+3. Attends 10 secondes
+4. Ouvre : http://localhost:4200
+
+C'est tout ! Le Git Service demarre tout seul sur le port 5000.
+
+VERIFICATION :
+- Frontend : http://localhost:4200
+- Git API  : http://localhost:5000
+
+PROBLEME ?
+- Si le Git Service ne repond pas : verifie qu'il est bien lance
+- Port 5000 bloque ? Redemarre l'ordinateur
+
+POUR ARRETER :
+Tape Ctrl+C dans le terminal

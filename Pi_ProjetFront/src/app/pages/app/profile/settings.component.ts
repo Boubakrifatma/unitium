@@ -1,0 +1,730 @@
+import { Component, OnInit, computed, inject, ChangeDetectorRef, ViewChild } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, FormGroup, FormGroupDirective, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
+import { MatCardModule } from '@angular/material/card';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+
+import { HttpClient } from '@angular/common/http';
+import { AuthService } from '../../../auth/auth.service';
+import { UserService } from '../../../users/user.service';
+import { FaceService } from '../../../auth/face.service';
+import { FaceCameraComponent } from '../../../components/face-camera/face-camera.component';
+
+function passwordMatchValidator(control: AbstractControl): ValidationErrors | null {
+  const pw  = control.get('newPassword')?.value;
+  const conf = control.get('confirmPassword')?.value;
+  return pw && conf && pw !== conf ? { mismatch: true } : null;
+}
+
+@Component({
+  selector: 'app-settings',
+  standalone: true,
+  imports: [
+    CommonModule, ReactiveFormsModule, FormsModule,
+    MatCardModule, MatIconModule, MatButtonModule,
+    MatFormFieldModule, MatInputModule, MatDividerModule,
+    MatProgressSpinnerModule, FaceCameraComponent
+  ],
+  template: `
+    <div class="container settings-page mb-5">
+
+      <!-- Page header -->
+      <div class="settings-header mb-4">
+        <h2>Settings</h2>
+        <p class="text-secondary">Manage your profile, password and security</p>
+      </div>
+
+      <div class="row gx-4">
+
+        <!-- ─── Avatar & Info ──────────────────────────────────────── -->
+        <div class="col-12 col-lg-4 mb-4">
+          <mat-card class="p-4 text-center">
+            <!-- Avatar -->
+            <div class="avatar-wrap mb-3" (click)="fileInput.click()">
+              <div class="avatar-img" [style.background-image]="'url(' + (avatarPreview || currentUser()?.avatarUrl || defaultAvatar) + ')'"></div>
+              <div class="avatar-overlay">
+                <mat-icon>photo_camera</mat-icon>
+              </div>
+            </div>
+            <input #fileInput type="file" accept="image/*" class="d-none" (change)="onFileChange($event)" />
+
+            <h3 class="mb-0">{{ currentUser()?.fullName }}</h3>
+            <p class="text-secondary small">{{ currentUser()?.email }}</p>
+            <span class="role-badge">{{ currentUser()?.role }}</span>
+
+            <div class="mt-3" *ngIf="avatarPreview">
+              <button matButton color="primary" (click)="uploadAvatar()" [disabled]="avatarUploading">
+                <mat-spinner diameter="16" *ngIf="avatarUploading"></mat-spinner>
+                <mat-icon *ngIf="!avatarUploading">cloud_upload</mat-icon>
+                {{ avatarUploading ? 'Uploading…' : 'Save Photo' }}
+              </button>
+              <button matButton (click)="cancelAvatar()" class="ms-2">Cancel</button>
+            </div>
+            <p class="feedback success" *ngIf="avatarMsg">{{ avatarMsg }}</p>
+            <p class="feedback error" *ngIf="avatarError">{{ avatarError }}</p>
+          </mat-card>
+        </div>
+
+        <div class="col-12 col-lg-8">
+
+          <!-- ─── Personal Info ───────────────────────────────────── -->
+          <mat-card class="p-4 mb-4">
+            <h4 class="section-title">
+              <mat-icon class="material-icons-outlined">person</mat-icon>
+              Personal Information
+            </h4>
+            <mat-divider class="mb-3"></mat-divider>
+
+            <form [formGroup]="infoForm" (ngSubmit)="saveInfo()">
+              <mat-form-field appearance="outline" class="w-100 mb-2">
+                <mat-label>Full Name</mat-label>
+                <input matInput formControlName="fullName" />
+                <mat-icon matSuffix class="material-icons-outlined">badge</mat-icon>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="w-100 mb-2">
+                <mat-label>Email Address</mat-label>
+                <input matInput formControlName="email" type="email" />
+                <mat-icon matSuffix class="material-icons-outlined">mail</mat-icon>
+                <mat-error *ngIf="infoForm.get('email')?.hasError('email')">Enter a valid email</mat-error>
+              </mat-form-field>
+
+              <button matButton="filled" color="primary" type="submit"
+                      [disabled]="infoForm.invalid || infoForm.pristine || infoSaving">
+                <mat-spinner diameter="16" *ngIf="infoSaving"></mat-spinner>
+                <mat-icon *ngIf="!infoSaving">save</mat-icon>
+                {{ infoSaving ? 'Saving…' : 'Save Changes' }}
+              </button>
+
+              <p class="feedback success mt-2" *ngIf="infoMsg">{{ infoMsg }}</p>
+              <p class="feedback error mt-2" *ngIf="infoError">{{ infoError }}</p>
+            </form>
+          </mat-card>
+
+          <!-- ─── Change Password ─────────────────────────────────── -->
+          <mat-card class="p-4 mb-4">
+            <h4 class="section-title">
+              <mat-icon class="material-icons-outlined">lock</mat-icon>
+              Change Password
+            </h4>
+            <mat-divider class="mb-3"></mat-divider>
+
+            <form [formGroup]="pwForm" #pwFormRef="ngForm" (ngSubmit)="changePassword()">
+
+              <!-- Current Password -->
+              <mat-form-field appearance="outline" class="w-100 mb-2">
+                <mat-label>Current Password</mat-label>
+                <input matInput formControlName="oldPassword" [type]="hideOld ? 'password' : 'text'" />
+                <button matIconButton matSuffix type="button" (click)="hideOld = !hideOld">
+                  <mat-icon class="material-icons-outlined">{{ hideOld ? 'visibility_off' : 'visibility' }}</mat-icon>
+                </button>
+                <mat-error *ngIf="pwForm.get('oldPassword')?.hasError('required')">Current password is required</mat-error>
+              </mat-form-field>
+
+              <!-- New Password -->
+              <mat-form-field appearance="outline" class="w-100 mb-2">
+                <mat-label>New Password</mat-label>
+                <input matInput formControlName="newPassword" [type]="hideNew ? 'password' : 'text'" />
+                <button matIconButton matSuffix type="button" (click)="hideNew = !hideNew">
+                  <mat-icon class="material-icons-outlined">{{ hideNew ? 'visibility_off' : 'visibility' }}</mat-icon>
+                </button>
+                <mat-error *ngIf="pwForm.get('newPassword')?.hasError('required')">New password is required</mat-error>
+                <mat-error *ngIf="pwForm.get('newPassword')?.hasError('minlength')">At least 8 characters</mat-error>
+                <mat-error *ngIf="pwForm.get('newPassword')?.hasError('maxlength')">50 characters maximum</mat-error>
+              </mat-form-field>
+
+              <!-- Confirm Password -->
+              <mat-form-field appearance="outline" class="w-100 mb-2">
+                <mat-label>Confirm New Password</mat-label>
+                <input matInput formControlName="confirmPassword" [type]="hideConf ? 'password' : 'text'" />
+                <button matIconButton matSuffix type="button" (click)="hideConf = !hideConf">
+                  <mat-icon class="material-icons-outlined">{{ hideConf ? 'visibility_off' : 'visibility' }}</mat-icon>
+                </button>
+                <mat-error *ngIf="pwForm.get('confirmPassword')?.hasError('required')">Please confirm your password</mat-error>
+                <mat-error *ngIf="pwForm.hasError('mismatch') && pwForm.get('confirmPassword')?.touched">Passwords do not match</mat-error>
+              </mat-form-field>
+
+              <button matButton="filled" color="primary" type="submit" [disabled]="pwSaving">
+                <mat-spinner diameter="16" *ngIf="pwSaving"></mat-spinner>
+                <mat-icon *ngIf="!pwSaving">lock_reset</mat-icon>
+                {{ pwSaving ? 'Updating…' : 'Update Password' }}
+              </button>
+
+              <p class="feedback success mt-2" *ngIf="pwMsg">{{ pwMsg }}</p>
+              <p class="feedback error mt-2" *ngIf="pwError">{{ pwError }}</p>
+            </form>
+          </mat-card>
+
+          <!-- ─── Face ID ────────────────────────────────────────── -->
+          <mat-card class="p-4 mb-4">
+            <h4 class="section-title">
+              <mat-icon class="material-icons-outlined">face</mat-icon>
+              Face ID
+            </h4>
+            <mat-divider class="mb-3"></mat-divider>
+
+            <!-- Registered state -->
+            <div class="face-status" *ngIf="!showFaceRegistration">
+              <div *ngIf="faceRegistered" class="face-registered">
+                <mat-icon class="text-success">check_circle</mat-icon>
+                <div>
+                  <strong>Face ID is registered</strong>
+                  <p class="text-secondary small mb-0">Registered on {{ faceRegisteredAt | date:'MMMM d, yyyy' }}</p>
+                </div>
+              </div>
+              <div *ngIf="!faceRegistered" class="face-not-registered">
+                <mat-icon class="text-secondary">face_retouching_off</mat-icon>
+                <div>
+                  <strong>Face ID not registered</strong>
+                  <p class="text-secondary small mb-0">Register your face to enable passwordless login</p>
+                </div>
+              </div>
+
+              <div class="face-btns mt-3">
+                <button matButton color="primary" (click)="showFaceRegistration = true">
+                  <mat-icon class="material-icons-outlined">{{ faceRegistered ? 'refresh' : 'add_circle' }}</mat-icon>
+                  {{ faceRegistered ? 'Update Face ID' : 'Register Face ID' }}
+                </button>
+                <button matButton color="warn" *ngIf="faceRegistered" (click)="removeFace()" [disabled]="faceRemoving"
+                        class="ms-2">
+                  <mat-spinner diameter="16" *ngIf="faceRemoving"></mat-spinner>
+                  <mat-icon *ngIf="!faceRemoving">delete</mat-icon>
+                  {{ faceRemoving ? 'Removing…' : 'Remove Face ID' }}
+                </button>
+              </div>
+              <p class="feedback success mt-2" *ngIf="faceMsg">{{ faceMsg }}</p>
+              <p class="feedback error mt-2" *ngIf="faceError">{{ faceError }}</p>
+            </div>
+
+            <!-- Camera for registration -->
+            <div *ngIf="showFaceRegistration">
+              <p class="text-secondary small mb-3">Position your face in the frame and click Scan.</p>
+              <app-face-camera (descriptor)="onFaceDescriptor($event)"></app-face-camera>
+              <div class="mt-3">
+                <button matButton (click)="showFaceRegistration = false">
+                  <mat-icon>close</mat-icon> Cancel
+                </button>
+              </div>
+              <p class="feedback success mt-2" *ngIf="faceMsg">{{ faceMsg }}</p>
+              <p class="feedback error mt-2" *ngIf="faceError">{{ faceError }}</p>
+            </div>
+          </mat-card>
+
+          <!-- ─── Two-Factor Authentication (2FA) ──────────────── -->
+          <mat-card class="p-4 mb-4">
+            <h4 class="section-title">
+              <mat-icon class="material-icons-outlined">security</mat-icon>
+              Two-Factor Authentication (2FA)
+            </h4>
+            <mat-divider class="mb-3"></mat-divider>
+
+            <!-- 2FA désactivé — afficher le bouton d'activation -->
+            <div *ngIf="!mfaEnabled && !showMfaSetup">
+              <div class="face-not-registered">
+                <mat-icon class="text-secondary">lock_open</mat-icon>
+                <div>
+                  <strong>2FA is not enabled</strong>
+                  <p class="text-secondary small mb-0">
+                    Protect your account with Google Authenticator
+                  </p>
+                </div>
+              </div>
+              <div class="face-btns mt-3">
+                <button matButton color="primary" (click)="startMfaSetup()">
+                  <mat-icon class="material-icons-outlined">add_circle</mat-icon>
+                  Enable 2FA
+                </button>
+              </div>
+            </div>
+
+            <!-- 2FA activé — afficher le statut + bouton de désactivation -->
+            <div *ngIf="mfaEnabled && !showMfaDisable">
+              <div class="face-registered">
+                <mat-icon class="text-success">verified_user</mat-icon>
+                <div>
+                  <strong>2FA is enabled</strong>
+                  <p class="text-secondary small mb-0">
+                    Your account is protected with Google Authenticator
+                  </p>
+                </div>
+              </div>
+              <div class="face-btns mt-3">
+                <button matButton color="warn" (click)="showMfaDisable = true">
+                  <mat-icon>block</mat-icon>
+                  Disable 2FA
+                </button>
+              </div>
+            </div>
+
+            <!-- Setup : afficher le QR code à scanner -->
+            <div *ngIf="showMfaSetup && !mfaEnabled">
+              <p class="text-secondary small mb-3">
+                <strong>Step 1</strong> — Scan this QR code with <strong>Google Authenticator</strong>
+              </p>
+
+              <!-- QR Code généré via l'API qrserver.com (gratuit, pas de librairie npm) -->
+              <div class="text-center mb-3" *ngIf="mfaQrUrl">
+                <img [src]="'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeUri(mfaQrUrl)"
+                     alt="QR Code 2FA" style="border-radius:8px; border:1px solid #e5e7eb" />
+                <p class="text-secondary small mt-2">
+                  Or enter manually: <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px">{{ mfaSecret }}</code>
+                </p>
+              </div>
+
+              <p class="text-secondary small mb-2">
+                <strong>Step 2</strong> — Enter the 6-digit code shown in the app to confirm
+              </p>
+              <mat-form-field appearance="outline" class="w-100 mb-2">
+                <mat-label>6-digit code</mat-label>
+                <input matInput [(ngModel)]="mfaVerifyCode" maxlength="6"
+                       placeholder="000000" inputmode="numeric" />
+              </mat-form-field>
+
+              <button matButton="filled" color="primary"
+                      (click)="confirmEnableMfa()"
+                      [disabled]="mfaVerifyCode.length !== 6 || mfaSaving">
+                <mat-spinner diameter="16" *ngIf="mfaSaving"></mat-spinner>
+                <mat-icon *ngIf="!mfaSaving">check_circle</mat-icon>
+                {{ mfaSaving ? 'Activating…' : 'Activate 2FA' }}
+              </button>
+              <button matButton (click)="cancelMfaSetup()" class="ms-2">Cancel</button>
+            </div>
+
+            <!-- Désactivation : demander le code pour confirmer -->
+            <div *ngIf="showMfaDisable && mfaEnabled">
+              <p class="text-secondary small mb-2">
+                Enter your current 6-digit code from Google Authenticator to disable 2FA.
+              </p>
+              <mat-form-field appearance="outline" class="w-100 mb-2">
+                <mat-label>6-digit code</mat-label>
+                <input matInput [(ngModel)]="mfaVerifyCode" maxlength="6"
+                       placeholder="000000" inputmode="numeric" />
+              </mat-form-field>
+
+              <button matButton="filled" color="warn"
+                      (click)="confirmDisableMfa()"
+                      [disabled]="mfaVerifyCode.length !== 6 || mfaSaving">
+                <mat-spinner diameter="16" *ngIf="mfaSaving"></mat-spinner>
+                <mat-icon *ngIf="!mfaSaving">block</mat-icon>
+                {{ mfaSaving ? 'Disabling…' : 'Confirm Disable' }}
+              </button>
+              <button matButton (click)="showMfaDisable = false; mfaVerifyCode = ''" class="ms-2">Cancel</button>
+            </div>
+
+            <p class="feedback success mt-2" *ngIf="mfaMsg">{{ mfaMsg }}</p>
+            <p class="feedback error mt-2" *ngIf="mfaError">{{ mfaError }}</p>
+          </mat-card>
+
+          <!-- ─── Active Sessions ────────────────────────────────── -->
+          <mat-card class="p-4 mb-4">
+            <h4 class="section-title">
+              <mat-icon class="material-icons-outlined">devices</mat-icon>
+              Active Sessions
+            </h4>
+            <mat-divider class="mb-3"></mat-divider>
+
+            <div *ngIf="sessions.length === 0" class="text-secondary small py-2">No active sessions found.</div>
+
+            <div *ngFor="let s of sessions" class="session-row">
+              <div class="row gx-3 align-items-center">
+                <div class="col-auto">
+                  <div class="avatar avatar-40 bg-light-theme text-theme rounded theme-blue">
+                    <mat-icon class="material-icons-outlined">computer</mat-icon>
+                  </div>
+                </div>
+                <div class="col">
+                  <p class="mb-0 fw-semibold small">{{ s.ipAddress ?? 'Unknown IP' }}</p>
+                  <p class="mb-0 text-secondary" style="font-size:11px">{{ s.userAgent | slice:0:60 }}…</p>
+                  <p class="mb-0 text-secondary" style="font-size:11px">{{ s.createdAt | date:'MMM d, yyyy HH:mm' }}</p>
+                </div>
+                <div class="col-auto">
+                  <button matButton color="warn" (click)="revokeSession(s)" style="font-size:12px">
+                    <mat-icon style="font-size:16px;height:16px;width:16px">logout</mat-icon>
+                    Revoke
+                  </button>
+                </div>
+              </div>
+            </div>
+          </mat-card>
+
+        </div>
+      </div>
+    </div>
+  `,
+  styles: [`
+    .settings-page { padding-top: 24px; }
+    .settings-header h2 { font-size: 24px; font-weight: 700; margin: 0 0 4px; }
+
+    .section-title {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 16px; font-weight: 600; margin: 0 0 12px;
+    }
+    .section-title mat-icon { color: #6366f1; }
+
+    /* Avatar */
+    .avatar-wrap {
+      position: relative; width: 120px; height: 120px;
+      border-radius: 50%; margin: 0 auto 12px; cursor: pointer; overflow: hidden;
+      border: 3px solid #6366f1;
+    }
+    .avatar-img {
+      width: 100%; height: 100%; border-radius: 50%;
+      background-size: cover; background-position: center;
+    }
+    .avatar-overlay {
+      position: absolute; inset: 0; background: rgba(0,0,0,0.45);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity 0.2s;
+      border-radius: 50%;
+    }
+    .avatar-overlay mat-icon { color: white; font-size: 28px; }
+    .avatar-wrap:hover .avatar-overlay { opacity: 1; }
+
+    .role-badge {
+      display: inline-block; background: #eef2ff; color: #4f46e5;
+      border-radius: 20px; padding: 3px 12px; font-size: 12px; font-weight: 600;
+    }
+
+    /* Feedback */
+    .feedback { font-size: 13px; margin: 0; }
+    .feedback.success { color: #10b981; }
+    .feedback.error   { color: #ef4444; }
+
+    /* Face */
+    .face-status { display: flex; flex-direction: column; }
+    .face-registered, .face-not-registered {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px; border-radius: 10px;
+      border: 1px solid var(--bs-border-color, #e5e7eb);
+    }
+    .face-registered { background: #f0fdf4; border-color: #bbf7d0; }
+    .face-registered mat-icon { color: #10b981; font-size: 28px; width: 28px; height: 28px; }
+    .face-not-registered mat-icon { color: #9ca3af; font-size: 28px; width: 28px; height: 28px; }
+    .text-success { color: #10b981 !important; }
+
+    /* Sessions */
+    .session-row { padding: 10px 0; border-bottom: 1px solid var(--bs-border-color, #e5e7eb); }
+    .session-row:last-child { border-bottom: none; }
+  `]
+})
+export class SettingsComponent implements OnInit {
+
+  // Signal réactif — Angular détecte les changements automatiquement dans le template
+  readonly currentUser = computed(() => this.authService.currentUser());
+  defaultAvatar = 'assets/img/user-6.jpg';
+
+  // Avatar
+  avatarPreview: string | null = null;
+  avatarFile: File | null = null;
+  avatarUploading = false;
+  avatarMsg = '';
+  avatarError = '';
+
+  // Info form
+  infoForm: FormGroup;
+  infoSaving = false;
+  infoMsg = '';
+  infoError = '';
+
+  // Password form
+  pwForm: FormGroup;
+  pwSaving = false;
+  pwMsg = '';
+  pwError = '';
+  hideOld = true; hideNew = true; hideConf = true;
+  @ViewChild('pwFormRef') pwFormDirective!: FormGroupDirective;
+
+  // Sessions
+  sessions: any[] = [];
+
+  // ── Two-Factor Authentication (2FA) ──────────────────────────────────────
+  mfaEnabled     = false;       // si 2FA est déjà activé pour ce user
+  showMfaSetup   = false;       // afficher l'étape de configuration
+  showMfaDisable = false;       // afficher le formulaire de désactivation
+  mfaSecret      = '';          // secret temporaire généré par le backend
+  mfaQrUrl       = '';          // URI otpauth:// pour le QR code
+  mfaVerifyCode  = '';          // code 6 chiffres saisi par l'user
+  mfaSaving      = false;
+  mfaMsg         = '';
+  mfaError       = '';
+
+  // Face ID
+  showFaceRegistration = false;
+  faceRegistered = false;
+  faceRegisteredAt: string | null = null;
+  faceRemoving = false;
+  faceMsg = '';
+  faceError = '';
+
+  private cdr = inject(ChangeDetectorRef);
+
+  constructor(
+    private fb: FormBuilder,
+    private http: HttpClient,
+    private authService: AuthService,
+    private userService: UserService,
+    private faceService: FaceService
+  ) {
+    this.infoForm = this.fb.group({
+      fullName: ['', Validators.required],
+      email:    ['', [Validators.required, Validators.email]]
+    });
+
+    this.pwForm = this.fb.group({
+      oldPassword:     ['', Validators.required],
+      newPassword:     ['', [Validators.required, Validators.minLength(8), Validators.maxLength(50)]],
+      confirmPassword: ['', Validators.required]
+    }, { validators: passwordMatchValidator });
+  }
+
+  ngOnInit(): void {
+    const u = this.currentUser();
+    if (u) {
+      this.infoForm.patchValue({ fullName: u.fullName, email: u.email });
+    }
+    // Load full user data for face info + mfa status
+    const userId = this.authService.getUserId();
+    if (userId) {
+      this.userService.getById(userId).subscribe(dto => {
+        this.faceRegistered    = !!dto.faceRegisteredAt;
+        this.faceRegisteredAt  = dto.faceRegisteredAt ?? null;
+        this.mfaEnabled        = !!(dto as any).mfaEnabled;
+      });
+    }
+    // Load active sessions
+    this.http.get<any[]>('http://localhost:8084/api/auth/sessions').subscribe({
+      next: s => { this.sessions = s; this.cdr.detectChanges(); },
+      error: () => {}
+    });
+  }
+
+  // ── Avatar ──────────────────────────────────────────────────────
+  onFileChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file  = input.files?.[0];
+    if (!file) return;
+    this.avatarFile  = file;
+    const reader = new FileReader();
+    reader.onload = (e) => this.avatarPreview = e.target?.result as string;
+    reader.readAsDataURL(file);
+    this.avatarMsg = '';
+    this.avatarError = '';
+  }
+
+  cancelAvatar(): void {
+    this.avatarPreview = null;
+    this.avatarFile    = null;
+  }
+
+  uploadAvatar(): void {
+    if (!this.avatarFile) return;
+    const userId = this.authService.getUserId();
+    if (!userId) return;
+    this.avatarUploading = true;
+    this.avatarError = '';
+    this.userService.uploadAvatar(userId, this.avatarFile).subscribe({
+      next: (dto) => {
+        this.avatarUploading = false;
+        this.avatarPreview   = null;
+        this.avatarFile      = null;
+        this.avatarMsg       = 'Photo updated successfully!';
+        // Update signal so header reflects immediately
+        const cur = this.currentUser();
+        if (cur) {
+          this.authService.currentUser.set({ ...cur, avatarUrl: dto.avatarUrl });
+        }
+        setTimeout(() => this.avatarMsg = '', 3000);
+      },
+      error: () => {
+        this.avatarUploading = false;
+        this.avatarError = 'Upload failed. Please try again.';
+      }
+    });
+  }
+
+  // ── Info ─────────────────────────────────────────────────────────
+  saveInfo(): void {
+    if (this.infoForm.invalid) return;
+    const userId = this.authService.getUserId();
+    if (!userId) return;
+    this.infoSaving = true;
+    this.infoError  = '';
+
+    const { fullName, email } = this.infoForm.value;
+    this.userService.update(userId, { fullName, email }).subscribe({
+      next: (dto) => {
+        this.infoSaving = false;
+        this.infoMsg    = 'Profile updated successfully!';
+        const cur = this.currentUser();
+        if (cur) {
+          this.authService.currentUser.set({ ...cur, fullName: dto.fullName, email: dto.email });
+        }
+        this.infoForm.markAsPristine();
+        setTimeout(() => this.infoMsg = '', 3000);
+      },
+      error: (err) => {
+        this.infoSaving = false;
+        this.infoError  = err.error?.message ?? 'Update failed.';
+      }
+    });
+  }
+
+  // ── Password ──────────────────────────────────────────────────────
+  changePassword(): void {
+    if (this.pwForm.invalid) {
+      this.pwForm.markAllAsTouched();
+      return;
+    }
+    const userId = this.authService.getUserId();
+    if (!userId) return;
+    this.pwSaving = true;
+    this.pwError  = '';
+    this.pwMsg    = '';
+
+    const { oldPassword, newPassword } = this.pwForm.value;
+    this.userService.changePassword(userId, oldPassword, newPassword).subscribe({
+      next: () => {
+        this.pwSaving = false;
+        this.pwMsg    = 'Password changed successfully!';
+        this.pwFormDirective.resetForm();
+        this.cdr.detectChanges();
+        setTimeout(() => { this.pwMsg = ''; this.cdr.detectChanges(); }, 3000);
+      },
+      error: (err) => {
+        this.pwSaving = false;
+        if (err.status === 0) {
+          this.pwError = 'Cannot reach the server. Please try again later.';
+        } else {
+          this.pwError = err.error?.message
+            || (typeof err.error === 'string' ? err.error : null)
+            || 'Password change failed.';
+        }
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  // ── Sessions ─────────────────────────────────────────────────────
+  revokeSession(s: any): void {
+    if (!confirm('Revoke this session?')) return;
+    this.http.delete(`http://localhost:8084/api/auth/sessions/${s.id}`).subscribe({
+      next: () => { this.sessions = this.sessions.filter(x => x.id !== s.id); this.cdr.detectChanges(); },
+      error: () => {}
+    });
+  }
+
+  // ── Two-Factor Authentication ─────────────────────────────────────────────
+
+  encodeUri(uri: string): string {
+    return encodeURIComponent(uri);
+  }
+
+  startMfaSetup(): void {
+    this.mfaMsg = ''; this.mfaError = '';
+    this.authService.setup2FA().subscribe({
+      next: (res) => {
+        this.mfaSecret    = res.secret;
+        this.mfaQrUrl     = res.otpAuthUri;
+        this.showMfaSetup = true;
+        this.cdr.detectChanges();
+      },
+      error: () => { this.mfaError = 'Failed to start 2FA setup.'; }
+    });
+  }
+
+  confirmEnableMfa(): void {
+    this.mfaSaving = true; this.mfaError = '';
+    this.authService.enable2FA(this.mfaSecret, this.mfaVerifyCode).subscribe({
+      next: () => {
+        this.mfaSaving     = false;
+        this.mfaEnabled    = true;
+        this.showMfaSetup  = false;
+        this.mfaVerifyCode = '';
+        this.mfaSecret     = '';
+        this.mfaQrUrl      = '';
+        this.mfaMsg = '2FA enabled! Your account is now protected.';
+        this.cdr.detectChanges();
+        setTimeout(() => { this.mfaMsg = ''; this.cdr.detectChanges(); }, 4000);
+      },
+      error: (err) => {
+        this.mfaSaving     = false;
+        this.mfaError      = err.error?.message ?? 'Invalid code. Try again.';
+        this.mfaVerifyCode = '';
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  cancelMfaSetup(): void {
+    this.showMfaSetup  = false;
+    this.mfaSecret     = '';
+    this.mfaQrUrl      = '';
+    this.mfaVerifyCode = '';
+    this.mfaError      = '';
+  }
+
+  confirmDisableMfa(): void {
+    this.mfaSaving = true; this.mfaError = '';
+    this.authService.disable2FA(this.mfaVerifyCode).subscribe({
+      next: () => {
+        this.mfaSaving      = false;
+        this.mfaEnabled     = false;
+        this.showMfaDisable = false;
+        this.mfaVerifyCode  = '';
+        this.mfaMsg = '2FA has been disabled.';
+        this.cdr.detectChanges();
+        setTimeout(() => { this.mfaMsg = ''; this.cdr.detectChanges(); }, 3000);
+      },
+      error: (err) => {
+        this.mfaSaving     = false;
+        this.mfaError      = err.error?.message ?? 'Invalid code.';
+        this.mfaVerifyCode = '';
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  // ── Face ID ──────────────────────────────────────────────────────
+  onFaceDescriptor(descriptor: number[]): void {
+    this.faceMsg   = '';
+    this.faceError = '';
+    this.faceService.registerFace(descriptor).subscribe({
+      next: () => {
+        this.faceRegistered      = true;
+        this.faceRegisteredAt    = new Date().toISOString();
+        this.showFaceRegistration = false;
+        this.faceMsg = 'Face ID registered successfully!';
+        setTimeout(() => this.faceMsg = '', 4000);
+      },
+      error: (err) => {
+        this.showFaceRegistration = false;
+        this.faceError = err.error?.message ?? 'Face registration failed.';
+      }
+    });
+  }
+
+  removeFace(): void {
+    this.faceRemoving = true;
+    this.faceMsg = '';
+    this.faceError = '';
+    this.faceService.removeFace().subscribe({
+      next: () => {
+        this.faceRemoving     = false;
+        this.faceRegistered   = false;
+        this.faceRegisteredAt = null;
+        this.faceMsg = 'Face ID removed.';
+        setTimeout(() => this.faceMsg = '', 3000);
+      },
+      error: () => {
+        this.faceRemoving = false;
+        this.faceError = 'Failed to remove Face ID.';
+      }
+    });
+  }
+}

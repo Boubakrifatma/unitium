@@ -1,0 +1,155 @@
+<h2 mat-dialog-title>{{ title }}</h2>
+
+<form [formGroup]="taskForm" (ngSubmit)="save()">
+  <mat-dialog-content class="task-dialog-content">
+
+    @if (data.mode !== "view") {
+
+      <!-- Titre -->
+      <mat-form-field appearance="outline" class="w-100">
+        <mat-label>Titre</mat-label>
+        <input matInput formControlName="title" />
+        @if (taskForm.get("title")?.invalid && taskForm.get("title")?.touched) {
+          <mat-error>Titre requis</mat-error>
+        }
+      </mat-form-field>
+
+      <!-- Description -->
+      <mat-form-field appearance="outline" class="w-100">
+        <mat-label>Description</mat-label>
+        <textarea matInput formControlName="description" rows="3"></textarea>
+      </mat-form-field>
+
+      <!-- Type + Statut -->
+      <div class="row-fields">
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>Type</mat-label>
+          <mat-select formControlName="taskType">
+            @for (t of taskTypes; track t) {
+              <mat-option [value]="t">{{ typeLabel(t) }}</mat-option>
+            }
+          </mat-select>
+          @if (taskForm.get("taskType")?.invalid && taskForm.get("taskType")?.touched) {
+            <mat-error>Type requis</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>Statut</mat-label>
+          <mat-select formControlName="status">
+            @for (s of taskStatuses; track s) {
+              <mat-option [value]="s">{{ statusLabel(s) }}</mat-option>
+            }
+          </mat-select>
+          @if (taskForm.get("status")?.invalid && taskForm.get("status")?.touched) {
+            <mat-error>Statut requis</mat-error>
+          }
+        </mat-form-field>
+      </div>
+
+      <!-- Priorité + Assigné -->
+      <div class="row-fields">
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>Priorité</mat-label>
+          <mat-select formControlName="priority">
+            @for (p of taskPriorities; track p) {
+              <mat-option [value]="p">{{ priorityLabel(p) }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>Assigné à</mat-label>
+          <mat-select formControlName="assignedToId">
+            <mat-option [value]="null">Non assigné</mat-option>
+            @for (u of data.users; track u.id) {
+              <mat-option [value]="u.id">{{ u.fullName }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <!-- Heures -->
+      <div class="row-fields">
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>Heures estimées</mat-label>
+          <input matInput type="number" min="0" step="0.5" formControlName="estimatedHours" />
+          @if (taskForm.get("estimatedHours")?.touched && taskForm.get("estimatedHours")?.invalid) {
+            @if (taskForm.get("estimatedHours")?.hasError("required")) {
+              <mat-error>Heures estimées requises</mat-error>
+            } @else if (taskForm.get("estimatedHours")?.hasError("min")) {
+              <mat-error>Doit être >= 0</mat-error>
+            }
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>Heures réelles</mat-label>
+          <input matInput type="number" min="0" step="0.5" formControlName="actualHours" />
+          @if (taskForm.get("actualHours")?.touched && taskForm.get("actualHours")?.hasError("min")) {
+            <mat-error>Doit être >= 0</mat-error>
+          }
+        </mat-form-field>
+      </div>
+
+      <!-- Dates -->
+      <div class="row-fields">
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>Date de début</mat-label>
+          <input matInput type="date" formControlName="startDate" [min]="minDate" />
+          @if (taskForm.get("startDate")?.touched && taskForm.hasError("startDatePast")) {
+            <mat-error>Ne peut pas être dans le passé</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>Échéance</mat-label>
+          <input matInput type="date" formControlName="dueDate" [min]="minDate" />
+          @if (taskForm.get("dueDate")?.touched && taskForm.hasError("dueDatePast")) {
+            <mat-error>Ne peut pas être dans le passé</mat-error>
+          }
+          @if (taskForm.hasError("dateRangeInvalid") && taskForm.get("dueDate")?.touched) {
+            <mat-error>Doit être >= date de début</mat-error>
+          }
+        </mat-form-field>
+      </div>
+
+    } @else {
+
+      <!-- Mode view -->
+      <dl class="detail-grid">
+        <dt>Titre</dt>        <dd>{{ data.task?.title }}</dd>
+        <dt>Description</dt>  <dd class="pre">{{ data.task?.description || "—" }}</dd>
+        <dt>Type</dt>         <dd>{{ typeLabel(data.task?.type || "") }}</dd>
+        <dt>Statut</dt>       <dd>{{ statusLabel(data.task?.status || "") }}</dd>
+        <dt>Priorité</dt>     <dd>{{ priorityLabel(data.task?.priority || "") }}</dd>
+        <dt>Assigné à</dt>    <dd>{{ data.task?.assignedTo }}</dd>
+        <dt>Heures est./réelles</dt>
+        <dd>{{ data.task?.assignHours }}h / {{ data.task?.loggedHours }}h</dd>
+        <dt>Dates</dt>
+        <dd>{{ data.task?.startDate || "—" }} → {{ data.task?.dueDate || "—" }}</dd>
+      </dl>
+
+    }
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" (click)="dialogRef.close(false)">
+      {{ data.mode === "view" ? "Fermer" : "Annuler" }}
+    </button>
+
+    @if (data.mode === "edit") {
+      <button mat-flat-button color="primary" type="submit"
+              [disabled]="taskForm.invalid || saving">
+        {{ saving ? "Enregistrement…" : "Enregistrer" }}
+      </button>
+    }
+
+    @if (data.mode === "create") {
+      <button mat-flat-button color="primary" type="submit"
+              [disabled]="taskForm.invalid || saving">
+        {{ saving ? "Création…" : "Créer" }}
+      </button>
+    }
+  </mat-dialog-actions>
+</form>

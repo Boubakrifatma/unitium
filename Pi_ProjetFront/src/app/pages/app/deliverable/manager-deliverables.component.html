@@ -1,0 +1,368 @@
+<div class="manager-deliverables">
+
+  <!-- ══ Header ══════════════════════════════════════════════════════════════ -->
+  <div class="page-header">
+    <div class="header-left">
+      <div class="header-icon">
+        <mat-icon>assignment_turned_in</mat-icon>
+      </div>
+      <div>
+        <h1>Vue Manager — Livrables</h1>
+        <p class="subtitle">Livrables groupés par milestone et par tâche</p>
+      </div>
+    </div>
+    <div class="header-right">
+      @if (!loading() && milestoneGroups().length > 0) {
+        <div class="summary-chip">
+          <mat-icon>layers</mat-icon>
+          <span>{{ milestoneGroups().length }} milestone(s)</span>
+        </div>
+        <div class="summary-chip">
+          <mat-icon>description</mat-icon>
+          <span>{{ totalDeliverables() }} livrable(s)</span>
+        </div>
+      }
+      <button mat-icon-button (click)="loadManagerView()" [disabled]="!selectedProjectId() || loading()" matTooltip="Actualiser">
+        <mat-icon>refresh</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ Project Selector ═════════════════════════════════════════════════════ -->
+  <div class="project-selector-bar">
+    <mat-form-field appearance="outline" class="project-select">
+      <mat-label>
+        <mat-icon>folder_open</mat-icon>
+        Sélectionner un projet
+      </mat-label>
+      <mat-select [ngModel]="selectedProjectId()" (ngModelChange)="onProjectChange($event)">
+        @for (project of projects(); track project.id) {
+          <mat-option [value]="project.id">{{ project.name }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  <!-- ══ Loading ══════════════════════════════════════════════════════════════ -->
+  @if (loading()) {
+    <div class="loading-state">
+      <mat-icon class="spin-icon">sync</mat-icon>
+      <p class="loading-text">Chargement des livrables...</p>
+    </div>
+  }
+
+  <!-- ══ Error ═════════════════════════════════════════════════════════════════ -->
+  @else if (error()) {
+    <div class="error-state">
+      <mat-icon>error_outline</mat-icon>
+      <p>{{ error() }}</p>
+      <button mat-flat-button color="primary" (click)="loadManagerView()">
+        <mat-icon>refresh</mat-icon> Réessayer
+      </button>
+    </div>
+  }
+
+  <!-- ══ No project selected ══════════════════════════════════════════════════ -->
+  @else if (!selectedProjectId()) {
+    <div class="empty-state">
+      <mat-icon>folder_open</mat-icon>
+      <h3>Sélectionnez un projet</h3>
+      <p>Choisissez un projet pour afficher la vue manager des livrables.</p>
+    </div>
+  }
+
+  <!-- ══ Empty result ════════════════════════════════════════════════════════ -->
+  @else if (milestoneGroups().length === 0) {
+    <div class="empty-state">
+      <mat-icon>inbox</mat-icon>
+      <h3>Aucun livrable</h3>
+      <p>Ce projet ne contient pas encore de livrables soumis.</p>
+    </div>
+  }
+
+  <!-- ══ Milestone Groups ════════════════════════════════════════════════════ -->
+  @else {
+    <mat-accordion class="milestone-accordion" multi>
+
+      @for (milestoneGroup of milestoneGroups(); track (milestoneGroup.milestoneId ?? 'no-milestone')) {
+        <mat-expansion-panel class="milestone-panel" expanded>
+
+          <!-- Milestone Header -->
+          <mat-expansion-panel-header class="milestone-header">
+            <mat-panel-title class="milestone-title">
+              <div class="milestone-dot"
+                   [style.background]="getMilestoneStatusColor(milestoneGroup.milestoneStatus)">
+              </div>
+              <mat-icon class="ms-icon">flag</mat-icon>
+              <span class="ms-name">{{ milestoneGroup.milestoneName }}</span>
+
+              @if (milestoneGroup.milestoneStatus) {
+                <span class="status-chip"
+                      [style.background]="getMilestoneStatusColor(milestoneGroup.milestoneStatus) + '20'"
+                      [style.color]="getMilestoneStatusColor(milestoneGroup.milestoneStatus)"
+                      [style.border]="'1px solid ' + getMilestoneStatusColor(milestoneGroup.milestoneStatus) + '60'">
+                  {{ getMilestoneStatusLabel(milestoneGroup.milestoneStatus) }}
+                </span>
+              }
+            </mat-panel-title>
+
+            <mat-panel-description class="milestone-meta">
+              @if (milestoneGroup.dueDate) {
+                <span class="meta-item">
+                  <mat-icon>event</mat-icon>
+                  {{ milestoneGroup.dueDate | date:'dd MMM yyyy' }}
+                </span>
+              }
+              @if (milestoneGroup.completionPct !== null && milestoneGroup.completionPct !== undefined) {
+                <span class="meta-item">
+                  <mat-icon>donut_large</mat-icon>
+                  {{ milestoneGroup.completionPct | number:'1.0-0' }}%
+                </span>
+              }
+              <span class="meta-item tasks-count">
+                <mat-icon>task_alt</mat-icon>
+                {{ milestoneGroup.tasks.length }} tâche(s)
+              </span>
+            </mat-panel-description>
+          </mat-expansion-panel-header>
+
+          <!-- Progress Bar -->
+          @if (milestoneGroup.completionPct !== null && milestoneGroup.completionPct !== undefined) {
+            <mat-progress-bar
+              class="milestone-progress"
+              mode="determinate"
+              [value]="milestoneGroup.completionPct"
+              [color]="milestoneGroup.completionPct === 100 ? 'accent' : 'primary'">
+            </mat-progress-bar>
+          }
+
+          <!-- Task Groups -->
+          <div class="tasks-container">
+            @for (taskGroup of milestoneGroup.tasks; track taskGroup.taskId) {
+              <div class="task-group">
+
+                <!-- Task Header -->
+                <div class="task-header">
+                  <div class="task-info">
+                    <span class="task-status-dot"
+                          [style.background]="getTaskStatusColor(taskGroup.taskStatus)">
+                    </span>
+                    <mat-icon class="task-icon">assignment</mat-icon>
+                    <span class="task-title">{{ taskGroup.taskTitle }}</span>
+                    <span class="task-status-badge"
+                          [style.background]="getTaskStatusColor(taskGroup.taskStatus) + '20'"
+                          [style.color]="getTaskStatusColor(taskGroup.taskStatus)">
+                      {{ getTaskStatusLabel(taskGroup.taskStatus) }}
+                    </span>
+                  </div>
+                  @if (taskGroup.assignedToName) {
+                    <div class="task-assigned">
+                      <mat-icon>person</mat-icon>
+                      <span>{{ taskGroup.assignedToName }}</span>
+                    </div>
+                  }
+                </div>
+
+                <!-- Deliverables List -->
+                <div class="deliverables-list">
+                  @for (deliverable of taskGroup.deliverables; track deliverable.deliverableId) {
+                    <div class="deliverable-card">
+
+                      <!-- Deliverable Main Row -->
+                      <div class="deliverable-row">
+                        <div class="deliverable-left">
+                          <div class="deliverable-status-badge"
+                               [style.background]="deliverableService.getStatusColor(getEffectiveStatus(deliverable))"
+                               [style.boxShadow]="'0 4px 12px ' + deliverableService.getStatusColor(getEffectiveStatus(deliverable)) + '40'">
+                            {{ deliverableService.getStatusLabel(getEffectiveStatus(deliverable)) }}
+                          </div>
+
+                          <div class="deliverable-info">
+                            <div class="deliverable-title-row">
+                              <span class="deliverable-title">{{ deliverable.title }}</span>
+                              <span class="version-tag">
+                                <mat-icon>tag</mat-icon>
+                                v{{ deliverable.currentVersion }}
+                              </span>
+                            </div>
+                            <p class="deliverable-description">{{ deliverable.description || 'Aucune description' }}</p>
+
+                            <div class="deliverable-meta-row">
+                              <span class="meta-pill">
+                                <mat-icon>person</mat-icon>
+                                {{ deliverable.employeeName }}
+                              </span>
+                              <span class="meta-pill">
+                                <mat-icon>event</mat-icon>
+                                {{ deliverableService.formatDate(deliverable.submittedAt) }}
+                              </span>
+                              @if (deliverable.fileSizeKb) {
+                                <span class="meta-pill">
+                                  <mat-icon>insert_drive_file</mat-icon>
+                                  {{ deliverableService.formatFileSize(deliverable.fileSizeKb) }}
+                                </span>
+                              }
+                              @if (deliverable.fileType) {
+                                <span class="meta-pill">
+                                  <mat-icon>file_present</mat-icon>
+                                  {{ deliverable.fileType }}
+                                </span>
+                              }
+                            </div>
+
+                            <!-- Deadline Countdown (only when review is pending) -->
+                            @if (canReview(deliverable)) {
+                              @if (getDeadlineInfo(deliverable.taskDueDate); as deadline) {
+                                <div class="deadline-banner"
+                                     [class.deadline-critical]="deadline.urgency === 'critical'"
+                                     [class.deadline-overdue]="deadline.urgency === 'overdue'"
+                                     [style.background]="deadline.bg">
+                                  <mat-icon>{{ deadline.icon }}</mat-icon>
+                                  <span>
+                                    @if (deadline.urgency === 'overdue') {
+                                      {{ deadline.text }}
+                                    } @else {
+                                      Délai pour donner un avis :
+                                      <strong>{{ deadline.text }}</strong>
+                                    }
+                                  </span>
+                                </div>
+                              } @else if (deliverable.taskDueDate) {
+                                <div class="deadline-banner deadline-ok">
+                                  <mat-icon>event_available</mat-icon>
+                                  <span>Échéance tâche :
+                                    <strong>{{ deliverable.taskDueDate | date:'dd MMM yyyy' }}</strong>
+                                  </span>
+                                </div>
+                              }
+                            }
+                          </div>
+                        </div>
+
+                        <div class="deliverable-actions">
+                          @if (deliverable.fileUrl) {
+                            <a mat-icon-button
+                               [href]="deliverableService.getDownloadUrl(deliverable.fileUrl)"
+                               target="_blank"
+                               download
+                               matTooltip="Télécharger le fichier">
+                              <mat-icon>download</mat-icon>
+                            </a>
+                          }
+
+                          @if (deliverable.versions.length > 1) {
+                            <button mat-stroked-button
+                                    class="versions-toggle"
+                                    (click)="toggleVersions(deliverable.deliverableId)">
+                              <mat-icon>history</mat-icon>
+                              {{ deliverable.versions.length }} versions
+                              <mat-icon class="expand-icon">
+                                {{ isVersionsExpanded(deliverable.deliverableId) ? 'expand_less' : 'expand_more' }}
+                              </mat-icon>
+                            </button>
+                            <button mat-stroked-button
+                                    class="versions-compare"
+                                    color="primary"
+                                    (click)="openVersionCompare(deliverable)"
+                                    matTooltip="Comparer deux versions (diff intelligent)">
+                              <mat-icon>difference</mat-icon>
+                              Comparer
+                            </button>
+                          } @else {
+                            <span class="single-version-tag">
+                              <mat-icon>history</mat-icon>
+                              1 version
+                            </span>
+                          }
+
+                          <!-- ── Review Button ── -->
+                          @if (canReview(deliverable)) {
+                            <button mat-flat-button
+                                    class="review-btn"
+                                    (click)="openReviewDialog(deliverable)"
+                                    matTooltip="Donner mon avis sur ce livrable">
+                              <mat-icon>rate_review</mat-icon>
+                              Donner avis
+                            </button>
+                          } @else {
+                            <span class="reviewed-tag"
+                                  [style.color]="deliverableService.getStatusColor(getEffectiveStatus(deliverable))">
+                              <mat-icon>check_circle</mat-icon>
+                              {{ deliverableService.getStatusLabel(getEffectiveStatus(deliverable)) }}
+                            </span>
+                          }
+                        </div>
+                      </div>
+
+                      <!-- Versions List (expanded) -->
+                      @if (isVersionsExpanded(deliverable.deliverableId)) {
+                        <div class="versions-panel">
+                          <div class="versions-title">
+                            <mat-icon>history</mat-icon>
+                            Historique des versions
+                          </div>
+                          <div class="versions-timeline">
+                            @for (version of deliverable.versions; track version.id) {
+                              <div class="version-item"
+                                   [class.latest]="version.versionNumber === deliverable.currentVersion">
+                                <div class="version-number-badge">v{{ version.versionNumber }}</div>
+                                <div class="version-details">
+                                  <div class="version-header-row">
+                                    <span class="version-submitter">
+                                      <mat-icon>person</mat-icon>
+                                      {{ version.submittedByName ?? 'N/A' }}
+                                    </span>
+                                    <span class="version-date">
+                                      <mat-icon>schedule</mat-icon>
+                                      {{ deliverableService.formatDate(version.submittedAt) }}
+                                    </span>
+                                    <span class="virus-badge"
+                                          [style.color]="getVirusScanColor(version.virusScanStatus)"
+                                          [matTooltip]="'Scan: ' + version.virusScanStatus">
+                                      <mat-icon>{{ getVirusScanIcon(version.virusScanStatus) }}</mat-icon>
+                                    </span>
+                                    @if (version.versionNumber === deliverable.currentVersion) {
+                                      <span class="current-tag">Actuelle</span>
+                                    }
+                                  </div>
+                                  @if (version.changeSummary) {
+                                    <p class="version-summary">{{ version.changeSummary }}</p>
+                                  }
+                                  <div class="version-footer">
+                                    @if (version.fileSizeKb) {
+                                      <span class="version-size">
+                                        {{ deliverableService.formatFileSize(version.fileSizeKb) }}
+                                      </span>
+                                    }
+                                    @if (version.fileUrl) {
+                                      <a [href]="deliverableService.getDownloadUrl(version.fileUrl)"
+                                         target="_blank"
+                                         download
+                                         mat-button
+                                         class="version-dl">
+                                        <mat-icon>download</mat-icon> Télécharger v{{ version.versionNumber }}
+                                      </a>
+                                    }
+                                  </div>
+                                </div>
+                              </div>
+                            }
+                          </div>
+                        </div>
+                      }
+
+                    </div>
+                  }
+                </div>
+
+              </div>
+            }
+          </div>
+
+        </mat-expansion-panel>
+      }
+
+    </mat-accordion>
+  }
+
+</div>
