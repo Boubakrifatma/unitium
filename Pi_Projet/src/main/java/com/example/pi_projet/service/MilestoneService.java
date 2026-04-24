@@ -2,6 +2,7 @@ package com.example.pi_projet.service;
 
 import com.example.pi_projet.entity.TimeLineAndDeadLine.Milestone;
 import com.example.pi_projet.repository.MilestoneRepository;
+import com.example.pi_projet.repository.TaskRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -13,6 +14,7 @@ import java.util.UUID;
 public class MilestoneService {
 
     private final MilestoneRepository repository;
+    private final TaskRepository taskRepository;
     private final PulseEventBus pulseEventBus;
 
     public List<Milestone> getAll() {
@@ -56,6 +58,12 @@ public class MilestoneService {
 
     public void delete(Long id) {
         Milestone existing = getById(id);
+        long taskCount = taskRepository.findByMilestoneId(id).size();
+        if (taskCount > 0) {
+            throw new IllegalStateException(
+                "Cannot delete milestone \"" + existing.getName() + "\" because it contains " + taskCount + " task(s). Please delete or reassign the tasks first."
+            );
+        }
         repository.deleteById(id);
         publishMilestoneEvent(existing, "MILESTONE_DELETED", "Milestone \"" + existing.getName() + "\" deleted");
     }

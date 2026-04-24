@@ -12,6 +12,7 @@ import { MatMenuModule } from "@angular/material/menu";
 import { MatProgressBarModule } from "@angular/material/progress-bar";
 import { MatTabsModule } from "@angular/material/tabs";
 import { MatDialog } from "@angular/material/dialog";
+import { MatSnackBar, MatSnackBarModule } from "@angular/material/snack-bar";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { trigger, transition, style, animate, query, stagger } from "@angular/animations";
 import { Chart, registerables } from "chart.js";
@@ -19,6 +20,7 @@ import { MilestoneService, Milestone } from "../../../services/mileStoneService/
 import { ProjectService, Project } from "../../../services/project-service";
 import { CreateEditMilestoneComponent } from "./create-edit-milestone.component";
 import { ConfirmDeleteDialogComponent } from "./confirm-delete-dialog.component";
+import { CannotDeleteMilestoneDialogComponent } from "./confirm-delete-dialog.component";
 import { Router, ActivatedRoute } from "@angular/router";
 import { AuthService } from "../../../auth/auth.service";
 import { SmartMilestonePanelComponent } from "../analytics/smart-milestone-panel.component";
@@ -43,6 +45,7 @@ Chart.register(...registerables);
         MatChipsModule,
         MatProgressBarModule,
         MatTabsModule,
+        MatSnackBarModule,
         SmartMilestonePanelComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -1544,7 +1547,8 @@ export class AllMilestoneComponent implements OnInit, AfterViewInit {
         private router: Router,
         private route: ActivatedRoute,
         private authService: AuthService,
-        private cdr: ChangeDetectorRef
+        private cdr: ChangeDetectorRef,
+        private snackBar: MatSnackBar
     ) {}
 
     ngOnInit() {
@@ -1848,8 +1852,10 @@ export class AllMilestoneComponent implements OnInit, AfterViewInit {
                         this.showDeleteSuccess(milestone.name);
                     },
                     error: (err: any) => {
-                        console.error('Error deleting milestone', err);
-                        this.showDeleteError();
+                        const message = typeof err?.error === 'string' ? err.error : '';
+                        const match = message.match(/contains (\d+) task/);
+                        const taskCount = match ? parseInt(match[1], 10) : 1;
+                        this.showCannotDeleteDialog(milestone.name, taskCount);
                     }
                 });
             }
@@ -1857,12 +1863,17 @@ export class AllMilestoneComponent implements OnInit, AfterViewInit {
     }
 
     private showDeleteSuccess(name: string) {
-        // You can add a toast notification here
-        console.log(`Milestone "${name}" deleted successfully`);
+        this.snackBar.open(`Milestone "${name}" deleted successfully`, 'Close', {
+            duration: 3000,
+            panelClass: ['snack-success']
+        });
     }
 
-    private showDeleteError() {
-        // You can add an error toast notification here
-        console.error('Failed to delete milestone');
+    private showCannotDeleteDialog(milestoneName: string, taskCount: number) {
+        this.dialog.open(CannotDeleteMilestoneDialogComponent, {
+            width: '440px',
+            maxWidth: '440px',
+            data: { milestoneName, taskCount }
+        });
     }
 }

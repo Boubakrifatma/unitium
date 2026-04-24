@@ -82,7 +82,12 @@ public class MilestoneController {
     }
 
     @DeleteMapping("/{id}")
-    public void delete(@PathVariable Long id) {
-        milestoneService.delete(id);
+    public ResponseEntity<?> delete(@PathVariable Long id) {
+        try {
+            milestoneService.delete(id);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 }
