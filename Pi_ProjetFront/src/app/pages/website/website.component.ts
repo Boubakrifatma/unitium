@@ -570,12 +570,12 @@ export class WebsiteComponent implements OnInit, AfterViewInit {
     firstCoupon: any = null;
 
     teamMembers = [
-        { name: 'Motez Selmi', role: 'Lead Developer', image: 'assets/img/user-6.jpg' },
-        { name: 'Yosra Ben Ali', role: 'UX/UI Designer', image: 'assets/img/user-4.jpg' },
-        { name: 'Fatma Boubakri', role: 'Backend Engineer', image: 'assets/img/user-3.jpg' },
-        { name: 'Eya Riahi', role: 'Frontend Developer', image: 'assets/img/user-2.jpg' },
-        { name: 'Nassim Maaoui', role: 'DevOps & AI', image: 'assets/img/user-5.jpg' },
-        { name: 'Minar Hemdan', role: 'Product Manager', image: 'assets/img/user-7.jpg' }
+        { name: 'Motez Selmi', role: 'Lead Developer', image: 'assets/img/motez.png' },
+        { name: 'Yosra Ben Ali', role: 'UX/UI Designer', image: 'assets/img/yosra.png' },
+        { name: 'Fatma Boubakri', role: 'Backend Engineer', image: 'assets/img/fatma.png' },
+        { name: 'Eya Riahi', role: 'Frontend Developer', image: 'assets/img/aya.png' },
+        { name: 'Nassim Maaoui', role: 'DevOps & AI', image: 'assets/img/nassim.png' },
+        { name: 'Minar Hemdan', role: 'Product Manager', image: 'assets/img/minar.png' }
     ];
 
     billing = inject(BillingService);
