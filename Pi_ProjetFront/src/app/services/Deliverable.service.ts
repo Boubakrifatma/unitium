@@ -121,6 +121,14 @@ export interface Deliverable {
   submittedByEmail: string | null;
 }
 
+export interface EmployeeStats {
+  totalDeliverables: number;
+  rejectedByManager: number;
+  rejectedByPo: number;
+  acceptedDeliverables: number;
+  averageScore: number | null;
+}
+
 export interface DeliverableCreateDto {
   taskId: number;
   projectId: string;
@@ -294,6 +302,15 @@ export class DeliverableService {
    * Récupère les livrables filtrés par statut (côté client)
    * ✅ Inclut projectName et taskTitle
    */
+  getMyStats(): Observable<EmployeeStats> {
+    try {
+      const userId = this.getUserId();
+      return this.http.get<EmployeeStats>(`${this.apiUrl}/stats/me?userId=${userId}`);
+    } catch (error) {
+      return throwError(() => new Error('User not authenticated'));
+    }
+  }
+
   getMyDeliverablesByStatus(status: string): Observable<Deliverable[]> {
     try {
       const userId = this.getUserId();

@@ -47,4 +47,12 @@ public interface DeliverableRepository extends JpaRepository<Deliverable, Long> 
     Long countByProjectId(UUID projectId);
 
     Long countByTaskId(Long taskId);
+
+    Long countBySubmittedByIdAndStatus(Long submittedById, Deliverable.DeliverableStatus status);
+
+    @Query("SELECT COUNT(d) FROM Deliverable d WHERE d.submittedBy.id = :employeeId AND d.status IN :statuses")
+    Long countBySubmittedByIdAndStatusIn(@Param("employeeId") Long employeeId, @Param("statuses") List<Deliverable.DeliverableStatus> statuses);
+
+    @Query("SELECT COUNT(d) FROM Deliverable d WHERE d.submittedBy.id = :employeeId AND d.poDecisionField = :decision")
+    Long countBySubmittedByIdAndPoDecision(@Param("employeeId") Long employeeId, @Param("decision") Deliverable.PoDecisionField decision);
 }

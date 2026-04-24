@@ -2,6 +2,7 @@ package com.example.pi_projet.controller;
 
 import com.example.pi_projet.dto.DeliverableCreateDto;
 import com.example.pi_projet.dto.DeliverableResponseDto;
+import com.example.pi_projet.dto.EmployeeStatsDto;
 import com.example.pi_projet.dto.MilestoneDeliverableGroupDto;
 import com.example.pi_projet.service.DeliverableService;
 import com.example.pi_projet.service.DeliverableUploadGuard;
@@ -105,6 +106,12 @@ public class DeliverableController {
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<DeliverableResponseDto>> getByUser(@PathVariable Long userId) {
         return ResponseEntity.ok(deliverableService.getBySubmittedBy(userId));
+    }
+
+    // ─── GET /api/deliverables/stats/me?userId={userId} ───────────────────────
+    @GetMapping("/stats/me")
+    public ResponseEntity<EmployeeStatsDto> getMyStats(@RequestParam Long userId) {
+        return ResponseEntity.ok(deliverableService.getMyStats(userId));
     }
 
     // ─── PUT /api/deliverables/{id} ───────────────────────────────────────────

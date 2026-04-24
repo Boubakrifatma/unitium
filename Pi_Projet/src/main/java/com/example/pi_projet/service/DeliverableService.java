@@ -8,7 +8,9 @@ import com.example.pi_projet.entity.Project;
 import com.example.pi_projet.entity.TimeLineAndDeadLine.Milestone;
 import com.example.pi_projet.entity.TimeLineAndDeadLine.Task;
 import com.example.pi_projet.entity.User;
+import com.example.pi_projet.dto.EmployeeStatsDto;
 import com.example.pi_projet.repository.DeliverableRepository;
+import com.example.pi_projet.repository.DeliverableReviewRepository;
 import com.example.pi_projet.repository.DeliverableVersionRepository;
 import com.example.pi_projet.repository.TaskRepository;
 import com.example.pi_projet.repository.ProjectRepository;
@@ -27,6 +29,7 @@ import java.util.stream.Collectors;
 public class DeliverableService {
 
     private final DeliverableRepository deliverableRepository;
+    private final DeliverableReviewRepository reviewRepository;
     private final DeliverableVersionRepository versionRepository;
     private final TaskRepository taskRepository;
     private final ProjectRepository projectRepository;
@@ -315,6 +318,19 @@ public class DeliverableService {
     private Deliverable findOrThrow(Long id) {
         return deliverableRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Deliverable not found: " + id));
+    }
+
+    @Transactional(readOnly = true)
+    public EmployeeStatsDto getMyStats(Long employeeId) {
+        long total = deliverableRepository.countBySubmittedById(employeeId);
+        long rejectedByManager = deliverableRepository.countBySubmittedByIdAndStatus(
+                employeeId, DeliverableStatus.rejected_final);
+        long rejectedByPo = deliverableRepository.countBySubmittedByIdAndPoDecision(
+                employeeId, Deliverable.PoDecisionField.rejected);
+        long accepted = deliverableRepository.countBySubmittedByIdAndStatusIn(
+                employeeId, List.of(DeliverableStatus.accepted_by_manager, DeliverableStatus.validated));
+        Double avgScore = reviewRepository.getAverageScoreByEmployee(employeeId);
+        return new EmployeeStatsDto(total, rejectedByManager, rejectedByPo, accepted, avgScore);
     }
 
     private DeliverableResponseDto mapToDto(Deliverable d) {

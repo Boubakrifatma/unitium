@@ -94,6 +94,12 @@ public interface DeliverableReviewRepository extends JpaRepository<DeliverableRe
             "AND dr.score IS NOT NULL")
     Double getAverageScoreByManager(@Param("managerId") Long managerId);
 
+    @Query("SELECT AVG(dr.score) FROM DeliverableReview dr " +
+            "WHERE dr.deliverable.submittedBy.id = :employeeId " +
+            "AND dr.reviewerRole = 'MANAGER' " +
+            "AND dr.score IS NOT NULL")
+    Double getAverageScoreByEmployee(@Param("employeeId") Long employeeId);
+
     // Get all reviews by reviewer
     List<DeliverableReview> findByReviewerId(Long reviewerId);
 

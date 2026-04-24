@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, signal, computed, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DecimalPipe } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatBadgeModule } from '@angular/material/badge';
@@ -9,7 +9,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Subject, takeUntil, interval } from 'rxjs';
 
-import { DeliverableService, Deliverable } from '../../../services/Deliverable.service';
+import { DeliverableService, Deliverable, EmployeeStats } from '../../../services/Deliverable.service';
 import { DeliverableDetailDialogComponent } from './deliverable-detail-dialog.component';
 import { DeliverableDialogComponent } from './deliverable-dialog.component';
 import { NotificationService } from '../../../services/notification.service';
@@ -30,6 +30,7 @@ const STATUS_CHANGE_EVENTS = new Set([
   standalone: true,
   imports: [
     CommonModule,
+    DecimalPipe,
     MatCardModule,
     MatButtonModule,
     MatBadgeModule,
@@ -47,6 +48,7 @@ export class EmployeeDeliverablesComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
 
   deliverables = signal<Deliverable[]>([]);
+  stats = signal<EmployeeStats | null>(null);
   loading = signal(true);
   error = signal<string | null>(null);
   selectedStatus = signal<string | null>(null);
@@ -95,6 +97,7 @@ export class EmployeeDeliverablesComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadDeliverables();
+    this.loadStats();
 
     // Recharger quand un changement de statut réel arrive via SSE
     this.notificationService.newNotification$
@@ -230,6 +233,13 @@ export class EmployeeDeliverablesComponent implements OnInit, OnDestroy {
         this.error.set('Erreur lors du chargement des livrables. Veuillez réessayer.');
         this.loading.set(false);
       }
+    });
+  }
+
+  loadStats(): void {
+    this.deliverableService.getMyStats().subscribe({
+      next: (data) => this.stats.set(data),
+      error: () => { /* stats are non-critical, silently ignore */ }
     });
   }
 

@@ -582,3 +582,70 @@
     transform: scale(0.9);
   }
 }
+/* ── Employee Statistics ─────────────────────────────────────────────────── */
+.employee-stats {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+
+.stat-card {
+  flex: 1 1 160px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+  border-left: 4px solid transparent;
+  min-width: 140px;
+
+  .stat-icon-wrap {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    mat-icon { font-size: 22px; width: 22px; height: 22px; }
+  }
+
+  .stat-body {
+    display: flex;
+    flex-direction: column;
+
+    .stat-value {
+      font-size: 26px;
+      font-weight: 700;
+      line-height: 1;
+      color: #1e293b;
+
+      .stat-unit {
+        font-size: 14px;
+        font-weight: 500;
+        color: #64748b;
+      }
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+  }
+
+  &.stat-total    { border-left-color: #3b82f6; .stat-icon-wrap { background: #eff6ff; mat-icon { color: #3b82f6; } } }
+  &.stat-accepted { border-left-color: #16a34a; .stat-icon-wrap { background: #dcfce7; mat-icon { color: #16a34a; } } }
+  &.stat-rejected-manager { border-left-color: #dc2626; .stat-icon-wrap { background: #fee2e2; mat-icon { color: #dc2626; } } }
+  &.stat-rejected-po      { border-left-color: #ea580c; .stat-icon-wrap { background: #ffedd5; mat-icon { color: #ea580c; } } }
+  &.stat-score    { border-left-color: #f59e0b; .stat-icon-wrap { background: #fef3c7; mat-icon { color: #f59e0b; } } }
+}
+
+@media (max-width: 768px) {
+  .employee-stats { gap: 12px; }
+  .stat-card { flex: 1 1 calc(50% - 12px); }
+}
