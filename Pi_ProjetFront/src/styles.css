@@ -48,3 +48,10 @@
 .snack-error .mat-mdc-button:hover {
     color: #fff !important;
 }
+
+/* ── Virus Warning Dialog ───────────────────────────────────────────────── */
+.virus-dialog .mat-mdc-dialog-container {
+    border-radius: 12px !important;
+    border-top: 4px solid #e53935 !important;
+    overflow: hidden;
+}

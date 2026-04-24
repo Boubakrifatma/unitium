@@ -3,7 +3,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, AbstractControl, ValidationErrors } from '@angular/forms';
-import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
+import { MatDialog, MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -15,8 +15,45 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { DeliverableService, CreateDeliverableVersionRequest } from '../../../services/Deliverable.service';
 import { MatBadgeModule } from '@angular/material/badge';
+import { MatDividerModule } from '@angular/material/divider';
+
+// ── Virus Warning Dialog ─────────────────────────────────────────────────────
+@Component({
+  selector: 'app-virus-warning-dialog',
+  standalone: true,
+  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule],
+  template: `
+    <div style="padding: 8px 0 0 0;">
+      <h2 mat-dialog-title style="display:flex; align-items:center; gap:10px; color:#b71c1c; margin:0 0 4px 0;">
+        <mat-icon style="font-size:28px; height:28px; width:28px; color:#b71c1c;">gpp_bad</mat-icon>
+        Fichier dangereux détecté
+      </h2>
+      <mat-dialog-content style="padding-top:12px;">
+        <div style="display:flex; gap:14px; align-items:flex-start; background:#fff3f3; border-radius:8px; padding:16px; border-left:4px solid #e53935;">
+          <mat-icon style="color:#e53935; margin-top:2px; flex-shrink:0;">warning_amber</mat-icon>
+          <div>
+            <p style="margin:0 0 8px 0; font-weight:600; color:#c62828;">Ce fichier a été rejeté par l'antivirus.</p>
+            <p style="margin:0; color:#555; font-size:13.5px;">{{ data.message }}</p>
+          </div>
+        </div>
+        <p style="margin:16px 0 0 0; font-size:12.5px; color:#888;">
+          Ne tentez pas de soumettre ce fichier. Si vous pensez qu'il s'agit d'une fausse détection, contactez votre administrateur.
+        </p>
+      </mat-dialog-content>
+      <mat-dialog-actions align="end" style="padding:8px 0 0 0;">
+        <button mat-raised-button color="warn" mat-dialog-close style="min-width:100px;">
+          <mat-icon>close</mat-icon> Fermer
+        </button>
+      </mat-dialog-actions>
+    </div>
+  `,
+})
+export class VirusWarningDialogComponent {
+  readonly data: { message: string } = inject(MAT_DIALOG_DATA);
+}
 
 const VAGUE_PHRASES = [
   'work done', 'done', 'finished', 'completed', 'ok', 'good',
@@ -156,11 +193,15 @@ export interface DeliverableFormData {
     MatBadgeModule,
     MatChipsModule,
     MatTooltipModule,
+    MatSnackBarModule,
+    MatDividerModule,
   ],
 })
 export class DeliverableDialogComponent implements OnInit {
   private fb = inject(FormBuilder);
   private deliverableService = inject(DeliverableService);
+  private snackBar = inject(MatSnackBar);
+  private dialog = inject(MatDialog);
   readonly dialogRef = inject(MatDialogRef<DeliverableDialogComponent>);
   readonly data: DeliverableFormData = inject(MAT_DIALOG_DATA);
 
@@ -359,8 +400,15 @@ export class DeliverableDialogComponent implements OnInit {
         const isVirus = err?.status === 422 || (typeof backendMsg === 'string' && backendMsg.toLowerCase().includes('virus'));
         if (isVirus) {
           this.scanState.set('rejected');
-          this.scanMessage.set(backendMsg || 'Fichier rejeté : virus détecté.');
-          this.error = this.scanMessage();
+          const virusMsg = backendMsg || 'Fichier rejeté : virus détecté.';
+          this.scanMessage.set(virusMsg);
+          this.error = virusMsg;
+          this.dialog.open(VirusWarningDialogComponent, {
+            data: { message: virusMsg },
+            width: '460px',
+            disableClose: false,
+            panelClass: 'virus-dialog',
+          });
         } else {
           this.scanState.set('idle');
           this.scanMessage.set('');

@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -63,6 +64,20 @@ public class Module2ExceptionHandler {
         log.debug("ClassCastException: {}", ex.getMessage());
         return errorResponse(HttpStatus.BAD_REQUEST, "VALIDATION",
             "Invalid field type — check the request body.", null);
+    }
+
+    /** Preserves the original status code and reason from ResponseStatusException (e.g. 422 virus rejection) */
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Object> handleResponseStatus(ResponseStatusException ex) {
+        HttpStatus status = HttpStatus.resolve(ex.getStatusCode().value());
+        if (status == null) status = HttpStatus.INTERNAL_SERVER_ERROR;
+        String reason = ex.getReason() != null ? ex.getReason() : ex.getMessage();
+        if (status.is5xxServerError()) {
+            log.error("ResponseStatusException {}: {}", status.value(), reason);
+        } else {
+            log.warn("ResponseStatusException {}: {}", status.value(), reason);
+        }
+        return errorResponse(status, "ERROR", reason, null);
     }
 
     /** Catch-all — prevents Spring from returning an empty 500 with no JSON body */

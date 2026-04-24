@@ -69,8 +69,23 @@ public class DeliverableUploadGuard {
             }
         }
 
+        byte[] fileBytes;
         try {
-            byte[] fileBytes = file.getBytes();
+            fileBytes = file.getBytes();
+        } catch (Exception e) {
+            // Windows Defender (or any OS-level AV) blocks the temp file read
+            // when it detects a threat. Surface this as a clean 422 rejection.
+            String msg = e.getMessage();
+            if (isWindowsDefenderBlock(msg)) {
+                log.warn("Windows Defender blocked upload '{}': {}", file.getOriginalFilename(), msg);
+                throw new ResponseStatusException(HttpStatus.valueOf(422),
+                        "Fichier rejeté : menace détectée par l'antivirus Windows Defender.");
+            }
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Lecture du fichier impossible: " + msg);
+        }
+
+        try {
             ScanResult result = virusTotalScanService.scanFile(fileBytes, file.getOriginalFilename());
             if (!result.isClean()) {
                 log.warn("Rejected infected upload '{}' — signature: {}",
@@ -86,7 +101,7 @@ public class DeliverableUploadGuard {
                     "Antivirus indisponible. Veuillez réessayer plus tard.");
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Lecture du fichier impossible: " + e.getMessage());
+                    "Erreur lors du scan: " + e.getMessage());
         }
     }
 
@@ -103,6 +118,13 @@ public class DeliverableUploadGuard {
                     .filter(s -> !s.isEmpty())
                     .collect(Collectors.toUnmodifiableSet());
         }
+    }
+
+    private boolean isWindowsDefenderBlock(String message) {
+        if (message == null) return false;
+        String lower = message.toLowerCase();
+        return lower.contains("virus") || lower.contains("potentially unwanted")
+                || lower.contains("operation did not complete successfully");
     }
 
     private String extensionOf(String filename) {
