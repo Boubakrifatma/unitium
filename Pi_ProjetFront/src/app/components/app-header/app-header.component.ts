@@ -11,132 +11,130 @@ import { MatDividerModule } from "@angular/material/divider";
 import { MatSidenav } from "@angular/material/sidenav";
 import { Router, RouterLink } from "@angular/router";
 import { MatListModule } from "@angular/material/list";
-import { MatInput } from "@angular/material/input";
-import { MatFormFieldModule } from "@angular/material/form-field";
 import { ScheduledNotificationService, ScheduledNotification } from "../../pages/app/applications/chat/scheduled-notification.service";
 
 @Component({
     selector: "app-app-header",
     standalone: true,
-    imports: [CommonModule, RouterLink, MatToolbarModule, MatListModule, MatFormFieldModule, MatInput, MatIconModule, MatButtonModule, MatMenuModule, MatBadgeModule, MatDividerModule],
+    imports: [CommonModule, RouterLink, MatToolbarModule, MatListModule, MatIconModule, MatButtonModule, MatMenuModule, MatBadgeModule, MatDividerModule],
     template: `
         <mat-toolbar class="app-header" color="primary">
-            <button matIconButton (click)="drawers.toggle()" class="menu-button">
-                <mat-icon class="material-icons-outlined">menu</mat-icon>
-            </button>
 
-            <span class="logo mx-2 d-flex align-items-center gap-2">
+            <!-- Left: hamburger + logo -->
+            <button matIconButton (click)="drawers.toggle()" class="hdr-icon-btn menu-btn">
+                <mat-icon>menu</mat-icon>
+            </button>
+            <span class="hdr-logo">
                 <svg width="26" height="26" viewBox="0 0 32 32" fill="none" style="flex-shrink:0">
                     <rect width="32" height="32" rx="8" fill="#6366f1"/>
                     <path d="M8 10C8 8.9 8.9 8 10 8H14C15.1 8 16 8.9 16 10V16C16 17.1 15.1 18 14 18H10C8.9 18 8 17.1 8 16V10Z" fill="white"/>
                     <path d="M18 14C18 12.9 18.9 12 20 12H22C23.1 12 24 12.9 24 14V22C24 23.1 23.1 24 22 24H20C18.9 24 18 23.1 18 22V14Z" fill="white" fill-opacity="0.75"/>
                     <path d="M8 22C8 20.9 8.9 20 10 20H16C17.1 20 18 20.9 18 22C18 23.1 17.1 24 16 24H10C8.9 24 8 23.1 8 22Z" fill="white" fill-opacity="0.5"/>
                 </svg>
-                <span class="logo-text" style="font-size:17px;font-weight:700;letter-spacing:-0.3px">Unitum</span>
+                <span class="hdr-logo-text d-none d-md-inline">Unitum</span>
             </span>
-            <span class="header-title"></span>
-            <div class="mx-3 d-none d-lg-block">
-                <mat-form-field appearance="outline" class="w-100 inline-small border-light">
-                    <mat-icon matPrefix>search</mat-icon>
-                    <input matInput placeholder="Search" />
-                </mat-form-field>
+
+            <!-- Centre: search bar (desktop) -->
+            <div class="hdr-search d-none d-lg-flex">
+                <mat-icon class="hdr-search-icon">search</mat-icon>
+                <input class="hdr-search-input" placeholder="Search…" />
             </div>
 
+            <!-- Mobile search overlay -->
             @if(isSearchActive){
-            <mat-toolbar class="position-absolute top-0 start-0 w-100 z-index-1">
-                <!-- search -->
-                <button matIconButton (click)="toggleSearch()"><mat-icon class="material-icons-outlined">arrow_backward</mat-icon></button>
-
-                <mat-form-field appearance="outline" class="w-100 inline-small border-light ms-2">
-                    <mat-icon matPrefix>search</mat-icon>
-                    <input matInput placeholder="Search" />
-                    <button matIconButton matSuffix><mat-icon class="material-icons-outlined">check</mat-icon></button>
-                </mat-form-field>
-            </mat-toolbar>
+            <div class="hdr-search-overlay">
+                <button matIconButton (click)="toggleSearch()" class="hdr-icon-btn">
+                    <mat-icon>arrow_back</mat-icon>
+                </button>
+                <div class="hdr-search hdr-search-full">
+                    <mat-icon class="hdr-search-icon">search</mat-icon>
+                    <input class="hdr-search-input" placeholder="Search…" autofocus />
+                </div>
+            </div>
             }
-            <span class="spacer"></span>
 
-            <div class="header-actions">
-                <!-- search -->
-                <button matIconButton (click)="toggleSearch()" class="d-inline-block d-lg-none"><mat-icon class="material-icons-outlined">search</mat-icon></button>
+            <span class="hdr-spacer"></span>
 
-                <!-- light dark -->
-                <button matIconButton (click)="toggleMode()"><mat-icon class="dark">dark_mode</mat-icon><mat-icon class="light">sunny</mat-icon></button>
+            <!-- Right: actions -->
+            <div class="hdr-actions">
 
-                <!-- notifications -->
-                <button matIconButton
+                <!-- Mobile search -->
+                <button matIconButton (click)="toggleSearch()" class="hdr-icon-btn d-lg-none">
+                    <mat-icon>search</mat-icon>
+                </button>
+
+                <!-- Dark / light mode -->
+                <button matIconButton (click)="toggleMode()" class="hdr-icon-btn" [title]="isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'">
+                    <mat-icon class="dark">dark_mode</mat-icon>
+                    <mat-icon class="light">sunny</mat-icon>
+                </button>
+
+                <!-- Notifications -->
+                <button matIconButton class="hdr-icon-btn"
                         [matMenuTriggerFor]="notifMenu"
                         (menuOpened)="notifService.markAllRead()"
                         [matBadge]="notifService.unreadCount() > 0 ? notifService.unreadCount() : null"
                         [class.notif-bell-pulse]="notifService.bellPulsing()"
                         matBadgeColor="warn"
                         matBadgeSize="small">
-                    <mat-icon class="material-icons-outlined">notifications</mat-icon>
+                    <mat-icon>notifications_none</mat-icon>
                 </button>
                 <mat-menu #notifMenu="matMenu" xPosition="before" class="notif-dropdown">
                     <div class="notif-panel-header" (click)="$event.stopPropagation()">
                         <span>Notifications</span>
                         <div style="display:flex;align-items:center;gap:2px">
                             <button mat-icon-button style="width:28px;height:28px;line-height:28px"
-                                    (click)="toggleMute()" [title]="notifMuted() ? 'Unmute notifications' : 'Mute notifications'">
+                                    (click)="toggleMute()" [title]="notifMuted() ? 'Unmute' : 'Mute'">
                                 <mat-icon style="font-size:18px;width:18px;height:18px">{{ notifMuted() ? 'volume_off' : 'volume_up' }}</mat-icon>
                             </button>
                             @if (notifService.notifications().length > 0) {
                                 <button mat-button style="font-size:11px;min-width:0;padding:0 6px;height:24px;color:#94a3b8"
                                         (click)="onClearAll()">Clear all</button>
                                 <button mat-button style="font-size:11px;min-width:0;padding:0 6px;height:24px"
-                                        (click)="notifService.markAllRead()">Mark all read</button>
+                                        (click)="notifService.markAllRead()">Mark read</button>
                             }
                         </div>
                     </div>
                     <mat-divider></mat-divider>
                     @if (notifService.notifications().length === 0) {
                         <div class="notif-empty">
-                            <mat-icon class="material-icons-outlined" style="font-size:32px;width:32px;height:32px;opacity:.35">notifications_none</mat-icon>
+                            <mat-icon style="font-size:32px;width:32px;height:32px;opacity:.35">notifications_none</mat-icon>
                             <p>No notifications yet</p>
                         </div>
                     }
                     @for (n of notifService.notifications(); track n.id) {
                         <div class="notif-entry" [class.notif-unread]="!n.read" (click)="$event.stopPropagation()">
-                            <mat-icon [style.color]="n.iconColor"
-                                      style="font-size:20px;width:20px;height:20px;flex-shrink:0;margin-top:1px">{{ n.icon }}</mat-icon>
+                            <mat-icon [style.color]="n.iconColor" style="font-size:20px;width:20px;height:20px;flex-shrink:0;margin-top:1px">{{ n.icon }}</mat-icon>
                             <div class="notif-entry-body">
                                 <div class="notif-msg">{{ n.message }}</div>
                                 <div class="notif-time">{{ formatRelativeTime(n.timestamp) }}</div>
                                 @if (n.type === 'SCHEDULED_REMINDER') {
-                                    <button mat-stroked-button class="notif-action-btn"
-                                            (click)="onViewRoom(n.roomId)">View Room</button>
+                                    <button mat-stroked-button class="notif-action-btn" (click)="onViewRoom(n.roomId)">View Room</button>
                                 }
                                 @if (n.type === 'SCHEDULED_FAILED') {
-                                    <button mat-stroked-button class="notif-action-btn"
-                                            (click)="onRetry(n)">Retry</button>
+                                    <button mat-stroked-button class="notif-action-btn" (click)="onRetry(n)">Retry</button>
                                 }
                                 @if (n.type === 'MEETING_REMINDER') {
-                                    <button mat-stroked-button class="notif-action-btn"
-                                            style="color:#4caf50;border-color:#4caf50"
-                                            (click)="onJoinMeeting(n)">
+                                    <button mat-stroked-button class="notif-action-btn" style="color:#4caf50;border-color:#4caf50" (click)="onJoinMeeting(n)">
                                         <mat-icon style="font-size:14px;width:14px;height:14px;margin-right:3px;vertical-align:middle">video_call</mat-icon>
                                         Join Now
                                     </button>
                                 }
                                 @if ($any(n).type === 'MENTION' || $any(n).type === 'ADDED_TO_ROOM') {
-                                    <button mat-stroked-button class="notif-action-btn"
-                                            (click)="onViewRoom(n.roomId)">
+                                    <button mat-stroked-button class="notif-action-btn" (click)="onViewRoom(n.roomId)">
                                         {{ $any(n).type === 'ADDED_TO_ROOM' ? 'Open Room' : 'Go to Room' }}
                                     </button>
                                 }
                                 @if ($any(n).type === 'MENTION' && n.originalContent) {
-                                    <div class="notif-msg-preview">"{{ (n.originalContent ?? '').slice(0, 60) }}..."</div>
+                                    <div class="notif-msg-preview">"{{ (n.originalContent || '').slice(0, 60) }}..."</div>
                                 }
                                 @if ($any(n).type === 'NEW_REPORT') {
-                                    <button mat-stroked-button class="notif-action-btn"
-                                            style="color:#ef4444;border-color:#ef4444"
-                                            (click)="onReviewReport()">
+                                    <button mat-stroked-button class="notif-action-btn" style="color:#ef4444;border-color:#ef4444" (click)="onReviewReport()">
                                         <mat-icon style="font-size:14px;width:14px;height:14px;margin-right:3px;vertical-align:middle">shield</mat-icon>
                                         Review Now
                                     </button>
                                     @if ($any(n).originalContent) {
-                                        <div class="notif-msg-preview" style="font-style:italic">"{{ ($any(n).originalContent ?? '').slice(0, 60) }}"</div>
+                                        <div class="notif-msg-preview" style="font-style:italic">"{{ ($any(n).originalContent || '').slice(0, 60) }}"</div>
                                     }
                                 }
                                 <button mat-icon-button class="notif-tts-btn"
@@ -144,65 +142,70 @@ import { ScheduledNotificationService, ScheduledNotification } from "../../pages
                                         [style.color]="speakingNotifId() === n.id ? '#6366f1' : ''"
                                         (click)="speakingNotifId() === n.id ? stopSpeaking() : readNotifAloud(n)"
                                         [title]="speakingNotifId() === n.id ? 'Stop reading' : 'Read aloud'">
-                                    <mat-icon style="font-size:16px;width:16px;height:16px">
-                                        {{ speakingNotifId() === n.id ? 'stop_circle' : 'volume_up' }}
-                                    </mat-icon>
+                                    <mat-icon style="font-size:16px;width:16px;height:16px">{{ speakingNotifId() === n.id ? 'stop_circle' : 'volume_up' }}</mat-icon>
                                 </button>
                             </div>
                         </div>
                     }
                 </mat-menu>
 
-                <!-- language -->
-                <button mat-icon-button [matMenuTriggerFor]="language" class="d-none d-lg-inline-block">
-                    <div class="coverimg height-20 width-20 mx-auto rounded-circle align-middle" [ngStyle]="{ 'background-image': 'url(' + selectedLanguage().flag + ')' }"></div>
-                </button>
-                <mat-menu #language="matMenu" class="user-menu bg-light-gradient">
-                    @for (lang of languages(); track lang.code) {
-                    <button mat-menu-item (click)="onLanguageSelect(lang)">
-                        <span class="coverimg avatar avatar-20 rounded-circle me-2" [ngStyle]="{ 'background-image': 'url(' + lang.flag + ')' }"></span>
-                        <span>{{ lang.name }}</span>
-                    </button>
-                    }
-                </mat-menu>
+                <!-- Separator -->
+                <div class="hdr-sep"></div>
 
-                <!-- profile -->
-                <button matIconButton [matMenuTriggerFor]="menu">
-                    <span class="avatar avatar-32 rounded-circle coverimg d-inline-block"
-                          [ngStyle]="{'background-image': 'url(' + (authService.currentUser()?.avatarUrl || 'assets/img/user-6.jpg') + ')'}"></span>
-                </button>
-                <mat-menu #menu="matMenu" class="user-menu width-280 pt-0 bg-light-gradient">
-                    <div class="p-3 text-center mb-1" routerLink="./profile" style="margin-top:-8px">
-                        <div class="avatar avatar-120 rounded-circle coverimg align-middle mb-3" style="background-image: url('assets/img/user-bg.png')">
-                            <figure class="avatar avatar-80 rounded-circle coverimg align-middle"
-                                    [ngStyle]="{'background-image': 'url(' + (authService.currentUser()?.avatarUrl || 'assets/img/user-6.jpg') + ')'}"></figure>
-                        </div>
-                        <h3 class="mb-0">{{ authService.currentUser()?.fullName }}</h3>
-                        <p class="opacity-75 mt-0 mb-1">{{ authService.currentUser()?.role }}</p>
-                        @if (authService.currentOrganization()?.organizationName) {
-                            <p class="small text-secondary mb-0">Org: {{ authService.currentOrganization()!.organizationName }}</p>
-                        }
+                <!-- Avatar button -->
+                <button class="user-btn" [matMenuTriggerFor]="userMenu">
+                    <div class="user-avatar"
+                         [ngStyle]="{'background-image': 'url(' + (authService.currentUser()?.avatarUrl || 'assets/img/user-6.jpg') + ')'}">
+                        <mat-icon *ngIf="!authService.currentUser()?.avatarUrl" class="avatar-fallback-icon">account_circle</mat-icon>
                     </div>
-                    <button mat-menu-item routerLink="./dashboard">
-                        <mat-icon class="material-icons-outlined">house</mat-icon>
-                        <span>Dashboard</span>
-                    </button>
-                    <button mat-menu-item routerLink="./profile">
-                        <mat-icon class="material-icons-outlined">person</mat-icon>
-                        <span>Profile</span>
-                    </button>
-                    <button mat-menu-item routerLink="./subscription">
-                        <mat-icon class="material-icons-outlined">workspace_premium</mat-icon>
-                        <span>Subscription</span>
-                    </button>
-                    <button mat-menu-item routerLink="./settings">
-                        <mat-icon class="material-icons-outlined">settings</mat-icon>
-                        <span>Settings</span>
-                    </button>
-                    <div class="px-3 my-2 text-center">
-                        <button matButton (click)="logout()" class="theme-red">
-                            <mat-icon class="material-icons-outlined">logout</mat-icon>
-                            <span>Logout</span>
+                    <div class="user-btn-text">
+                        <span class="user-btn-name">{{ authService.currentUser()?.fullName }}</span>
+                        <span class="user-btn-role">{{ authService.currentUser()?.role }}</span>
+                    </div>
+                    <mat-icon class="user-chevron">expand_more</mat-icon>
+                </button>
+
+                <!-- ══ USER DROPDOWN ══ -->
+                <mat-menu #userMenu="matMenu" class="udm-panel" xPosition="before">
+
+                    <!-- Compact header -->
+                    <div class="udm-header" (click)="$event.stopPropagation()">
+                        <div class="udm-photo-wrap">
+                            <div class="udm-photo"
+                                 [ngStyle]="{'background-image': 'url(' + (authService.currentUser()?.avatarUrl || 'assets/img/user-6.jpg') + ')'}">
+                            </div>
+                            <div class="udm-online"></div>
+                        </div>
+                        <div class="udm-header-text">
+                            <span class="udm-fullname">{{ authService.currentUser()?.fullName }}</span>
+                            <span class="udm-role-badge">{{ authService.currentUser()?.role }}</span>
+                            @if (authService.currentOrganization()?.organizationName) {
+                                <span class="udm-org">{{ authService.currentOrganization()!.organizationName }}</span>
+                            }
+                        </div>
+                    </div>
+                    <mat-divider></mat-divider>
+
+                    <!-- Navigation -->
+                    <div class="udm-nav-section">
+                        <button mat-menu-item routerLink="./dashboard" class="udm-nav-item">
+                            <mat-icon class="udm-nav-icon">dashboard</mat-icon>
+                            <span class="udm-nav-label">Dashboard</span>
+                        </button>
+
+                        <button mat-menu-item routerLink="./profile" class="udm-nav-item">
+                            <mat-icon class="udm-nav-icon">person</mat-icon>
+                            <span class="udm-nav-label">Profile</span>
+                        </button>
+
+                        <button mat-menu-item routerLink="./subscription" class="udm-nav-item">
+                            <mat-icon class="udm-nav-icon">workspace_premium</mat-icon>
+                            <span class="udm-nav-label">Subscription</span>
+                        </button>
+
+                        <button mat-menu-item (click)="logout()" class="udm-nav-item udm-nav-logout">
+                            <mat-icon class="udm-nav-icon">logout</mat-icon>
+                            <span class="udm-nav-label">Sign out</span>
                         </button>
                     </div>
                 </mat-menu>
@@ -210,6 +213,306 @@ import { ScheduledNotificationService, ScheduledNotification } from "../../pages
         </mat-toolbar>
     `,
     styles: [`
+        /* ═══════════════════════════════════════════
+           TOOLBAR LAYOUT
+        ═══════════════════════════════════════════ */
+        :host { display: block; }
+
+        .app-header {
+            height: 60px !important;
+            padding: 0 12px !important;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Hamburger */
+        .menu-btn { flex-shrink: 0; }
+
+        /* Logo */
+        .hdr-logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+        .hdr-logo-text {
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: -.3px;
+            color: #000;
+        }
+
+        /* Search bar */
+        .hdr-search {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,.92);
+            border-radius: 10px;
+            padding: 0 14px;
+            height: 38px;
+            min-width: 220px;
+            max-width: 320px;
+            transition: background 200ms;
+        }
+        .hdr-search:focus-within { background: rgba(255,255,255,.98); }
+        .hdr-search-icon {
+            font-size: 18px !important;
+            width: 18px !important;
+            height: 18px !important;
+            color: rgba(0,0,0,.5);
+        }
+        .hdr-search-input {
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 13.5px;
+            color: #111;
+            width: 100%;
+        }
+        .hdr-search-input::placeholder { color: rgba(0,0,0,.45); }
+        .hdr-search-full { min-width: 0; flex: 1; max-width: none; }
+
+        /* Mobile search overlay */
+        .hdr-search-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 8px;
+            background: inherit;
+            z-index: 10;
+        }
+
+        /* Spacer */
+        .hdr-spacer { flex: 1; }
+
+        /* Actions row */
+        .hdr-actions {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+
+        /* Icon buttons */
+        .hdr-icon-btn {
+            width: 38px !important;
+            height: 38px !important;
+            border-radius: 10px !important;
+            color: rgba(0,0,0,.75) !important;
+            transition: background 150ms !important;
+        }
+        .hdr-icon-btn:hover { background: rgba(0,0,0,.05) !important; }
+
+        /* Separator before avatar */
+        .hdr-sep {
+            width: 1px;
+            height: 24px;
+            background: rgba(0,0,0,.12);
+            margin: 0 6px;
+            flex-shrink: 0;
+        }
+
+        /* ═══════════════════════════════════════════
+           AVATAR BUTTON IN TOOLBAR
+        ═══════════════════════════════════════════ */
+        .user-btn {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 4px 10px 4px 4px;
+            border: 1px solid rgba(0,0,0,.08);
+            background: rgba(0,0,0,.04);
+            border-radius: 40px;
+            cursor: pointer;
+            transition: background 200ms;
+            height: 42px;
+            color: #111;
+        }
+        .user-btn:hover { background: rgba(0,0,0,.08); }
+
+        .user-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background-size: cover;
+            background-position: center;
+            background-color: rgba(0,0,0,.06);
+            border: 1px solid rgba(0,0,0,.12);
+            flex-shrink: 0;
+            position: relative;
+            overflow: hidden;
+        }
+        .avatar-fallback-icon {
+            font-size: 20px !important;
+            color: rgba(0,0,0,.55) !important;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .user-btn-text {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            max-width: 110px;
+        }
+        .user-btn-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #111;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 110px;
+            line-height: 1.3;
+        }
+        .user-btn-role {
+            font-size: 10px;
+            color: rgba(0,0,0,.6);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 110px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            line-height: 1.2;
+        }
+        .user-chevron {
+            font-size: 18px !important;
+            width: 18px !important;
+            height: 18px !important;
+            color: rgba(0,0,0,.55) !important;
+        }
+
+        /* ═══════════════════════════════════════════
+           USER DROPDOWN PANEL
+        ═══════════════════════════════════════════ */
+        ::ng-deep .udm-panel {
+            min-width: 250px !important;
+            max-width: 260px !important;
+            border-radius: 16px !important;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,.18) !important;
+            background: #fff !important;
+            color: #111 !important;
+        }
+        ::ng-deep .udm-panel .mat-mdc-menu-content { padding: 0 !important; background: #fff !important; color: #111 !important; }
+
+        /* Compact header */
+        .udm-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 14px 12px;
+        }
+        .udm-photo-wrap {
+            position: relative;
+            width: 46px;
+            height: 46px;
+            flex-shrink: 0;
+        }
+        .udm-photo {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            background-size: cover;
+            background-position: center;
+            background-color: rgba(0,0,0,.06);
+            border: 1px solid rgba(0,0,0,.08);
+            position: relative;
+        }
+        .udm-online {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #22c55e;
+            border: 2px solid #fff;
+        }
+        .udm-header-text {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+        }
+        .udm-fullname {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 700;
+            color: #111;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .udm-role-badge {
+            margin: 0;
+            font-size: 11px;
+            color: rgba(0,0,0,.65);
+            text-transform: uppercase;
+            letter-spacing: .4px;
+            font-weight: 600;
+        }
+        .udm-org {
+            display: inline-block;
+            padding: 3px 8px;
+            background: rgba(0,0,0,.04);
+            border-radius: 999px;
+            font-size: 11px;
+            color: rgba(0,0,0,.7);
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Nav section */
+        .udm-nav-section {
+            padding: 4px 4px 8px;
+        }
+        .udm-nav-item {
+            display: flex !important;
+            align-items: center !important;
+            gap: 12px !important;
+            padding: 10px 14px !important;
+            border-radius: 10px !important;
+            min-height: 40px !important;
+            margin: 0 4px 4px !important;
+            color: rgba(0,0,0,.92) !important;
+        }
+        .udm-nav-item:hover { background: rgba(0,0,0,.04) !important; }
+        .udm-nav-icon {
+            font-size: 18px !important;
+            width: 30px !important;
+            height: 30px !important;
+            color: rgba(0,0,0,.65) !important;
+        }
+        .udm-nav-label {
+            font-size: 13.5px;
+            font-weight: 600;
+            color: #111;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .udm-nav-logout {
+            color: #ef4444 !important;
+        }
+        .udm-nav-logout .udm-nav-icon {
+            color: #ef4444 !important;
+        }
+
+        /* ═══════════════════════════════════════════
+           NOTIFICATIONS
+        ═══════════════════════════════════════════ */
         @keyframes pulse {
             0%, 100% { transform: scale(1); }
             50%       { transform: scale(1.4); }
@@ -218,18 +521,11 @@ import { ScheduledNotificationService, ScheduledNotification } from "../../pages
             from { transform: translateX(40px); opacity: 0; }
             to   { transform: translateX(0);    opacity: 1; }
         }
-        .notif-bell-pulse ::ng-deep .mat-badge-content {
-            animation: pulse 600ms ease-in-out;
-        }
-        ::ng-deep .notif-dropdown {
-            max-width: 340px !important;
-            min-width: 300px !important;
-        }
-        ::ng-deep .notif-dropdown .mat-mdc-menu-content {
-            padding: 0 !important;
-            max-height: 420px;
-            overflow-y: auto;
-        }
+        .notif-bell-pulse ::ng-deep .mat-badge-content { animation: pulse 600ms ease-in-out; }
+
+        ::ng-deep .notif-dropdown { max-width: 340px !important; min-width: 300px !important; background: #fff !important; }
+        ::ng-deep .notif-dropdown .mat-mdc-menu-content { padding: 0 !important; max-height: 420px; overflow-y: auto; background: #fff !important; }
+
         .notif-panel-header {
             display: flex;
             align-items: center;
@@ -255,21 +551,10 @@ import { ScheduledNotificationService, ScheduledNotification } from "../../pages
             animation: slideInRight 350ms cubic-bezier(0.34,1.56,0.64,1) forwards;
         }
         .notif-entry:last-child { border-bottom: none; }
-        .notif-unread {
-            background: rgba(99,102,241,.04);
-        }
+        .notif-unread { background: rgba(99,102,241,.04); }
         .notif-entry-body { flex: 1; min-width: 0; }
-        .notif-msg {
-            font-size: 12.5px;
-            line-height: 1.4;
-            color: #1e1e2d;
-            word-break: break-word;
-        }
-        .notif-time {
-            font-size: 11px;
-            color: #94a3b8;
-            margin-top: 2px;
-        }
+        .notif-msg { font-size: 12.5px; line-height: 1.4; color: #1e1e2d; word-break: break-word; }
+        .notif-time { font-size: 11px; color: #94a3b8; margin-top: 2px; }
         .notif-action-btn {
             font-size: 11px !important;
             height: 26px !important;
@@ -307,14 +592,6 @@ export class AppHeaderComponent {
     speakingNotifId = signal<string | null>(null);
     private notifLoaded = false;
     private availableVoices: SpeechSynthesisVoice[] = [];
-
-    // language
-    languages = signal([
-        { name: "English", flag: "assets/img/english.png", code: "en" },
-        { name: "German", flag: "assets/img/german.png", code: "de" },
-        { name: "France", flag: "assets/img/france.png", code: "fr" },
-    ]);
-    selectedLanguage = signal(this.languages()[0]);
 
     authService = inject(AuthService);
 
@@ -389,11 +666,6 @@ export class AppHeaderComponent {
             this.renderer.addClass(this.document.body, "light-mode");
             this.renderer.removeClass(this.document.body, "dark-mode");
         }
-    }
-
-    // language changes
-    onLanguageSelect(lang: any) {
-        this.selectedLanguage.set(lang);
     }
 
     onClearAll(): void {

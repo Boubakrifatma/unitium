@@ -9,7 +9,7 @@ import { RouterModule } from "@angular/router";
     imports: [RouterModule, MatToolbarModule, MatButtonModule],
     template: `
         <mat-toolbar>
-            <div><p class="small text-secondary">&copy; 2025 Saas Dashboard. All rights reserved.</p></div>
+            <div><p class="small text-secondary">&copy; 2026 Unitum Dashboard.Number One Application In Project Managmenet.</p></div>
             <div class="spacer"></div>
             <div class="footer-links">
                 <a matButton routerLink="/app/privacy-policy" class="footer-link">Privacy Policy</a>
