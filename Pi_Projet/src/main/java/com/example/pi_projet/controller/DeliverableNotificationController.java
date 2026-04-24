@@ -33,20 +33,22 @@ public class DeliverableNotificationController {
      * GET /api/deliverable-notifications/stream?userId=X
      * Frontend s'abonne à ce flux SSE pour recevoir les notifs en temps réel.
      */
+    // SSE timeout: 30 min. Client reconnects automatically if the stream drops.
+    private static final long SSE_TIMEOUT_MS = 30 * 60 * 1000L;
+
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter stream(@RequestParam Long userId) {
-        SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
+        SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
         emitters.computeIfAbsent(userId, k -> new CopyOnWriteArrayList<>()).add(emitter);
 
         emitter.onCompletion(() -> removeEmitter(userId, emitter));
         emitter.onTimeout(() -> removeEmitter(userId, emitter));
         emitter.onError(e -> removeEmitter(userId, emitter));
 
-        // Send current unread count immediately on connect
+        // Send a heartbeat immediately so the client knows the stream is live.
+        // The initial unread count is fetched by the client via GET /unread-count.
         try {
-            emitter.send(SseEmitter.event()
-                    .name("unread-count")
-                    .data(Map.of("count", notificationService.countUnread(userId))));
+            emitter.send(SseEmitter.event().name("connected").data("ok"));
         } catch (IOException ignored) {
             removeEmitter(userId, emitter);
         }

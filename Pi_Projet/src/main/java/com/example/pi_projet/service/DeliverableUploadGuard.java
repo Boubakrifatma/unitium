@@ -9,7 +9,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Set;
@@ -19,20 +18,20 @@ import java.util.stream.Collectors;
  * Single entry point used by upload controllers before any file is persisted.
  * Order of checks:
  *   1. file not empty / size within limits
- *   2. MIME type AND extension whitelisted
- *   3. virus scan (ClamAV) — infected uploads are rejected with HTTP 422
+ *   2. MIME type AND extension whitelisted (skipped when lists are empty = accept all)
+ *   3. VirusTotal scan — infected uploads are rejected with HTTP 422
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class DeliverableUploadGuard {
 
-    private final VirusScanService virusScanService;
+    private final VirusTotalScanService virusTotalScanService;
 
-    @Value("${deliverable.upload.allowed-types:application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/zip}")
+    @Value("${deliverable.upload.allowed-types:}")
     private String allowedTypesRaw;
 
-    @Value("${deliverable.upload.allowed-extensions:pdf,docx,zip}")
+    @Value("${deliverable.upload.allowed-extensions:}")
     private String allowedExtensionsRaw;
 
     @Value("${deliverable.upload.max-size-mb:25}")
@@ -57,14 +56,22 @@ public class DeliverableUploadGuard {
             throw badRequest("Fichier trop volumineux. Maximum autorisé : " + maxSizeMb + " Mo.");
         }
 
-        String contentType = (file.getContentType() == null ? "" : file.getContentType()).toLowerCase(Locale.ROOT);
-        String ext = extensionOf(file.getOriginalFilename());
-        if (!allowedTypes.contains(contentType) || !allowedExtensions.contains(ext)) {
-            throw badRequest("Type de fichier non autorisé. Formats acceptés : " + String.join(", ", allowedExtensions).toUpperCase());
+        // Type/extension check is skipped when the whitelist is empty (accept all types)
+        boolean typeRestricted = !allowedTypes.isEmpty();
+        boolean extRestricted  = !allowedExtensions.isEmpty();
+        if (typeRestricted || extRestricted) {
+            String contentType = (file.getContentType() == null ? "" : file.getContentType()).toLowerCase(Locale.ROOT);
+            String ext = extensionOf(file.getOriginalFilename());
+            if ((typeRestricted && !allowedTypes.contains(contentType)) ||
+                (extRestricted  && !allowedExtensions.contains(ext))) {
+                throw badRequest("Type de fichier non autorisé. Formats acceptés : "
+                        + String.join(", ", allowedExtensions).toUpperCase());
+            }
         }
 
         try {
-            ScanResult result = virusScanService.scanFile(file.getInputStream());
+            byte[] fileBytes = file.getBytes();
+            ScanResult result = virusTotalScanService.scanFile(fileBytes, file.getOriginalFilename());
             if (!result.isClean()) {
                 log.warn("Rejected infected upload '{}' — signature: {}",
                         file.getOriginalFilename(), result.getVirusName());
@@ -72,13 +79,14 @@ public class DeliverableUploadGuard {
                         "Fichier rejeté : virus détecté (" + result.getVirusName() + ")");
             }
             return result;
-        } catch (IOException e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Lecture du fichier impossible: " + e.getMessage());
+        } catch (ResponseStatusException e) {
+            throw e;
         } catch (VirusScanService.VirusScanUnavailableException e) {
-            // strict mode — reject upload
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Antivirus indisponible. Veuillez réessayer plus tard.");
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Lecture du fichier impossible: " + e.getMessage());
         }
     }
 
