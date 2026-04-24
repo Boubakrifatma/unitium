@@ -495,114 +495,6 @@ import {
                 </div>
             </div>
 
-            <!-- ── Section 5: Chatroom Activity Cards ─────────────────── -->
-            <div class="row gx-3 gx-lg-4">
-                <div class="col-12">
-                    <mat-card class="mb-3 mb-lg-4">
-                        <mat-card-header>
-                            <div class="w-100">
-                                <div class="row gx-3 align-items-center mb-0">
-                                    <div class="col-auto mb-3 mb-lg-4">
-                                        <div class="avatar avatar-40 text-theme rounded">
-                                            <mat-icon class="material-icons-outlined">meeting_room</mat-icon>
-                                        </div>
-                                    </div>
-                                    <div class="col mb-3 mb-lg-4">
-                                        <h3>Chatroom Activity</h3>
-                                        <p class="text-secondary small">Messages in the last 7 days</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </mat-card-header>
-                        <mat-card-content>
-                            @if (loading()) {
-                                <div class="row gx-3">
-                                    @for (i of [1,2,3,4,5,6]; track i) {
-                                        <div class="col-12 col-sm-6 col-xl-4 mb-3">
-                                            <mat-card class="bg-light-theme shadow-none">
-                                                <mat-card-content class="py-3">
-                                                    <div class="cdp-sk-line cdp-sk-sm mb-2"></div>
-                                                    <div class="cdp-sk-line mb-2" style="height:4px;width:100%"></div>
-                                                    <div class="cdp-sk-line" style="width:50%"></div>
-                                                </mat-card-content>
-                                            </mat-card>
-                                        </div>
-                                    }
-                                </div>
-                            } @else if (rooms().length === 0) {
-                                <div class="cdp-empty-state">
-                                    <mat-icon class="material-icons-outlined">meeting_room</mat-icon>
-                                    <p>No rooms found</p>
-                                </div>
-                            } @else {
-                                <div class="row gx-3">
-                                    @for (room of rooms(); track room.id; let i = $index) {
-                                        <div class="col-12 col-sm-6 col-xl-4 mb-3 cdp-room-item"
-                                             [style.animation-delay]="(i * 50) + 'ms'">
-                                            <mat-card class="bg-light-theme shadow-none h-100 cdp-room-card">
-                                                <mat-card-content class="py-3">
-                                                    <div class="d-flex align-items-center justify-content-between mb-2">
-                                                        <div class="d-flex align-items-center gap-2">
-                                                            <mat-icon class="text-theme" style="font-size:18px;width:18px;height:18px">tag</mat-icon>
-                                                            <h4 class="mb-0 fw-bold">{{ room.name }}</h4>
-                                                        </div>
-                                                        <div class="d-flex align-items-center gap-2">
-                                                            <span class="badge badge-light d-inline-block {{ getRoomTypeTheme(room.roomType) }}"
-                                                                  style="font-size:10px;padding:3px 8px">
-                                                                {{ getRoomTypeLabel(room.roomType) }}
-                                                            </span>
-                                                            @if (room.roomType === 'meeting') {
-                                                                @if (getMeetingStatus(room) === 'live') {
-                                                                    <span class="badge badge-light theme-green" style="font-size:10px;padding:3px 8px">
-                                                                        <span class="cdp-live-dot-sm"></span> LIVE
-                                                                    </span>
-                                                                } @else if (getMeetingStatus(room) === 'soon') {
-                                                                    <span class="badge badge-light theme-yellow cdp-soon-badge" style="font-size:10px;padding:3px 8px">
-                                                                        SOON
-                                                                    </span>
-                                                                }
-                                                            }
-                                                        </div>
-                                                    </div>
-                                                    <div class="cdp-activity-bar-wrap mb-2">
-                                                        <div class="cdp-activity-bar" [style.width]="getRoomBarWidth(room)"></div>
-                                                    </div>
-                                                    <div class="d-flex align-items-center gap-3 mb-2">
-                                                        <span class="text-secondary small d-flex align-items-center gap-1">
-                                                            <mat-icon style="font-size:13px;width:13px;height:13px">message</mat-icon>
-                                                            {{ room.messageCount }}
-                                                        </span>
-                                                        <span class="text-secondary small d-flex align-items-center gap-1">
-                                                            <mat-icon style="font-size:13px;width:13px;height:13px">group</mat-icon>
-                                                            {{ room.memberCount }}
-                                                        </span>
-                                                        @if (room.roomType === 'meeting' && getMeetingStatus(room) === 'live' && room.meetingLink) {
-                                                            <a [href]="room.meetingLink" target="_blank" rel="noopener"
-                                                               class="ms-auto badge badge-light theme-green"
-                                                               style="font-size:11px;padding:4px 10px;text-decoration:none">
-                                                                Join
-                                                            </a>
-                                                        }
-                                                    </div>
-                                                    @if (room.lastMessage) {
-                                                        <p class="text-secondary small fst-italic mb-0 text-truncate" style="font-size:11px">
-                                                            "{{ room.lastMessage }}"
-                                                            @if (room.lastMessageAt) {
-                                                                <span class="ms-1">· {{ getRelativeTime(room.lastMessageAt) }}</span>
-                                                            }
-                                                        </p>
-                                                    }
-                                                </mat-card-content>
-                                            </mat-card>
-                                        </div>
-                                    }
-                                </div>
-                            }
-                        </mat-card-content>
-                    </mat-card>
-                </div>
-            </div>
-
             <!-- ── Section 6+7: Upcoming Meetings + Activity Feed ─────── -->
             <div class="row gx-3 gx-lg-4">
                 <!-- Upcoming Meetings -->
@@ -681,70 +573,81 @@ import {
                     </mat-card>
                 </div>
 
-                <!-- Activity Feed -->
+                <!-- Activity Feed — collapsible -->
                 <div class="col-12 col-lg-7">
-                    <mat-card class="mb-3 mb-lg-4">
-                        <mat-card-header>
-                            <div class="w-100">
-                                <div class="row gx-3 align-items-center">
-                                    <div class="col-auto mb-3 mb-lg-4">
-                                        <div class="avatar avatar-40 text-theme rounded">
-                                            <mat-icon class="material-icons-outlined">feed</mat-icon>
-                                        </div>
-                                    </div>
-                                    <div class="col mb-3 mb-lg-4">
-                                        <h3>Recent Activity</h3>
-                                        <p class="text-secondary small">Live feed from your rooms</p>
-                                    </div>
-                                    <div class="col-auto mb-3 mb-lg-4">
-                                        <span class="cdp-live-indicator">
-                                            <span class="cdp-live-dot-sm"></span> Live
-                                        </span>
-                                    </div>
+                    <mat-card class="cdp-activity-card mb-3 mb-lg-4">
+
+                        <!-- Always-visible header (click to toggle) -->
+                        <div class="cdp-act-header" (click)="activityExpanded.set(!activityExpanded())">
+                            <div class="d-flex align-items-center gap-12">
+                                <div class="cdp-section-icon">
+                                    <mat-icon>rss_feed</mat-icon>
+                                </div>
+                                <div class="ms-3">
+                                    <h3 class="mb-0 fw-bold" style="font-size:15px">Recent Activity</h3>
+                                    <p class="small text-secondary mb-0">Live feed from your rooms</p>
+                                </div>
+                                <span class="cdp-live-indicator ms-3">
+                                    <span class="cdp-live-dot-sm"></span> Live
+                                </span>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                @if (!activityExpanded() && activity().length > 0) {
+                                    <span class="cdp-act-count-badge">{{ activity().length }}</span>
+                                }
+                                <div class="cdp-act-toggle-btn" [class.cdp-act-toggle-open]="activityExpanded()">
+                                    <mat-icon>keyboard_arrow_down</mat-icon>
                                 </div>
                             </div>
-                        </mat-card-header>
-                        <mat-card-content class="pb-3">
-                            @if (loading()) {
-                                @for (i of [1,2,3,4,5]; track i) {
-                                    <div class="d-flex align-items-center gap-3 py-3 border-bottom">
-                                        <div class="cdp-sk-circle-sm"></div>
-                                        <div class="flex-grow-1">
-                                            <div class="cdp-sk-line cdp-sk-sm mb-1"></div>
-                                        </div>
-                                        <div class="cdp-sk-line" style="width:40px"></div>
-                                    </div>
-                                }
-                            } @else if (activity().length === 0) {
-                                <div class="cdp-empty-state">
-                                    <mat-icon class="material-icons-outlined">inbox</mat-icon>
-                                    <p>No recent activity</p>
-                                </div>
-                            } @else {
-                                <div class="cdp-feed">
-                                    @for (item of activity(); track item.timestamp + item.senderName; let i = $index) {
-                                        <div class="cdp-feed-item" [class.cdp-feed-fresh]="item.fresh"
-                                             [style.animation-delay]="(i * 30) + 'ms'">
-                                            <div class="avatar avatar-36 rounded-circle bg-light-theme text-theme d-flex align-items-center justify-content-center fw-bold flex-shrink-0"
-                                                 style="font-size:12px">
-                                                {{ getInitials(item.senderName) }}
+                        </div>
+
+                        <!-- Collapsible body -->
+                        @if (activityExpanded()) {
+                            <div class="cdp-act-body">
+                                @if (loading()) {
+                                    @for (i of [1,2,3,4]; track i) {
+                                        <div class="cdp-act-skeleton">
+                                            <div class="cdp-sk-circle-sm"></div>
+                                            <div class="flex-grow-1">
+                                                <div class="cdp-sk-line mb-1" style="width:55%"></div>
+                                                <div class="cdp-sk-line" style="width:80%;height:8px"></div>
                                             </div>
-                                            <div class="cdp-feed-text">
-                                                <span class="fw-bold">{{ item.senderName }}</span>
-                                                sent a message in
-                                                <span class="text-theme">#{{ item.roomName }}</span>
-                                                @if (item.content) {
-                                                    <span class="text-secondary"> — "{{ item.content | slice:0:60 }}{{ item.content.length > 60 ? '…' : '' }}"</span>
-                                                }
-                                            </div>
-                                            <div class="cdp-feed-time text-secondary small flex-shrink-0">
-                                                {{ getRelativeTime(item.timestamp) }}
-                                            </div>
+                                            <div class="cdp-sk-line" style="width:36px;height:8px"></div>
                                         </div>
                                     }
-                                </div>
-                            }
-                        </mat-card-content>
+                                } @else if (activity().length === 0) {
+                                    <div class="cdp-empty-state" style="padding:28px 16px">
+                                        <mat-icon class="material-icons-outlined" style="font-size:40px;width:40px;height:40px;opacity:.3">inbox</mat-icon>
+                                        <p class="mt-2 mb-0">No recent activity</p>
+                                    </div>
+                                } @else {
+                                    <div class="cdp-act-list">
+                                        @for (item of activity(); track item.timestamp + item.senderName; let i = $index) {
+                                            <div class="cdp-act-item" [class.cdp-act-fresh]="item.fresh"
+                                                 [style.animation-delay]="(i * 40) + 'ms'">
+                                                <!-- Avatar -->
+                                                <div class="cdp-act-avatar">
+                                                    {{ getInitials(item.senderName) }}
+                                                </div>
+                                                <!-- Text -->
+                                                <div class="cdp-act-text">
+                                                    <div class="cdp-act-headline">
+                                                        <span class="cdp-act-sender">{{ item.senderName }}</span>
+                                                        <span class="cdp-act-in"> posted in </span>
+                                                        <span class="cdp-act-room">#{{ item.roomName }}</span>
+                                                    </div>
+                                                    @if (item.content) {
+                                                        <p class="cdp-act-preview">"{{ item.content | slice:0:75 }}{{ item.content.length > 75 ? '…' : '' }}"</p>
+                                                    }
+                                                </div>
+                                                <!-- Time -->
+                                                <span class="cdp-act-time">{{ getRelativeTime(item.timestamp) }}</span>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
                     </mat-card>
                 </div>
             </div>
@@ -801,29 +704,23 @@ import {
                 </div>
             </div>
 
-            <!-- ── SECTION 9: NEW — Engagement Funnel Widget ──────────────── -->
+            <!-- ── SECTION 9: Engagement Funnel Widget ───────────────────── -->
             <div class="row gx-3 gx-lg-4">
                 <div class="col-12 col-lg-6">
-                    <mat-card class="mb-3 mb-lg-4">
-                        <mat-card-header>
-                            <div class="w-100">
-                                <div class="row gx-3 align-items-center">
-                                    <div class="col-auto mb-3 mb-lg-4">
-                                        <div class="avatar avatar-40 text-theme rounded">
-                                            <mat-icon class="material-icons-outlined">trending_up</mat-icon>
-                                        </div>
-                                    </div>
-                                    <div class="col mb-3 mb-lg-4">
-                                        <h3>Engagement Funnel</h3>
-                                        <p class="text-secondary small">Member engagement levels</p>
-                                    </div>
-                                </div>
+                    <mat-card class="cdp-funnel-card mb-3 mb-lg-4">
+                        <div class="cdp-funnel-card-header">
+                            <div class="cdp-section-icon">
+                                <mat-icon class="material-icons-outlined">filter_alt</mat-icon>
                             </div>
-                        </mat-card-header>
-                        <mat-card-content>
+                            <div class="ms-3">
+                                <h3 class="mb-0 fw-bold" style="font-size:15px">Engagement Funnel</h3>
+                                <p class="small text-secondary mb-0">Member engagement breakdown</p>
+                            </div>
+                        </div>
+                        <mat-card-content class="pt-2">
                             @if (loading()) {
                                 @for (i of [1,2,3,4]; track i) {
-                                    <div class="cdp-sk-line mb-3" style="height:32px"></div>
+                                    <div class="cdp-funnel-sk mb-3"></div>
                                 }
                             } @else if (funnelData().length === 0) {
                                 <div class="cdp-empty-state">
@@ -831,15 +728,31 @@ import {
                                     <p>No funnel data</p>
                                 </div>
                             } @else {
-                                <div class="cdp-funnel-container">
-                                    @for (level of funnelData(); track level.level) {
-                                        <div class="cdp-funnel-bar"
-                                             [style.--funnel-bg]="level.percentage > 75 ? 'var(--mat-sys-primary)' : (level.percentage > 50 ? 'color-mix(in srgb, var(--mat-sys-primary) 70%, transparent)' : 'color-mix(in srgb, var(--mat-sys-primary) 40%, transparent)')"
-                                             [style.width]="level.percentage + '%'">
-                                            <span class="small">{{ level.level }}</span>
-                                            <span class="small fw-bold">{{ level.count }} ({{ level.percentage }}%)</span>
+                                <div class="cdp-funnel-stages">
+                                    @for (level of funnelData(); track level.level; let i = $index) {
+                                        <div class="cdp-funnel-stage">
+                                            <div class="cdp-funnel-stage-icon" [class]="'cdp-funnel-icon-' + i">
+                                                <mat-icon class="material-icons-outlined">
+                                                    {{ i === 0 ? 'groups' : i === 1 ? 'visibility' : i === 2 ? 'chat_bubble_outline' : 'star_outline' }}
+                                                </mat-icon>
+                                            </div>
+                                            <div class="cdp-funnel-stage-info">
+                                                <div class="cdp-funnel-stage-top">
+                                                    <span class="cdp-funnel-stage-label">{{ level.level }}</span>
+                                                    <span class="cdp-funnel-stage-count">{{ level.count }} <span class="cdp-funnel-pct">({{ level.percentage }}%)</span></span>
+                                                </div>
+                                                <div class="cdp-funnel-track">
+                                                    <div class="cdp-funnel-fill" [class]="'cdp-funnel-fill-' + i" [style.width]="level.percentage + '%'"></div>
+                                                </div>
+                                            </div>
                                         </div>
                                     }
+                                </div>
+                                <div class="cdp-funnel-summary">
+                                    <span class="cdp-funnel-summary-label">Conversion rate</span>
+                                    <span class="cdp-funnel-summary-val">
+                                        {{ funnelData().length > 1 ? funnelData()[funnelData().length-1].percentage : 0 }}%
+                                    </span>
                                 </div>
                             }
                         </mat-card-content>
@@ -1107,8 +1020,9 @@ import {
 
         /* ══ LIVE INDICATOR ══════════════════════════════════════════════ */
         .cdp-live-indicator {
-            display: flex; align-items: center; gap: 4px;
+            display: inline-flex; align-items: center; gap: 5px;
             font-size: 11px; font-weight: 600; color: #16a34a;
+            padding: 2px 8px; border-radius: 99px; background: #dcfce7;
         }
 
         /* ══ EMPTY STATE ═════════════════════════════════════════════════ */
@@ -1133,17 +1047,11 @@ import {
 
         /* ── Page Header: Insights & Clock ──────────────────────────────── */
         @keyframes cdpInsightFade { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-        .cdp-insight-text { animation: cdpInsightFade 0.3s ease both !important; color: var(--mat-sys-primary); font-weight: 500; }
         .cdp-clock { font-size: 12px; color: var(--mat-sys-on-surface-variant); }
 
         /* ── KPI Cards: Enhanced with sparklines & footer ────────────────── */
-        .cdp-kpi-card { position: relative; overflow: visible; }
-        .cdp-kpi-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
-        }
         .cdp-kpi-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
-        .cdp-kpi-value { font-size: 28px; font-weight: 800; color: var(--mat-sys-on-surface); margin: 6px 0; letter-spacing: -0.5px; }
+        .cdp-kpi-value { font-size: 30px; font-weight: 800; color: var(--mat-sys-on-surface); margin: 6px 0; letter-spacing: -0.5px; }
         .cdp-kpi-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
         .cdp-sparkline { stroke-linecap: round; stroke-linejoin: round; opacity: 0.6; transition: opacity 0.3s ease; }
         .cdp-kpi-card:hover .cdp-sparkline { opacity: 1; }
@@ -1220,16 +1128,114 @@ import {
         .cdp-room-bar:hover { transform: scaleY(1.1); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
         .cdp-room-info { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--mat-sys-on-surface-variant); }
 
-        /* ── Funnel Chart ───────────────────────────────────────────────── */
-        .cdp-funnel-container { display: flex; flex-direction: column; gap: 8px; }
-        .cdp-funnel-bar {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 12px 16px; border-radius: 6px;
-            background: var(--funnel-bg); color: var(--mat-sys-on-surface);
-            font-size: 11px; font-weight: 600;
-            animation: cdpFunnelFill 0.7s cubic-bezier(0.34,1.56,0.64,1) both;
+        /* ── Engagement Funnel ──────────────────────────────────────────── */
+        .cdp-funnel-card { border-radius: 16px !important; overflow: hidden; }
+        .cdp-funnel-card-header {
+            display: flex; align-items: center;
+            padding: 20px 20px 12px;
+            border-bottom: 1px solid var(--mat-sys-surface-variant);
         }
-        @keyframes cdpFunnelFill { from { width: 0; opacity: 0; } to { width: 100%; opacity: 1; } }
+        .cdp-funnel-sk {
+            height: 44px; border-radius: 10px;
+            background: var(--mat-sys-surface-variant);
+            animation: cdpSkPulse 1.4s ease-in-out infinite;
+        }
+        .cdp-funnel-stages { display: flex; flex-direction: column; gap: 14px; padding: 4px 0; }
+        .cdp-funnel-stage { display: flex; align-items: center; gap: 12px; }
+        .cdp-funnel-stage-icon {
+            width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .cdp-funnel-stage-icon mat-icon { font-size: 18px; width: 18px; height: 18px; }
+        .cdp-funnel-icon-0 { background: #e0f2fe; color: #0284c7; }
+        .cdp-funnel-icon-1 { background: #ede9fe; color: #7c3aed; }
+        .cdp-funnel-icon-2 { background: #dcfce7; color: #16a34a; }
+        .cdp-funnel-icon-3 { background: #fef9c3; color: #ca8a04; }
+        .cdp-funnel-stage-info { flex: 1; min-width: 0; }
+        .cdp-funnel-stage-top {
+            display: flex; justify-content: space-between; align-items: baseline;
+            margin-bottom: 6px;
+        }
+        .cdp-funnel-stage-label { font-size: 12px; font-weight: 600; color: var(--mat-sys-on-surface); }
+        .cdp-funnel-stage-count { font-size: 13px; font-weight: 700; color: var(--mat-sys-on-surface); }
+        .cdp-funnel-pct { font-size: 11px; font-weight: 500; color: var(--mat-sys-on-surface-variant); }
+        .cdp-funnel-track {
+            height: 8px; border-radius: 99px;
+            background: var(--mat-sys-surface-variant);
+            overflow: hidden;
+        }
+        .cdp-funnel-fill {
+            height: 100%; border-radius: 99px;
+            transition: width 0.8s cubic-bezier(0.34,1.56,0.64,1);
+            animation: cdpFunnelGrow 0.9s cubic-bezier(0.34,1.56,0.64,1) both;
+        }
+        @keyframes cdpFunnelGrow { from { width: 0 !important; } }
+        .cdp-funnel-fill-0 { background: linear-gradient(90deg, #0ea5e9, #38bdf8); }
+        .cdp-funnel-fill-1 { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+        .cdp-funnel-fill-2 { background: linear-gradient(90deg, #22c55e, #4ade80); }
+        .cdp-funnel-fill-3 { background: linear-gradient(90deg, #eab308, #fde047); }
+        .cdp-funnel-summary {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-top: 16px; padding: 10px 14px; border-radius: 10px;
+            background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
+            border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 20%, transparent);
+        }
+        .cdp-funnel-summary-label { font-size: 12px; color: var(--mat-sys-on-surface-variant); font-weight: 500; }
+        .cdp-funnel-summary-val { font-size: 15px; font-weight: 800; color: var(--mat-sys-primary); }
+
+        /* ── Collapsible Activity Feed ──────────────────────────────────── */
+        .cdp-activity-card { border-radius: 16px !important; overflow: hidden; }
+        .cdp-act-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 18px 20px; cursor: pointer;
+            border-bottom: 1px solid var(--mat-sys-surface-variant);
+            transition: background 0.2s;
+        }
+        .cdp-act-header:hover { background: color-mix(in srgb, var(--mat-sys-primary) 4%, transparent); }
+        .cdp-act-body { padding: 12px 20px 16px; }
+        .cdp-act-list { display: flex; flex-direction: column; gap: 2px; }
+        .cdp-act-item {
+            display: flex; align-items: flex-start; gap: 10px;
+            padding: 10px 8px; border-radius: 10px;
+            transition: background 0.15s;
+        }
+        .cdp-act-item:hover { background: var(--mat-sys-surface-variant); }
+        .cdp-act-fresh { animation: cdpActSlideIn 0.35s cubic-bezier(0.34,1.56,0.64,1) both; }
+        @keyframes cdpActSlideIn { from { opacity: 0; transform: translateX(-8px); } }
+        .cdp-act-avatar {
+            width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+            background: var(--mat-sys-surface-variant);
+            background-size: cover; background-position: center;
+        }
+        .cdp-act-text { flex: 1; min-width: 0; }
+        .cdp-act-headline { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; margin-bottom: 2px; }
+        .cdp-act-sender { font-size: 12px; font-weight: 700; color: var(--mat-sys-on-surface); }
+        .cdp-act-in { font-size: 11px; color: var(--mat-sys-on-surface-variant); }
+        .cdp-act-room { font-size: 12px; font-weight: 600; color: var(--mat-sys-primary); }
+        .cdp-act-preview {
+            font-size: 11px; color: var(--mat-sys-on-surface-variant);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            margin: 0;
+        }
+        .cdp-act-time { font-size: 10px; color: var(--mat-sys-on-surface-variant); flex-shrink: 0; margin-top: 2px; }
+        .cdp-act-skeleton {
+            display: flex; flex-direction: column; gap: 10px; padding: 8px;
+        }
+        .cdp-act-count-badge {
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 20px; height: 20px; padding: 0 6px; border-radius: 99px;
+            background: var(--mat-sys-primary); color: var(--mat-sys-on-primary);
+            font-size: 11px; font-weight: 700;
+        }
+        .cdp-act-toggle-btn {
+            width: 28px; height: 28px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--mat-sys-surface-variant);
+            transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), background 0.2s;
+        }
+        .cdp-act-toggle-btn mat-icon { font-size: 18px; width: 18px; height: 18px; color: var(--mat-sys-on-surface-variant); }
+        .cdp-act-toggle-open { transform: rotate(180deg); background: color-mix(in srgb, var(--mat-sys-primary) 12%, transparent); }
+        .cdp-act-toggle-open mat-icon { color: var(--mat-sys-primary); }
 
         /* ── Upcoming Meetings Countdown ────────────────────────────────── */
         @keyframes cdpCountdownPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.7); } 50% { box-shadow: 0 0 0 6px rgba(220,38,38,0); } }
@@ -1247,6 +1253,323 @@ import {
         /* ── Shared Animations ──────────────────────────────────────────── */
         @keyframes cdpFadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .cdp-fade-in { animation: cdpFadeInUp 0.4s ease both; }
+
+        /* ══════════════════════════════════════════════════════════════════
+           PAGE ANIMATIONS
+           ══════════════════════════════════════════════════════════════ */
+        @keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+        .fade-in { animation: fadeIn 0.45s cubic-bezier(0.34,1.56,0.64,1) both; }
+
+        /* ══════════════════════════════════════════════════════════════════
+           5-COLUMN KPI GRID (xl breakpoint)
+           ══════════════════════════════════════════════════════════════ */
+        @media (min-width: 1200px) {
+            .col-xl-2-4 { flex: 0 0 20%; max-width: 20%; padding-left: 12px; padding-right: 12px; }
+        }
+
+        /* ══════════════════════════════════════════════════════════════════
+           HEADER CARD
+           ══════════════════════════════════════════════════════════════ */
+        .cdp-header-card {
+            border-radius: 18px !important;
+            padding: 20px 24px !important;
+            border: 1px solid var(--mat-sys-outline-variant) !important;
+        }
+        .cdp-header-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 14px;
+        }
+        .cdp-header-left {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            flex: 1;
+            min-width: 0;
+        }
+        .cdp-header-right {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+        .cdp-header-icon-wrap {
+            width: 54px; height: 54px;
+            border-radius: 16px;
+            background: var(--mat-sys-primary-container);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .cdp-header-icon-wrap mat-icon {
+            font-size: 28px !important;
+            width: 28px !important;
+            height: 28px !important;
+            color: var(--mat-sys-on-primary-container);
+        }
+        .cdp-header-title {
+            font-size: 21px;
+            font-weight: 800;
+            color: var(--mat-sys-on-surface);
+            margin: 0;
+            letter-spacing: -0.4px;
+            line-height: 1.2;
+        }
+        .cdp-header-sub {
+            font-size: 13px;
+            color: var(--mat-sys-on-surface-variant);
+            margin: 4px 0 0;
+        }
+        .cdp-insight-text {
+            font-size: 12.5px;
+            font-weight: 500;
+            color: var(--mat-sys-primary);
+            margin: 5px 0 0;
+            animation: cdpInsightFade 0.35s ease both;
+        }
+        .cdp-clock-pill {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--mat-sys-surface-variant);
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+            color: var(--mat-sys-on-surface-variant);
+        }
+        .cdp-clock-pill mat-icon {
+            font-size: 15px !important;
+            width: 15px !important;
+            height: 15px !important;
+        }
+        .cdp-back-btn {
+            border-radius: 10px !important;
+            font-size: 13px !important;
+            font-weight: 600 !important;
+            gap: 4px;
+        }
+        /* Stat strip */
+        .cdp-stat-strip {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid var(--mat-sys-outline-variant);
+        }
+        .cdp-stat-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 13px;
+            border-radius: 20px;
+            background: var(--mat-sys-surface-variant);
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--mat-sys-on-surface-variant);
+        }
+        .cdp-stat-chip mat-icon {
+            font-size: 14px !important;
+            width: 14px !important;
+            height: 14px !important;
+        }
+        .cdp-stat-active {
+            background: color-mix(in srgb, var(--mat-sys-primary) 14%, transparent) !important;
+            color: var(--mat-sys-primary) !important;
+            font-weight: 700 !important;
+        }
+        .cdp-stat-active mat-icon { color: var(--mat-sys-primary) !important; }
+
+        /* ══════════════════════════════════════════════════════════════════
+           KPI CARDS — COLOR SYSTEM
+           ══════════════════════════════════════════════════════════════ */
+        .cdp-kpi-card {
+            border-radius: 16px !important;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            cursor: default;
+            overflow: hidden;
+        }
+        .cdp-kpi-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 16px 40px rgba(0,0,0,.12) !important;
+        }
+        .cdp-kpi-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--mat-sys-on-surface-variant);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin: 0;
+        }
+        /* Icon containers */
+        .cdp-kpi-icon-wrap {
+            width: 48px; height: 48px;
+            border-radius: 13px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .cdp-kpi-icon-wrap mat-icon {
+            font-size: 22px !important;
+            width: 22px !important;
+            height: 22px !important;
+        }
+        /* Card top-border accent */
+        .cdp-kpi-cyan  { border-top: 3px solid #06b6d4 !important; }
+        .cdp-kpi-blue  { border-top: 3px solid #6366f1 !important; }
+        .cdp-kpi-amber { border-top: 3px solid #f59e0b !important; }
+        .cdp-kpi-green { border-top: 3px solid #22c55e !important; }
+        .cdp-kpi-rose  { border-top: 3px solid #f43f5e !important; }
+        /* Icon wrapper colors */
+        .cdp-kpi-icon-cyan  { background: rgba(6,182,212,.12);  color: #06b6d4; }
+        .cdp-kpi-icon-blue  { background: rgba(99,102,241,.12); color: #6366f1; }
+        .cdp-kpi-icon-amber { background: rgba(245,158,11,.12); color: #f59e0b; }
+        .cdp-kpi-icon-green { background: rgba(34,197,94,.12);  color: #22c55e; }
+        .cdp-kpi-icon-rose  { background: rgba(244,63,94,.12);  color: #f43f5e; }
+        /* Trend badges */
+        .cdp-trend {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .cdp-trend mat-icon {
+            font-size: 13px !important;
+            width: 13px !important;
+            height: 13px !important;
+        }
+        .cdp-trend-up   { color: #22c55e; }
+        .cdp-trend-down { color: #f43f5e; }
+
+        /* ══════════════════════════════════════════════════════════════════
+           METRIC CHIPS — GOLD VARIANT
+           ══════════════════════════════════════════════════════════════ */
+        .cdp-chip-gold {
+            background: rgba(234,179,8,.10) !important;
+            border-color: rgba(234,179,8,.30) !important;
+            color: #ca8a04 !important;
+        }
+        .cdp-chip-gold mat-icon { color: #ca8a04 !important; }
+
+        /* ══════════════════════════════════════════════════════════════════
+           SECTION CARDS & HEADER ICONS
+           ══════════════════════════════════════════════════════════════ */
+        .cdp-section-card { border-radius: 16px !important; }
+        .cdp-section-icon {
+            width: 40px; height: 40px;
+            border-radius: 11px;
+            background: var(--mat-sys-primary-container);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .cdp-section-icon mat-icon {
+            font-size: 20px !important;
+            width: 20px !important;
+            height: 20px !important;
+            color: var(--mat-sys-on-primary-container);
+        }
+
+        /* ══════════════════════════════════════════════════════════════════
+           CHART WRAPPER + GRID LINES
+           ══════════════════════════════════════════════════════════════ */
+        .cdp-chart-wrap {
+            position: relative;
+            padding-top: 8px;
+        }
+        .cdp-chart-grid {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            pointer-events: none;
+            padding-bottom: 26px;
+        }
+        .cdp-grid-line {
+            border-top: 1px dashed var(--mat-sys-outline-variant);
+            opacity: 0.55;
+        }
+
+        /* ══════════════════════════════════════════════════════════════════
+           LEADERBOARD AVATAR
+           ══════════════════════════════════════════════════════════════ */
+        .cdp-leader-avatar {
+            width: 34px; height: 34px;
+            border-radius: 50%;
+            background: var(--mat-sys-primary-container);
+            color: var(--mat-sys-on-primary-container);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        /* ══════════════════════════════════════════════════════════════════
+           INSIGHTS LIST
+           ══════════════════════════════════════════════════════════════ */
+        .cdp-insights-list { display: flex; flex-direction: column; gap: 10px; }
+        .cdp-insight-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 13px 14px;
+            border-radius: 12px;
+            background: var(--mat-sys-surface-variant);
+            transition: background 0.15s;
+        }
+        .cdp-insight-row:hover { background: color-mix(in srgb, var(--mat-sys-primary) 8%, var(--mat-sys-surface-variant)); }
+        .cdp-insight-row mat-icon {
+            font-size: 20px !important;
+            width: 20px !important;
+            height: 20px !important;
+            flex-shrink: 0;
+            color: var(--mat-sys-primary);
+        }
+
+        /* ══════════════════════════════════════════════════════════════════
+           ROOM COMPARISON
+           ══════════════════════════════════════════════════════════════ */
+        .cdp-room-comparison {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            max-height: 360px;
+            overflow-y: auto;
+            padding-right: 2px;
+        }
+        .cdp-room-comparison::-webkit-scrollbar { width: 4px; }
+        .cdp-room-comparison::-webkit-scrollbar-thumb { background: var(--mat-sys-outline-variant); border-radius: 2px; }
+
+        .cdp-room-comparison-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            transition: background 0.15s;
+        }
+        .cdp-room-comparison-bar:hover { background: var(--mat-sys-surface-variant); }
+        .cdp-room-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+            width: 140px;
+            flex-shrink: 0;
+        }
+        .cdp-room-bar {
+            flex: 1;
+            height: 22px;
+            border-radius: 6px;
+            max-width: var(--bar-w, 4px);
+            min-width: 4px;
+            transition: max-width 0.7s cubic-bezier(0.34,1.56,0.64,1);
+            opacity: 0.82;
+        }
+        .cdp-room-bar:hover { opacity: 1; }
     `],
 })
 export class ChatDashboardPageComponent implements OnInit, OnDestroy, AfterViewInit {
@@ -1346,6 +1669,9 @@ export class ChatDashboardPageComponent implements OnInit, OnDestroy, AfterViewI
         roomType: string;
         messagesLast7Days: number;
     }[]>([]);
+
+    // ── Collapsible activity feed ─────────────────────────────────────────
+    activityExpanded = signal(true);
 
     // ── NEW: Engagement Funnel ────────────────────────────────────────────
     funnelData = signal<{

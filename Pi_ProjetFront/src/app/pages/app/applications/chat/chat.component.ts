@@ -8973,61 +8973,64 @@ export class ScheduledDetailsDialogComponent {
         }
 
         .attachment-image {
-            max-width: 240px;
-            max-height: 200px;
+            width: 100%;
+            min-width: 260px;
+            max-width: min(500px, 100%);
+            max-height: none;
             border-radius: 10px;
             display: block;
             transition: transform 0.2s ease, box-shadow 0.2s ease;
             box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+            object-fit: contain;
         }
         .attachment-image:hover {
             transform: scale(1.02);
             box-shadow: 0 6px 20px rgba(0,0,0,0.18);
         }
 
-        /* ── Voice Message ─────────────────────────────────────────────── */
+        /* ── Voice Message — Messenger style ──────────────────────────── */
+        /* The bubble itself is the container; no inner box */
         .audio-message {
-            display: inline-flex;
+            display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 10px 14px;
-            margin-top: 6px;
-            border-radius: 18px;
-            background: rgba(0,0,0,0.04);
-            width: fit-content;
-        }
-        .msg-bubble-own .audio-message {
-            background: rgba(255,255,255,0.16);
+            gap: 8px;
+            padding: 0;
+            margin: 0;
+            background: none;
+            border-radius: 0;
+            width: 100%;
+            min-width: 180px;
+            max-width: 240px;
+            box-sizing: border-box;
+            overflow: hidden;
         }
 
         .audio-play-btn {
-            width: 40px;
-            height: 40px;
-            min-width: 40px;
+            width: 34px;
+            height: 34px;
+            min-width: 34px;
             border-radius: 50%;
-            background: var(--mat-sys-primary);
-            color: var(--mat-sys-on-primary);
+            background: rgba(255,255,255,0.30);
+            color: #fff;
             border: none;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            transition: all 0.2s ease;
+            transition: background 0.18s ease, transform 0.15s ease;
             padding: 0;
         }
-        .audio-play-btn:hover {
-            transform: scale(1.08);
+        .audio-play-btn:hover  { background: rgba(255,255,255,0.45); transform: scale(1.08); }
+        .audio-play-btn:active { transform: scale(0.93); }
+
+        /* For "other" (received) bubbles the button uses the theme primary */
+        .msg-bubble-other .audio-play-btn {
+            background: var(--mat-sys-primary);
+            color: var(--mat-sys-on-primary);
         }
-        .audio-play-btn:active {
-            transform: scale(0.95);
-        }
-        .msg-bubble-own .audio-play-btn {
-            background: rgba(255,255,255,0.3);
-            color: white;
-        }
-        .audio-play-btn:hover .audio-play-icon {
-        }
+        .msg-bubble-other .audio-play-btn:hover { background: color-mix(in srgb, var(--mat-sys-primary) 85%, black); }
+
         .audio-play-icon {
             font-size: 18px;
             width: 18px;
@@ -9039,38 +9042,48 @@ export class ScheduledDetailsDialogComponent {
             align-items: center;
             gap: 2px;
             flex: 1;
-            height: 28px;
-            min-width: 100px;
-            max-width: 160px;
+            height: 22px;
+            min-width: 60px;
+            overflow: hidden;
         }
         .audio-bar {
-            width: 2px;
-            border-radius: 1px;
-            background: var(--mat-sys-primary);
-            opacity: 0.65;
+            flex: 1;
+            max-width: 3px;
+            border-radius: 2px;
+            background: rgba(255,255,255,0.85);
+            opacity: 0.75;
             animation: wave 0.6s ease-in-out infinite alternate;
             animation-play-state: paused;
-            min-height: 4px;
+            min-height: 3px;
         }
-        .msg-bubble-own .audio-bar {
-            background: rgba(255,255,255,0.8);
+        .msg-bubble-other .audio-bar {
+            background: var(--mat-sys-primary);
         }
         @keyframes wave {
-            0% { transform: scaleY(0.3); opacity: 0.4; }
-            100% { transform: scaleY(1); opacity: 0.8; }
+            0%   { transform: scaleY(0.25); opacity: 0.4; }
+            100% { transform: scaleY(1);    opacity: 0.9; }
         }
 
         .audio-duration {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
-            color: var(--mat-sys-on-surface-variant);
-            white-space: nowrap;
-            min-width: 30px;
-            text-align: right;
-            flex-shrink: 0;
-        }
-        .msg-bubble-own .audio-duration {
             color: rgba(255,255,255,0.85);
+            white-space: nowrap;
+            flex-shrink: 0;
+            letter-spacing: 0.02em;
+        }
+        .msg-bubble-other .audio-duration {
+            color: var(--mat-sys-on-surface-variant);
+        }
+
+        /* ── Audio-only bubble: tight padding, no inner margin ──────────── */
+        /* When bubble has only audio (no text), collapse the wrapper margin  */
+        .msg-bubble:has(.audio-message) .file-attachment {
+            margin-top: 0 !important;
+        }
+        /* Tighten bubble padding when it's audio-only (no msg-text-wrap) */
+        .msg-bubble:has(.audio-message):not(:has(.msg-text-wrap)) {
+            padding: 9px 12px !important;
         }
 
         /* ── File Card ─────────────────────────────────────────────────── */
@@ -15024,6 +15037,11 @@ export class ScheduledDetailsDialogComponent {
         .attachment-image {
             border-radius: 14px !important;
             box-shadow: 0 4px 14px rgba(0,0,0,0.14) !important;
+            min-width: 260px !important;
+            max-width: min(500px, 100%) !important;
+            max-height: none !important;
+            width: 100% !important;
+            object-fit: contain !important;
         }
 
         /* ─── Reaction pills ─────────────────────────────────────────── */
@@ -15803,10 +15821,13 @@ export class ScheduledDetailsDialogComponent {
 
         /* ─── Image attachment ───────────────────────────────────────────── */
         .attachment-image {
-            max-width: 260px !important;
-            max-height: 220px !important;
+            width: 100% !important;
+            min-width: 260px !important;
+            max-width: min(500px, 100%) !important;
+            max-height: none !important;
             border-radius: 14px !important;
             display: block !important;
+            object-fit: contain !important;
             box-shadow:
                 0 4px 18px rgba(0,0,0,0.16),
                 0 0 0 1.5px rgba(255,255,255,0.08) !important;
