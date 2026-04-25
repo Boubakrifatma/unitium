@@ -6,7 +6,9 @@ export interface Milestone {
   id?: number;
   name: string;
   description?: string;
+  startDate?: string;
   dueDate?: string;
+  createdAt?: string;
   status: string;
   completionPct?: number;
   /** Présent si l’API renvoie le projet à plat (création / formulaires). */

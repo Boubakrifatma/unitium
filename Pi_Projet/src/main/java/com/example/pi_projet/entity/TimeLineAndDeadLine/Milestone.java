@@ -2,6 +2,7 @@ package com.example.pi_projet.entity.TimeLineAndDeadLine;
 
 import com.example.pi_projet.entity.Project;
 import com.example.pi_projet.entity.User;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
@@ -10,6 +11,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "milestones")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Milestone {
 
     @Id
@@ -25,6 +27,9 @@ public class Milestone {
 
     @Column(columnDefinition = "TEXT")
     private String description;
+
+    @Column(name = "start_date")
+    private LocalDate startDate;
 
     @Column(name = "due_date")
     private LocalDate dueDate;

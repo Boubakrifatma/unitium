@@ -9,6 +9,8 @@ export interface Project {
   description?: string;
   status: string;
   visibility: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 @Injectable({
@@ -46,8 +48,26 @@ export class ProjectService {
         id: p.id,
         name: p.name,
         status: p.status ?? '',
-        visibility: p.visibility ?? ''
+        visibility: p.visibility ?? '',
+        endDate: p.endDate ?? undefined
       }) as Project))
+    );
+  }
+
+  getById(projectId: string): Observable<Project> {
+    return this.resolveWorkspaceId$().pipe(
+      switchMap(workspaceId => {
+        if (!workspaceId) return of(null as any);
+        return this.http.get<any>(`${this.workspaceBase}/${workspaceId}/projects/${projectId}`);
+      }),
+      map(p => p ? ({
+        id: p.id,
+        name: p.name,
+        status: p.status ?? '',
+        visibility: p.visibility ?? '',
+        startDate: p.startDate ?? undefined,
+        endDate: p.endDate ?? undefined
+      }) as Project : { id: projectId, name: '', status: '', visibility: '' })
     );
   }
 

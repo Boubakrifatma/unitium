@@ -17,6 +17,8 @@ import { MatTooltipModule } from "@angular/material/tooltip";
 import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
 
 import { TaskService, TaskResponseDto } from "../../../services/TaskService/task.service";
+import { RiskPredictionService } from "../../../services/TaskService/risk-prediction.service";
+import { RiskConfirmDialogComponent } from "./risk-confirm-dialog.component";
 import { TaskDependencyService, TaskDependencyResponseDto } from "../../../services/TaskService/taskDepdendencyService";
 import { MilestoneService, Milestone } from "../../../services/mileStoneService/milestone.service";
 import { ProjectService } from "../../../services/project-service";
@@ -84,7 +86,11 @@ export class AllTaskComponent implements OnInit, AfterViewInit {
 
   milestoneId = signal<number | null>(null);
   milestoneName = signal<string>("");
+  milestoneStartDate = signal<string | null>(null);
+  milestoneDueDate = signal<string | null>(null);
   projectId = signal<string | null>(null);
+  projectStartDate = signal<string | null>(null);
+  projectEndDate = signal<string | null>(null);
   tasks = signal<TaskItem[]>([]);
   expandedGroupIds = signal<Set<number>>(new Set());
   expandedTaskIds = signal<Set<number>>(new Set());
@@ -103,6 +109,7 @@ export class AllTaskComponent implements OnInit, AfterViewInit {
   constructor(
     private route: ActivatedRoute,
     private taskService: TaskService,
+    private riskService: RiskPredictionService,
     private taskDependencyService: TaskDependencyService,
     private milestoneService: MilestoneService,
     private projectService: ProjectService,
@@ -128,7 +135,12 @@ export class AllTaskComponent implements OnInit, AfterViewInit {
       next: (m: Milestone) => {
         this.projectId.set(m.projectId ?? m.project?.id ?? null);
         this.milestoneName.set(m.name ?? "");
-        if (this.projectId()) this.loadProjectMembers();
+        this.milestoneStartDate.set(m.startDate ?? (m.createdAt ? m.createdAt.split('T')[0] : null));
+        this.milestoneDueDate.set(m.dueDate ?? null);
+        if (this.projectId()) {
+          this.loadProjectMembers();
+          this.loadProjectDates();
+        }
         this.loadTasks();
       },
       error: () => this.loadTasks()
@@ -136,12 +148,23 @@ export class AllTaskComponent implements OnInit, AfterViewInit {
   }
 
   loadProjectMembers() {
-    
     const pid = this.projectId();
     if (!pid) return;
     this.projectService.getMembers(pid).subscribe({
       next: members => this.projectMembers.set(members),
       error: () => this.projectMembers.set([])
+    });
+  }
+
+  loadProjectDates() {
+    const pid = this.projectId();
+    if (!pid) return;
+    this.projectService.getById(pid).subscribe({
+      next: p => {
+        this.projectStartDate.set(p.startDate ?? null);
+        this.projectEndDate.set(p.endDate ?? null);
+      },
+      error: () => {}
     });
   }
 
@@ -258,20 +281,55 @@ export class AllTaskComponent implements OnInit, AfterViewInit {
     return icons[type] || "assignment";
   }
 
+  // ── Roles excluded from assignee selection ────────────────────────────────
+  private readonly EXCLUDED_ROLES = new Set([
+    'MANAGER', 'ADMIN', 'PO', 'PROJECT_MANAGER', 'TUTOR'
+  ]);
+
+  /**
+   * Builds the filtered assignable-member list with workload (todo hours).
+   * Excludes MANAGER, ADMIN, PO, PROJECT_MANAGER.
+   */
+  private buildAssignableMembers() {
+    // Compute todo-hours per user from the already-loaded task list
+    const workloadMap = new Map<number, number>();
+    this.tasks().forEach((t: any) => {
+      if (t.status === 'todo' && t.assignedToId) {
+        workloadMap.set(t.assignedToId,
+          (workloadMap.get(t.assignedToId) ?? 0) + (t.assignHours ?? 0));
+      }
+    });
+
+    const filtered = this.projectMembers().filter((u: any) => {
+      const role = (u.role ?? u.user?.role ?? '').toUpperCase();
+      return !this.EXCLUDED_ROLES.has(role);
+    });
+
+    return [
+      { id: null, name: 'Non assigné', title: '', avatarUrl: null, workloadHours: 0 },
+      ...filtered.map((u: any) => {
+        const uid = u.userId ?? u.id ?? u.user?.id ?? null;
+        return {
+          id: uid,
+          name: u.user?.fullName ?? u.fullName ?? u.name ?? u.email ?? `User #${uid ?? ''}`,
+          title: u.role ?? u.user?.role ?? '',
+          avatarUrl: u.user?.avatarUrl ?? u.avatarUrl ?? null,
+          workloadHours: uid ? (workloadMap.get(uid) ?? 0) : 0
+        };
+      })
+    ];
+  }
+
   // ===================== Dialogs - Création & Modification =====================
   openCreate() {
     const dialogData = {
       projectId: this.projectId(),
       milestoneId: this.milestoneId(),
-      members: [
-        { id: null, name: "Non assigné", title: "Non assigné", avatarUrl: null },
-        ...this.projectMembers().map((u: any) => ({
-          id: u.userId ?? u.id ?? u.user?.id ?? null,
-          name: u.user?.fullName ?? u.fullName ?? u.name ?? u.email ?? `User #${u.userId ?? u.id ?? ''}`,
-          title: u.role ?? u.user?.role ?? '',
-          avatarUrl: u.user?.avatarUrl ?? u.avatarUrl ?? null
-        }))
-      ],
+      milestoneStartDate: this.milestoneStartDate(),
+      milestoneDueDate: this.milestoneDueDate(),
+      projectStartDate: this.projectStartDate(),
+      projectEndDate: this.projectEndDate(),
+      members: this.buildAssignableMembers(),
       parentTasks: this.tasks().map(t => ({ taskId: t.taskId, title: t.title })),
       availableTasks: this.tasks().map(t => ({ taskId: t.taskId, title: t.title }))
     };
@@ -362,17 +420,13 @@ export class AllTaskComponent implements OnInit, AfterViewInit {
           data: {
             projectId: this.projectId(),
             milestoneId: this.milestoneId(),
+            milestoneStartDate: this.milestoneStartDate(),
+            milestoneDueDate: this.milestoneDueDate(),
+            projectStartDate: this.projectStartDate(),
+            projectEndDate: this.projectEndDate(),
             task: task,
             existingDependencies,
-            members: [
-              { id: null, name: "Non assigné", title: "Non assigné", avatarUrl: null },
-              ...this.projectMembers().map((u: any) => ({
-                id: u.userId ?? u.id ?? u.user?.id ?? null,
-                name: u.user?.fullName ?? u.fullName ?? u.name ?? u.email ?? `User #${u.userId ?? u.id ?? ''}`,
-                title: u.role ?? u.user?.role ?? '',
-                avatarUrl: u.user?.avatarUrl ?? u.avatarUrl ?? null
-              }))
-            ],
+            members: this.buildAssignableMembers(),
             parentTasks: this.tasks()
               .filter(t => t.taskId !== task.taskId)
               .map(t => ({ taskId: t.taskId, title: t.title })),
@@ -396,17 +450,13 @@ export class AllTaskComponent implements OnInit, AfterViewInit {
           data: {
             projectId: this.projectId(),
             milestoneId: this.milestoneId(),
+            milestoneStartDate: this.milestoneStartDate(),
+            milestoneDueDate: this.milestoneDueDate(),
+            projectStartDate: this.projectStartDate(),
+            projectEndDate: this.projectEndDate(),
             task: task,
             existingDependencies: [],
-            members: [
-              { id: null, name: "Non assigné", title: "Non assigné", avatarUrl: null },
-              ...this.projectMembers().map((u: any) => ({
-                id: u.userId ?? u.id ?? u.user?.id ?? null,
-                name: u.user?.fullName ?? u.fullName ?? u.name ?? u.email ?? `User #${u.userId ?? u.id ?? ''}`,
-                title: u.role ?? u.user?.role ?? '',
-                avatarUrl: u.user?.avatarUrl ?? u.avatarUrl ?? null
-              }))
-            ],
+            members: this.buildAssignableMembers(),
             parentTasks: this.tasks()
               .filter(t => t.taskId !== task.taskId)
               .map(t => ({ taskId: t.taskId, title: t.title })),
@@ -429,38 +479,89 @@ export class AllTaskComponent implements OnInit, AfterViewInit {
     }
 
     const payload = {
-      title: formData.title,
-      description: formData.description || "",
-      taskType: formData.type || "task",
-      status: "todo",
-      priority: formData.priority || "Medium",
-      estimatedHours: formData.assignHours || 0,
-      actualHours: 0,
-      assignedToId: formData.assignedTo || null,
-      parentTaskId: formData.parentTaskId || null,
-      projectId: this.projectId()!,
-      milestoneId: this.milestoneId()!,
-      startDate: formData.startDate || null,
-      dueDate: formData.dueDate || null,
+      title:               formData.title,
+      description:         formData.description || "",
+      taskType:            formData.type || "task",
+      status:              "todo",
+      priority:            formData.priority || "Medium",
+      estimatedHours:      formData.assignHours || 0,
+      actualHours:         0,
+      assignedToId:        formData.assignedTo || null,
+      parentTaskId:        formData.parentTaskId || null,
+      projectId:           this.projectId()!,
+      milestoneId:         this.milestoneId()!,
+      startDate:           formData.startDate || null,
+      dueDate:             formData.dueDate || null,
       isVisibleToAssignees: formData.isVisibleToAssignees !== false,
+      difficulty:          formData.difficulty || null,
     };
 
-    this.taskService.create(payload).subscribe({
-      next: (createdTask) => {
-        console.log('Task created:', createdTask);
-        // Créer les dépendances si disponibles
-        if (formData.dependencies && formData.dependencies.length > 0) {
-          console.log('Form data dependencies:', formData.dependencies);
-          this.createTaskDependencies(createdTask.id, formData.dependencies);
-        } else {
-          this.snackBar.open("Tâche créée avec succès", "OK", { duration: 3000 });
-          this.loadTasks();
-          this.loadDependencies();
-        }
+    // ── Step 1: ML risk check ────────────────────────────────────────────────
+    this.snackBar.open("Analysing risk…", "", { duration: 2500 });
+
+    this.riskService.checkRisk(payload).subscribe({
+      next: (risk) => {
+        // ── Step 2: Show risk confirmation dialog ──────────────────────────
+        const riskDialogRef = this.dialog.open(RiskConfirmDialogComponent, {
+          width: '540px',
+          maxWidth: '95vw',
+          disableClose: true,
+          data: { risk, taskTitle: payload.title }
+        });
+
+        riskDialogRef.afterClosed().subscribe((confirmed: boolean) => {
+          if (!confirmed) {
+            // User cancelled – do not save
+            this.snackBar.open("Task creation cancelled.", "OK", { duration: 2500 });
+            return;
+          }
+
+          // ── Step 3: User confirmed – actually save the task ────────────
+          this.taskService.create(payload).subscribe({
+            next: (createdTask) => {
+              if (formData.dependencies && formData.dependencies.length > 0) {
+                this.createTaskDependencies(createdTask.id, formData.dependencies);
+              } else {
+                this.snackBar.open("Task created successfully", "OK", { duration: 3000 });
+                this.loadTasks();
+                this.loadDependencies();
+              }
+            },
+            error: (err) => {
+              console.error('Error creating task:', err);
+              this.snackBar.open("Error creating task", "OK", { duration: 4000 });
+            }
+          });
+        });
       },
       error: (err) => {
-        console.error('Error creating task:', err);
-        this.snackBar.open("Erreur lors de la création de la tâche", "OK", { duration: 4000 });
+        // ML check itself failed — open dialog with fallback risk so user can still proceed
+        console.warn('Risk check request failed, using fallback:', err);
+        const fallbackRisk = {
+          riskScore: 0, highRisk: false, threshold: 0.5,
+          method: 'fallback', reasoning: null, userWorkload: 0,
+          fallback: true,
+          fallbackReason: 'Risk service unavailable. You may proceed safely.'
+        };
+        const riskDialogRef = this.dialog.open(RiskConfirmDialogComponent, {
+          width: '540px', maxWidth: '95vw', disableClose: true,
+          data: { risk: fallbackRisk, taskTitle: payload.title }
+        });
+        riskDialogRef.afterClosed().subscribe((confirmed: boolean) => {
+          if (!confirmed) return;
+          this.taskService.create(payload).subscribe({
+            next: (createdTask) => {
+              if (formData.dependencies && formData.dependencies.length > 0) {
+                this.createTaskDependencies(createdTask.id, formData.dependencies);
+              } else {
+                this.snackBar.open("Task created successfully", "OK", { duration: 3000 });
+                this.loadTasks();
+                this.loadDependencies();
+              }
+            },
+            error: () => this.snackBar.open("Error creating task", "OK", { duration: 4000 })
+          });
+        });
       }
     });
   }

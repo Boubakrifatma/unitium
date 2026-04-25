@@ -1,69 +1,74 @@
 import urllib.request
+import urllib.error
 import json
 import os
+import socket
 
 def get_text_risk_score(task_title: str, task_description: str, category: str = "") -> dict:
     """
-    Utilise l'API gratuite Hugging Face (sans clé requise)
-    Modèle: distilbert-base-uncased-finetuned-sst-2-english
+    Calls the Hugging Face Inference API for text-based risk scoring.
+    Raises an exception when the API is unreachable (network error, timeout,
+    connection refused) so the caller can fall back to ML-only prediction.
+    Only falls back to local keyword analysis for bad/unexpected API responses.
     """
-    
+
     text = f"{task_title} {task_description} {category}"
-    
-    # API Hugging Face gratuite (rate limitée mais fonctionnelle)
+
     url = "https://api-inference.huggingface.co/models/distilbert-base-uncased-finetuned-sst-2-english"
-    
-    payload = {
-        "inputs": text[:500]  # Limiter la longueur
-    }
-    
+
+    payload = {"inputs": text[:500]}
+
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode(),
         headers={"Content-Type": "application/json"},
         method="POST"
     )
-    
+
+    # Network / connectivity errors → re-raise so app.py keeps text_risk=None
+    # and the prediction runs in ml_only mode.
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=8) as resp:
             data = json.loads(resp.read())
-            
-            # Convertir le sentiment en score de risque
-            if isinstance(data, list) and len(data) > 0:
-                sentiment = data[0]
-                # NEGATIVE = risque élevé, POSITIVE = risque faible
-                if sentiment[0]['label'] == 'NEGATIVE':
-                    score = sentiment[0]['score'] * 1.0  # 0.5-1.0
-                else:
-                    score = 1.0 - sentiment[0]['score']  # 0.0-0.5
-                
-                score = max(0.0, min(1.0, round(score, 2)))
-                
-                # Ajustement par mots-clés
-                text_lower = text.lower()
-                if any(w in text_lower for w in ['critical', 'urgent', 'security', 'vulnerability', 'breach']):
-                    score = min(1.0, score + 0.2)
-                if any(w in text_lower for w in ['documentation', 'readme', 'typo']):
-                    score = max(0.0, score - 0.1)
-                
-                # Générer raisonnement
-                if score >= 0.7:
-                    reasoning = "CRITICAL: High-risk task detected"
-                elif score >= 0.4:
-                    reasoning = "MODERATE: Task requires attention"
-                else:
-                    reasoning = "LOW: Routine task with minimal risk"
-                
-                return {
-                    "text_risk_score": score,
-                    "reasoning": reasoning,
-                    "source": "huggingface_distilbert"
-                }
-            
-            raise ValueError("Réponse API invalide")
-            
-    except Exception as e:
-        print(f"API Hugging Face error: {e}, falling back to local analysis")
+
+    except (urllib.error.URLError, socket.timeout, ConnectionError, OSError) as e:
+        # API unreachable — let it propagate; app.py will use ML-only
+        raise RuntimeError(f"HuggingFace API unreachable: {e}") from e
+
+    # API responded but returned something unexpected → local keyword fallback
+    try:
+        if isinstance(data, list) and len(data) > 0:
+            sentiment = data[0]
+            if sentiment[0]['label'] == 'NEGATIVE':
+                score = sentiment[0]['score'] * 1.0
+            else:
+                score = 1.0 - sentiment[0]['score']
+
+            score = max(0.0, min(1.0, round(score, 2)))
+
+            text_lower = text.lower()
+            if any(w in text_lower for w in ['critical', 'urgent', 'security', 'vulnerability', 'breach']):
+                score = min(1.0, score + 0.2)
+            if any(w in text_lower for w in ['documentation', 'readme', 'typo']):
+                score = max(0.0, score - 0.1)
+
+            if score >= 0.7:
+                reasoning = "CRITICAL: High-risk task detected"
+            elif score >= 0.4:
+                reasoning = "MODERATE: Task requires attention"
+            else:
+                reasoning = "LOW: Routine task with minimal risk"
+
+            return {
+                "text_risk_score": score,
+                "reasoning": reasoning,
+                "source": "huggingface_distilbert"
+            }
+
+        raise ValueError("Invalid API response format")
+
+    except (KeyError, IndexError, ValueError) as e:
+        print(f"HuggingFace response parse error: {e}, using local keyword analysis")
         return get_text_risk_score_local(task_title, task_description, category)
 
 def get_text_risk_score_local(task_title: str, task_description: str, category: str = "") -> dict:

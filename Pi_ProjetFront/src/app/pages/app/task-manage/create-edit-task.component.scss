@@ -74,9 +74,31 @@ mat-form-field {
 .member-option {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding: 4px 0;
+  width: 100%;
 }
+
+.member-name { flex: 1; }
+
+.member-workload {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.workload-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.workload-low  { background: #22c55e; }
+.workload-mid  { background: #f59e0b; }
+.workload-high { background: #ef4444; }
 
 .avatar-small {
   width: 32px;
@@ -240,6 +262,140 @@ button {
     &:hover {
       background: linear-gradient(135deg, #0d9ad6 0%, #0273b1 100%);
     }
+  }
+}
+
+// ── AI Suggest bar ────────────────────────────────────────────────────────
+.suggest-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: -14px;
+
+  button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 8px;
+  }
+}
+
+.suggest-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.spinning {
+  animation: spin 0.9s linear infinite;
+  display: inline-flex;
+}
+
+// ── Dates context panel ────────────────────────────────────────────────────
+.dates-context-panel {
+  border-radius: 10px;
+  border: 1px solid #bae6fd;
+  background: #f0f9ff;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: -8px;
+}
+
+.dates-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #0369a1;
+
+  mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.dates-reference {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.date-ref-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: #1e3a5f;
+}
+
+.date-ref-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.project-icon  { color: #0284c7; }
+.milestone-icon { color: #7c3aed; }
+
+.date-ref-label {
+  font-weight: 600;
+  color: #0369a1;
+  white-space: nowrap;
+  min-width: 52px;
+}
+
+.date-ref-value {
+  color: #374151;
+  font-variant-numeric: tabular-nums;
+}
+
+.date-ref-empty {
+  color: #9ca3af;
+  font-style: italic;
+  font-size: 12px;
+}
+
+.date-errors {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.date-error-span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 6px 10px;
+
+  mat-icon {
+    font-size: 15px;
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+    color: #ef4444;
+  }
+
+  strong {
+    font-weight: 700;
   }
 }
 

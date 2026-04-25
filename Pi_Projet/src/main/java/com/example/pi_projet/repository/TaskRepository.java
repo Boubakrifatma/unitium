@@ -32,6 +32,13 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
     List<Task> findByParentTask_Id(Long parentTaskId);
 
+    /** Sum of estimated hours for todo tasks assigned to a user.
+     *  Used to compute user_workload for ML risk prediction. */
+    @Query("SELECT COALESCE(SUM(t.estimatedHours), 0.0) FROM Task t " +
+           "WHERE t.assignedTo.id = :userId AND t.status = :todoStatus")
+    Float sumActiveEstimatedHoursByUser(@Param("userId") Long userId,
+                                        @Param("todoStatus") Task.TaskStatus todoStatus);
+
     @Query("""
         SELECT t.project.id, t.status, COUNT(t)
         FROM Task t

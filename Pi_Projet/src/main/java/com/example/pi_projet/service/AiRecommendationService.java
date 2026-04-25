@@ -121,6 +121,54 @@ public class AiRecommendationService {
     }
 
     /**
+     * Generates a concise task description suggestion from the task title.
+     * Returns a single paragraph (1-2 sentences) in English.
+     */
+    @SuppressWarnings("unchecked")
+    public String suggestTaskDescription(String taskTitle) {
+        String prompt = String.format("""
+                Generate a concise description (1 to 2 sentences, 200 characters max) for this project task.
+
+                Task title: %s
+
+                The description must:
+                - Be in English
+                - Explain the main objective of the task
+                - Mention 1 expected deliverable or outcome
+                - Be professional, no markdown, no bullet points
+                - Start directly with the description (no prefix like "Description:")
+                """, taskTitle == null ? "" : taskTitle);
+
+        Map<String, Object> body = Map.of(
+                "model", model,
+                "messages", List.of(
+                        Map.of("role", "system", "content",
+                                "You are an expert project manager. You write clear, concise and professional task descriptions in English."),
+                        Map.of("role", "user", "content", prompt)
+                ),
+                "temperature", 0.6,
+                "max_tokens", 150
+        );
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(apiKey);
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+
+        try {
+            ResponseEntity<Map<String, Object>> response = restTemplate.postForEntity(apiUrl, entity, (Class<Map<String, Object>>) (Class<?>) Map.class);
+            List<Map<String, Object>> choices = (List<Map<String, Object>>) response.getBody().get("choices");
+            Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
+            String content = (String) message.get("content");
+            return content == null ? "" : content.trim();
+        } catch (Exception e) {
+            log.error("Groq API error (task description): {}", e.getMessage());
+            throw new RuntimeException("Unable to generate AI suggestion. Check the Groq API key.");
+        }
+    }
+
+    /**
      * Generates a list of suggested tasks based on a milestone title.
      * Returns a list of maps containing "title" and "description" keys.
      */

@@ -7,7 +7,7 @@ import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInputModule } from "@angular/material/input";
 import { MatSelectModule } from "@angular/material/select";
 import { MatDatepickerModule } from "@angular/material/datepicker";
-import { MatNativeDateModule } from "@angular/material/core";
+import { provideNativeDateAdapter } from "@angular/material/core";
 import { MatSliderModule } from "@angular/material/slider";
 import { MatProgressBarModule } from "@angular/material/progress-bar";
 import { AbstractControl, FormsModule, ReactiveFormsModule, FormBuilder, Validators, FormGroup, ValidationErrors, ValidatorFn } from "@angular/forms";
@@ -20,6 +20,7 @@ import { ProjectService, Project } from "../../../services/project-service";
 @Component({
     selector: "app-create-edit-milestone",
     standalone: true,
+    providers: [provideNativeDateAdapter()],
     imports: [
         CommonModule,
         MatCardModule,
@@ -29,7 +30,6 @@ import { ProjectService, Project } from "../../../services/project-service";
         MatInputModule,
         MatSelectModule,
         MatDatepickerModule,
-        MatNativeDateModule,
         FormsModule,
         ReactiveFormsModule,
         MatDialogModule,
@@ -112,6 +112,16 @@ import { ProjectService, Project } from "../../../services/project-service";
                             <div class="form-row">
                                 <div class="form-group flex-1">
                                     <mat-form-field appearance="outline" class="form-field">
+                                        <mat-label>Start Date</mat-label>
+                                        <input matInput [matDatepicker]="startPicker" formControlName="startDate" placeholder="MM/DD/YYYY">
+                                        <mat-datepicker-toggle matIconSuffix [for]="startPicker"></mat-datepicker-toggle>
+                                        <mat-hint>Optional: when this milestone begins</mat-hint>
+                                        <mat-datepicker #startPicker></mat-datepicker>
+                                    </mat-form-field>
+                                </div>
+
+                                <div class="form-group flex-1">
+                                    <mat-form-field appearance="outline" class="form-field">
                                         <mat-label>Due Date</mat-label>
                                         <input matInput [matDatepicker]="picker" [min]="minDate" formControlName="dueDate" placeholder="MM/DD/YYYY">
                                         <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
@@ -121,6 +131,9 @@ import { ProjectService, Project } from "../../../services/project-service";
                                         </mat-error>
                                         <mat-error *ngIf="(milestoneForm.hasError('dueDatePast') || milestoneForm.get('dueDate')?.hasError('matDatepickerMin')) && milestoneForm.get('dueDate')?.touched">
                                             <mat-icon>error</mat-icon> Date must be after today
+                                        </mat-error>
+                                        <mat-error *ngIf="milestoneForm.hasError('dueDateAfterProjectEnd') && milestoneForm.get('dueDate')?.touched">
+                                            <mat-icon>error</mat-icon> Due date must be on or before the project end date
                                         </mat-error>
                                         <mat-datepicker #picker [dateFilter]="dateFilter"></mat-datepicker>
                                     </mat-form-field>
@@ -909,12 +922,13 @@ export class CreateEditMilestoneComponent implements OnInit {
             {
                 name: ['', [Validators.required, Validators.pattern(/^\s*Phase\s*\(\s*\d+\s*\)\s*:\s*\S.*$/i)]],
                 description: [''],
+                startDate: [null],
                 dueDate: ['', Validators.required],
                 status: ['pending', Validators.required],
                 completionPct: [0, [Validators.min(0), Validators.max(100)]],
                 projectId: ['', Validators.required]
             },
-            { validators: [this.dueDateNotPastValidator()] }
+            { validators: [this.dueDateNotPastValidator(), this.dueDateBeforeProjectEndValidator()] }
         );
     }
 
@@ -927,6 +941,23 @@ export class CreateEditMilestoneComponent implements OnInit {
             d.setHours(0, 0, 0, 0);
 
             if (d < this.minDate) return { dueDatePast: true };
+            return null;
+        };
+    }
+
+    private dueDateBeforeProjectEndValidator(): ValidatorFn {
+        return (group: AbstractControl): ValidationErrors | null => {
+            const due = group.get("dueDate")?.value as Date | null;
+            const projectId = group.get("projectId")?.value;
+            if (!due || !projectId) return null;
+
+            const project = this.projects.find(p => p.id == projectId);
+            if (!project?.endDate) return null;
+
+            const dueD = new Date(due);       dueD.setHours(0, 0, 0, 0);
+            const endD = new Date(project.endDate); endD.setHours(0, 0, 0, 0);
+
+            if (dueD > endD) return { dueDateAfterProjectEnd: true };
             return null;
         };
     }
@@ -951,6 +982,7 @@ export class CreateEditMilestoneComponent implements OnInit {
             this.milestoneForm.patchValue({
                 name: this.milestone.name,
                 description: this.milestone.description,
+                startDate: this.milestone.startDate ? new Date(this.milestone.startDate) : null,
                 dueDate: this.milestone.dueDate ? new Date(this.milestone.dueDate) : null,
                 status: this.milestone.status || 'pending',
                 completionPct: this.milestone.completionPct,
@@ -995,6 +1027,7 @@ export class CreateEditMilestoneComponent implements OnInit {
             const formValue = this.milestoneForm.value;
             const milestone: Milestone = {
                 ...formValue,
+                startDate: formValue.startDate ? formValue.startDate.toISOString().split('T')[0] : undefined,
                 dueDate: formValue.dueDate ? formValue.dueDate.toISOString().split('T')[0] : undefined
             };
 

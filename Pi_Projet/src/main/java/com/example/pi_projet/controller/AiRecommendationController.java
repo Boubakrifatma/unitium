@@ -42,6 +42,19 @@ public class AiRecommendationController {
     }
 
     /**
+     * POST /api/ai/task-description-suggestion
+     * Body: { title: "..." }
+     * Returns: { suggestion: "..." }
+     */
+    @PostMapping("/task-description-suggestion")
+    public ResponseEntity<Map<String, String>> suggestTaskDescription(
+            @RequestBody Map<String, String> body) {
+        String title = body.getOrDefault("title", "");
+        String suggestion = aiService.suggestTaskDescription(title);
+        return ResponseEntity.ok(Map.of("suggestion", suggestion));
+    }
+
+    /**
      * POST /api/ai/milestone-task-suggestions
      * Body: { title: "..." }
      * Returns: { suggestions: [{ title, description }, ...] }

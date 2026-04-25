@@ -101,6 +101,15 @@ export class TaskService {
     return new HttpHeaders({ Authorization: `Bearer ${token}` });
   }
 
+  // ── AI suggestion ─────────────────────────────────────────────
+  suggestDescription(title: string): Observable<{ suggestion: string }> {
+    return this.http.post<{ suggestion: string }>(
+      'http://localhost:8084/api/ai/task-description-suggestion',
+      { title },
+      { headers: this.getHeaders() }
+    );
+  }
+
   // ── Kanban (employé connecté) ──────────────────────────────────
   getMyTasks(): Observable<TaskResponseDto[]> {
     return this.http.get<TaskResponseDto[]>(

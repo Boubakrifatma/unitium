@@ -2,11 +2,13 @@ package com.example.pi_projet.controller;
 
 import com.example.pi_projet.dto.TaskCreateDto;
 import com.example.pi_projet.dto.TaskResponseDto;
+import com.example.pi_projet.dto.TaskRiskResultDto;
 import com.example.pi_projet.entity.Project;
 import com.example.pi_projet.entity.TimeLineAndDeadLine.Task;
 import com.example.pi_projet.entity.TimeLineAndDeadLine.Milestone;
 import com.example.pi_projet.entity.User;
 import com.example.pi_projet.service.ProjectService;
+import com.example.pi_projet.service.RiskPredictionService;
 import com.example.pi_projet.service.TaskService;
 import com.example.pi_projet.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,16 +26,36 @@ import java.util.stream.Collectors;
 @CrossOrigin(origins = "http://localhost:4200")
 public class TaskController {
 
-    private final TaskService taskService;
-    private final ProjectService projectService;
-    private final UserService userService;
+    private final TaskService           taskService;
+    private final ProjectService        projectService;
+    private final UserService           userService;
+    private final RiskPredictionService riskPredictionService;
 
     public TaskController(TaskService taskService,
                           ProjectService projectService,
-                          UserService userService) {
-        this.taskService = taskService;
-        this.projectService = projectService;
-        this.userService = userService;
+                          UserService userService,
+                          RiskPredictionService riskPredictionService) {
+        this.taskService           = taskService;
+        this.projectService        = projectService;
+        this.userService           = userService;
+        this.riskPredictionService = riskPredictionService;
+    }
+
+    /**
+     * POST /api/tasks/check-risk
+     *
+     * Assess the ML risk of a task payload WITHOUT saving it.
+     * The frontend calls this first, shows the risk dialog, then POSTs to
+     * /api/tasks (below) only if the user confirms.
+     */
+    @PostMapping("/check-risk")
+    public ResponseEntity<TaskRiskResultDto> checkRisk(@RequestBody TaskCreateDto dto,
+                                                       HttpServletRequest request) {
+        User currentUser = (User) request.getAttribute("currentUser");
+        if (currentUser == null) return ResponseEntity.status(401).build();
+
+        TaskRiskResultDto result = riskPredictionService.assess(dto);
+        return ResponseEntity.ok(result);
     }
 
 

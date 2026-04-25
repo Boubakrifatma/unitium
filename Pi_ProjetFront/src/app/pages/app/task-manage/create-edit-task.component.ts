@@ -9,24 +9,31 @@ import { MatSelectModule } from "@angular/material/select";
 import { MatIconModule } from "@angular/material/icon";
 import { MatChipsModule } from "@angular/material/chips";
 import { MatDatepickerModule } from "@angular/material/datepicker";
-import { MatNativeDateModule } from "@angular/material/core";
+import { MatNativeDateModule, provideNativeDateAdapter } from "@angular/material/core";
 import { MatSlideToggleModule } from "@angular/material/slide-toggle";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { TaskDependencyService } from "../../../services/TaskService/taskDepdendencyService";
+import { TaskService } from "../../../services/TaskService/task.service";
 
 export interface DialogData {
   projectName: string;
   projectId: string | number;
-  members: { id: number | null; name: string; title: string; avatarUrl?: string }[];
+  /** workloadHours = sum of todo task estimatedHours for this member */
+  members: { id: number | null; name: string; title: string; avatarUrl?: string; workloadHours?: number }[];
   parentTasks?: { taskId: number; title: string }[];
   availableTasks?: { taskId: number; title: string }[];
   task?: any; // Pour le mode édition
   existingDependencies?: { dependencyId: number; taskId: number; type: string }[];
+  milestoneStartDate?: string | null;
+  milestoneDueDate?: string | null;
+  projectStartDate?: string | null;
+  projectEndDate?: string | null;
 }
 
 @Component({
   selector: "app-create-edit-task",
   standalone: true,
+  providers: [provideNativeDateAdapter()],
   imports: [
     CommonModule,
     ReactiveFormsModule,
@@ -39,7 +46,6 @@ export interface DialogData {
     MatIconModule,
     MatChipsModule,
     MatDatepickerModule,
-    MatNativeDateModule,
     MatSlideToggleModule,
     MatTooltipModule,
   ],
@@ -52,8 +58,10 @@ export class CreateEditTaskComponent implements OnInit {
   fb = inject(FormBuilder);
   data: DialogData = inject(MAT_DIALOG_DATA);
   dependencyService = inject(TaskDependencyService);
+  taskService = inject(TaskService);
 
   isEdit = signal(false);
+  isSuggesting = false;
   taskForm: FormGroup;
   dependencyTypeControl = new FormControl<'finish_to_start' | 'start_to_start' | 'finish_to_finish'>('finish_to_start');
   selectedDependencies = signal<{ dependencyId?: number; taskId: number; type: 'finish_to_start' | 'start_to_start' | 'finish_to_finish' }[]>([]);
@@ -77,7 +85,10 @@ export class CreateEditTaskComponent implements OnInit {
       actualHours: [0, Validators.min(0)],
       dependsOnTaskId: [null],
       isVisibleToAssignees: [true]
-    }, { validators: [CreateEditTaskComponent.descriptionRelatedToTitle()] });
+    }, { validators: [
+      CreateEditTaskComponent.descriptionRelatedToTitle(),
+      CreateEditTaskComponent.taskDatesValidator(this.data?.milestoneDueDate)
+    ]});
   }
 
   static minWordsValidator(min: number): ValidatorFn {
@@ -86,6 +97,36 @@ export class CreateEditTaskComponent implements OnInit {
       if (!value) return null;
       const words = value.split(/\s+/).filter((w: string) => w.length > 0);
       return words.length < min ? { minWords: { required: min, actual: words.length } } : null;
+    };
+  }
+
+  static taskDatesValidator(milestoneDueDate?: string | null): ValidatorFn {
+    return (group: AbstractControl): ValidationErrors | null => {
+      const startVal = group.get('startDate')?.value;
+      const dueVal = group.get('dueDate')?.value;
+      if (!startVal && !dueVal) return null;
+
+      const errors: ValidationErrors = {};
+
+      if (startVal && dueVal) {
+        const start = new Date(startVal); start.setHours(0, 0, 0, 0);
+        const due = new Date(dueVal);     due.setHours(0, 0, 0, 0);
+        if (start >= due) errors['startAfterDue'] = true;
+      }
+
+      if (milestoneDueDate) {
+        const mDue = new Date(milestoneDueDate); mDue.setHours(0, 0, 0, 0);
+        if (dueVal) {
+          const due = new Date(dueVal); due.setHours(0, 0, 0, 0);
+          if (due > mDue) errors['dueDateAfterMilestone'] = true;
+        }
+        if (startVal) {
+          const start = new Date(startVal); start.setHours(0, 0, 0, 0);
+          if (start > mDue) errors['startAfterMilestoneDue'] = true;
+        }
+      }
+
+      return Object.keys(errors).length > 0 ? errors : null;
     };
   }
 
@@ -128,8 +169,8 @@ export class CreateEditTaskComponent implements OnInit {
       status: task.status || "todo",
       assignedTo: task.assignedToId || null,
       parentTaskId: task.parentTaskId || null,
-      startDate: task.startDate ? task.startDate.split('T')[0] : "",
-      dueDate: task.dueDate ? task.dueDate.split('T')[0] : "",
+      startDate: task.startDate ? new Date(task.startDate) : null,
+      dueDate:   task.dueDate   ? new Date(task.dueDate)   : null,
       assignHours: task.assignHours || 8,
       actualHours: task.loggedHours || 0,
       isVisibleToAssignees: task.isVisibleToAssignees !== false
@@ -164,9 +205,9 @@ export class CreateEditTaskComponent implements OnInit {
   }
 
   getMemberName(id: number | null): string {
-    if (!id) return "Non assigné";
+    if (!id) return "Unassigned";
     const member = this.data.members.find(m => m.id === id);
-    return member?.name || "Non assigné";
+    return member?.name || "Unassigned";
   }
 
   onSubmit() {
@@ -211,9 +252,23 @@ export class CreateEditTaskComponent implements OnInit {
   }
 
   getDependencyTaskTitle(taskId: number): string {
-    if (!this.data.availableTasks) return `Tâche #${taskId}`;
+    if (!this.data.availableTasks) return `Task #${taskId}`;
     const task = this.data.availableTasks.find(t => t.taskId === taskId);
-    return task ? `#${taskId} - ${task.title}` : `Tâche #${taskId}`;
+    return task ? `#${taskId} - ${task.title}` : `Task #${taskId}`;
+  }
+
+  suggestDescription() {
+    const title = (this.taskForm.get('title')?.value ?? '').trim();
+    if (!title || this.isSuggesting) return;
+    this.isSuggesting = true;
+    this.taskService.suggestDescription(title).subscribe({
+      next: (res) => {
+        const suggestion = (res?.suggestion ?? '').trim();
+        if (suggestion) this.taskForm.patchValue({ description: suggestion });
+        this.isSuggesting = false;
+      },
+      error: () => { this.isSuggesting = false; }
+    });
   }
 
   cancel() {
