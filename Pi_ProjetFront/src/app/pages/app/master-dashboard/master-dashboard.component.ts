@@ -320,8 +320,8 @@ export class MasterDashboardComponent implements OnInit, AfterViewInit, OnDestro
         }
 
         const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height || 300);
-        gradient.addColorStop(0, "rgba(13, 148, 136, 0.55)");
-        gradient.addColorStop(1, "rgba(217, 119, 6, 0.12)");
+        gradient.addColorStop(0, "rgba(99, 102, 241, 0.45)");
+        gradient.addColorStop(1, "rgba(14, 165, 233, 0.10)");
 
         this.riskRadarChart = new ChartCtor(ctx, {
             type: "radar",
@@ -346,9 +346,9 @@ export class MasterDashboardComponent implements OnInit, AfterViewInit, OnDestro
                             momentum,
                         ],
                         borderWidth: 2,
-                        borderColor: "#0d9488",
+                        borderColor: "#6366f1",
                         backgroundColor: gradient,
-                        pointBackgroundColor: "#f59e0b",
+                        pointBackgroundColor: "#0ea5e9",
                         pointBorderColor: "#ffffff",
                         pointRadius: 4,
                         pointHoverRadius: 5,
@@ -368,11 +368,11 @@ export class MasterDashboardComponent implements OnInit, AfterViewInit, OnDestro
                         min: 0,
                         max: 100,
                         ticks: { display: false, stepSize: 20 },
-                        grid: { color: "rgba(15, 47, 58, 0.16)" },
-                        angleLines: { color: "rgba(15, 47, 58, 0.16)" },
+                        grid: { color: "rgba(99, 102, 241, 0.12)" },
+                        angleLines: { color: "rgba(99, 102, 241, 0.12)" },
                         pointLabels: {
-                            color: "#31515f",
-                            font: { size: 11, family: "IBM Plex Sans" },
+                            color: "#4338ca",
+                            font: { size: 11, family: "Inter" },
                         },
                     },
                 },
@@ -503,7 +503,7 @@ export class MasterDashboardComponent implements OnInit, AfterViewInit, OnDestro
             .attr("y", (workspace: any) => workspace.y0 + 13)
             .style("font-size", "10px")
             .style("font-weight", "700")
-            .style("fill", "#204958")
+            .style("fill", "#312e81")
             .text((workspace: any) => workspace.data.name);
     }
 
@@ -632,7 +632,7 @@ export class MasterDashboardComponent implements OnInit, AfterViewInit, OnDestro
             .attr("height", height)
             .attr("fill", `url(#${backgroundId})`);
 
-        const linkGroup = svg.append("g").attr("stroke", "rgba(76, 125, 148, 0.32)").attr("stroke-width", 1.35);
+        const linkGroup = svg.append("g").attr("stroke", "rgba(99, 102, 241, 0.28)").attr("stroke-width", 1.35);
         const nodeGroup = svg.append("g");
 
         const linkSelection = linkGroup
@@ -648,7 +648,7 @@ export class MasterDashboardComponent implements OnInit, AfterViewInit, OnDestro
             .enter()
             .append("circle")
             .attr("r", (node: Node) => (node.kind === "workspace" ? 13 : 5.2))
-            .attr("fill", (node: Node) => node.kind === "workspace" ? "#0f766e" : this.healthColor(node.health ?? 0))
+            .attr("fill", (node: Node) => node.kind === "workspace" ? "#6366f1" : this.healthColor(node.health ?? 0))
             .attr("stroke", "rgba(255, 255, 255, 0.9)")
             .attr("stroke-width", (node: Node) => (node.kind === "workspace" ? 1.6 : 0.95))
             .style("cursor", "pointer");
@@ -704,8 +704,8 @@ export class MasterDashboardComponent implements OnInit, AfterViewInit, OnDestro
                         return "rgba(76, 125, 148, 0.32)";
                     }
                     return linkTouches(link, activeNodeId)
-                        ? "rgba(103, 253, 223, 0.9)"
-                        : "rgba(63, 90, 113, 0.16)";
+                        ? "rgba(165, 167, 255, 0.9)"
+                        : "rgba(99, 102, 241, 0.1)";
                 })
                 .attr("stroke-width", (link: Link) => {
                     if (!activeNodeId) {
@@ -1479,7 +1479,7 @@ export class MasterDashboardComponent implements OnInit, AfterViewInit, OnDestro
     private healthColorToHex(score: number): number {
         const color = this.healthColor(score);
         const parsed = Number.parseInt(color.replace("#", ""), 16);
-        return Number.isFinite(parsed) ? parsed : 0x10b981;
+        return Number.isFinite(parsed) ? parsed : 0x6366f1;
     }
 
     private navigateToProjectDetails(projectId: string, workspaceId: string): void {

@@ -68,6 +68,8 @@ export class MagicCallbackComponent implements OnInit {
         const redirectMap: Record<string, string> = {
           SUPER_ADMIN: '/app/super-admin',
           PRODUCT_OWNER: '/app/po',
+          MANAGER: '/app/master-dashboard',
+          TUTOR: '/app/master-dashboard',
         };
         this.router.navigate([redirectMap[res.role] ?? '/app/dashboard']);
       },

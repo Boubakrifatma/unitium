@@ -187,7 +187,7 @@ export class AppSidebarComponent {
 
         // Manager/Admin/Tutor roles can access broader project/task workspace management views.
         if (this.canManageWorkspaces) {
-            if (!this.isManager) {
+            if (!this.isManager && !this.isTutor) {
                 projectChildren.push(
                     { name: "Projects (Template)", route: "/app/projects", icon: "assignment" },
                     { name: "Project Details (Template)", route: "/app/project-details", icon: "subject" },
@@ -218,6 +218,7 @@ export class AppSidebarComponent {
         if (!this.isManager && !this.isTutor) {
             applicationsChildren.unshift({ name: "Task Kanban", route: "/app/kanban", icon: "view_kanban" });
         }
+
         applicationsChildren.push({ name: "Chat", route: "/app/chat", icon: "chat" });
         all.push({
             name: "Applications",
