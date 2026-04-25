@@ -10,7 +10,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +22,7 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -32,6 +35,15 @@ public class MessageController {
 
     private final MessageService messageService;
     private final FileStorageService fileStorageService;
+
+    @Value("${groq.api.key}")
+    private String groqApiKey;
+
+    @Value("${groq.api.url}")
+    private String groqApiUrl;
+
+    @Value("${groq.api.model}")
+    private String groqApiModel;
 
     // ── REST: message history (unchanged) ──────────────────────────────────────
 
@@ -224,6 +236,51 @@ public class MessageController {
             HttpServletRequest request) {
         User currentUser = (User) request.getAttribute("currentUser");
         return ResponseEntity.ok(messageService.getAgenda(roomId, currentUser));
+    }
+
+    // ── REST: AI summarize ────────────────────────────────────────────────────
+
+    @PostMapping("/api/ai/summarize")
+    @ResponseBody
+    public ResponseEntity<Map<String, String>> summarize(
+            @RequestBody Map<String, String> body,
+            HttpServletRequest request) {
+
+        User currentUser = (User) request.getAttribute("currentUser");
+        if (currentUser == null) return ResponseEntity.status(403).build();
+
+        String prompt = body.get("prompt");
+        if (prompt == null || prompt.isBlank())
+            return ResponseEntity.badRequest().body(Map.of("error", "Prompt required"));
+
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+
+            Map<String, Object> requestBody = Map.of(
+                "messages", List.of(
+                    Map.of("role", "user", "content", prompt)
+                ),
+                "model", groqApiModel,
+                "max_tokens", 150,
+                "temperature", 0.7
+            );
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(groqApiKey);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            ResponseEntity<Map> response = restTemplate.postForEntity(groqApiUrl, entity, Map.class);
+            Map responseBody = response.getBody();
+            List choices = (List) responseBody.get("choices");
+            Map message = (Map) ((Map) choices.get(0)).get("message");
+            String text = (String) message.get("content");
+
+            return ResponseEntity.ok(Map.of("result", text));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                .body(Map.of("error", "Failed: " + e.getMessage()));
+        }
     }
 
     // ── WebSocket: send text message ──────────────────────────────────────────

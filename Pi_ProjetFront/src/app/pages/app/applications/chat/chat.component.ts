@@ -42,6 +42,13 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatBadgeModule } from '@angular/material/badge';
 import { ModerationService, ModerationReport, ReportRequest } from './moderation.service';
 
+interface MessageGroup {
+  senderId: number;
+  senderName: string;
+  messages: MessageDTO[];
+  groupKey: string;
+}
+
 /* ══ Room Creation / Edit Wizard Dialog ══════════════════════════════════ */
 @Component({
     selector: 'app-room-wizard-dialog',
@@ -293,7 +300,11 @@ import { ModerationService, ModerationReport, ReportRequest } from './moderation
                                     <mat-icon class="material-icons-outlined" style="font-size:12px;width:12px;height:12px;margin-right:4px">calendar_today</mat-icon>
                                     Meeting Date
                                 </label>
-                                <input type="date" [(ngModel)]="formMeetingDate" class="wiz-meeting-input" />
+                                <input type="date"
+                                       [(ngModel)]="formMeetingDate"
+                                       [min]="getTodayDateString()"
+                                       (change)="validateMeetingDate()"
+                                       class="wiz-meeting-input" />
                                 @if (formMeetingDate) {
                                     <div class="wiz-meeting-hint">{{ formMeetingDate | date:'EEEE, MMMM d, y' }}</div>
                                 }
@@ -2015,6 +2026,40 @@ export class RoomWizardDialogComponent {
         }
         this.formEndTimeInput = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
         this.onEndTimeChange();
+    }
+
+    /* ── Meeting Date Validation ────────────────────────────────── */
+    meetingDateFilter = (date: Date | null): boolean => {
+        if (!date) return true;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const checkDate = new Date(date);
+        checkDate.setHours(0, 0, 0, 0);
+        return checkDate >= today;
+    };
+
+    getTodayDateString(): string {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    isMeetingDateInvalid(): boolean {
+        if (!this.formMeetingDate) return false;
+        const selectedDate = new Date(this.formMeetingDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        selectedDate.setHours(0, 0, 0, 0);
+        return selectedDate < today;
+    }
+
+    validateMeetingDate(): void {
+        if (this.isMeetingDateInvalid()) {
+            // Invalid date - clear it
+            this.formMeetingDate = null;
+        }
     }
 
     /* ── Drum-wheel time picker ─────────────────────────────────── */
@@ -4733,8 +4778,8 @@ export class ScheduledDetailsDialogComponent {
         }
 
         <!-- ══ Main chat layout ════════════════════════════════════════════ -->
-        <div class="container-fluid px-3 px-lg-4">
-            <div class="inner-sidebar-wrap chat-layout">
+        <div class="container-fluid px-3 px-lg-4" [class.lightbox-open]="!!lightboxItem()">
+            <div class="inner-sidebar-wrap chat-layout" [class.lightbox-open]="!!lightboxItem()">
 
                 <!-- ══ LEFT: Channel sidebar ══════════════════════════════ -->
                 <div class="inner-sidebar chat-sidebar px-0">
@@ -4925,20 +4970,24 @@ export class ScheduledDetailsDialogComponent {
                                 }
 
                                 @if (filteredRooms().length === 0) {
-                                    <div class="text-center py-5 px-3">
-                                        @if (activeFilter() === 'unread') {
-                                            <mat-icon class="material-icons-outlined mb-2"
-                                                      style="font-size:36px;width:36px;height:36px;color:var(--mat-sys-outline-variant)">
-                                                mark_chat_read
-                                            </mat-icon>
-                                            <p class="small text-secondary mb-0">No unread messages</p>
-                                        } @else if (activeFilter() === 'favorites') {
-                                            <mat-icon class="material-icons-outlined mb-2"
-                                                      style="font-size:36px;width:36px;height:36px;color:var(--mat-sys-outline-variant)">
-                                                star_outline
-                                            </mat-icon>
-                                            <p class="small text-secondary mb-0">No favorites yet — star a room to pin it here</p>
-                                        } @else {
+                                    @if (activeFilter() === 'unread') {
+                                        <div class="wa-empty-state">
+                                            <div class="wa-empty-icon-container wa-empty-icon-unread">
+                                                <mat-icon class="material-icons-outlined">mark_chat_read</mat-icon>
+                                            </div>
+                                            <h3 class="wa-empty-title">All Caught Up!</h3>
+                                            <p class="wa-empty-subtitle">You have no unread messages. Great job!</p>
+                                        </div>
+                                    } @else if (activeFilter() === 'favorites') {
+                                        <div class="wa-empty-state">
+                                            <div class="wa-empty-icon-container wa-empty-icon-favorites">
+                                                <mat-icon class="material-icons-outlined">star_outline</mat-icon>
+                                            </div>
+                                            <h3 class="wa-empty-title">No Favorites Yet</h3>
+                                            <p class="wa-empty-subtitle">Star channels to access them quickly</p>
+                                        </div>
+                                    } @else {
+                                        <div class="text-center py-5 px-3">
                                             <mat-icon class="material-icons-outlined mb-2"
                                                       style="font-size:36px;width:36px;height:36px;color:var(--mat-sys-outline-variant)">
                                                 forum
@@ -4946,8 +4995,8 @@ export class ScheduledDetailsDialogComponent {
                                             <p class="small text-secondary mb-0">
                                                 {{ searchQuery() ? 'No channels matched your search.' : (canManageMembers ? 'No channels yet — click + to create one.' : 'You haven\'t been added to any channels yet.') }}
                                             </p>
-                                        }
-                                    </div>
+                                        </div>
+                                    }
                                 }
                             }
                         </div>
@@ -5442,23 +5491,57 @@ export class ScheduledDetailsDialogComponent {
 
                                 <!-- Lightbox overlay -->
                                 @if (lightboxItem()) {
-                                    <div class="sp-lightbox" [@fadeScale] (click)="lightboxItem.set(null)">
-                                        <div class="sp-lightbox-card" (click)="$event.stopPropagation()">
+                                    <div class="sp-lightbox" [@lightboxBackdrop] (click)="lightboxItem.set(null)">
+                                        <div class="sp-lightbox-card" [@lightboxEnter] (click)="$event.stopPropagation()">
+                                            <!-- Header Toolbar -->
                                             <div class="sp-lightbox-toolbar">
-                                                <span class="sp-lightbox-sender">
-                                                    <mat-icon class="material-icons-outlined" style="font-size:14px;width:14px;height:14px">person</mat-icon>
-                                                    {{ lightboxItem()!.senderName }}
-                                                </span>
-                                                <span class="sp-lightbox-date">{{ formatDateSep(lightboxItem()!.createdAt) }}</span>
-                                                <button class="sp-lightbox-close" (click)="lightboxItem.set(null)">
-                                                    <mat-icon style="font-size:20px;width:20px;height:20px">close</mat-icon>
-                                                </button>
+                                                <div class="sp-lightbox-info">
+                                                    <span class="sp-lightbox-sender">
+                                                        <div class="sp-sender-avatar" [ngStyle]="getAvatarGradient(lightboxItem()!.senderName)">
+                                                            {{ getInitials(lightboxItem()!.senderName) }}
+                                                        </div>
+                                                        <div class="sp-sender-text">
+                                                            <div class="sp-sender-name">{{ lightboxItem()!.senderName }}</div>
+                                                            <div class="sp-sender-time">{{ formatMessageTime(lightboxItem()!.createdAt) }}</div>
+                                                        </div>
+                                                    </span>
+                                                </div>
+                                                <div class="sp-lightbox-controls">
+                                                    <a class="sp-lightbox-btn sp-download-btn"
+                                                       [href]="'http://localhost:8084' + lightboxItem()!.fileUrl"
+                                                       [attr.download]="lightboxItem()!.fileName ?? 'image'"
+                                                       matTooltip="Download image"
+                                                       title="Download image">
+                                                        <mat-icon class="material-icons-outlined">download</mat-icon>
+                                                    </a>
+                                                    <button class="sp-lightbox-btn sp-close-btn"
+                                                            (click)="lightboxItem.set(null)"
+                                                            matTooltip="Close (ESC)"
+                                                            title="Close">
+                                                        <mat-icon class="material-icons-outlined">close</mat-icon>
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <img [src]="'http://localhost:8084' + lightboxItem()!.fileUrl"
-                                                 [alt]="lightboxItem()!.fileName ?? 'image'"
-                                                 class="sp-lightbox-img">
+
+                                            <!-- Image Container -->
+                                            <div class="sp-lightbox-image-container">
+                                                <img [src]="'http://localhost:8084' + lightboxItem()!.fileUrl"
+                                                     [alt]="lightboxItem()!.fileName ?? 'image'"
+                                                     class="sp-lightbox-img"
+                                                     [@imageZoom]>
+                                            </div>
+
+                                            <!-- Footer with details -->
                                             @if (lightboxItem()!.fileName) {
-                                                <p class="sp-lightbox-caption">{{ lightboxItem()!.fileName }}</p>
+                                                <div class="sp-lightbox-footer">
+                                                    <div class="sp-lightbox-details">
+                                                        <mat-icon class="material-icons-outlined">image</mat-icon>
+                                                        <span class="sp-file-name">{{ lightboxItem()!.fileName }}</span>
+                                                        @if (lightboxItem()!.fileSize) {
+                                                            <span class="sp-file-size">{{ formatBytes(lightboxItem()!.fileSize) }}</span>
+                                                        }
+                                                    </div>
+                                                </div>
                                             }
                                         </div>
                                     </div>
@@ -6278,36 +6361,26 @@ export class ScheduledDetailsDialogComponent {
                                     }
 
                                     <div class="chat-list py-3">
-                                        @for (message of filteredMessages(); track message.id; let i = $index) {
+                                        @for (group of messageGroups(); track group.groupKey) {
 
-                                            @if (message.isSystemMessage) {
-                                                <!-- System message pill -->
-                                                <div class="sys-msg" [@sysMsg]>
-                                                    <div class="sys-msg-pill">
-                                                        <mat-icon class="sys-msg-icon material-icons-outlined">
-                                                            {{ (message.contentText ?? '').includes('added') ? 'person_add' : (message.contentText ?? '').includes('removed') ? 'person_remove' : 'info' }}
-                                                        </mat-icon>
-                                                        <span class="sys-msg-text">{{ message.contentText }}</span>
-                                                    </div>
-                                                    <span class="sys-msg-time">{{ formatMessageTime(message.createdAt) }}</span>
-                                                </div>
-                                            } @else {
-
-                                            <!-- Date separator -->
-                                            @if (shouldShowDateSep(i)) {
+                                            <!-- Date separator for first message in group -->
+                                            @if (shouldShowDateSepForGroup(group)) {
                                                 <div class="date-separator" [@fadeSlide]>
                                                     <span class="date-sep-line"></span>
-                                                    <span class="date-sep-label">{{ formatDateSep(message.createdAt) }}</span>
+                                                    <span class="date-sep-label">{{ formatDateSep(group.messages[0].createdAt) }}</span>
                                                     <span class="date-sep-line"></span>
                                                 </div>
                                             }
 
-                                            <!-- Message row -->
-                                            <div class="msg-row"
-                                                 [class.msg-row-own]="message.senderId === currentUser?.id"
-                                                 [class.msg-consecutive]="!shouldShowAvatar(i)"
-                                                 (contextmenu)="openContextMenu($event, message)"
-                                                 [@msgSlideIn]>
+                                            @if (!collapsedGroups().has(group.groupKey)) {
+                                                @for (message of group.messages; track message.id; let i = $index) {
+
+                                                    <!-- Message row -->
+                                                    <div class="msg-row"
+                                                         [class.msg-row-own]="message.senderId === currentUser?.id"
+                                                         [class.msg-consecutive]="i > 0"
+                                                         (contextmenu)="openContextMenu($event, message)"
+                                                         [@msgSlideIn]>
 
                                                 @if (message.senderId !== currentUser?.id) {
                                                     @if (shouldShowAvatar(i)) {
@@ -6591,7 +6664,45 @@ export class ScheduledDetailsDialogComponent {
                                                     }
                                                 </div>
                                             </div>
-                                            } <!-- /else not system message -->
+
+                                                }
+
+                                            } @else {
+                                                <div class='collapsed-indicator' [class.own]='group.senderId === currentUser?.id'>
+                                                    <span>{{ group.messages.length }} messages hidden</span>
+                                                    <button (click)='summarizeGroup(group)'>Show</button>
+                                                </div>
+                                            }
+
+                                            @if (group.messages.length >= 3) {
+                                                <div class='summarize-row' [class.own]='group.senderId === currentUser?.id' [@summarizePillEnter]>
+
+                                                    @if (summarizingGroupKey() === group.groupKey) {
+                                                        <div class='summarize-pill loading' title='AI is summarizing this conversation...'>
+                                                            <span class='pill-spinner'></span>
+                                                            <span style='font-weight: 600;'>Analyzing conversation...</span>
+                                                        </div>
+                                                    } @else if (groupSummaries().has(group.groupKey)) {
+                                                        <div class='summary-card' [@summaryReveal] [class.own]='group.senderId === currentUser?.id'>
+                                                            <div style='display: flex; align-items: flex-start; gap: 10px;'>
+                                                                <span class='summary-icon'>✨</span>
+                                                                <div style='flex: 1; min-width: 0;'>
+                                                                    <span class='summary-text' [id]="'summary-text-' + group.groupKey"></span>
+                                                                </div>
+                                                            </div>
+                                                            <button class='toggle-btn' (click)='summarizeGroup(group)'>
+                                                                {{ collapsedGroups().has(group.groupKey) ? '👁️ Show messages' : '👁️ Hide messages' }}
+                                                            </button>
+                                                        </div>
+                                                    } @else {
+                                                        <button class='summarize-pill' (click)='summarizeGroup(group)' title='Summarize these messages with AI'>
+                                                            <span style='display: inline-flex; align-items: center;'>✨</span>
+                                                            <span>Summarize {{ group.messages.length }} messages</span>
+                                                        </button>
+                                                    }
+
+                                                </div>
+                                            }
 
                                         }
 
@@ -9553,6 +9664,347 @@ export class ScheduledDetailsDialogComponent {
             100% { transform: translateY(0)   scale(1); }
         }
 
+        /* ── Message summarization ─────────────────────────────────────── */
+        .summarize-row {
+            display: flex;
+            justify-content: flex-start;
+            margin: -2px 0 8px 56px;
+            gap: 8px;
+            animation: summarizeRowEnter 400ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
+        .summarize-row.own {
+            justify-content: flex-end;
+            margin: -2px 0 8px 0;
+        }
+        @keyframes summarizeRowEnter {
+            from {
+                opacity: 0;
+                transform: translateY(12px) scale(0.92);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .summarize-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 24px;
+            border: 1.5px solid var(--mat-sys-primary);
+            background: linear-gradient(135deg,
+                color-mix(in srgb, var(--mat-sys-primary) 4%, transparent) 0%,
+                color-mix(in srgb, var(--mat-sys-primary) 2%, transparent) 100%);
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--mat-sys-primary);
+            cursor: pointer;
+            opacity: 0.85;
+            transition: all 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+        }
+
+        .summarize-pill::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg,
+                transparent 0%,
+                color-mix(in srgb, var(--mat-sys-primary) 15%, transparent) 50%,
+                transparent 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .summarize-pill:hover {
+            opacity: 1;
+            border-color: var(--mat-sys-primary);
+            background: linear-gradient(135deg,
+                color-mix(in srgb, var(--mat-sys-primary) 12%, transparent) 0%,
+                color-mix(in srgb, var(--mat-sys-primary) 8%, transparent) 100%);
+            transform: scale(1.08) translateY(-2px);
+            box-shadow: 0 6px 20px color-mix(in srgb, var(--mat-sys-primary) 20%, transparent);
+        }
+
+        .summarize-pill:hover::before {
+            opacity: 1;
+            animation: shimmer 600ms ease-in-out;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .summarize-pill span:first-child {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            animation: sparkleRotate 3s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+            font-size: 14px;
+        }
+
+        @keyframes sparkleRotate {
+            0%, 100% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.15); }
+        }
+
+        .summarize-pill:active {
+            transform: scale(1.04) translateY(-1px);
+        }
+
+        .summarize-pill.loading {
+            opacity: 1;
+            cursor: wait;
+            border-color: var(--mat-sys-primary);
+            background: linear-gradient(135deg,
+                color-mix(in srgb, var(--mat-sys-primary) 15%, transparent) 0%,
+                color-mix(in srgb, var(--mat-sys-primary) 10%, transparent) 100%);
+            animation: pulseGlow 2s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% {
+                box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 12%, transparent),
+                            0 0 0 0 color-mix(in srgb, var(--mat-sys-primary) 30%, transparent);
+            }
+            50% {
+                box-shadow: 0 4px 16px color-mix(in srgb, var(--mat-sys-primary) 18%, transparent),
+                            0 0 0 8px color-mix(in srgb, var(--mat-sys-primary) 0%, transparent);
+            }
+        }
+
+        .pill-spinner {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid color-mix(in srgb, var(--mat-sys-primary) 25%, transparent);
+            border-top-color: var(--mat-sys-primary);
+            border-right-color: var(--mat-sys-primary);
+            animation: spinSmoothly 1s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+        }
+
+        @keyframes spinSmoothly {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .summary-card {
+            max-width: 340px;
+            padding: 12px 16px;
+            border-left: 4px solid var(--mat-sys-primary);
+            border-radius: 0 16px 16px 16px;
+            background: linear-gradient(135deg,
+                color-mix(in srgb, var(--mat-sys-primary) 8%, transparent) 0%,
+                color-mix(in srgb, var(--mat-sys-primary) 4%, transparent) 100%);
+            border-top: 1px solid color-mix(in srgb, var(--mat-sys-primary) 25%, transparent);
+            border-right: 1px solid color-mix(in srgb, var(--mat-sys-primary) 15%, transparent);
+            border-bottom: 1px solid color-mix(in srgb, var(--mat-sys-primary) 15%, transparent);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            box-shadow:
+                0 4px 12px color-mix(in srgb, var(--mat-sys-primary) 8%, transparent),
+                inset 0 1px 0 color-mix(in srgb, var(--mat-sys-primary) 20%, transparent);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .summary-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle,
+                color-mix(in srgb, var(--mat-sys-primary) 15%, transparent) 0%,
+                transparent 70%);
+            pointer-events: none;
+            animation: cardGloss 6s ease-in-out infinite;
+        }
+
+        @keyframes cardGloss {
+            0%, 100% { transform: translate(0, 0) scale(1); opacity: 0; }
+            50% { opacity: 0.3; }
+        }
+
+        .summary-card.own {
+            border-left: none;
+            border-right: 4px solid var(--mat-sys-primary);
+            border-radius: 16px 0 16px 16px;
+        }
+
+        .summary-icon {
+            font-size: 18px;
+            display: inline-block;
+            animation: iconBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes iconBounce {
+            0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+
+        .summary-text {
+            font-size: 13px;
+            font-style: italic;
+            color: var(--mat-sys-on-surface);
+            line-height: 1.6;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+            animation: textFadeIn 600ms cubic-bezier(0.34, 1.56, 0.64, 1) 100ms both;
+        }
+
+        @keyframes textFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .toggle-btn {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            color: var(--mat-sys-primary);
+            background: none;
+            border: 1px solid color-mix(in srgb, var(--mat-sys-primary) 30%, transparent);
+            cursor: pointer;
+            padding: 4px 10px;
+            border-radius: 12px;
+            text-decoration: none;
+            align-self: flex-start;
+            transition: all 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .toggle-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
+            transform: translateX(-100%);
+            transition: transform 250ms ease;
+        }
+
+        .toggle-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 3px 10px color-mix(in srgb, var(--mat-sys-primary) 15%, transparent);
+            border-color: var(--mat-sys-primary);
+        }
+
+        .toggle-btn:hover::before {
+            transform: translateX(0);
+        }
+
+        .collapsed-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 8px 14px;
+            margin: 6px 0 4px 56px;
+            font-size: 12px;
+            color: var(--mat-sys-outline-variant);
+            font-style: italic;
+            background: color-mix(in srgb, var(--mat-sys-primary) 2%, transparent);
+            border-radius: 12px;
+            border: 1px dashed color-mix(in srgb, var(--mat-sys-primary) 20%, transparent);
+            animation: collapseIndicatorSlide 300ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
+
+        @keyframes collapseIndicatorSlide {
+            from {
+                opacity: 0;
+                transform: translateX(-12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .collapsed-indicator.own {
+            justify-content: space-between;
+            margin: 6px 0 4px 0;
+        }
+
+        .collapsed-indicator button {
+            background: linear-gradient(135deg, var(--mat-sys-primary), color-mix(in srgb, var(--mat-sys-primary) 85%, var(--mat-sys-tertiary)));
+            color: white;
+            border: none;
+            padding: 5px 13px;
+            border-radius: 16px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 20%, transparent);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .collapsed-indicator button::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transform: translateX(-100%);
+        }
+
+        .collapsed-indicator button:hover {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 4px 16px color-mix(in srgb, var(--mat-sys-primary) 30%, transparent);
+        }
+
+        .collapsed-indicator button:active {
+            transform: translateY(0) scale(0.98);
+        }
+
+        /* ── Enhanced interactions ─────────────────────────────────────── */
+        .summary-card:hover {
+            box-shadow:
+                0 8px 24px color-mix(in srgb, var(--mat-sys-primary) 15%, transparent),
+                inset 0 1px 0 color-mix(in srgb, var(--mat-sys-primary) 30%, transparent);
+            background: linear-gradient(135deg,
+                color-mix(in srgb, var(--mat-sys-primary) 12%, transparent) 0%,
+                color-mix(in srgb, var(--mat-sys-primary) 6%, transparent) 100%);
+            border-color: color-mix(in srgb, var(--mat-sys-primary) 35%, transparent);
+            transform: translateY(-1px);
+            transition: all 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .summary-icon {
+            animation: iconSpin 8s linear infinite;
+        }
+
+        @keyframes iconSpin {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.1); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+
+        .summary-card:hover .summary-icon {
+            animation: iconSpinFast 3s linear infinite;
+        }
+
+        @keyframes iconSpinFast {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.2); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+
         /* ── Error ───────────────────────────────────────────────────── */
         .chat-error {
             display: flex;
@@ -10043,75 +10495,282 @@ export class ScheduledDetailsDialogComponent {
         }
 
         /* ── Lightbox ── */
+        /* ── Professional Lightbox ──────────────────────────────────────── */
         .sp-lightbox {
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.82);
+            background: rgba(0, 0, 0, 0.92);
             z-index: 9999;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 24px;
-            backdrop-filter: blur(6px);
+            padding: 20px;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
         }
+
         .sp-lightbox-card {
-            background: #111;
-            border-radius: 16px;
+            background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
+            border-radius: 20px;
             overflow: hidden;
-            max-width: 90vw;
-            max-height: 90vh;
+            max-width: 92vw;
+            max-height: 92vh;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+            box-shadow:
+                0 25px 100px rgba(0, 0, 0, 0.8),
+                0 0 60px rgba(0, 0, 0, 0.6),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            position: relative;
         }
+
+        .sp-lightbox-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
         .sp-lightbox-toolbar {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 10px 14px;
-            background: rgba(255,255,255,0.06);
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            justify-content: space-between;
+            gap: 16px;
+            padding: 16px 24px;
+            background: linear-gradient(180deg,
+                rgba(255, 255, 255, 0.08) 0%,
+                rgba(255, 255, 255, 0.02) 100%);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            position: relative;
+            z-index: 2;
         }
+
+        .sp-lightbox-info {
+            flex: 1;
+            min-width: 0;
+        }
+
         .sp-lightbox-sender {
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 12px;
+            cursor: default;
+        }
+
+        .sp-sender-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-size: 12px;
-            color: rgba(255,255,255,0.8);
+            font-weight: 700;
+            color: white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .sp-sender-text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+
+        .sp-sender-name {
+            font-size: 14px;
             font-weight: 600;
+            color: #fff;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
-        .sp-lightbox-date {
-            font-size: 11px;
-            color: rgba(255,255,255,0.45);
-            margin-right: auto;
+
+        .sp-sender-time {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
         }
-        .sp-lightbox-close {
-            width: 32px;
-            height: 32px;
+
+        .sp-lightbox-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .sp-lightbox-btn {
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             border: none;
-            background: rgba(255,255,255,0.1);
+            background: rgba(255, 255, 255, 0.08);
             color: #fff;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: background 0.15s;
+            transition: all 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            overflow: hidden;
         }
-        .sp-lightbox-close:hover { background: rgba(255,255,255,0.2); }
+
+        .sp-lightbox-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at center, rgba(255, 255, 255, 0.1), transparent);
+            opacity: 0;
+            transition: opacity 250ms ease;
+        }
+
+        .sp-lightbox-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        }
+
+        .sp-lightbox-btn:hover::before {
+            opacity: 1;
+        }
+
+        .sp-lightbox-btn:active {
+            transform: translateY(0) scale(0.95);
+        }
+
+        .sp-download-btn mat-icon,
+        .sp-close-btn mat-icon {
+            font-size: 20px !important;
+            width: 20px !important;
+            height: 20px !important;
+        }
+
+        .sp-lightbox-image-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 2;
+            overflow: auto;
+            background: radial-gradient(ellipse at center,
+                rgba(255, 255, 255, 0.01) 0%,
+                rgba(0, 0, 0, 0.3) 100%);
+        }
+
         .sp-lightbox-img {
-            max-width: 86vw;
-            max-height: 78vh;
+            max-width: 88vw;
+            max-height: 70vh;
             object-fit: contain;
             display: block;
+            border-radius: 8px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
         }
-        .sp-lightbox-caption {
+
+        .sp-lightbox-footer {
+            padding: 16px 24px;
+            background: linear-gradient(180deg,
+                rgba(255, 255, 255, 0.02) 0%,
+                rgba(255, 255, 255, 0.08) 100%);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            position: relative;
+            z-index: 2;
+        }
+
+        .sp-lightbox-details {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .sp-lightbox-details mat-icon {
+            font-size: 16px !important;
+            width: 16px !important;
+            height: 16px !important;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .sp-file-name {
+            font-size: 13px;
+            color: #fff;
+            font-weight: 500;
+            word-break: break-word;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .sp-file-size {
             font-size: 12px;
-            color: rgba(255,255,255,0.5);
-            text-align: center;
-            padding: 8px 16px;
-            margin: 0;
-            background: rgba(0,0,0,0.3);
+            color: rgba(255, 255, 255, 0.4);
+            margin-left: auto;
+            white-space: nowrap;
+        }
+
+        /* ── Lightbox fullscreen mode ──────────────────────────────────── */
+        ::ng-deep body.lightbox-visible {
+            overflow: hidden;
+        }
+
+        .container-fluid.lightbox-open {
+            overflow: hidden;
+        }
+
+        .container-fluid.lightbox-open .inner-sidebar-wrap.chat-layout {
+            pointer-events: none;
+            opacity: 0.4;
+            filter: blur(3px);
+            transition: opacity 250ms ease, filter 250ms ease;
+        }
+
+        .container-fluid.lightbox-open .chat-sidebar {
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 250ms ease, opacity 250ms ease;
+        }
+
+        .container-fluid.lightbox-open [class*="right-panel"],
+        .container-fluid.lightbox-open [class*="members-panel"],
+        .container-fluid.lightbox-open [class*="shared-panel"],
+        .container-fluid.lightbox-open [class*="agenda-panel"],
+        .container-fluid.lightbox-open [class*="moderation-panel"] {
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 250ms ease, opacity 250ms ease;
+        }
+
+        /* ── Keyboard support ───────────────────────────────────────────── */
+        @media (max-width: 768px) {
+            .sp-lightbox {
+                padding: 12px;
+            }
+
+            .sp-lightbox-card {
+                max-width: 96vw;
+                max-height: 96vh;
+                border-radius: 16px;
+            }
+
+            .sp-lightbox-toolbar {
+                padding: 12px 16px;
+            }
+
+            .sp-lightbox-img {
+                max-width: 95vw;
+                max-height: 75vh;
+            }
+
+            .sp-sender-avatar {
+                width: 36px;
+                height: 36px;
+                font-size: 11px;
+            }
+
+            .sp-sender-name {
+                font-size: 13px;
+            }
         }
 
         /* ── Voice recording UI ──────────────────────────────────────── */
@@ -11282,6 +11941,64 @@ export class ScheduledDetailsDialogComponent {
         }
         .wa-rooms-scroll::-webkit-scrollbar-thumb:hover {
             background: color-mix(in srgb, var(--mat-sys-primary) 65%, transparent);
+        }
+
+        /* ── Empty State (for filters) ── */
+        .wa-empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            padding: 60px 24px;
+            text-align: center;
+            min-height: 400px;
+            animation: fadeInScale 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
+        .wa-empty-icon-container {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 35%, transparent);
+            color: var(--mat-sys-primary);
+            margin-bottom: 8px;
+            animation: bounceInScale 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .wa-empty-icon-container mat-icon {
+            font-size: 36px !important;
+            width: 36px !important;
+            height: 36px !important;
+        }
+        .wa-empty-icon-unread {
+            background: color-mix(in srgb, var(--mat-sys-tertiary-container) 35%, transparent);
+            color: var(--mat-sys-tertiary);
+        }
+        .wa-empty-icon-favorites {
+            background: color-mix(in srgb, #f59e0b 25%, transparent);
+            color: #f59e0b;
+        }
+        .wa-empty-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--mat-sys-on-surface);
+            margin: 0;
+            letter-spacing: -0.2px;
+        }
+        .wa-empty-subtitle {
+            font-size: 12.5px;
+            color: var(--mat-sys-on-surface-variant);
+            opacity: 0.75;
+            max-width: 280px;
+            line-height: 1.6;
+            margin: 0;
+        }
+        @keyframes bounceInScale {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.08); }
+            100% { transform: scale(1); opacity: 1; }
         }
 
         /* ── Section divider ── */
@@ -13160,18 +13877,36 @@ export class ScheduledDetailsDialogComponent {
         .rp-section-header {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 14px 16px 10px;
+            gap: 10px;
+            padding: 16px 16px 12px;
             position: sticky;
             top: 0;
-            background: var(--mat-sys-surface-container-lowest);
-            z-index: 1;
+            background: linear-gradient(180deg,
+                var(--mat-sys-surface-container-lowest) 0%,
+                color-mix(in srgb, var(--mat-sys-surface-container-lowest) 95%, transparent) 100%);
+            z-index: 2;
+            border-bottom: 1px solid color-mix(in srgb, var(--mat-sys-outline) 30%, transparent);
+            backdrop-filter: blur(8px);
         }
         .rp-section-title {
             font-size: 14px;
             font-weight: 700;
             color: var(--mat-sys-on-surface);
             flex: 1;
+            letter-spacing: 0.2px;
+            transition: color 0.24s ease;
+        }
+        .rp-section-title-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .rp-section-icon {
+            font-size: 16px !important;
+            width: 16px !important;
+            height: 16px !important;
+            color: var(--mat-sys-primary);
+            transition: all 0.24s ease;
         }
         .rp-notif-badge {
             min-width: 18px;
@@ -13202,19 +13937,68 @@ export class ScheduledDetailsDialogComponent {
             flex-shrink: 0;
         }
         .rp-mark-read-btn {
-            background: none;
-            border: none;
+            background: transparent;
+            border: 1px solid var(--mat-sys-primary);
             cursor: pointer;
-            font-size: 10px;
+            font-size: 9px;
             color: var(--mat-sys-primary);
-            padding: 2px 6px;
+            padding: 4px 10px;
             border-radius: 6px;
             white-space: nowrap;
-            transition: background 0.12s;
+            transition: all 0.24s cubic-bezier(0.34, 1.56, 0.64, 1);
             font-family: inherit;
+            font-weight: 600;
+            letter-spacing: 0.3px;
         }
         .rp-mark-read-btn:hover {
             background: var(--mat-sys-primary-container);
+            border-color: var(--mat-sys-primary);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 20%, transparent);
+        }
+        .rp-section-add-btn {
+            background: linear-gradient(135deg, var(--mat-sys-primary), color-mix(in srgb, var(--mat-sys-primary) 85%, var(--mat-sys-secondary)));
+            border: none;
+            color: var(--mat-sys-on-primary);
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.24s cubic-bezier(0.34, 1.56, 0.64, 1);
+            white-space: nowrap;
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 28%, transparent);
+        }
+        .rp-section-add-btn:hover {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 4px 16px color-mix(in srgb, var(--mat-sys-primary) 38%, transparent);
+        }
+        .rp-online-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            margin: 4px 8px;
+            background: color-mix(in srgb, var(--mat-sys-tertiary-container) 40%, transparent);
+            border-radius: 8px;
+            border-left: 3px solid var(--mat-sys-tertiary);
+        }
+        .rp-online-dot-live {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--mat-sys-tertiary);
+            box-shadow: 0 0 8px rgba(var(--mat-sys-tertiary), 0.6);
+            animation: rp-dot-pulse 2s ease-in-out infinite;
+        }
+        .rp-online-label {
+            font-size: 11px;
+            color: var(--mat-sys-on-surface-variant);
+            font-weight: 600;
         }
         .rp-notif-list {
             padding: 2px 0 8px;
@@ -13222,63 +14006,97 @@ export class ScheduledDetailsDialogComponent {
         .rp-notif-item {
             display: flex;
             align-items: flex-start;
-            gap: 10px;
-            padding: 8px 14px;
+            gap: 12px;
+            padding: 12px 14px;
             cursor: pointer;
-            transition: background 0.12s ease;
+            margin: 4px 8px;
+            border-radius: 10px;
+            transition: all 0.24s cubic-bezier(0.34, 1.56, 0.64, 1);
             position: relative;
+            background: transparent;
         }
         .rp-notif-item:hover {
-            background: var(--mat-sys-surface-container);
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 16%, transparent);
+            transform: translateX(2px);
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
         }
         .rp-notif-unread {
-            background: color-mix(in srgb, var(--mat-sys-primary-container) 22%, transparent);
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 28%, transparent);
+            border-left: 3px solid var(--mat-sys-primary);
+            padding-left: 11px;
         }
         .rp-notif-unread:hover {
-            background: color-mix(in srgb, var(--mat-sys-primary-container) 32%, transparent);
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 38%, transparent);
+            box-shadow: 0 4px 12px color-mix(in srgb, var(--mat-sys-primary) 18%, transparent);
         }
         .rp-notif-avatar {
-            width: 34px;
-            height: 34px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             background: linear-gradient(135deg, var(--mat-sys-primary), var(--mat-sys-tertiary));
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 24%, transparent);
+            font-size: 14px;
+            font-weight: 700;
+            color: #fff;
         }
         .rp-notif-info {
             flex: 1;
             min-width: 0;
             display: flex;
             flex-direction: column;
-            gap: 2px;
+            gap: 4px;
         }
         .rp-notif-text {
             font-size: 12px;
-            line-height: 1.45;
+            line-height: 1.5;
             color: var(--mat-sys-on-surface);
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
+            transition: color 0.24s ease;
+        }
+        .rp-notif-item:hover .rp-notif-text {
+            color: var(--mat-sys-on-surface);
         }
         .rp-notif-room {
             font-weight: 700;
             color: var(--mat-sys-primary);
+            transition: all 0.24s ease;
+        }
+        .rp-notif-item:hover .rp-notif-room {
+            color: var(--mat-sys-primary);
+            text-decoration: underline;
+            text-decoration-thickness: 1.5px;
+            text-underline-offset: 2px;
         }
         .rp-notif-time {
-            font-size: 10px;
+            font-size: 9px;
             color: var(--mat-sys-on-surface-variant);
-            opacity: 0.7;
+            opacity: 0.6;
+            font-weight: 500;
+            transition: opacity 0.24s ease;
+        }
+        .rp-notif-item:hover .rp-notif-time {
+            opacity: 0.8;
         }
         .rp-notif-dot {
-            width: 7px;
-            height: 7px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
             background: var(--mat-sys-primary);
             flex-shrink: 0;
-            margin-top: 5px;
+            margin-top: 4px;
+            animation: rp-dot-pulse 2s ease-in-out infinite;
+            box-shadow: 0 0 8px color-mix(in srgb, var(--mat-sys-primary) 60%, transparent);
+        }
+        @keyframes rp-dot-pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.8; }
         }
         .rp-member-list {
             padding: 2px 0 10px;
@@ -13286,52 +14104,141 @@ export class ScheduledDetailsDialogComponent {
         .rp-member-item {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 7px 14px;
-            transition: background 0.12s ease;
+            gap: 12px;
+            padding: 10px 12px;
+            margin: 4px 6px;
+            border-radius: 10px;
+            transition: all 0.24s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+        }
+        .rp-member-item::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 10px;
+            background: transparent;
+            transition: background 0.24s ease;
+            pointer-events: none;
+        }
+        .rp-member-item:hover::before {
+            background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
         }
         .rp-member-item:hover {
-            background: var(--mat-sys-surface-container);
+            transform: translateX(4px);
+            box-shadow: 0 4px 12px color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+        }
+        .rp-member-avatar-wrap {
+            position: relative;
+            flex-shrink: 0;
         }
         .rp-member-avatar {
-            width: 34px;
-            height: 34px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             background: linear-gradient(135deg, var(--mat-sys-primary), var(--mat-sys-tertiary));
             color: #fff;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 11px;
+            font-size: 13px;
             font-weight: 800;
             flex-shrink: 0;
             letter-spacing: -0.5px;
+            box-shadow: 0 2px 8px color-mix(in srgb, var(--mat-sys-primary) 24%, transparent);
+            transition: all 0.24s ease;
+        }
+        .rp-member-item:hover .rp-member-avatar {
+            transform: scale(1.08);
+            box-shadow: 0 4px 12px color-mix(in srgb, var(--mat-sys-primary) 32%, transparent);
         }
         .rp-member-info {
             flex: 1;
             min-width: 0;
             display: flex;
             flex-direction: column;
-            gap: 1px;
+            gap: 3px;
+            position: relative;
+            z-index: 1;
         }
         .rp-member-name {
-            font-size: 12.5px;
+            font-size: 13px;
             font-weight: 600;
             color: var(--mat-sys-on-surface);
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            transition: color 0.24s ease;
+        }
+        .rp-member-item:hover .rp-member-name {
+            color: var(--mat-sys-primary);
+        }
+        .rp-member-meta {
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
         .rp-member-role {
-            font-size: 10.5px;
+            font-size: 10px;
             color: var(--mat-sys-on-surface-variant);
             opacity: 0.75;
-            text-transform: capitalize;
-            font-weight: 500;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+        .rp-member-role-badge {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            background: color-mix(in srgb, var(--mat-sys-secondary-container) 100%, transparent);
+            color: var(--mat-sys-on-secondary-container);
+            transition: all 0.24s ease;
+        }
+        .rp-role-admin {
+            background: color-mix(in srgb, var(--mat-sys-error-container) 100%, transparent);
+            color: var(--mat-sys-on-error-container);
+        }
+        .rp-role-owner {
+            background: color-mix(in srgb, var(--mat-sys-tertiary-container) 100%, transparent);
+            color: var(--mat-sys-on-tertiary-container);
+        }
+        .rp-member-status-text {
+            font-size: 9px;
+            color: var(--mat-sys-on-surface-variant);
+            opacity: 0.65;
+            transition: all 0.24s ease;
+        }
+        .rp-status-online {
+            color: var(--mat-sys-tertiary);
+            opacity: 1;
+            font-weight: 600;
+        }
+        .rp-member-presence {
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid var(--mat-sys-surface-container-lowest);
+            transition: all 0.24s ease;
+        }
+        .rp-presence-online {
+            background: #22c55e;
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+        }
+        .rp-presence-away {
+            background: #f59e0b;
+        }
+        .rp-member-item:hover .rp-member-presence {
+            width: 14px;
+            height: 14px;
         }
         .rp-action-btn {
-            width: 26px;
-            height: 26px;
+            width: 28px;
+            height: 28px;
             border-radius: 8px;
             border: none;
             background: transparent;
@@ -13342,34 +14249,61 @@ export class ScheduledDetailsDialogComponent {
             justify-content: center;
             flex-shrink: 0;
             opacity: 0;
-            transition: opacity 0.12s, background 0.12s, color 0.12s;
+            transition: all 0.24s cubic-bezier(0.34, 1.56, 0.64, 1);
             padding: 0;
+            position: relative;
+            z-index: 2;
         }
         .rp-member-item:hover .rp-action-btn {
             opacity: 1;
+            transform: scale(1.1);
         }
         .rp-action-btn:hover {
-            background: color-mix(in srgb, var(--mat-sys-error) 15%, var(--mat-sys-surface-container));
+            background: color-mix(in srgb, var(--mat-sys-error) 18%, var(--mat-sys-surface-container));
             color: var(--mat-sys-error);
+            transform: scale(1.2);
         }
         .rp-empty {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 6px;
-            padding: 24px 16px;
+            gap: 10px;
+            padding: 32px 16px;
             text-align: center;
+        }
+        .rp-empty-icon-wrap {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: color-mix(in srgb, var(--mat-sys-primary-container) 40%, transparent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 6px;
         }
         .rp-empty-icon {
             font-size: 28px !important;
             width: 28px !important;
             height: 28px !important;
-            opacity: 0.3;
+            color: var(--mat-sys-primary);
+        }
+        .rp-empty-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--mat-sys-on-surface);
+        }
+        .rp-empty-icon-wrap + .rp-empty-title {
+            margin-top: -6px;
+        }
+        .rp-empty-sub {
+            font-size: 11px;
             color: var(--mat-sys-on-surface-variant);
+            opacity: 0.7;
+            line-height: 1.4;
         }
         .rp-empty span {
-            font-size: 12px;
+            font-size: 11px;
             color: var(--mat-sys-on-surface-variant);
             opacity: 0.65;
         }
@@ -18583,9 +19517,9 @@ export class ScheduledDetailsDialogComponent {
         ]),
         trigger('rpItemEnter', [
             transition(':enter', [
-                style({ transform: 'translateX(12px)', opacity: 0 }),
-                animate('260ms cubic-bezier(0.34,1.56,0.64,1)',
-                    style({ transform: 'translateX(0)', opacity: 1 })),
+                style({ transform: 'translateX(16px) scale(0.96)', opacity: 0 }),
+                animate('320ms cubic-bezier(0.34,1.56,0.64,1)',
+                    style({ transform: 'translateX(0) scale(1)', opacity: 1 })),
             ]),
         ]),
         trigger('rightPanelSlide', [
@@ -18593,6 +19527,51 @@ export class ScheduledDetailsDialogComponent {
             state('closed', style({ transform: 'translateX(280px)', opacity: 0, width: '0' })),
             transition('closed => open', animate('300ms cubic-bezier(0.16,1,0.3,1)')),
             transition('open => closed', animate('220ms cubic-bezier(0.4,0,1,1)')),
+        ]),
+        trigger('lightboxBackdrop', [
+            transition(':enter', [
+                style({ opacity: 0 }),
+                animate('300ms ease-out', style({ opacity: 1 }))
+            ]),
+            transition(':leave', [
+                animate('250ms ease-in', style({ opacity: 0 }))
+            ])
+        ]),
+        trigger('lightboxEnter', [
+            transition(':enter', [
+                style({ opacity: 0, transform: 'scale(0.85) translateY(20px)' }),
+                animate('450ms cubic-bezier(0.16, 1, 0.3, 1)',
+                    style({ opacity: 1, transform: 'scale(1) translateY(0)' }))
+            ]),
+            transition(':leave', [
+                animate('300ms cubic-bezier(0.4, 0, 1, 1)',
+                    style({ opacity: 0, transform: 'scale(0.92) translateY(10px)' }))
+            ])
+        ]),
+        trigger('imageZoom', [
+            transition(':enter', [
+                style({ opacity: 0, transform: 'scale(0.95)' }),
+                animate('500ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    style({ opacity: 1, transform: 'scale(1)' }))
+            ])
+        ]),
+        trigger('summarizePillEnter', [
+            transition(':enter', [
+                style({ opacity: 0, transform: 'translateY(16px) scale(0.88)', filter: 'blur(4px)' }),
+                animate('480ms cubic-bezier(0.16, 1, 0.3, 1)',
+                    style({ opacity: 1, transform: 'translateY(0) scale(1)', filter: 'blur(0)' }))
+            ]),
+        ]),
+        trigger('summaryReveal', [
+            transition(':enter', [
+                style({ opacity: 0, transform: 'translateY(-12px) scale(0.92) rotateX(-10deg)', height: 0, 'max-height': '0px' }),
+                animate('450ms cubic-bezier(0.16, 1, 0.3, 1)',
+                    style({ opacity: 1, transform: 'translateY(0) scale(1) rotateX(0deg)', height: '*', 'max-height': '500px' }))
+            ]),
+            transition(':leave', [
+                animate('280ms cubic-bezier(0.4, 0, 1, 1)',
+                    style({ opacity: 0, transform: 'translateY(-8px) scale(0.94)', height: 0, 'max-height': '0px' }))
+            ])
         ]),
     ],
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
@@ -18626,12 +19605,14 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
         const q = this.searchQuery().toLowerCase();
         const filter = this.activeFilter();
         let rooms = this.rooms();
+
         if (q) {
             rooms = rooms.filter(r =>
                 r.name.toLowerCase().includes(q) ||
                 (r.description ?? '').toLowerCase().includes(q)
             );
         }
+
         if (filter === 'unread') {
             const counts = this.unreadCounts();
             rooms = rooms.filter(r => (counts.get(r.id) ?? 0) > 0);
@@ -18639,6 +19620,7 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
             const favs = this.favoriteRoomIds();
             rooms = rooms.filter(r => favs.has(r.id));
         }
+
         return rooms;
     });
 
@@ -18981,6 +19963,11 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
     });
     private pinSub: Subscription | null = null;
 
+    // ── Message summarization ───────────────────────────────────────
+    summarizingGroupKey = signal<string | null>(null);
+    groupSummaries = signal<Map<string, string>>(new Map());
+    collapsedGroups = signal<Set<string>>(new Set());
+
     // ── Members panel ──────────────────────────────────────────────
     members = signal<RoomMemberDTO[]>([]);
     membersLoading = signal(false);
@@ -19038,6 +20025,28 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
     existingMemberIds = computed(() =>
         new Set(this.members().map(m => m.userId))
     );
+
+    messageGroups = computed(() => {
+        const msgs = this.filteredMessages().filter(m => !m.isSystemMessage && !m.isAgendaItem);
+        const groups: MessageGroup[] = [];
+        let current: MessageGroup | null = null;
+
+        for (const msg of msgs) {
+            if (current && current.senderId === msg.senderId) {
+                current.messages.push(msg);
+            } else {
+                if (current) groups.push(current);
+                current = {
+                    senderId: msg.senderId,
+                    senderName: msg.senderName,
+                    messages: [msg],
+                    groupKey: msg.senderId + '_' + msg.id
+                };
+            }
+        }
+        if (current) groups.push(current);
+        return groups;
+    });
 
     // ── Meeting & Agenda ──────────────────────────────────────────
     agendaPanelOpen  = signal(false);
@@ -19146,6 +20155,16 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         yesterday.setDate(today.getDate() - 1);
         if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
         return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    }
+
+    shouldShowDateSepForGroup(group: MessageGroup): boolean {
+        const groups = this.messageGroups();
+        const idx = groups.indexOf(group);
+        if (idx === 0) return true;
+        if (idx === -1) return false;
+        const prev = new Date(groups[idx - 1].messages[groups[idx - 1].messages.length - 1].createdAt).toDateString();
+        const curr = new Date(group.messages[0].createdAt).toDateString();
+        return prev !== curr;
     }
 
     selectRoomById(id: number): void {
@@ -19541,6 +20560,32 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
 
         // Refresh meeting status badges every 30 s
         this.meetingStatusInterval = setInterval(() => this.meetingStatusNow.set(new Date()), 30_000);
+
+        // Load summaries from localStorage when active room changes
+        effect(() => {
+            const roomId = this.activeRoom()?.id;
+            if (roomId) {
+                const saved = localStorage.getItem('chat_summaries_' + roomId);
+                if (saved) {
+                    try {
+                        const data = JSON.parse(saved);
+                        this.groupSummaries.set(new Map(data));
+                    } catch {}
+                } else {
+                    this.groupSummaries.set(new Map());
+                }
+                this.collapsedGroups.set(new Set());
+            }
+        });
+
+        // Toggle body class when lightbox opens/closes
+        effect(() => {
+            if (this.lightboxItem()) {
+                this.document.body.classList.add('lightbox-visible');
+            } else {
+                this.document.body.classList.remove('lightbox-visible');
+            }
+        });
     }
 
     private _loadFavorites(): void {
@@ -20288,6 +21333,54 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
             },
             error: (err) => this.notify(err?.error?.message ?? 'Failed to update pin.', true),
         });
+    }
+
+    summarizeGroup(group: MessageGroup): void {
+        const key = group.groupKey;
+
+        if (this.groupSummaries().has(key)) {
+            const collapsed = new Set(this.collapsedGroups());
+            collapsed.has(key) ? collapsed.delete(key) : collapsed.add(key);
+            this.collapsedGroups.set(collapsed);
+            return;
+        }
+
+        this.summarizingGroupKey.set(key);
+
+        const messagesText = group.messages
+            .filter(m => m.contentText)
+            .map(m => m.contentText)
+            .join('\n');
+
+        const prompt = `Summarize these consecutive messages from ${group.senderName} in one short sentence (maximum 20 words), written in third person, natural and concise:\n\n${messagesText}`;
+
+        this.chatMessageService.summarize(prompt).subscribe({
+            next: (summary) => {
+                this.summarizingGroupKey.set(null);
+                const updated = new Map(this.groupSummaries());
+                updated.set(key, summary);
+                this.groupSummaries.set(updated);
+                localStorage.setItem(
+                    'chat_summaries_' + this.activeRoom()?.id,
+                    JSON.stringify([...updated])
+                );
+                setTimeout(() => this.typewriteEffect(key, summary), 50);
+            },
+            error: () => this.summarizingGroupKey.set(null)
+        });
+    }
+
+    typewriteEffect(key: string, text: string): void {
+        const el = document.getElementById('summary-text-' + key);
+        if (!el) return;
+        el.textContent = '';
+        let i = 0;
+        const interval = setInterval(() => {
+            if (!el) { clearInterval(interval); return; }
+            el.textContent += text[i];
+            i++;
+            if (i >= text.length) clearInterval(interval);
+        }, 18);
     }
 
     // ── Scheduled Messages ──────────────────────────────────────────────────
@@ -21435,7 +22528,8 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         this.selectedFile = null;
     }
 
-    formatBytes(bytes: number): string {
+    formatBytes(bytes: number | undefined): string {
+        if (!bytes) return '0 B';
         if (bytes < 1024) return bytes + ' B';
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
         return (bytes / (1024 * 1024)).toFixed(1) + ' MB';

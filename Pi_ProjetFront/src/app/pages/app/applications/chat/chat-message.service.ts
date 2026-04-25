@@ -338,6 +338,12 @@ export class ChatMessageService {
     );
   }
 
+  /** REST: summarize text using AI. */
+  summarize(prompt: string): Observable<string> {
+    return this.http.post<{result: string}>(`${this.BASE_URL}/api/ai/summarize`, { prompt })
+      .pipe(map(res => res.result));
+  }
+
   /**
    * Real-time pin updates: subscribe to /topic/rooms/{roomId}/pinned.
    * Emits a MessageDTO whenever a message is pinned or unpinned.

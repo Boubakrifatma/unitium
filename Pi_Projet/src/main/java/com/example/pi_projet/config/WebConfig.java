@@ -35,7 +35,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(sessionInterceptor)
-                .addPathPatterns("/api/**")
+                .addPathPatterns("/api/**", "/api/ai/**")
                 .excludePathPatterns(
                     "/api/auth/login",                    // login public
                     "/api/auth/face-login",               // face login public

@@ -375,70 +375,95 @@ export interface DashboardLeaderEntry {
 
                 <!-- ── Table view ── -->
                 @if (membersView() === 'table') {
-                  <table mat-table [dataSource]="dataSource" matSort class="bg-none mb-3 responsive-table w-100">
-                    <ng-container matColumnDef="member">
-                      <th mat-header-cell *matHeaderCellDef mat-sort-header>Member</th>
-                      <td mat-cell *matCellDef="let m" class="py-2">
-                        <div class="d-flex align-items-center gap-3">
-                          <div class="pulse-avatar-wrap pulse-avatar-sm">
-                            <div class="pulse-avatar pulse-avatar-sm-inner"
-                                 [style.background]="'hsl(' + getAvatarHue(m.name) + ',55%,88%)'"
-                                 [style.color]="'hsl(' + getAvatarHue(m.name) + ',55%,32%)'">
-                              {{ getInitials(m.name) }}
+                  <div class="dashboard-table-wrapper">
+                    <table mat-table [dataSource]="dataSource" matSort class="dashboard-members-table">
+                      <ng-container matColumnDef="member">
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header>
+                          <span class="table-header-label">Member</span>
+                        </th>
+                        <td mat-cell *matCellDef="let m" class="cell-member">
+                          <div class="member-cell-content">
+                            <div class="pulse-avatar-wrap pulse-avatar-sm">
+                              <div class="pulse-avatar pulse-avatar-sm-inner"
+                                   [style.background]="'hsl(' + getAvatarHue(m.name) + ',55%,88%)'"
+                                   [style.color]="'hsl(' + getAvatarHue(m.name) + ',55%,32%)'">
+                                {{ getInitials(m.name) }}
+                              </div>
+                              <span class="pulse-status-dot pulse-status-dot-sm"
+                                    [class.pulse-dot-online]="getMemberStatus(m.lastActive)==='online'"
+                                    [class.pulse-dot-away]="getMemberStatus(m.lastActive)==='away'"
+                                    [class.pulse-dot-offline]="getMemberStatus(m.lastActive)==='offline'">
+                              </span>
                             </div>
-                            <span class="pulse-status-dot pulse-status-dot-sm"
-                                  [class.pulse-dot-online]="getMemberStatus(m.lastActive)==='online'"
-                                  [class.pulse-dot-away]="getMemberStatus(m.lastActive)==='away'"
-                                  [class.pulse-dot-offline]="getMemberStatus(m.lastActive)==='offline'">
-                            </span>
+                            <div class="member-info">
+                              <h4 class="member-name">{{ m.name }}</h4>
+                              <p class="member-email">{{ m.email }}</p>
+                            </div>
                           </div>
-                          <div>
-                            <h4 class="mb-0">{{ m.name }}</h4>
-                            <p class="text-secondary small mb-0">{{ m.email }}</p>
+                        </td>
+                      </ng-container>
+                      <ng-container matColumnDef="role">
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header>
+                          <span class="table-header-label">Role</span>
+                        </th>
+                        <td mat-cell *matCellDef="let m" class="cell-role">
+                          <span class="pulse-role-badge"
+                                [class.pulse-role-employee]="m.role==='EMPLOYEE'"
+                                [class.pulse-role-student]="m.role==='STUDENT'"
+                                [class.pulse-role-manager]="m.role==='MANAGER'"
+                                [class.pulse-role-tutor]="m.role==='TUTOR'">
+                            {{ m.role }}
+                          </span>
+                        </td>
+                      </ng-container>
+                      <ng-container matColumnDef="messages">
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header>
+                          <span class="table-header-label">Messages</span>
+                        </th>
+                        <td mat-cell *matCellDef="let m" class="cell-messages">
+                          <div class="message-stat-cell">
+                            <div class="message-bar-container">
+                              <div class="message-bar-bg">
+                                <div class="message-bar-fill"
+                                     [style.width.%]="(m.messageCount / getMaxMessages()) * 100">
+                                </div>
+                              </div>
+                            </div>
+                            <span class="message-count-label">{{ m.messageCount }}</span>
                           </div>
-                        </div>
-                      </td>
-                    </ng-container>
-                    <ng-container matColumnDef="role">
-                      <th mat-header-cell *matHeaderCellDef mat-sort-header>Role</th>
-                      <td mat-cell *matCellDef="let m">
-                        <span class="pulse-role-badge"
-                              [class.pulse-role-employee]="m.role==='EMPLOYEE'"
-                              [class.pulse-role-student]="m.role==='STUDENT'"
-                              [class.pulse-role-manager]="m.role==='MANAGER'"
-                              [class.pulse-role-tutor]="m.role==='TUTOR'">{{ m.role }}</span>
-                      </td>
-                    </ng-container>
-                    <ng-container matColumnDef="messages">
-                      <th mat-header-cell *matHeaderCellDef mat-sort-header>Messages</th>
-                      <td mat-cell *matCellDef="let m">
-                        <div class="dash-msg-bar-wrap">
-                          <div class="dash-msg-bar-fill" [style.width.%]="(m.messageCount / getMaxMessages()) * 100"></div>
-                          <span class="dash-msg-count">{{ m.messageCount }}</span>
-                        </div>
-                      </td>
-                    </ng-container>
-                    <ng-container matColumnDef="rooms">
-                      <th mat-header-cell *matHeaderCellDef mat-sort-header>Rooms</th>
-                      <td mat-cell *matCellDef="let m"><p class="mb-0">{{ m.roomCount }}</p></td>
-                    </ng-container>
-                    <ng-container matColumnDef="lastActive">
-                      <th mat-header-cell *matHeaderCellDef mat-sort-header>Last Active</th>
-                      <td mat-cell *matCellDef="let m">
-                        <span class="pulse-time-chip"
-                              [class.pulse-time-today]="getMemberStatus(m.lastActive)==='online'"
-                              [class.pulse-time-week]="getMemberStatus(m.lastActive)==='away'">
-                          {{ getRelativeTime(m.lastActive) }}
-                        </span>
-                      </td>
-                    </ng-container>
-                    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-                    <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="dash-table-row"></tr>
-                    <tr class="mat-row" *matNoDataRow>
-                      <td class="mat-cell text-secondary small py-3" [attr.colspan]="displayedColumns.length">No members found.</td>
-                    </tr>
-                  </table>
-                  <mat-paginator [pageSizeOptions]="[5,10,25]" pageSize="5" aria-label="Select page" class="bg-none"></mat-paginator>
+                        </td>
+                      </ng-container>
+                      <ng-container matColumnDef="rooms">
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header>
+                          <span class="table-header-label">Rooms</span>
+                        </th>
+                        <td mat-cell *matCellDef="let m" class="cell-rooms">
+                          <span class="room-badge">{{ m.roomCount }}</span>
+                        </td>
+                      </ng-container>
+                      <ng-container matColumnDef="lastActive">
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header>
+                          <span class="table-header-label">Last Active</span>
+                        </th>
+                        <td mat-cell *matCellDef="let m" class="cell-active">
+                          <span class="time-badge"
+                                [class.time-badge-online]="getMemberStatus(m.lastActive)==='online'"
+                                [class.time-badge-away]="getMemberStatus(m.lastActive)==='away'"
+                                [class.time-badge-offline]="getMemberStatus(m.lastActive)==='offline'">
+                            {{ getRelativeTime(m.lastActive) }}
+                          </span>
+                        </td>
+                      </ng-container>
+                      <tr mat-header-row *matHeaderRowDef="displayedColumns" class="table-header-row"></tr>
+                      <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="table-data-row"></tr>
+                      <tr class="mat-row table-no-data-row" *matNoDataRow>
+                        <td class="mat-cell" [attr.colspan]="displayedColumns.length">
+                          <div class="no-data-message">No members found</div>
+                        </td>
+                      </tr>
+                    </table>
+                    <mat-paginator [pageSizeOptions]="[5,10,25]" pageSize="5" aria-label="Select page" class="dashboard-paginator"></mat-paginator>
+                  </div>
                 }
               </mat-card-content>
             </mat-card>
@@ -1632,11 +1657,273 @@ mat-card:active { transform:scale(0.995); }
 .dash-mod-warn-sub   { display:block; font-size:12px; color:var(--mat-sys-on-surface-variant,#64748b); margin-top:2px; }
 .dash-mod-warn-btn   { font-size:12px !important; }
 
+/* ══ SECTION 9 — TEAM MEMBERS TABLE ═════════════════════════════ */
+@keyframes tableRowIn {
+    from { transform:translateY(12px); opacity:0; }
+    to   { transform:translateY(0);    opacity:1; }
+}
+
+.dashboard-table-wrapper {
+    background:var(--mat-sys-surface-container-low);
+    border-radius:16px;
+    border:1px solid var(--mat-sys-outline-variant);
+    overflow:hidden;
+    box-shadow:0 2px 8px rgba(0,0,0,0.06);
+    transition:box-shadow 200ms ease;
+}
+.dashboard-table-wrapper:hover {
+    box-shadow:0 4px 16px rgba(0,0,0,0.1);
+}
+
+.dashboard-members-table {
+    width:100%;
+    border-collapse:collapse;
+    background:transparent;
+}
+
+.table-header-row {
+    background:color-mix(in srgb,var(--mat-sys-primary) 6%,var(--mat-sys-surface-container-low));
+    border-bottom:2px solid var(--mat-sys-outline-variant);
+    height:52px;
+}
+.table-header-row th {
+    padding:12px 16px !important;
+    font-weight:700 !important;
+    font-size:12px !important;
+    letter-spacing:0.5px !important;
+    text-transform:uppercase !important;
+    color:var(--mat-sys-on-surface-variant) !important;
+}
+
+.table-header-label {
+    display:flex;
+    align-items:center;
+    gap:6px;
+    white-space:nowrap;
+}
+
+@keyframes tableRowStagger {
+    from { transform:translateY(12px); opacity:0; }
+    to   { transform:translateY(0);    opacity:1; }
+}
+
+.table-data-row {
+    height:64px;
+    border-bottom:1px solid var(--mat-sys-outline-variant);
+    transition:background 150ms ease,box-shadow 150ms ease;
+    animation:tableRowStagger 400ms cubic-bezier(0.34,1.56,0.64,1) both;
+}
+.table-data-row:hover {
+    background:color-mix(in srgb,var(--mat-sys-primary) 4%,transparent);
+}
+.table-data-row:active {
+    background:color-mix(in srgb,var(--mat-sys-primary) 8%,transparent);
+}
+
+.table-data-row:nth-child(2) { animation-delay:0ms; }
+.table-data-row:nth-child(3) { animation-delay:40ms; }
+.table-data-row:nth-child(4) { animation-delay:80ms; }
+.table-data-row:nth-child(5) { animation-delay:120ms; }
+.table-data-row:nth-child(6) { animation-delay:160ms; }
+.table-data-row:nth-child(7) { animation-delay:200ms; }
+
+/* Table cells */
+.dashboard-members-table td {
+    padding:12px 16px !important;
+    vertical-align:middle;
+}
+
+.cell-member {
+    padding:8px 16px !important;
+}
+
+.member-cell-content {
+    display:flex;
+    align-items:center;
+    gap:12px;
+    min-width:0;
+}
+
+.member-info {
+    flex:1;
+    min-width:0;
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+}
+
+.member-name {
+    margin:0;
+    font-size:13px;
+    font-weight:600;
+    color:var(--mat-sys-on-surface);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+
+.member-email {
+    margin:0;
+    font-size:11px;
+    color:var(--mat-sys-on-surface-variant);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+
+.cell-role {
+    padding:12px 16px !important;
+}
+
+.cell-messages {
+    padding:12px 16px !important;
+}
+
+.cell-rooms {
+    padding:12px 16px !important;
+}
+
+.cell-active {
+    padding:12px 16px !important;
+}
+
+/* Message bar visualization */
+.message-stat-cell {
+    display:flex;
+    align-items:center;
+    gap:10px;
+    min-width:100px;
+}
+
+.message-bar-container {
+    flex:1;
+    min-width:60px;
+}
+
+.message-bar-bg {
+    position:relative;
+    height:6px;
+    background:var(--mat-sys-outline-variant);
+    border-radius:3px;
+    overflow:hidden;
+}
+
+@keyframes fillGrow {
+    from { width:0%; }
+    to   { width:var(--bar-width,0%); }
+}
+
+.message-bar-fill {
+    height:100%;
+    background:linear-gradient(90deg,var(--mat-sys-primary) 0%,color-mix(in srgb,var(--mat-sys-primary) 70%,transparent) 100%);
+    border-radius:3px;
+    animation:fillGrow 800ms cubic-bezier(0.34,1.56,0.64,1) forwards;
+    transition:width 400ms cubic-bezier(0.34,1.56,0.64,1);
+}
+
+.message-count-label {
+    font-size:12px;
+    font-weight:700;
+    color:var(--mat-sys-on-surface);
+    min-width:24px;
+    text-align:right;
+}
+
+/* Badges */
+.room-badge {
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:32px;
+    height:32px;
+    border-radius:50%;
+    background:color-mix(in srgb,var(--mat-sys-primary) 15%,transparent);
+    color:var(--mat-sys-primary);
+    font-size:12px;
+    font-weight:700;
+    transition:transform 150ms ease,box-shadow 150ms ease;
+}
+.room-badge:hover {
+    transform:scale(1.08);
+    box-shadow:0 4px 12px color-mix(in srgb,var(--mat-sys-primary) 25%,transparent);
+}
+
+.time-badge {
+    display:inline-block;
+    padding:4px 10px;
+    border-radius:12px;
+    font-size:11px;
+    font-weight:600;
+    background:var(--mat-sys-surface-container-high);
+    color:var(--mat-sys-on-surface-variant);
+    white-space:nowrap;
+    transition:all 150ms ease;
+}
+
+.time-badge-online {
+    background:color-mix(in srgb,#16a34a 15%,transparent);
+    color:#16a34a;
+}
+.time-badge-online::before {
+    content:'●';
+    margin-right:6px;
+    animation:onlinePulse 2s ease-in-out infinite;
+}
+
+.time-badge-away {
+    background:color-mix(in srgb,#f59e0b 15%,transparent);
+    color:#f59e0b;
+}
+.time-badge-away::before {
+    content:'●';
+    margin-right:6px;
+    opacity:0.6;
+}
+
+.time-badge-offline {
+    background:var(--mat-sys-surface-container-high);
+    color:var(--mat-sys-on-surface-variant);
+}
+
+@keyframes onlinePulse {
+    0%,100% { opacity:1; }
+    50%     { opacity:0.5; }
+}
+
+/* Paginator styling */
+.dashboard-paginator {
+    background:color-mix(in srgb,var(--mat-sys-primary) 3%,transparent) !important;
+    border-top:1px solid var(--mat-sys-outline-variant) !important;
+}
+.dashboard-paginator ::ng-deep .mat-mdc-paginator-container {
+    padding:4px 16px !important;
+    min-height:48px !important;
+}
+
+/* No data row */
+.table-no-data-row {
+    height:auto !important;
+}
+.no-data-message {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:32px;
+    color:var(--mat-sys-on-surface-variant);
+    font-size:13px;
+    text-align:center;
+}
+
 /* ══ RESPONSIVE ══════════════════════════════════════════════════════ */
 @media (max-width:599px) {
     .pulse-cards-grid { grid-template-columns:1fr; }
     .pulse-chart-kpi-val { font-size:22px; }
     .fab-container { bottom:16px; right:16px; }
+
+    .dashboard-members-table td { padding:8px 12px !important; }
+    .table-header-row th { padding:10px 12px !important; font-size:11px !important; }
+    .member-cell-content { gap:8px; }
+    .message-bar-container { min-width:50px; }
 }
 @media (max-width:991px) {
     .room-detail-panel.room-detail-visible { width:100%; }
@@ -1647,8 +1934,8 @@ mat-card:active { transform:scale(0.995); }
 @media (prefers-reduced-motion:reduce) {
     .dash-overlay,.dash-section,.dash-kpi-item,.pulse-member-card,
     .fame-col,.room-card,.pad-station,.mission-item,.heat-cell,
-    .fab-action,.fab-main { animation:none !important; transition:none !important; }
-    .pulse-bar,.pulse-activity-fill,.dash-msg-bar-fill,.fame-list-bar { transition:none !important; }
+    .fab-action,.fab-main,.table-data-row { animation:none !important; transition:none !important; }
+    .pulse-bar,.pulse-activity-fill,.dash-msg-bar-fill,.fame-list-bar,.message-bar-fill { transition:none !important; }
 }
     `],
 })
