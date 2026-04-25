@@ -215,7 +215,7 @@ export class AppSidebarComponent {
         const applicationsChildren: NavItem[] = [
             { name: "Deliverables", route: "/app/deliverables", icon: "upload_file" },
         ];
-        if (!this.isManager) {
+        if (!this.isManager && !this.isTutor) {
             applicationsChildren.unshift({ name: "Task Kanban", route: "/app/kanban", icon: "view_kanban" });
         }
         applicationsChildren.push({ name: "Chat", route: "/app/chat", icon: "chat" });
