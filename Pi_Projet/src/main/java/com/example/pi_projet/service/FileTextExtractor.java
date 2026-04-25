@@ -11,14 +11,17 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Locale;
+import java.util.Set;
 
 /**
- * Reads a stored deliverable file (PDF or DOCX) from disk and returns its
- * plain-text content so the diff engine can compare two student submissions.
+ * Reads a stored deliverable file (PDF, DOCX, TXT, or source code) from
+ * disk and returns its plain-text content so the diff engine can compare
+ * two student submissions.
  *
  * The fileUrl persisted on a Deliverable looks like:
  *   "/api/files/deliverables/{uuid}.pdf"
@@ -30,6 +33,17 @@ import java.util.Locale;
 public class FileTextExtractor {
 
     private static final String URL_PREFIX = "/api/files/deliverables/";
+
+    /** Extensions treated as plain-text (no binary parsing needed). */
+    private static final Set<String> PLAIN_TEXT_EXTENSIONS = Set.of(
+        ".txt", ".md",
+        ".js", ".ts", ".jsx", ".tsx",
+        ".java", ".py", ".c", ".cpp", ".h", ".cs",
+        ".go", ".rb", ".php", ".kt", ".swift", ".rs", ".scala",
+        ".html", ".htm", ".css", ".scss", ".xml",
+        ".json", ".yaml", ".yml",
+        ".sh", ".bat", ".ps1", ".sql"
+    );
 
     private final Path uploadDir;
 
@@ -59,14 +73,19 @@ public class FileTextExtractor {
 
         String name = storedName.toLowerCase(Locale.ROOT);
         try {
-            if (name.endsWith(".pdf"))  return extractPdf(file);
-            if (name.endsWith(".docx")) return extractDocx(file);
+            if (name.endsWith(".pdf"))          return extractPdf(file);
+            if (name.endsWith(".docx"))         return extractDocx(file);
+            if (isPlainText(name))              return extractPlainText(file);
             log.warn("Unsupported file type for extraction: {}", storedName);
             return "";
         } catch (IOException e) {
             log.error("Text extraction failed for {}: {}", storedName, e.getMessage());
             return "";
         }
+    }
+
+    private boolean isPlainText(String lowerName) {
+        return PLAIN_TEXT_EXTENSIONS.stream().anyMatch(lowerName::endsWith);
     }
 
     private String extractPdf(Path file) throws IOException {
@@ -83,5 +102,9 @@ public class FileTextExtractor {
              XWPFWordExtractor ext = new XWPFWordExtractor(doc)) {
             return ext.getText();
         }
+    }
+
+    private String extractPlainText(Path file) throws IOException {
+        return Files.readString(file, StandardCharsets.UTF_8);
     }
 }

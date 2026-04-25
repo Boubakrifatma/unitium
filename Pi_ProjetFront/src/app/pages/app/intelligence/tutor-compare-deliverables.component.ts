@@ -26,9 +26,10 @@ interface DeliverableOption {
 
 /**
  * Tutor-only screen.
- * Picks two deliverables (PDF / DOCX), asks the backend to extract the
- * file content of each one and run the intelligence diff + similarity
- * pipeline. Renders the result with the existing <app-version-diff>.
+ * Picks two deliverables (PDF, DOCX, TXT or source-code files), asks the
+ * backend to extract the file content of each one and run the intelligence
+ * diff + similarity pipeline. Renders the result with <app-version-diff>
+ * and allows exporting a comparison report.
  */
 @Component({
   selector: 'app-tutor-compare-deliverables',
@@ -48,9 +49,9 @@ interface DeliverableOption {
           <h1>Comparer deux livrables d'étudiants</h1>
         </div>
         <p class="subtitle">
-          Sélectionnez deux livrables (PDF ou DOCX). L'analyse compare le
-          contenu réel des fichiers — pas seulement les descriptions —
-          et signale une similarité élevée comme un risque de plagiat.
+          Sélectionnez deux livrables (PDF, DOCX, TXT ou fichier de code).
+          L'analyse compare le contenu réel des fichiers — pas seulement les
+          descriptions — et signale une similarité élevée comme un risque de plagiat.
         </p>
       </header>
 
@@ -100,6 +101,13 @@ interface DeliverableOption {
                 <mat-icon>analytics</mat-icon> Comparer
               }
             </button>
+            @if (result()) {
+              <button mat-stroked-button color="accent"
+                      (click)="downloadReport()"
+                      matTooltip="Télécharger le rapport de comparaison">
+                <mat-icon>download</mat-icon> Télécharger le rapport
+              </button>
+            }
           </div>
         </mat-card>
       }
@@ -250,7 +258,7 @@ export class TutorCompareDeliverablesComponent implements OnInit {
     this.deliverableService.getAll().subscribe({
       next: (list: any[]) => {
         const filtered: DeliverableOption[] = list
-          .filter(d => d.fileUrl && this.isPdfOrDocx(d.fileUrl, d.fileType))
+          .filter(d => d.fileUrl && this.isSupportedFile(d.fileUrl, d.fileType))
           .map(d => ({
             id: d.id,
             title: d.title ?? `Livrable #${d.id}`,
@@ -261,7 +269,7 @@ export class TutorCompareDeliverablesComponent implements OnInit {
         this.options.set(filtered);
         this.loadingList.set(false);
         if (filtered.length < 2) {
-          this.loadError.set('Pas assez de livrables PDF/DOCX disponibles pour comparer.');
+          this.loadError.set('Pas assez de livrables compatibles (PDF, DOCX, TXT, code) disponibles pour comparer.');
         }
       },
       error: () => {
@@ -283,7 +291,7 @@ export class TutorCompareDeliverablesComponent implements OnInit {
         this.comparing.set(false);
         if (!r.left.extracted || !r.right.extracted) {
           this.compareError.set(
-            "L'extraction de texte a échoué pour au moins un fichier. Vérifiez que les deux livrables sont bien des PDF/DOCX valides."
+            "L'extraction de texte a échoué pour au moins un fichier. Vérifiez que les livrables sont bien des PDF, DOCX, TXT ou fichiers de code supportés."
           );
         }
       },
@@ -294,17 +302,105 @@ export class TutorCompareDeliverablesComponent implements OnInit {
     });
   }
 
-  private isPdfOrDocx(fileUrl: string, fileType: string | null): boolean {
+  downloadReport(): void {
+    const r = this.result();
+    if (!r) return;
+
+    const pct = Math.round(r.similarity * 100);
+    const plagLine = r.possiblePlagiarism ? '⚠  PLAGIAT PROBABLE' : '✓  Similarité normale';
+    const lines: string[] = [
+      '═══════════════════════════════════════════════════════════',
+      '  RAPPORT DE COMPARAISON DE LIVRABLES',
+      `  Généré le : ${new Date().toLocaleString('fr-FR')}`,
+      '═══════════════════════════════════════════════════════════',
+      '',
+      `LIVRABLE A : ${r.left.title}`,
+      `  Étudiant  : ${r.left.submittedByName ?? '—'}`,
+      `  Type      : ${r.left.fileType ?? '—'}   |   ${r.left.textLength} caractères extraits`,
+      `  Extraction: ${r.left.extracted ? 'OK' : 'ÉCHEC'}`,
+      '',
+      `LIVRABLE B : ${r.right.title}`,
+      `  Étudiant  : ${r.right.submittedByName ?? '—'}`,
+      `  Type      : ${r.right.fileType ?? '—'}   |   ${r.right.textLength} caractères extraits`,
+      `  Extraction: ${r.right.extracted ? 'OK' : 'ÉCHEC'}`,
+      '',
+      '───────────────────────────────────────────────────────────',
+      `  Similarité du contenu : ${pct}%   ${plagLine}`,
+      `  Niveau d'impact       : ${r.diff.impactLevel}`,
+      `  Régression détectée   : ${r.diff.regressionDetected ? 'OUI — ' + (r.diff.regressionReason ?? '') : 'Non'}`,
+      '───────────────────────────────────────────────────────────',
+      '',
+      `STATISTIQUES DU DIFF`,
+      `  Lignes ajoutées   : ${r.diff.addedCount}`,
+      `  Lignes supprimées : ${r.diff.removedCount}`,
+      `  Lignes modifiées  : ${r.diff.changedCount}`,
+    ];
+
+    if (r.diff.importantKeywords?.length) {
+      lines.push('', `Mots-clés touchés : ${r.diff.importantKeywords.join(', ')}`);
+    }
+
+    if (r.diff.added?.length) {
+      lines.push('', 'LIGNES AJOUTÉES (+)', ...r.diff.added.map(l => `  + ${l}`));
+    }
+    if (r.diff.removed?.length) {
+      lines.push('', 'LIGNES SUPPRIMÉES (-)', ...r.diff.removed.map(l => `  - ${l}`));
+    }
+    if (r.diff.changed?.length) {
+      lines.push('', 'LIGNES MODIFIÉES (~)');
+      r.diff.changed.forEach(c => {
+        lines.push(`  - ${c.before}`);
+        lines.push(`  + ${c.after}`);
+      });
+    }
+
+    lines.push('', '═══════════════════════════════════════════════════════════');
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `rapport-comparaison-${r.left.deliverableId}-vs-${r.right.deliverableId}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  private isSupportedFile(fileUrl: string, fileType: string | null): boolean {
     const u = (fileUrl || '').toLowerCase();
     if (u.endsWith('.pdf') || u.endsWith('.docx')) return true;
+    if (u.endsWith('.txt') || u.endsWith('.md'))   return true;
+    // source-code extensions
+    const codeExts = ['.js','.ts','.jsx','.tsx','.java','.py','.c','.cpp',
+                      '.h','.cs','.go','.rb','.php','.kt','.swift','.rs',
+                      '.scala','.html','.htm','.css','.scss','.xml',
+                      '.json','.yaml','.yml','.sh','.bat','.ps1','.sql'];
+    if (codeExts.some(e => u.endsWith(e))) return true;
     const t = (fileType || '').toLowerCase();
-    return t.includes('pdf') || t.includes('word') || t.includes('officedocument');
+    return t.includes('pdf') || t.includes('word') || t.includes('officedocument')
+        || t.includes('text') || t.includes('javascript') || t.includes('typescript')
+        || t.includes('python') || t.includes('json') || t.includes('xml');
   }
 
   private shortType(fileUrl: string, fileType: string | null): string {
     const u = (fileUrl || '').toLowerCase();
     if (u.endsWith('.pdf'))  return 'PDF';
     if (u.endsWith('.docx')) return 'DOCX';
-    return (fileType || '').includes('pdf') ? 'PDF' : 'DOCX';
+    if (u.endsWith('.txt'))  return 'TXT';
+    if (u.endsWith('.md'))   return 'Markdown';
+    const codeMap: Record<string, string> = {
+      '.js':'JS', '.ts':'TS', '.jsx':'JSX', '.tsx':'TSX',
+      '.java':'Java', '.py':'Python', '.c':'C', '.cpp':'C++',
+      '.cs':'C#', '.go':'Go', '.rb':'Ruby', '.php':'PHP',
+      '.kt':'Kotlin', '.swift':'Swift', '.rs':'Rust',
+      '.html':'HTML', '.css':'CSS', '.json':'JSON',
+      '.xml':'XML', '.yaml':'YAML', '.yml':'YAML', '.sql':'SQL',
+    };
+    for (const [ext, label] of Object.entries(codeMap)) {
+      if (u.endsWith(ext)) return label;
+    }
+    const t = (fileType || '').toLowerCase();
+    if (t.includes('pdf'))  return 'PDF';
+    if (t.includes('word') || t.includes('officedocument')) return 'DOCX';
+    return fileType ?? 'fichier';
   }
 }
