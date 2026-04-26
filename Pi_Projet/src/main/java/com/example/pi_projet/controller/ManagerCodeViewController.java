@@ -139,6 +139,7 @@ public class ManagerCodeViewController {
     private void requireManager(HttpServletRequest request) {
         User user = currentUser(request);
         if (user.getRole() != User.RoleName.MANAGER
+                && user.getRole() != User.RoleName.TUTOR
                 && user.getRole() != User.RoleName.ADMIN
                 && user.getRole() != User.RoleName.SUPER_ADMIN) {
             throw new Module2Exception(Module2Exception.ErrorCode.FORBIDDEN,

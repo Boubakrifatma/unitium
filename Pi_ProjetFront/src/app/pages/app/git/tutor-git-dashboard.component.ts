@@ -51,7 +51,7 @@ interface Snapshot {
 }
 
 @Component({
-  selector: 'app-git-dashboard',
+  selector: 'app-tutor-git-dashboard',
   standalone: true,
   imports: [
     CommonModule, FormsModule, MatCardModule, MatIconModule, MatButtonModule,
@@ -67,8 +67,8 @@ interface Snapshot {
     <div class="gd-hero-left">
       <div class="gd-hero-icon"><mat-icon>insights</mat-icon></div>
       <div>
-        <h1 class="gd-hero-title">Manager Dashboard</h1>
-        <p class="gd-hero-sub">Activité de tous vos repositories GitHub en temps réel.</p>
+        <h1 class="gd-hero-title">Tableau de bord Git — Tuteur</h1>
+        <p class="gd-hero-sub">Activité GitHub de vos étudiants et repositories liés à vos projets.</p>
       </div>
     </div>
     <div class="gd-hero-right">
@@ -472,7 +472,7 @@ interface Snapshot {
     .dot  { opacity:.4; }
   `],
 })
-export class GitDashboardComponent implements OnInit, AfterViewInit, OnDestroy {
+export class TutorGitDashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly git   = inject(GitService);
   private readonly snack = inject(MatSnackBar);
 

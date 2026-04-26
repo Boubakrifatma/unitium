@@ -216,7 +216,7 @@ export class AppSidebarComponent {
         const applicationsChildren: NavItem[] = [
             { name: "Deliverables", route: "/app/deliverables", icon: "upload_file" },
         ];
-        if (!this.isManager) {
+        if (!this.isManager && !this.isTutor) {
             applicationsChildren.unshift({ name: "Task Kanban", route: "/app/kanban", icon: "view_kanban" });
         }
         applicationsChildren.push({ name: "Chat", route: "/app/chat", icon: "chat" });
@@ -225,14 +225,19 @@ export class AppSidebarComponent {
             icon: "apps",
             children: applicationsChildren,
         });
-        // Git integration — workspace for everyone, dashboard for managers/admins
+        // Git integration — workspace for everyone, dashboard for managers/admins/tutors
         const gitChildren: NavItem[] = [
             { name: "My Workspace", route: "/app/git/workspace", icon: "code" },
         ];
         if (this.isManager) {
-            gitChildren.push({ name: "Manager Dashboard", route: "/app/git/dashboard", icon: "insights" });
-            gitChildren.push({ name: "Code Browser", route: "/app/git/code-browser", icon: "manage_search" });
-            gitChildren.push({ name: "Code Quality", route: "/app/git/quality", icon: "analytics" });
+            gitChildren.push({ name: "Manager Dashboard", route: "/app/git/dashboard",     icon: "insights"      });
+            gitChildren.push({ name: "Code Browser",      route: "/app/git/code-browser",  icon: "manage_search" });
+            gitChildren.push({ name: "Code Quality",      route: "/app/git/quality",        icon: "analytics"     });
+        }
+        if (this.isTutor) {
+            gitChildren.push({ name: "Git Dashboard",     route: "/app/tutor/git",          icon: "insights"      });
+            gitChildren.push({ name: "Code Browser",      route: "/app/git/code-browser",   icon: "manage_search" });
+            gitChildren.push({ name: "Code Quality",      route: "/app/git/quality",        icon: "analytics"     });
         }
         all.push({
             name: "Git",

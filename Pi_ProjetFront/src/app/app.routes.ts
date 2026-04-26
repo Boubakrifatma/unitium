@@ -181,6 +181,10 @@ export const routes: Routes = [
                 loadComponent: () => import("./pages/app/tutor/tutor-dashboard.component").then((m) => m.TutorDashboardComponent),
             },
             {
+                path: "tutor/git",
+                loadComponent: () => import("./pages/app/git/tutor-git-dashboard.component").then((c) => c.TutorGitDashboardComponent),
+            },
+            {
                 path: "student-deliverables",
                 loadComponent: () => import("./pages/app/student/student-deliverable-list.component").then((m) => m.StudentDeliverableListComponent),
             },

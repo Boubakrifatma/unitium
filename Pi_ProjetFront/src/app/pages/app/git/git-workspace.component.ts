@@ -692,7 +692,7 @@ export class GitWorkspaceComponent implements OnInit {
 
   readonly isManager = computed(() => {
     const role = this.auth.currentUser()?.role;
-    return role === 'MANAGER';
+    return role === 'MANAGER' || role === 'TUTOR';
   });
 
   // ── Manager state ────────────────────────────────────────────────────────

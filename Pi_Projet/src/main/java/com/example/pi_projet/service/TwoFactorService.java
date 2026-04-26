@@ -4,10 +4,8 @@ import com.example.pi_projet.entity.User;
 import com.example.pi_projet.repository.UserRepository;
 import dev.samstevens.totp.code.DefaultCodeGenerator;
 import dev.samstevens.totp.code.DefaultCodeVerifier;
-import dev.samstevens.totp.code.CodeVerifier;
 import dev.samstevens.totp.secret.DefaultSecretGenerator;
 import dev.samstevens.totp.time.SystemTimeProvider;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -16,16 +14,23 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
 @Service
-@RequiredArgsConstructor
 public class TwoFactorService {
 
     private final UserRepository userRepository;
 
-    // ── TOTP utilities (instanciées une seule fois) ───────────────────────────
+    // ── TOTP utilities ────────────────────────────────────────────────────────
     private final DefaultSecretGenerator secretGenerator = new DefaultSecretGenerator();
-    private final CodeVerifier codeVerifier = new DefaultCodeVerifier(
-            new DefaultCodeGenerator(), new SystemTimeProvider()
-    );
+    private final DefaultCodeVerifier codeVerifier;
+
+    public TwoFactorService(UserRepository userRepository) {
+        this.userRepository = userRepository;
+        DefaultCodeVerifier v = new DefaultCodeVerifier(
+                new DefaultCodeGenerator(), new SystemTimeProvider()
+        );
+        // Allow ±2 time windows (±60 s) to tolerate server/phone clock skew
+        v.setAllowedTimePeriodDiscrepancy(2);
+        this.codeVerifier = v;
+    }
 
     // ── Génère une clé secrète aléatoire (à stocker dans user.mfaSecret) ─────
     public String generateSecret() {
@@ -52,7 +57,7 @@ public class TwoFactorService {
     public boolean verifyCode(String secret, String code) {
         if (secret == null || code == null) return false;
         try {
-            return codeVerifier.isValidCode(secret, code);
+            return codeVerifier.isValidCode(secret, code.trim());
         } catch (Exception e) {
             return false;
         }
