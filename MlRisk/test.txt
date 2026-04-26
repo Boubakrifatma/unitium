@@ -1,0 +1,32 @@
+# Prédiction simple
+curl -X POST http://localhost:5000/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "created_date": "2026-05-01",
+    "due_date": "2026-05-15",
+    "priority": "High",
+    "category": "Development",
+    "estimated_hours": 40
+  }'
+
+# Prédiction par lot
+curl -X POST http://localhost:5000/batch_predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "projects": [
+      {
+        "created_date": "2026-05-01",
+        "due_date": "2026-05-10",
+        "priority": "Critical",
+        "category": "Bug Fix",
+        "estimated_hours": 60
+      },
+      {
+        "created_date": "2026-05-01",
+        "due_date": "2026-06-01",
+        "priority": "Low",
+        "category": "Documentation",
+        "estimated_hours": 20
+      }
+    ]
+  }'

@@ -1,0 +1,213 @@
+<h2 mat-dialog-title>
+  {{ data.mode === 'add-version' ? 'Ajouter une nouvelle version' : 'Ajouter un livrable' }}
+</h2>
+
+<mat-dialog-content>
+  <!-- Error Message -->
+  @if (error) {
+    <mat-card class="mb-3" style="background-color: #ffebee; border-left: 4px solid #f44336;">
+      <mat-card-content class="pb-2 pt-2">
+        <div class="d-flex align-items-center gap-2">
+          <mat-icon style="color: #f44336;">error_outline</mat-icon>
+          <span style="color: #c62828;">{{ error }}</span>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  <!-- Info Message for Version Mode -->
+  @if (data.mode === 'add-version') {
+    <mat-card class="mb-3" style="background-color: #e3f2fd; border-left: 4px solid #2196f3;">
+      <mat-card-content class="pb-2 pt-2">
+        <div class="d-flex align-items-center gap-2">
+          <mat-icon style="color: #1976d2;">info</mat-icon>
+          <span style="color: #1565c0;">Vous ajoutez une nouvelle version à un livrable existant.</span>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  <form [formGroup]="form">
+    <!-- Title (hidden in version mode) -->
+    @if (data.mode !== 'add-version') {
+      <mat-form-field appearance="outline" class="w-100 mb-3">
+        <mat-label>Titre du livrable *</mat-label>
+        <input matInput formControlName="title" placeholder="Ex: Documentation API">
+        @if (submitted && form.get('title')?.invalid) {
+          <mat-error>
+            {{ form.get('title')?.hasError('required') ? 'Le titre est requis' : 'Minimum 3 caractères' }}
+          </mat-error>
+        }
+      </mat-form-field>
+    }
+
+    <!-- Description (hidden in version mode) -->
+    @if (data.mode !== 'add-version') {
+      <mat-form-field appearance="outline" class="w-100" style="margin-bottom: 8px;">
+        <mat-label>Description *</mat-label>
+        <textarea matInput formControlName="description" placeholder="Décrivez le livrable..." rows="3"></textarea>
+        @if (submitted && form.get('description')?.invalid) {
+          <mat-error>
+            @if (form.get('description')?.hasError('required')) { La description est requise }
+            @else if (form.get('description')?.hasError('minlength')) { Minimum 10 caractères }
+            @else if (form.get('description')?.hasError('vagueDescription')) { Description trop vague — soyez plus précis }
+          </mat-error>
+        }
+      </mat-form-field>
+
+      <!-- Smart Description Analyzer -->
+      @if (form.get('description')?.value?.length > 0) {
+        <div class="desc-analyzer mb-3">
+          <!-- Score Bar -->
+          <div class="score-header">
+            <span class="score-label">Pertinence de la description</span>
+            <span class="score-value" [style.color]="getScoreColor()">
+              {{ descriptionScore() }}% — {{ getScoreLabel() }}
+            </span>
+          </div>
+          <div class="score-bar-bg">
+            <div class="score-bar-fill"
+                 [style.width.%]="descriptionScore()"
+                 [style.background]="getScoreColor()">
+            </div>
+          </div>
+
+          <!-- Missing Keywords -->
+          @if (missingKeywords().length > 0) {
+            <div class="keywords-section">
+              <span class="keywords-label">
+                <mat-icon style="font-size:14px; height:14px; width:14px; vertical-align:middle;">label_off</mat-icon>
+                Mots-clés manquants :
+              </span>
+              <div class="keyword-chips">
+                @for (kw of missingKeywords(); track kw) {
+                  <span class="keyword-chip"
+                        (click)="form.get('description')!.setValue(form.get('description')!.value + ' ' + kw); analyzeDescription()"
+                        [matTooltip]="'Cliquer pour ajouter « ' + kw + ' »'">
+                    + {{ kw }}
+                  </span>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- Auto-suggest -->
+          @if (descriptionSuggestion()) {
+            <button type="button" mat-stroked-button class="suggest-btn"
+                    (click)="applySuggestion()"
+                    matTooltip="Remplacer avec une description auto-générée">
+              <mat-icon>auto_fix_high</mat-icon>
+              Auto-suggestion
+            </button>
+          }
+        </div>
+      }
+    }
+
+    <!-- Change Summary (required in version mode) -->
+    @if (data.mode === 'add-version') {
+      <mat-form-field appearance="outline" class="w-100 mb-3">
+        <mat-label>Résumé des changements *</mat-label>
+        <textarea matInput formControlName="changeSummary" placeholder="Décrivez les changements apportés dans cette version..." rows="3"></textarea>
+        <mat-hint>Ce champ est obligatoire pour créer une nouvelle version</mat-hint>
+        @if (submitted && form.get('changeSummary')?.invalid) {
+          <mat-error>
+            {{ form.get('changeSummary')?.hasError('required') ? 'Le résumé des changements est requis' : 'Minimum 5 caractères' }}
+          </mat-error>
+        }
+      </mat-form-field>
+    }
+
+    <!-- Task ID (Hidden, auto-selected) -->
+    <input type="hidden" formControlName="taskId">
+
+    <!-- Project ID (Hidden, auto-selected) -->
+    <input type="hidden" formControlName="projectId">
+
+    <!-- Submitted By (Hidden, auto-selected) -->
+    <input type="hidden" formControlName="submittedById">
+
+    <!-- Status (Hidden, default to draft) -->
+    <input type="hidden" formControlName="status">
+
+    <!-- File Upload -->
+    <div class="mb-3">
+      <input type="file" #fileInput style="display:none" (change)="onFileSelected($event)" [disabled]="uploading">
+      <button type="button" mat-stroked-button color="primary" class="w-100" (click)="fileInput.click()" [disabled]="uploading">
+        @if (uploading) {
+          <mat-progress-spinner diameter="18" mode="indeterminate" style="display:inline-block; margin-right:8px;"></mat-progress-spinner>
+          Analyse antivirus en cours…
+        } @else {
+          <ng-container>
+            <mat-icon class="me-2">upload_file</mat-icon>
+            {{ selectedFile() ? 'Changer le fichier' : 'Sélectionner un fichier *' }}
+          </ng-container>
+        }
+      </button>
+      @if (submitted && form.get('fileUrl')?.invalid) {
+        <span style="font-size:12px; margin-top:4px; display:block; color: #f44336;">
+          Veuillez sélectionner un fichier
+        </span>
+      }
+
+      <!-- Antivirus scan badge -->
+      @if (scanState() !== 'idle') {
+        <div class="mt-2 d-flex align-items-center gap-2"
+             [style.color]="scanState() === 'clean' ? '#2e7d32'
+                           : scanState() === 'unverified' ? '#ef6c00'
+                           : scanState() === 'rejected' ? '#c62828'
+                           : '#1565c0'"
+             style="font-size: 13px; font-weight: 500;">
+          @if (scanState() === 'scanning') {
+            <mat-progress-spinner diameter="16" mode="indeterminate"></mat-progress-spinner>
+          } @else if (scanState() === 'clean') {
+            <mat-icon style="font-size:18px; height:18px; width:18px;">verified_user</mat-icon>
+          } @else if (scanState() === 'unverified') {
+            <mat-icon style="font-size:18px; height:18px; width:18px;">help_outline</mat-icon>
+          } @else if (scanState() === 'rejected') {
+            <mat-icon style="font-size:18px; height:18px; width:18px;">gpp_bad</mat-icon>
+          }
+          <span>{{ scanMessage() }}</span>
+        </div>
+      }
+    </div>
+
+    <!-- Selected File Info -->
+    @if (selectedFile() && !uploading) {
+      <mat-card class="mb-3" style="background-color: #f1f8e9; border-left: 4px solid #66bb6a;">
+        <mat-card-content class="pt-2 pb-2">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <mat-icon style="color: #388e3c;">insert_drive_file</mat-icon>
+            <strong style="color: #2e7d32; word-break: break-all;">{{ selectedFile()!.name }}</strong>
+          </div>
+          <div class="d-flex gap-3" style="font-size: 13px; color: #555;">
+            <span><strong>Type :</strong> {{ form.get('fileType')?.value }}</span>
+            <span><strong>Taille :</strong> {{ form.get('fileSizeKb')?.value }} KB</span>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    }
+
+    <!-- Hidden fields (auto-filled) -->
+    <input type="hidden" formControlName="fileUrl">
+    <input type="hidden" formControlName="fileType">
+    <input type="hidden" formControlName="fileSizeKb">
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="onCancel()" [disabled]="loading">
+    Annuler
+  </button>
+  <button mat-raised-button color="primary" (click)="onSubmit()" [disabled]="loading">
+    @if (!loading) {
+      <mat-icon class="me-1">save</mat-icon>
+    }
+    @if (loading) {
+      <mat-progress-spinner diameter="20" mode="indeterminate"></mat-progress-spinner>
+    }
+    @if (!loading) {
+      <span>{{ data.mode === 'add-version' ? 'Ajouter la version' : 'Créer' }}</span>
+    }
+  </button>
+</mat-dialog-actions>

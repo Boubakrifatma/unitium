@@ -1,0 +1,306 @@
+<!-- employee-deliverables.component.html -->
+<div class="deliverables-dashboard">
+  <!-- Hero Header Section -->
+  <div class="dashboard-header">
+    <div class="header-content">
+      <div class="title-section">
+        <div class="title-badge">
+          <mat-icon>assignment_turned_in</mat-icon>
+          <span>Livrables</span>
+        </div>
+        <h1>Mes Livrables</h1>
+        <p class="subtitle">Suivez et gérez l'ensemble de vos livrables soumis</p>
+      </div>
+      <div class="header-stats">
+        <div class="stat-chip">
+          <mat-icon>description</mat-icon>
+          <span>{{ deliverables().length }} total</span>
+        </div>
+        <button mat-icon-button class="refresh-btn" (click)="loadDeliverables()" matTooltip="Actualiser">
+          <mat-icon>refresh</mat-icon>
+        </button>
+        <button mat-flat-button color="primary" (click)="openSubmitDialog()" [disabled]="openingDialog()">
+          @if (openingDialog()) {
+            <mat-progress-spinner diameter="18" mode="indeterminate" style="display:inline-block; margin-right:6px;"></mat-progress-spinner>
+          } @else {
+            <mat-icon>upload_file</mat-icon>
+          }
+          Soumettre un livrable
+        </button>
+      </div>
+    </div>
+
+    <!-- Filter Pills - Modern Design -->
+    <div class="filter-section">
+      <div class="filter-pills">
+        <button mat-stroked-button 
+                [class.active]="selectedStatus() === null"
+                (click)="filterByStatus(null)"
+                class="filter-pill">
+          <mat-icon>grid_view</mat-icon>
+          Tous
+          <span class="pill-count">{{ deliverables().length }}</span>
+        </button>
+        
+        <button mat-stroked-button
+                [class.active]="selectedStatus() === 'under_review'"
+                (click)="filterByStatus('under_review')"
+                class="filter-pill submitted">
+          <mat-icon>hourglass_empty</mat-icon>
+          En révision
+        </button>
+
+        <button mat-stroked-button
+                [class.active]="selectedStatus() === 'manager_viewed'"
+                (click)="filterByStatus('manager_viewed')"
+                class="filter-pill manager-viewed">
+          <mat-icon>visibility</mat-icon>
+          Vu par le manager
+        </button>
+
+
+        <button mat-stroked-button
+                [class.active]="selectedStatus() === 'revision_required'"
+                (click)="filterByStatus('revision_required')"
+                class="filter-pill revision">
+          <mat-icon>rate_review</mat-icon>
+          À Réviser
+        </button>
+
+        <button mat-stroked-button
+                [class.active]="selectedStatus() === 'accepted_by_manager'"
+                (click)="filterByStatus('accepted_by_manager')"
+                class="filter-pill accepted">
+          <mat-icon>check_circle</mat-icon>
+          Acceptés
+        </button>
+
+        <button mat-stroked-button
+                [class.active]="selectedStatus() === 'validated'"
+                (click)="filterByStatus('validated')"
+                class="filter-pill validated">
+          <mat-icon>verified</mat-icon>
+          Validés
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Employee Statistics Section -->
+  @if (stats()) {
+    <div class="employee-stats">
+      <div class="stat-card stat-total">
+        <div class="stat-icon-wrap"><mat-icon>description</mat-icon></div>
+        <div class="stat-body">
+          <span class="stat-value">{{ stats()!.totalDeliverables }}</span>
+          <span class="stat-label">Total livrables</span>
+        </div>
+      </div>
+      <div class="stat-card stat-accepted">
+        <div class="stat-icon-wrap"><mat-icon>check_circle</mat-icon></div>
+        <div class="stat-body">
+          <span class="stat-value">{{ stats()!.acceptedDeliverables }}</span>
+          <span class="stat-label">Acceptés</span>
+        </div>
+      </div>
+      <div class="stat-card stat-rejected-manager">
+        <div class="stat-icon-wrap"><mat-icon>cancel</mat-icon></div>
+        <div class="stat-body">
+          <span class="stat-value">{{ stats()!.rejectedByManager }}</span>
+          <span class="stat-label">Rejetés (manager)</span>
+        </div>
+      </div>
+      <div class="stat-card stat-rejected-po">
+        <div class="stat-icon-wrap"><mat-icon>block</mat-icon></div>
+        <div class="stat-body">
+          <span class="stat-value">{{ stats()!.rejectedByPo }}</span>
+          <span class="stat-label">Rejetés (PO)</span>
+        </div>
+      </div>
+      <div class="stat-card stat-score">
+        <div class="stat-icon-wrap"><mat-icon>star</mat-icon></div>
+        <div class="stat-body">
+          <span class="stat-value">
+            @if (stats()!.averageScore !== null && stats()!.averageScore !== undefined) {
+              {{ stats()!.averageScore! | number:'1.1-1' }}<span class="stat-unit">/10</span>
+            } @else {
+              —
+            }
+          </span>
+          <span class="stat-label">Score moyen</span>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Loading State - Professional Skeleton -->
+  @if (loading()) {
+    <div class="deliverables-grid skeleton-grid">
+      @for (item of [1,2,3,4]; track item) {
+        <div class="skeleton-card">
+          <div class="skeleton-badge"></div>
+          <div class="skeleton-version"></div>
+          <div class="skeleton-header">
+            <div class="skeleton-title"></div>
+            <div class="skeleton-subtitle"></div>
+          </div>
+          <div class="skeleton-description"></div>
+          <div class="skeleton-info">
+            <div class="skeleton-info-item"></div>
+            <div class="skeleton-info-item"></div>
+          </div>
+          <div class="skeleton-actions"></div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Error State with Retry -->
+  @else if (error()) {
+    <div class="error-state">
+      <div class="error-card">
+        <div class="error-icon">
+          <mat-icon>error_outline</mat-icon>
+        </div>
+        <h3>Une erreur est survenue</h3>
+        <p>{{ error() }}</p>
+        <button mat-flat-button color="primary" (click)="loadDeliverables()">
+          <mat-icon>refresh</mat-icon>
+          Réessayer
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Empty State -->
+  @else if (filteredDeliverables().length === 0) {
+    <div class="empty-state">
+      <div class="empty-card">
+        <div class="empty-illustration">
+          <mat-icon>inbox</mat-icon>
+        </div>
+        <h3>Aucun livrable trouvé</h3>
+        @if (selectedStatus() !== null) {
+          <p>Aucun livrable avec le statut "{{ deliverableService.getStatusLabel(selectedStatus()!) }}" pour le moment.</p>
+          <button mat-stroked-button (click)="filterByStatus(null)">Voir tous les livrables</button>
+        } @else {
+          <p>Vous n'avez encore soumis aucun livrable.</p>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- Deliverables Grid - Professional Cards -->
+  @else {
+    <div class="deliverables-grid">
+      @for (deliverable of filteredDeliverables(); track deliverable.id) {
+        <mat-card class="deliverable-card" (click)="viewDetails(deliverable)">
+          <!-- Status Badge with Glassmorphism -->
+          <div class="status-badge"
+               [style.background]="deliverableService.getStatusColor(getEffectiveStatus(deliverable))"
+               [style.boxShadow]="'0 8px 20px ' + deliverableService.getStatusColor(getEffectiveStatus(deliverable)) + '40'">
+            <mat-icon class="status-icon">{{ getStatusIcon(getEffectiveStatus(deliverable)) }}</mat-icon>
+            <span>{{ deliverableService.getStatusLabel(getEffectiveStatus(deliverable)) }}</span>
+          </div>
+
+          <!-- Version Badge -->
+          <div class="version-badge">
+            <mat-icon>tag</mat-icon>
+            <span>v{{ deliverable.currentVersion }}</span>
+          </div>
+
+          <!-- Feedback indicator -->
+          @if (deliverable.status === 'revision_required' || deliverable.status === 'accepted_by_manager' || deliverable.status === 'validated') {
+            <div class="feedback-indicator"
+                 [style.background]="deliverable.status === 'validated' ? '#dcfce7' : deliverable.status === 'accepted_by_manager' ? '#dcfce7' : '#fef3c7'"
+                 [style.color]="deliverable.status === 'validated' ? '#16a34a' : deliverable.status === 'accepted_by_manager' ? '#16a34a' : '#d97706'">
+              <mat-icon style="font-size:13px;width:13px;height:13px">rate_review</mat-icon>
+              Feedback manager disponible
+            </div>
+          }
+
+          <!-- Card Content -->
+          <div class="card-header">
+            <mat-card-title class="card-title">{{ deliverable.title }}</mat-card-title>
+            <mat-card-subtitle class="project-name">
+              <mat-icon>business</mat-icon>
+              {{ deliverable.projectName }}
+            </mat-card-subtitle>
+          </div>
+
+          <mat-card-content class="card-content">
+            <!-- Description -->
+            <p class="description">{{ deliverable.description || 'Aucune description fournie.' }}</p>
+
+            <!-- Info Grid with Icons -->
+            <div class="info-grid">
+              <div class="info-item">
+                <mat-icon class="info-icon">insert_drive_file</mat-icon>
+                <div class="info-details">
+                  <span class="info-label">Taille</span>
+                  <span class="info-value">{{ deliverableService.formatFileSize(deliverable.fileSizeKb) }}</span>
+                </div>
+              </div>
+              <div class="info-item">
+                <mat-icon class="info-icon">file_present</mat-icon>
+                <div class="info-details">
+                  <span class="info-label">Type</span>
+                  <span class="info-value">{{ deliverable.fileType || 'N/A' }}</span>
+                </div>
+              </div>
+              <div class="info-item">
+                <mat-icon class="info-icon">history</mat-icon>
+                <div class="info-details">
+                  <span class="info-label">Version</span>
+                  <span class="info-value">{{ deliverable.currentVersion }}</span>
+                </div>
+              </div>
+              <div class="info-item">
+                <mat-icon class="info-icon">event</mat-icon>
+                <div class="info-details">
+                  <span class="info-label">Soumis le</span>
+                  <span class="info-value">{{ deliverableService.formatDate(deliverable.submittedAt) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Task Section -->
+            <div class="task-section">
+              <mat-icon>assignment</mat-icon>
+              <div class="task-content">
+                <span class="task-label">Tâche associée</span>
+                <span class="task-title">{{ deliverable.taskTitle }}</span>
+              </div>
+            </div>
+          </mat-card-content>
+
+          <!-- Card Actions -->
+          <mat-card-actions class="card-actions">
+            <button mat-flat-button color="primary" (click)="$event.stopImmediatePropagation(); viewDetails(deliverable)">
+              <mat-icon>visibility</mat-icon>
+              Détails
+            </button>
+
+            @if (deliverable.fileUrl) {
+              <a mat-stroked-button
+                 [href]="deliverableService.getDownloadUrl(deliverable.fileUrl)"
+                 target="_blank"
+                 download
+                 (click)="$event.stopImmediatePropagation()">
+                <mat-icon>download</mat-icon>
+                Télécharger
+              </a>
+            }
+
+            @if (deliverable.status === 'revision_required') {
+              <button mat-flat-button color="warn" (click)="$event.stopImmediatePropagation(); editDeliverable(deliverable)">
+                <mat-icon>upload</mat-icon>
+                Soumettre une nouvelle version
+              </button>
+            }
+          </mat-card-actions>
+        </mat-card>
+      }
+    </div>
+  }
+</div>

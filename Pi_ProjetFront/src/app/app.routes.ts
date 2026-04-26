@@ -1,0 +1,436 @@
+import { Routes } from "@angular/router";
+import { AuthLayoutComponent } from "./layouts/auth-layout/auth-layout.component";
+import { AppLayoutComponent } from "./layouts/app-layout/app-layout.component";
+import { FullLayoutComponent } from "./layouts/full-layout/full-layout.component";
+import { WebsiteLayoutComponent } from "./layouts/website-layout/websitelayout.component";
+import { authGuard } from "./auth/auth.guard";
+import { roleGuard } from "./auth/role.guard";
+import { m2AdminGuard } from "./pages/app/m2-admin/m2-admin.guard";
+
+export const routes: Routes = [
+    {
+        path: "",
+        redirectTo: "web/website",
+        pathMatch: "full",
+    },
+    {
+        path: "auth",
+        component: AuthLayoutComponent,
+        children: [
+            {
+                path: "",
+                redirectTo: "landing",
+                pathMatch: "full",
+            },
+            {
+                path: "landing",
+                loadComponent: () => import("./pages/auth/landing/landing.component").then((c) => c.LandingComponent),
+            },
+            {
+                path: "login",
+                loadComponent: () => import("./pages/auth/login/login.component").then((c) => c.LoginComponent),
+            },
+            {
+                path: "signup",
+                loadComponent: () => import("./pages/auth/signup/signup.component").then((c) => c.SignupComponent),
+            },
+            {
+                path: "forgot-password",
+                loadComponent: () => import("./pages/auth/forgot-password/forgot-password.component").then((c) => c.ForgotPasswordComponent),
+            },
+            {
+                path: "change-password",
+                loadComponent: () => import("./pages/auth/change-password/change-password.component").then((c) => c.ChangePasswordComponent),
+            },
+            {
+                path: "first-login",
+                loadComponent: () => import("./pages/auth/first-login/first-login.component").then((c) => c.FirstLoginComponent),
+            },
+            {
+                path: "signup-success",
+                loadComponent: () => import("./pages/auth/signup-success/signup-success.component").then((c) => c.SignupSuccessComponent),
+            },
+            {
+                path: "oauth2-callback",
+                loadComponent: () => import("./pages/auth/oauth2-callback/oauth2-callback.component").then((c) => c.OAuth2CallbackComponent),
+            },
+            {
+                path: "magic-callback",
+                loadComponent: () => import("./pages/auth/magic-callback/magic-callback.component").then((c) => c.MagicCallbackComponent),
+            },
+            {
+                path: "invitation",
+                loadComponent: () => import("./pages/auth/invitation/invitation-response.component").then((c) => c.InvitationResponseComponent),
+            },
+            {
+                path: "first-login",
+                loadComponent: () => import("./pages/auth/first-login/first-login.component").then((c) => c.FirstLoginComponent),
+            },
+        ],
+    },
+    {
+        path: "app",
+        component: AppLayoutComponent,
+        canActivate: [authGuard],
+        children: [
+            {
+                path: "",
+                redirectTo: "dashboard",
+                pathMatch: "full",
+            },
+            {
+                path: "dashboard",
+                loadComponent: () => import("./pages/app/dashboard/dashboard.component").then((c) => c.DashboardComponent),
+            },
+            {
+                path: "master-dashboard",
+                loadComponent: () => import("./pages/app/master-dashboard/master-dashboard.component").then((c) => c.MasterDashboardComponent),
+            },
+            {
+                path: "workspaces",
+                loadComponent: () => import("./pages/app/m2-workspaces/m2-workspaces.component").then((c) => c.M2WorkspacesComponent),
+            },
+            {
+                path: "workspaces/:workspaceId",
+                loadComponent: () => import("./pages/app/m2-workspaces/m2-workspace-details.component").then((c) => c.M2WorkspaceDetailsComponent),
+            },
+            {
+                path: "workspaces/:workspaceId/war-room",
+                loadComponent: () => import("./pages/app/m2-workspaces/war-room/war-room.component").then((c) => c.WarRoomComponent),
+            },
+            {
+                path: "workspace-details/:workspaceId",
+                redirectTo: "workspaces/:workspaceId",
+            },
+            {
+                path: "projects",
+                loadComponent: () => import("./pages/app/projects/projects.component").then((c) => c.ProjectsComponent),
+            },
+            {
+                path: "project-details",
+                loadComponent: () => import("./pages/app/projects/project-details.component").then((c) => c.ProjectDetailsComponent),
+            },
+            {
+                path: "real-projects",
+                loadComponent: () => import("./pages/app/m2-projects/real-projects.component").then((c) => c.RealProjectsComponent),
+            },
+            {
+                path: "real-projects/:workspaceId/:projectId/readme-preview",
+                loadComponent: () => import("./pages/app/m2-projects/project-readme-preview.component").then((c) => c.ProjectReadmePreviewComponent),
+            },
+            {
+                path: "real-projects/:workspaceId/:projectId",
+                loadComponent: () => import("./pages/app/m2-projects/real-project-details.component").then((c) => c.ProjectDetailsComponent),
+            },
+            {
+                path: "templates",
+                loadComponent: () => import("./pages/app/m2-templates/m2-templates.component").then((c) => c.M2TemplatesComponent),
+            },
+            {
+                path: "templates/:templateId",
+                loadComponent: () => import("./pages/app/m2-templates/m2-template-details.component").then((c) => c.M2TemplateDetailsComponent),
+            },
+            {
+                path: "m2-projects",
+                loadComponent: () => import("./pages/app/m2-projects/projects.component").then((c) => c.ProjectsComponent),
+            },
+            {
+                path: "m2-projects/:workspaceId/:projectId",
+                loadComponent: () => import("./pages/app/m2-projects/project-details.component").then((c) => c.ProjectDetailsComponent),
+            },
+            {
+                path: "employee",
+                loadComponent: () => import("./pages/app/employee/employee.component").then((c) => c.EmployeeComponent),
+            },
+           
+            {
+                path: "task-details",
+                loadComponent: () => import("./pages/app/task-manage/task-details.component").then((c) => c.TaskDetailsComponent),
+            },
+            {
+                path: "kanban",
+                loadComponent: () => import("./pages/app/task-manage/kanban.component").then((c) => c.KanbanComponent),
+            },
+            {
+                path: "workload",
+                loadComponent: () => import("./pages/app/workload/workload-dashboard.component").then((c) => c.WorkloadDashboardComponent),
+            },
+            
+            {
+                path: "all-tasks",
+                loadComponent: () => import("./pages/app/task-manage/all-task.component").then((c) => c.AllTaskComponent),
+            },
+            {
+                path: "gantt-chart",
+                loadComponent: () => import("./pages/app/task-manage/gantt-chart.component").then((c) => c.GanttChartComponent),
+            },
+            {
+                path: "deliverables",
+                loadComponent: () => import("./pages/app/deliverable/Employee-deliverables.component").then((m) => m.EmployeeDeliverablesComponent),
+            },
+            {
+                path: "manager-deliverables",
+                loadComponent: () => import("./pages/app/deliverable/manager-deliverables.component").then((m) => m.ManagerDeliverablesComponent),
+            },
+            {
+                path: "tutor-compare-deliverables",
+                loadComponent: () => import("./pages/app/intelligence/tutor-compare-deliverables.component").then((m) => m.TutorCompareDeliverablesComponent),
+            },
+            {
+                path: "tutor-dashboard",
+                loadComponent: () => import("./pages/app/tutor/tutor-dashboard.component").then((m) => m.TutorDashboardComponent),
+            },
+            {
+                path: "student-deliverables",
+                loadComponent: () => import("./pages/app/student/student-deliverable-list.component").then((m) => m.StudentDeliverableListComponent),
+            },
+            {
+                path: "mes-fichiers",
+                loadComponent: () => import("./pages/app/deliverable/employee-files.component").then((m) => m.EmployeeFilesComponent),
+            },
+            {
+                path: "notifications",
+                loadComponent: () => import("./pages/app/notifications/notifications.component").then((m) => m.NotificationsComponent),
+            },
+            {
+                path: "milestones",
+                loadComponent: () => import("./pages/app/milestone-manage/all-milestone.component").then((c) => c.AllMilestoneComponent),
+            },
+            {
+                path: "orders",
+                loadComponent: () => import("./pages/app/ecommerce/orders.component").then((c) => c.OrdersComponent),
+            },
+            {
+                path: "customers",
+                loadComponent: () => import("./pages/app/customers/customers.component").then((c) => c.CustomersComponent),
+            },
+            {
+                path: "ecommerce",
+                loadComponent: () => import("./pages/app/ecommerce/ecommerce.component").then((c) => c.EcommerceComponent),
+            },
+            {
+                path: "add-product",
+                loadComponent: () => import("./pages/app/ecommerce/add-product.component").then((c) => c.AddProductComponent),
+            },
+            {
+                path: "cart",
+                loadComponent: () => import("./pages/app/ecommerce/cart.component").then((c) => c.CartComponent),
+            },
+            {
+                path: "checkout",
+                loadComponent: () => import("./pages/app/ecommerce/checkout.component").then((c) => c.CheckoutComponent),
+            },
+            {
+                path: "invoice",
+                loadComponent: () => import("./pages/app/ecommerce/invoice.component").then((c) => c.InvoiceComponent),
+            },
+            {
+                path: "products",
+                loadComponent: () => import("./pages/app/ecommerce/products.component").then((c) => c.ProductsComponent),
+            },
+            {
+                path: "product",
+                loadComponent: () => import("./pages/app/ecommerce/product.component").then((c) => c.ProductComponent),
+            },
+            {
+                path: "calendar",
+                loadComponent: () => import("./pages/app/applications/calendar/calendar.component").then((c) => c.CalendarComponent),
+            },
+            {
+                path: "explorer",
+                loadComponent: () => import("./pages/app/applications/explorer/explorer.component").then((c) => c.ExplorerComponent),
+            },
+            {
+                path: "chat",
+                children: [
+                    {
+                        path: "",
+                        loadComponent: () => import("./pages/app/applications/chat/chat.component").then((c) => c.ChatComponent),
+                    },
+                    {
+                        path: "dashboard",
+                        canActivate: [authGuard, roleGuard],
+                        loadComponent: () => import("./pages/app/applications/chat/chat-dashboard-page.component").then((c) => c.ChatDashboardPageComponent),
+                    },
+                ],
+            },
+            {
+                path: "profile",
+                loadComponent: () => import("./pages/app/profile/profile.component").then((c) => c.ProfileComponent),
+            },
+            {
+                path: "plans",
+                loadComponent: () => import("./pages/app/profile/plans.component").then((c) => c.PlansComponent),
+            },
+            {
+                path: "subscription",
+                loadComponent: () => import("./pages/app/profile/subscription.component").then((c) => c.SubscriptionComponent),
+            },
+            {
+                path: "settings",
+                loadComponent: () => import("./pages/app/profile/settings.component").then((c) => c.SettingsComponent),
+            },
+            {
+                path: "pages",
+                loadComponent: () => import("./pages/app/pages.component").then((c) => c.PagesComponent),
+            },
+            {
+                path: "users",
+                loadComponent: () => import("./users/users.component").then((c) => c.UsersComponent),
+            },
+            {
+                path: "super-admin",
+                loadComponent: () => import("./pages/app/super-admin/super-admin.component").then((c) => c.SuperAdminComponent),
+            },
+            {
+                path: "super-admin-billing",
+                loadComponent: () => import("./pages/app/super-admin/super-admin-billing.component").then((c) => c.SuperAdminBillingComponent),
+            },
+            {
+                path: "churn-dashboard",
+                loadComponent: () => import("./ml/pages/churn-dashboard/churn-dashboard.component").then((c) => c.ChurnDashboardComponent),
+            },
+            {
+                path: "org-billing",
+                loadComponent: () => import("./pages/app/org-billing/org-billing.component").then((c) => c.OrgBillingComponent),
+            },
+            {
+                path: "upgrade-confirmation",
+                loadComponent: () => import("./billing/pages/confirmation/payment-confirmation.component").then((c) => c.PaymentConfirmationComponent),
+            },
+            {
+                path: "m2-admin",
+                canActivate: [m2AdminGuard],
+                loadComponent: () => import("./pages/app/m2-admin/m2-admin.component").then((c) => c.M2AdminComponent),
+            },
+            {
+                path: "organizations",
+                loadComponent: () => import("./organizations/organizations.component").then((c) => c.OrganizationsComponent),
+            },
+            {
+                path: "organizations/:id",
+                loadComponent: () => import("./organizations/organization-detail.component").then((c) => c.OrganizationDetailComponent),
+            },
+            {
+                path: "audit-logs",
+                loadComponent: () => import("./organizations/audit-log.component").then((c) => c.AuditLogComponent),
+            },
+            {
+                path: "my-organization",
+                loadComponent: () => import("./organizations/my-organization.component").then((c) => c.MyOrganizationComponent),
+            },
+            {
+                path: "po",
+                loadComponent: () => import("./pages/app/po/po-dashboard.component").then((c) => c.PoDashboardComponent),
+            },
+            {
+                path: "po-deliverables",
+                loadComponent: () => import("./pages/app/po/po-deliverables.component").then((c) => c.PoDeliverablesComponent),
+            },
+            {
+                path: "po-analytics",
+                loadComponent: () => import("./pages/app/intelligence/po-analytics.component").then((c) => c.PoAnalyticsComponent),
+            },
+            {
+                path: "activity-stats",
+                loadComponent: () => import("./pages/app/activity-stats/activity-stats.component").then((c) => c.ActivityStatsComponent),
+            },
+            {
+                path: "git/workspace",
+                loadComponent: () => import("./pages/app/git/git-workspace.component").then((c) => c.GitWorkspaceComponent),
+            },
+            {
+                path: "git/dashboard",
+                loadComponent: () => import("./pages/app/git/git-dashboard.component").then((c) => c.GitDashboardComponent),
+            },
+            {
+                path: "git/quality",
+                loadComponent: () => import("./pages/app/git/code-quality-dashboard.component").then((c) => c.CodeQualityDashboardComponent),
+            },
+            {
+                path: "git/code-browser",
+                loadComponent: () => import("./pages/app/git/manager-code-browser.component").then((c) => c.ManagerCodeBrowserComponent),
+            },
+            {
+                path: "analytics/executive",
+                loadComponent: () => import("./pages/app/analytics/executive-dashboard.component").then((c) => c.ExecutiveDashboardComponent),
+            },
+            {
+                path: "brainstorming",
+                loadComponent: () => import("./pages/app/brainstorming/brainstorming.component").then((c) => c.BrainstormingComponent),
+            },
+        ],
+    },
+    {
+        path: "web",
+        component: WebsiteLayoutComponent,
+        children: [
+            {
+                path: "website",
+                loadComponent: () => import("./pages/website/website.component").then((c) => c.WebsiteComponent),
+            },
+            {
+                path: "blog",
+                loadComponent: () => import("./pages/website/blog.component").then((c) => c.BlogComponent),
+            },
+            {
+                path: "blog-details",
+                loadComponent: () => import("./pages/website/blogdetails.component").then((c) => c.BlogDetailsComponent),
+            },
+            {
+                path: "case-study",
+                loadComponent: () => import("./pages/website/casestudy.component").then((c) => c.CaseStudyComponent),
+            },
+            {
+                path: "contact-us",
+                loadComponent: () => import("./pages/website/contactus.component").then((c) => c.ContactUsComponent),
+            },
+            {
+                path: "about-us",
+                loadComponent: () => import("./pages/website/aboutus.component").then((c) => c.AboutUsComponent),
+            },
+        ],
+    },
+    // ─── Billing & Subscription Flow ──────────────────────────────────────────
+    {
+        path: "billing",
+        component: WebsiteLayoutComponent,
+        children: [
+            {
+                path: "",
+                redirectTo: "pricing",
+                pathMatch: "full",
+            },
+            {
+                path: "pricing",
+                loadComponent: () => import("./billing/pages/pricing/pricing.component").then((c) => c.PricingComponent),
+            },
+            {
+                path: "checkout",
+                loadComponent: () => import("./billing/pages/checkout/checkout.component").then((c) => c.CheckoutComponent),
+            },
+            {
+                path: "payment",
+                loadComponent: () => import("./billing/pages/payment/payment.component").then((c) => c.PaymentComponent),
+            },
+            {
+                path: "confirmation",
+                loadComponent: () => import("./billing/pages/confirmation/payment-confirmation.component").then((c) => c.PaymentConfirmationComponent),
+            },
+        ],
+    },
+    {
+        path: "",
+        component: FullLayoutComponent,
+        children: [
+            {
+                path: "coming-soon",
+                loadComponent: () => import("./pages/full/coming-soon/coming-soon.component").then((c) => c.ComingSoonComponent),
+            },
+            {
+                path: "**",
+                loadComponent: () => import("./pages/full/page-not-found/page-not-found.component").then((c) => c.PageNotFoundComponent),
+            },
+        ],
+    },
+];

@@ -1,0 +1,328 @@
+<!-- ===== HEADER ===== -->
+<div class="container-fluid fade-in mb-3 mb-lg-4">
+  <mat-card class="header-card shadow-none pt-3 pb-lg-3 px-3">
+    <div class="row gx-3 align-items-center">
+      <div class="col-12 col-md mb-3 mb-xl-0 py-1">
+        <h2 class="header-title mb-1">Tasks</h2>
+        <p class="breadcrumb-text">
+          <span routerLink="/app/dashboard" class="breadcrumb-link">
+            <mat-icon class="material-icons-outlined">home</mat-icon>
+            Dashboard
+          </span>
+          <mat-icon class="material-icons-outlined">chevron_right</mat-icon>
+          <span>Milestone #{{ milestoneId() ?? "?" }}</span>
+        </p>
+      </div>
+      <div class="col-auto d-flex gap-2">
+        <button mat-stroked-button color="accent" (click)="openSuggestTasks()" [disabled]="!milestoneId() || !milestoneName()">
+          <mat-icon>auto_awesome</mat-icon>
+          Suggérer (IA)
+        </button>
+        <button mat-raised-button color="primary" (click)="openCreate()" [disabled]="!milestoneId()">
+          <mat-icon>add</mat-icon>
+          Ajouter Task
+        </button>
+      </div>
+    </div>
+  </mat-card>
+</div>
+
+<div class="container fade-in">
+
+  <!-- ===== MILESTONE INFO CARD ===== -->
+  <div class="milestone-info-card mb-4" *ngIf="milestoneName()">
+    <div class="mic-left">
+      <mat-icon class="mic-icon">flag</mat-icon>
+      <div class="mic-text">
+        <span class="mic-label">Milestone</span>
+        <span class="mic-name">{{ milestoneName() }}</span>
+      </div>
+    </div>
+    <div class="mic-right">
+      <div class="mic-stats">
+        <span class="mic-stat-count">
+          <mat-icon style="font-size:16px;width:16px;height:16px;vertical-align:middle">check_circle</mat-icon>
+          {{ taskStats().done }} / {{ taskStats().total }} done
+        </span>
+      </div>
+      <div class="mic-progress-wrapper">
+        <div class="mic-progress-bar"
+          [style.width.%]="taskStats().total > 0 ? (taskStats().done / taskStats().total * 100) : 0">
+        </div>
+      </div>
+    </div>
+    <div class="mic-donut">
+      <canvas #taskDonutCanvas width="100" height="100"></canvas>
+    </div>
+  </div>
+
+  <!-- ===== SEARCH ===== -->
+  <div class="search-section mb-4">
+    <mat-form-field appearance="outline" class="search-field w-100">
+      <mat-icon matPrefix>search</mat-icon>
+      <input matInput
+             (keyup)="applyFilter($event)"
+             placeholder="Rechercher par titre ou statut..." />
+    </mat-form-field>
+  </div>
+
+  <!-- ===== LOADING ===== -->
+  <div *ngIf="loading()" class="text-center py-5">
+    <mat-spinner diameter="48"></mat-spinner>
+    <p class="text-secondary mt-3">Chargement des tâches...</p>
+  </div>
+
+  <div *ngIf="!loading()">
+
+    <!-- ===== TABS ===== -->
+    <div class="tabs mb-4">
+      <button class="tab" [class.active]="selectedPanel() === 'tasks'" (click)="switchPanel('tasks')">
+        <mat-icon class="tab-icon">assignment</mat-icon>
+        Tâches
+      </button>
+      <button class="tab" [class.active]="selectedPanel() === 'gantt'" (click)="switchPanel('gantt')">
+        <mat-icon class="tab-icon">bar_chart</mat-icon>
+        Gantt
+      </button>
+      <button class="tab" [class.active]="selectedPanel() === 'wbs'" (click)="switchPanel('wbs')">
+        <mat-icon class="tab-icon">account_tree</mat-icon>
+        WBS
+      </button>
+      <button class="tab" [class.active]="selectedPanel() === 'critical'" (click)="switchPanel('critical')">
+        <mat-icon class="tab-icon">bolt</mat-icon>
+        Critique
+      </button>
+      <button class="tab" [class.active]="selectedPanel() === 'impact'" (click)="switchPanel('impact')">
+        <mat-icon class="tab-icon">hub</mat-icon>
+        Impact
+      </button>
+    </div>
+
+    <div class="content">
+
+      <!-- ====================== PANEL TÂCHES GROUPÉES ====================== -->
+      <div class="panel" [class.active]="selectedPanel() === 'tasks'">
+
+        <!-- ===== VISUAL STATS ROW ===== -->
+        <div class="vstats-card mb-4">
+          <div class="vstats-total">
+            <span class="vstats-total-num">{{ taskStats().total }}</span>
+            <span class="vstats-total-label">Total tâches</span>
+          </div>
+          <div class="vstats-bars">
+            <!-- Done -->
+            <div class="vstat-row">
+              <span class="vstat-name done-color">Terminées</span>
+              <div class="vstat-bar-track">
+                <div class="vstat-bar done-bar"
+                  [style.width.%]="taskStats().total > 0 ? (taskStats().done / taskStats().total * 100) : 0">
+                </div>
+              </div>
+              <span class="vstat-count done-color">{{ taskStats().done }}</span>
+              <span class="vstat-pct">
+                ({{ taskStats().total > 0 ? (taskStats().done / taskStats().total * 100 | number:'1.0-0') : 0 }}%)
+              </span>
+            </div>
+            <!-- In Progress -->
+            <div class="vstat-row">
+              <span class="vstat-name ip-color">En cours</span>
+              <div class="vstat-bar-track">
+                <div class="vstat-bar ip-bar"
+                  [style.width.%]="taskStats().total > 0 ? (taskStats().inProgress / taskStats().total * 100) : 0">
+                </div>
+              </div>
+              <span class="vstat-count ip-color">{{ taskStats().inProgress }}</span>
+              <span class="vstat-pct">
+                ({{ taskStats().total > 0 ? (taskStats().inProgress / taskStats().total * 100 | number:'1.0-0') : 0 }}%)
+              </span>
+            </div>
+            <!-- Todo -->
+            <div class="vstat-row">
+              <span class="vstat-name todo-color">À faire</span>
+              <div class="vstat-bar-track">
+                <div class="vstat-bar todo-bar"
+                  [style.width.%]="taskStats().total > 0 ? (taskStats().todo / taskStats().total * 100) : 0">
+                </div>
+              </div>
+              <span class="vstat-count todo-color">{{ taskStats().todo }}</span>
+              <span class="vstat-pct">
+                ({{ taskStats().total > 0 ? (taskStats().todo / taskStats().total * 100 | number:'1.0-0') : 0 }}%)
+              </span>
+            </div>
+            <!-- Blocked -->
+            <div class="vstat-row">
+              <span class="vstat-name blocked-color">Bloquées</span>
+              <div class="vstat-bar-track">
+                <div class="vstat-bar blocked-bar"
+                  [style.width.%]="taskStats().total > 0 ? (taskStats().blocked / taskStats().total * 100) : 0">
+                </div>
+              </div>
+              <span class="vstat-count blocked-color">{{ taskStats().blocked }}</span>
+              <span class="vstat-pct">
+                ({{ taskStats().total > 0 ? (taskStats().blocked / taskStats().total * 100 | number:'1.0-0') : 0 }}%)
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== TASK GROUPS ===== -->
+        <div class="task-groups-container">
+          <div class="task-group" *ngFor="let group of taskGroups()">
+
+            <!-- Parent Header -->
+            <div class="group-header" *ngIf="group.parent" (click)="toggleGroup(group.parent.taskId)">
+              <!-- Priority dot -->
+              <span class="priority-dot"
+                [class.priority-high]="group.parent.priority?.toLowerCase() === 'high'"
+                [class.priority-medium]="group.parent.priority?.toLowerCase() === 'medium'"
+                [class.priority-low]="group.parent.priority?.toLowerCase() === 'low'">
+              </span>
+              <span class="parent-badge">#{{ group.parent.taskId }}</span>
+              <span class="parent-title">{{ group.parent.title }}</span>
+              <!-- Assignee avatar -->
+              <span class="assignee-avatar" *ngIf="group.parent.assignedTo && group.parent.assignedTo !== 'Non assigné'"
+                [title]="group.parent.assignedTo">
+                {{ group.parent.assignedTo.substring(0, 2).toUpperCase() }}
+              </span>
+              <!-- Due date inline -->
+              <span class="inline-due-date"
+                *ngIf="group.parent.dueDate && group.parent.dueDate !== '-'"
+                [class.due-overdue]="isDueDateOverdue(group.parent.dueDate, group.parent.status)"
+                [class.due-today]="isDueDateToday(group.parent.dueDate)"
+                [class.due-future]="!isDueDateOverdue(group.parent.dueDate, group.parent.status) && !isDueDateToday(group.parent.dueDate)">
+                <mat-icon style="font-size:14px;width:14px;height:14px;vertical-align:middle">event</mat-icon>
+                {{ group.parent.dueDate | date:'dd/MM' }}
+              </span>
+              <!-- Hours mini bar -->
+              <span class="hours-info" *ngIf="group.parent.assignHours > 0">
+                <span class="hours-text">{{ group.parent.loggedHours }}h / {{ group.parent.assignHours }}h</span>
+                <span class="hours-track">
+                  <span class="hours-fill"
+                    [style.width.%]="group.parent.assignHours > 0 ? (group.parent.loggedHours / group.parent.assignHours * 100 | number:'1.0-0') : 0">
+                  </span>
+                </span>
+              </span>
+              <span class="child-count">{{ group.children.length }} sous-tâche{{ group.children.length !== 1 ? 's' : '' }}</span>
+              <span class="status-pill" [ngClass]="'s-' + group.parent.status">
+                {{ getStatusLabel(group.parent.status) }}
+              </span>
+              <mat-icon class="chevron" [class.open]="expandedGroupIds().has(group.parent.taskId)">expand_more</mat-icon>
+              <div class="task-actions" (click)="$event.stopImmediatePropagation()">
+                <button mat-icon-button color="primary"
+                        matTooltip="Modifier"
+                        (click)="openEdit(group.parent)">
+                  <mat-icon>edit</mat-icon>
+                </button>
+                <button mat-icon-button color="warn"
+                        matTooltip="Supprimer (les sous-tâches seront détachées)"
+                        (click)="confirmDeleteParent(group.parent, group.children.length)">
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </div>
+            </div>
+
+            <!-- Orphan Label -->
+            <div class="orphan-label" *ngIf="!group.parent">Tâches sans parent connu</div>
+
+            <!-- Children List -->
+            <div class="children-list"
+                 [class.closed]="group.parent && !expandedGroupIds().has(group.parent.taskId)">
+
+              <div class="child-row" *ngFor="let task of group.children">
+                <!-- Priority dot -->
+                <span class="priority-dot"
+                  [class.priority-high]="task.priority?.toLowerCase() === 'high'"
+                  [class.priority-medium]="task.priority?.toLowerCase() === 'medium'"
+                  [class.priority-low]="task.priority?.toLowerCase() === 'low'">
+                </span>
+                <span class="child-badge">#{{ task.taskId }}</span>
+                <span class="child-title">{{ task.title }}</span>
+                <span class="child-type">{{ task.type | titlecase }}</span>
+                <!-- Assignee avatar -->
+                <span class="assignee-avatar small-avatar"
+                  *ngIf="task.assignedTo && task.assignedTo !== 'Non assigné'"
+                  [title]="task.assignedTo">
+                  {{ task.assignedTo.substring(0, 2).toUpperCase() }}
+                </span>
+                <!-- Due date inline -->
+                <span class="inline-due-date"
+                  *ngIf="task.dueDate && task.dueDate !== '-'"
+                  [class.due-overdue]="isDueDateOverdue(task.dueDate, task.status)"
+                  [class.due-today]="isDueDateToday(task.dueDate)"
+                  [class.due-future]="!isDueDateOverdue(task.dueDate, task.status) && !isDueDateToday(task.dueDate)">
+                  <mat-icon style="font-size:13px;width:13px;height:13px;vertical-align:middle">event</mat-icon>
+                  {{ task.dueDate | date:'dd/MM' }}
+                </span>
+                <!-- Hours mini progress -->
+                <span class="hours-info" *ngIf="task.assignHours > 0">
+                  <span class="hours-text">{{ task.loggedHours }}h / {{ task.assignHours }}h</span>
+                  <span class="hours-track">
+                    <span class="hours-fill"
+                      [style.width.%]="task.assignHours > 0 ? (task.loggedHours / task.assignHours * 100 | number:'1.0-0') : 0">
+                    </span>
+                  </span>
+                </span>
+                <span class="status-pill" [ngClass]="'s-' + task.status">
+                  {{ getStatusLabel(task.status) }}
+                </span>
+
+                <!-- Boutons d'action -->
+                <div class="task-actions">
+                  <button mat-icon-button color="primary"
+                          matTooltip="Modifier"
+                          (click)="openEdit(task); $event.stopImmediatePropagation()">
+                    <mat-icon>edit</mat-icon>
+                  </button>
+                  <button mat-icon-button color="warn"
+                          matTooltip="Supprimer"
+                          (click)="confirmDelete(task); $event.stopImmediatePropagation()">
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="taskGroups().length === 0" class="empty-state py-5 text-center">
+          <mat-icon style="font-size: 56px; color: #94a3b8;">assignment</mat-icon>
+          <h3>Aucune tâche trouvée</h3>
+          <p>Cliquez sur "Ajouter Task" pour commencer.</p>
+        </div>
+      </div>
+
+
+      <!-- ====================== PANEL CHEMIN CRITIQUE ====================== -->
+      <div class="panel" [class.active]="selectedPanel() === 'critical'">
+        <app-critical-path
+          [tasks]="filteredTasks()"
+          [dependencies]="dependencies()">
+        </app-critical-path>
+      </div>
+
+      <!-- ====================== PANEL GANTT ====================== -->
+      <div class="panel" [class.active]="selectedPanel() === 'gantt'">
+        <app-gantt-view
+          [tasks]="filteredTasks()"
+          [milestoneName]="'Milestone #' + (milestoneId() ?? 'Inconnu')">
+        </app-gantt-view>
+      </div>
+
+      <!-- ====================== PANEL WBS ====================== -->
+      <div class="panel" [class.active]="selectedPanel() === 'wbs'">
+        <app-wbs-view
+          [tasks]="filteredTasks()"
+          [milestoneName]="'Milestone #' + (milestoneId() ?? 'Inconnu')">
+        </app-wbs-view>
+      </div>
+
+      <!-- ====================== PANEL IMPACT ====================== -->
+      <div class="panel" [class.active]="selectedPanel() === 'impact'">
+        <app-dependency-impact
+          [tasks]="filteredTasks()"
+          [milestoneId]="milestoneId()">
+        </app-dependency-impact>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,100 @@
+ SET @uid = (SELECT id FROM users LIMIT 1);
+  SET @oid = (SELECT id FROM organizations LIMIT 1);                            
+                                                                             
+  SET @ws_id = UUID();                                                          
+  INSERT INTO workspaces (id, name, slug, owner_id, organization_id, org_type,
+  created_at)                                                                   
+  VALUES (@ws_id, 'test', 'test-ws-unitum', @uid, @oid, 'company', NOW());
+                                                                                
+  SET @proj_id = UUID();                                                     
+  INSERT INTO projects                                                          
+    (id, workspace_id, name, description, status, visibility,                
+     start_date, end_date, created_by, created_at, updated_at)                  
+  VALUES (
+    @proj_id, @ws_id,                                                           
+    'developpement application web unitum',                                  
+    'Application web full-stack Unitum.',
+    'ACTIVE', 'PRIVATE',                                                        
+    '2026-04-01', '2026-08-31',
+    @uid, NOW(), NOW()                                                          
+  );                                                                         
+                                                                                
+  INSERT INTO milestones                                                     
+    (project_id, name, description, due_date, status, completion_pct, is_gate,
+     risk_score, delay_days, created_by, created_at, updated_at)                
+  VALUES                                                                        
+    (@proj_id,'Conception & Architecture','Maquettes et architecture technique  
+  validees.','2026-04-30','completed',100,1,5,0,@uid,NOW(),NOW()),              
+    (@proj_id,'Developpement Backend',   'API REST Spring Boot operationnelle.',
+            '2026-05-31','in_progress',45,1,55,0,@uid,NOW(),NOW()),             
+    (@proj_id,'Developpement Frontend',  'Interface Angular integree au      
+  backend.',        '2026-06-30','pending',10,0,40,0,@uid,NOW(),NOW()),         
+    (@proj_id,'Tests & Recette',         'Tests E2E valides, bugs critiques  
+  corriges.',   '2026-07-31','pending',0,1,20,0,@uid,NOW(),NOW()),              
+    (@proj_id,'Mise en Production',      'Deploiement cloud et monitoring    
+  actif.',        '2026-08-31','pending',0,1,10,0,@uid,NOW(),NOW());            
+                                                                             
+  SET @m1 = (SELECT id FROM milestones WHERE project_id=@proj_id AND            
+  name='Conception & Architecture');                                         
+  SET @m2 = (SELECT id FROM milestones WHERE project_id=@proj_id AND            
+  name='Developpement Backend');                                                
+  SET @m3 = (SELECT id FROM milestones WHERE project_id=@proj_id AND
+  name='Developpement Frontend');                                               
+  SET @m4 = (SELECT id FROM milestones WHERE project_id=@proj_id AND name='Tests
+   & Recette');                                                                 
+  SET @m5 = (SELECT id FROM milestones WHERE project_id=@proj_id AND name='Mise 
+  en Production');                                                              
+                                                                             
+  INSERT INTO tasks
+    (project_id, milestone_id, title, task_type, status, priority,
+     estimated_hours, actual_hours, start_date, due_date,                       
+     assigned_to, created_by, is_visible_to_assignees, created_at, updated_at)  
+  VALUES                                                                        
+    (@proj_id,@m1,'Analyse des besoins',        'story','done',       'high',   
+   8,  8,'2026-04-01','2026-04-07',@uid,@uid,1,NOW(),NOW()),                    
+    (@proj_id,@m1,'Maquettes Figma',            'task', 'done',       'high',
+  16, 18,'2026-04-07','2026-04-18',@uid,@uid,1,NOW(),NOW()),                    
+    (@proj_id,@m1,'Architecture technique',     'task', 'done',       'high',
+  12, 10,'2026-04-18','2026-04-28',@uid,@uid,1,NOW(),NOW()),                    
+    (@proj_id,@m1,'Schema base de donnees',     'task', 'done',       'medium',
+   8,  9,'2026-04-22','2026-04-30',@uid,@uid,1,NOW(),NOW()),                    
+                                                                             
+    (@proj_id,@m2,'Setup Spring Boot Securite', 'story','done',                 
+  'critical',16, 16,'2026-05-01','2026-05-07',@uid,@uid,1,NOW(),NOW()),      
+    (@proj_id,@m2,'API Authentification JWT',   'task', 'done',                 
+  'critical',16, 18,'2026-05-07','2026-05-14',@uid,@uid,1,NOW(),NOW()),         
+    (@proj_id,@m2,'API Gestion Utilisateurs',   'task', 'in_progress','high',
+  20,  8,'2026-05-14','2026-05-22',@uid,@uid,1,NOW(),NOW()),                    
+    (@proj_id,@m2,'API Modules Metier',         'task', 'todo',       'high',
+  24,  0,'2026-05-22','2026-05-31',@uid,@uid,1,NOW(),NOW()),                    
+                                                                             
+    (@proj_id,@m3,'Setup Angular Design System','story','in_progress','high',   
+  12,  4,'2026-06-01','2026-06-07',@uid,@uid,1,NOW(),NOW()),                 
+    (@proj_id,@m3,'Pages Authentification',     'task', 'todo',       'high',   
+  16,  0,'2026-06-07','2026-06-14',@uid,@uid,1,NOW(),NOW()),                    
+    (@proj_id,@m3,'Dashboard Principal',        'task', 'todo',       'high',
+  24,  0,'2026-06-14','2026-06-25',@uid,@uid,1,NOW(),NOW()),                    
+    (@proj_id,@m3,'Integration API Backend',    'task', 'todo',              
+  'critical',20, 0,'2026-06-20','2026-06-30',@uid,@uid,1,NOW(),NOW()),          
+                                                                             
+    (@proj_id,@m4,'Tests Unitaires Backend',    'task', 'todo',       'high',   
+  16,  0,'2026-07-01','2026-07-10',@uid,@uid,1,NOW(),NOW()),                 
+    (@proj_id,@m4,'Tests E2E Cypress',          'task', 'todo',       'high',   
+  20,  0,'2026-07-10','2026-07-20',@uid,@uid,1,NOW(),NOW()),                    
+    (@proj_id,@m4,'Correction Bugs Recette',    'task', 'todo',       'medium',
+  16,  0,'2026-07-20','2026-07-31',@uid,@uid,1,NOW(),NOW()),                    
+                                                                             
+    (@proj_id,@m5,'CI/CD Pipeline',             'task', 'todo',       'high',   
+  12,  0,'2026-08-01','2026-08-10',@uid,@uid,1,NOW(),NOW()),                 
+    (@proj_id,@m5,'Deploiement Staging',        'task', 'todo',       'high',   
+   8,  0,'2026-08-10','2026-08-20',@uid,@uid,1,NOW(),NOW()),                    
+    (@proj_id,@m5,'Go-Live Production',         'task', 'todo',
+  'critical', 8, 0,'2026-08-25','2026-08-31',@uid,@uid,1,NOW(),NOW());          
+                                                                             
+  SELECT 'Workspace'  AS type, name AS nom FROM workspaces  WHERE id = @ws_id   
+  UNION ALL                                                                  
+  SELECT 'Projet',    name      FROM projects   WHERE id = @proj_id             
+  UNION ALL                                                                  
+  SELECT 'Milestone', name      FROM milestones WHERE project_id = @proj_id
+  UNION ALL                                                                     
+  SELECT 'Task',      title     FROM tasks      WHERE project_id = @proj_id;
