@@ -4,12 +4,15 @@ import com.example.pi_projet.annotation.Authorized;
 import com.example.pi_projet.dto.AuthResponse;
 import com.example.pi_projet.dto.LoginRequest;
 import com.example.pi_projet.entity.OrganizationMember;
+import com.example.pi_projet.entity.PasswordResetToken;
 import com.example.pi_projet.entity.Session;
 import com.example.pi_projet.entity.User;
 import com.example.pi_projet.repository.OrganizationMemberRepository;
+import com.example.pi_projet.repository.PasswordResetTokenRepository;
 import com.example.pi_projet.repository.SessionRepository;
 import com.example.pi_projet.repository.UserRepository;
 import com.example.pi_projet.service.AuthService;
+import com.example.pi_projet.service.EmailService;
 import com.example.pi_projet.service.MagicLinkService;
 import com.example.pi_projet.service.TwoFactorService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,6 +29,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -40,6 +44,11 @@ public class AuthController {
     private final SessionRepository             sessionRepository;
     private final OrganizationMemberRepository  organizationMemberRepository;
     private final BCryptPasswordEncoder         passwordEncoder;
+    private final PasswordResetTokenRepository  passwordResetTokenRepository;
+    private final EmailService                  emailService;
+
+    private static final String FRONTEND_URL         = "http://localhost:4200";
+    private static final int    RESET_EXPIRY_MINUTES = 30;
 
     // ── POST /api/auth/login ──────────────────────────────────────────────
     @Operation(summary = "Sign in with email + password")
@@ -331,6 +340,78 @@ public class AuthController {
                 user.getId(), user.getEmail(), user.getFullName(), user.getRole().name(),
                 Boolean.TRUE.equals(user.getMustChangePassword())
         ));
+    }
+
+    // ── POST /api/auth/forgot-password ───────────────────────────────────
+    @Operation(summary = "Request a password reset link — returns 404 if email not found")
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, Object> body) {
+        String email = body.get("email").toString().trim().toLowerCase();
+
+        Optional<User> userOpt = userRepository.findByEmail(email);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "This email does not exist."));
+        }
+
+        User user = userOpt.get();
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "This account is disabled."));
+        }
+
+        String token = UUID.randomUUID().toString();
+        PasswordResetToken resetToken = PasswordResetToken.builder()
+                .token(token)
+                .userId(user.getId())
+                .expiresAt(LocalDateTime.now().plusMinutes(RESET_EXPIRY_MINUTES))
+                .build();
+        passwordResetTokenRepository.save(resetToken);
+
+        String resetUrl = FRONTEND_URL + "/auth/reset-password?token=" + token;
+        emailService.sendPasswordResetEmail(user.getEmail(), user.getFullName(), resetUrl);
+
+        return ResponseEntity.ok(Map.of("message", "A password reset link has been sent to your inbox."));
+    }
+
+    // ── POST /api/auth/reset-password ────────────────────────────────────
+    @Operation(summary = "Reset password using the token received by email")
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, Object> body) {
+        String token       = body.get("token").toString();
+        String newPassword = body.get("newPassword").toString();
+
+        if (newPassword == null || newPassword.length() < 8) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Password must be at least 8 characters."));
+        }
+
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token)
+                .orElse(null);
+
+        if (resetToken == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "Invalid or expired reset link. Please request a new one."));
+        }
+        if (Boolean.TRUE.equals(resetToken.getUsed())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "This reset link has already been used. Please request a new one."));
+        }
+        if (resetToken.getExpiresAt().isBefore(LocalDateTime.now())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "This reset link has expired. Please request a new one."));
+        }
+
+        resetToken.setUsed(true);
+        passwordResetTokenRepository.save(resetToken);
+
+        User user = userRepository.findById(resetToken.getUserId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setMustChangePassword(false);
+        userRepository.save(user);
+
+        return ResponseEntity.ok(Map.of("message", "Password reset successfully. You can now log in."));
     }
 
     // ── GET /api/auth/stats/activity ─────────────────────────────────────

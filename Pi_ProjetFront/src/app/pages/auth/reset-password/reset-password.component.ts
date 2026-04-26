@@ -1,12 +1,18 @@
-import { Component, ChangeDetectorRef } from "@angular/core";
+import { Component, OnInit, ChangeDetectorRef } from "@angular/core";
 import { CommonModule } from "@angular/common";
-import { Router, RouterModule } from "@angular/router";
+import { ActivatedRoute, Router, RouterModule } from "@angular/router";
 import { MatIconModule } from "@angular/material/icon";
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from "@angular/forms";
+import { AbstractControl, FormBuilder, FormGroup, ReactiveFormsModule, ValidationErrors, Validators } from "@angular/forms";
 import { HttpClient } from "@angular/common/http";
 
+function passwordsMatch(group: AbstractControl): ValidationErrors | null {
+    const pw      = group.get('newPassword')?.value;
+    const confirm = group.get('confirmPassword')?.value;
+    return pw && confirm && pw !== confirm ? { mismatch: true } : null;
+}
+
 @Component({
-    selector: "app-forgot-password",
+    selector: "app-reset-password",
     standalone: true,
     imports: [CommonModule, RouterModule, MatIconModule, ReactiveFormsModule],
     template: `
@@ -23,22 +29,22 @@ import { HttpClient } from "@angular/common/http";
             <span class="brand-name">Unitum</span>
           </div>
           <div class="brand-hero">
-            <h1>Forgot your<br>password?</h1>
-            <p>No worries. Enter your email and we'll<br>send you a secure reset link.</p>
+            <h1>Choose a new<br>password</h1>
+            <p>Pick something strong and memorable.<br>At least 8 characters.</p>
           </div>
           <div class="brand-features">
             <div class="feat">
-              <div class="feat-icon">🔒</div>
+              <div class="feat-icon">🔐</div>
               <div class="feat-text">
-                <strong>Secure reset link</strong>
-                <span>Expires in 30 minutes, one-time use</span>
+                <strong>Strong password tips</strong>
+                <span>Mix letters, numbers and symbols</span>
               </div>
             </div>
             <div class="feat">
-              <div class="feat-icon">📧</div>
+              <div class="feat-icon">🛡️</div>
               <div class="feat-text">
-                <strong>Sent to your inbox</strong>
-                <span>Check spam if you don't see it</span>
+                <strong>One-time link</strong>
+                <span>This reset link expires after use</span>
               </div>
             </div>
           </div>
@@ -55,50 +61,85 @@ import { HttpClient } from "@angular/common/http";
             <span>Back to login</span>
           </button>
 
+          <!-- ── INVALID TOKEN ─────────────────────────────────────── -->
+          <ng-container *ngIf="tokenInvalid">
+            <div class="error-box">
+              <div class="error-icon">❌</div>
+              <h2>Invalid or expired link</h2>
+              <p>This password reset link is invalid or has already been used. Please request a new one.</p>
+              <button class="signin-btn" (click)="router.navigate(['/auth/forgot-password'])">
+                <mat-icon>refresh</mat-icon>
+                <span>Request a new link</span>
+              </button>
+            </div>
+          </ng-container>
+
           <!-- ── SUCCESS STATE ─────────────────────────────────────── -->
-          <ng-container *ngIf="sent">
+          <ng-container *ngIf="success">
             <div class="success-box">
-              <div class="success-icon">📬</div>
-              <h2>Check your inbox</h2>
-              <p>We've sent a password reset link to <strong>{{ sentEmail }}</strong>.<br>It expires in 30 minutes.</p>
+              <div class="success-icon">✅</div>
+              <h2>Password updated!</h2>
+              <p>Your password has been reset successfully.<br>You can now sign in with your new password.</p>
               <button class="signin-btn" (click)="router.navigate(['/auth/login'])">
                 <mat-icon>login</mat-icon>
-                <span>Back to Sign In</span>
+                <span>Sign In</span>
               </button>
             </div>
           </ng-container>
 
           <!-- ── FORM STATE ─────────────────────────────────────────── -->
-          <ng-container *ngIf="!sent">
+          <ng-container *ngIf="!tokenInvalid && !success">
             <div class="form-header">
-              <div class="header-icon">🔑</div>
-              <h2>Reset Password</h2>
-              <p>Enter your account email and we'll send you a link to reset your password.</p>
+              <div class="header-icon">🔒</div>
+              <h2>Set new password</h2>
+              <p>Choose a new password for your account.</p>
             </div>
 
-            <!-- Error alert -->
             <div class="alert alert-error" *ngIf="errorMessage">
               <mat-icon>error_outline</mat-icon>
               <span>{{ errorMessage }}</span>
             </div>
 
-            <form [formGroup]="forgotForm" (ngSubmit)="onSubmit()">
+            <form [formGroup]="resetForm" (ngSubmit)="onSubmit()">
+
               <div class="field-group">
-                <label>Email address</label>
-                <div class="input-wrap" [class.error]="forgotForm.get('email')?.invalid && forgotForm.get('email')?.touched">
-                  <mat-icon class="input-icon">mail_outline</mat-icon>
-                  <input formControlName="email" type="email" placeholder="you@example.com" autocomplete="email" />
+                <label>New password</label>
+                <div class="input-wrap" [class.error]="resetForm.get('newPassword')?.invalid && resetForm.get('newPassword')?.touched">
+                  <mat-icon class="input-icon">lock_outline</mat-icon>
+                  <input formControlName="newPassword"
+                         [type]="hideNew ? 'password' : 'text'"
+                         placeholder="At least 8 characters" />
+                  <button type="button" class="eye-btn" (click)="hideNew = !hideNew">
+                    <mat-icon>{{ hideNew ? 'visibility_off' : 'visibility' }}</mat-icon>
+                  </button>
                 </div>
-                <p class="field-error" *ngIf="forgotForm.get('email')?.hasError('email') && forgotForm.get('email')?.touched">
-                  Please enter a valid email address.
+                <p class="field-error" *ngIf="resetForm.get('newPassword')?.hasError('minlength') && resetForm.get('newPassword')?.touched">
+                  Password must be at least 8 characters.
                 </p>
               </div>
 
-              <button type="submit" class="signin-btn" [disabled]="forgotForm.invalid || loading">
+              <div class="field-group">
+                <label>Confirm new password</label>
+                <div class="input-wrap" [class.error]="resetForm.hasError('mismatch') && resetForm.get('confirmPassword')?.touched">
+                  <mat-icon class="input-icon">lock_outline</mat-icon>
+                  <input formControlName="confirmPassword"
+                         [type]="hideConfirm ? 'password' : 'text'"
+                         placeholder="Repeat your password" />
+                  <button type="button" class="eye-btn" (click)="hideConfirm = !hideConfirm">
+                    <mat-icon>{{ hideConfirm ? 'visibility_off' : 'visibility' }}</mat-icon>
+                  </button>
+                </div>
+                <p class="field-error" *ngIf="resetForm.hasError('mismatch') && resetForm.get('confirmPassword')?.touched">
+                  Passwords do not match.
+                </p>
+              </div>
+
+              <button type="submit" class="signin-btn" [disabled]="resetForm.invalid || loading">
                 <span class="btn-spinner" *ngIf="loading"></span>
-                <mat-icon *ngIf="!loading">send</mat-icon>
-                <span>{{ loading ? 'Sending…' : 'Send Reset Link' }}</span>
+                <mat-icon *ngIf="!loading">check_circle</mat-icon>
+                <span>{{ loading ? 'Updating…' : 'Update Password' }}</span>
               </button>
+
             </form>
           </ng-container>
 
@@ -181,7 +222,7 @@ import { HttpClient } from "@angular/common/http";
       .form-header { margin-bottom:28px; }
       .header-icon { font-size:36px;margin-bottom:12px; }
       .form-header h2 { font-size:26px;font-weight:800;color:#0f172a;margin:0 0 6px;letter-spacing:-0.5px; }
-      .form-header p  { color:#64748b;font-size:14px;margin:0;line-height:1.6; }
+      .form-header p  { color:#64748b;font-size:14px;margin:0; }
 
       .alert {
         display:flex;align-items:center;gap:10px;
@@ -208,6 +249,9 @@ import { HttpClient } from "@angular/common/http";
         padding:12px 12px 12px 0;font-size:14px;color:#0f172a;
       }
       .input-wrap input::placeholder { color:#cbd5e1; }
+      .eye-btn { background:none;border:none;cursor:pointer;color:#94a3b8;padding:0 12px;display:flex;align-items:center; }
+      .eye-btn:hover { color:#6366f1; }
+      .eye-btn mat-icon { font-size:18px;width:18px;height:18px; }
       .field-error { font-size:12px;color:#dc2626;margin:2px 0 0; }
 
       .signin-btn {
@@ -229,52 +273,65 @@ import { HttpClient } from "@angular/common/http";
       }
       @keyframes spin { to { transform:rotate(360deg); } }
 
-      /* ── Success state ── */
-      .success-box {
-        text-align:center;
-        padding:24px 0;
-      }
-      .success-icon { font-size:52px;margin-bottom:16px; }
-      .success-box h2 { font-size:26px;font-weight:800;color:#0f172a;margin:0 0 12px;letter-spacing:-0.5px; }
-      .success-box p  { color:#64748b;font-size:14px;line-height:1.7;margin:0 0 28px; }
-      .success-box .signin-btn { margin-top:0; }
+      /* ── Success / Error state ── */
+      .success-box, .error-box { text-align:center;padding:24px 0; }
+      .success-icon, .error-icon { font-size:52px;margin-bottom:16px; }
+      .success-box h2, .error-box h2 { font-size:26px;font-weight:800;color:#0f172a;margin:0 0 12px;letter-spacing:-0.5px; }
+      .success-box p,  .error-box p  { color:#64748b;font-size:14px;line-height:1.7;margin:0 0 28px; }
     `],
 })
-export class ForgotPasswordComponent {
-    forgotForm: FormGroup;
-    loading = false;
-    errorMessage = '';
-    sent = false;
-    sentEmail = '';
+export class ResetPasswordComponent implements OnInit {
+    resetForm: FormGroup;
+    loading       = false;
+    success       = false;
+    tokenInvalid  = false;
+    errorMessage  = '';
+    hideNew       = true;
+    hideConfirm   = true;
+
+    private token = '';
 
     constructor(
         private fb: FormBuilder,
-        public router: Router,
+        public  router: Router,
+        private route: ActivatedRoute,
         private http: HttpClient,
         private cdr: ChangeDetectorRef
     ) {
-        this.forgotForm = this.fb.group({
-            email: ['', [Validators.required, Validators.email]],
-        });
+        this.resetForm = this.fb.group({
+            newPassword:     ['', [Validators.required, Validators.minLength(8)]],
+            confirmPassword: ['', [Validators.required]],
+        }, { validators: passwordsMatch });
     }
 
-    onSubmit() {
-        if (this.forgotForm.invalid) return;
+    ngOnInit(): void {
+        this.token = this.route.snapshot.queryParams['token'] ?? '';
+        if (!this.token) {
+            this.tokenInvalid = true;
+        }
+    }
+
+    onSubmit(): void {
+        if (this.resetForm.invalid || !this.token) return;
         this.loading = true;
         this.errorMessage = '';
 
-        const email = this.forgotForm.value.email.trim().toLowerCase();
+        const newPassword = this.resetForm.value.newPassword;
 
-        this.http.post('http://localhost:8084/api/auth/forgot-password', { email }).subscribe({
+        this.http.post('http://localhost:8084/api/auth/reset-password', { token: this.token, newPassword }).subscribe({
             next: () => {
                 this.loading = false;
-                this.sent = true;
-                this.sentEmail = email;
+                this.success = true;
                 this.cdr.detectChanges();
             },
             error: (err) => {
                 this.loading = false;
-                this.errorMessage = err.error?.message ?? 'Something went wrong. Please try again.';
+                const msg = err.error?.message ?? 'Something went wrong. Please try again.';
+                if (err.status === 401) {
+                    this.tokenInvalid = true;
+                } else {
+                    this.errorMessage = msg;
+                }
                 this.cdr.detectChanges();
             }
         });

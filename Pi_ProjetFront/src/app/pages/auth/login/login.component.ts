@@ -640,8 +640,8 @@ export class LoginComponent implements OnInit {
         this.magicSent = false;
         this.http.post('http://localhost:8084/api/auth/magic-link', { email: this.magicEmail })
             .subscribe({
-                next: () => { this.magicLoading = false; this.magicSent = true; },
-                error: () => { this.magicLoading = false; this.magicSent = true; }
+                next: () => { this.magicLoading = false; this.magicSent = true; this.cdr.detectChanges(); },
+                error: () => { this.magicLoading = false; this.magicSent = true; this.cdr.detectChanges(); }
             });
     }
 

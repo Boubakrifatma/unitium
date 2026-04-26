@@ -578,6 +578,48 @@ public class EmailService {
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Password Reset
+    // ─────────────────────────────────────────────────────────────────────────
+    @Async
+    public void sendPasswordResetEmail(String toEmail, String fullName, String resetUrl) {
+        try {
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
+            helper.setFrom(fromEmail, fromName);
+            helper.setTo(toEmail);
+            helper.setSubject("Reset your Unitum password");
+            helper.setText(buildPasswordResetEmail(fullName, resetUrl), true);
+            mailSender.send(msg);
+        } catch (Exception e) {
+            log.error("Failed to send password reset email to {}: {}", toEmail, e.getMessage());
+        }
+    }
+
+    private String buildPasswordResetEmail(String fullName, String resetUrl) {
+        String name = (fullName != null && !fullName.isBlank()) ? fullName : "there";
+        return """
+            <div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
+              <div style="background:linear-gradient(135deg,#6366f1,#4f46e5);padding:32px;text-align:center">
+                <div style="width:52px;height:52px;background:rgba(255,255,255,0.2);border-radius:14px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px">
+                  <span style="font-size:24px">🔒</span>
+                </div>
+                <h1 style="color:#fff;font-size:22px;font-weight:700;margin:0">Reset your password</h1>
+              </div>
+              <div style="padding:32px">
+                <p style="color:#374151;font-size:15px;margin:0 0 8px">Hi <strong>%s</strong>,</p>
+                <p style="color:#6b7280;font-size:14px;margin:0 0 28px">We received a request to reset your Unitum password. Click the button below to choose a new one. This link expires in <strong>30 minutes</strong> and can only be used once.</p>
+                <div style="text-align:center;margin-bottom:28px">
+                  <a href="%s" style="display:inline-block;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;padding:14px 32px;border-radius:10px;font-size:15px;font-weight:600;text-decoration:none">
+                    Reset Password
+                  </a>
+                </div>
+                <p style="color:#9ca3af;font-size:12px;text-align:center;margin:0">If you didn't request a password reset, you can safely ignore this email. Your password won't change.</p>
+              </div>
+            </div>
+            """.formatted(name, resetUrl);
+    }
+
     private String buildMagicLinkEmail(String fullName, String magicUrl) {
         String name = (fullName != null && !fullName.isBlank()) ? fullName : "there";
         return """

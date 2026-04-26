@@ -189,10 +189,7 @@ import { UserService, UserDTO } from '../../../users/user.service';
                                     <p class="cell-label">Member Since</p>
                                     <p class="cell-value">{{ user()?.createdAt | date:'MMMM d, yyyy' }}</p>
                                 </div>
-                                <div class="detail-cell">
-                                    <p class="cell-label">User ID</p>
-                                    <p class="cell-value mono">#{{ user()?.id }}</p>
-                                </div>
+                               
                             </div>
                         </div>
 
