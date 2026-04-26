@@ -29,7 +29,8 @@ public class WorkspaceAuthorizationService {
         if (user == null || user.getRole() == null) {
             return false;
         }
-        return user.getRole() == User.RoleName.SUPER_ADMIN || user.getRole() == User.RoleName.ADMIN;
+        // Only SUPER_ADMIN has platform-wide visibility; ADMIN is scoped to their organization
+        return user.getRole() == User.RoleName.SUPER_ADMIN;
     }
 
     public OrganizationMember requireSingleOrganizationMembership(Long userId) {

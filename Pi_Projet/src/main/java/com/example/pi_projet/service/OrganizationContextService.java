@@ -101,7 +101,8 @@ public class OrganizationContextService {
     }
 
     private boolean isGlobalAdmin(User currentUser) {
-        return currentUser.getRole() == User.RoleName.SUPER_ADMIN || currentUser.getRole() == User.RoleName.ADMIN;
+        // Only SUPER_ADMIN has platform-wide org visibility; ADMIN is scoped to their own org
+        return currentUser.getRole() == User.RoleName.SUPER_ADMIN;
     }
 
     private Map<String, Object> toOrganizationResponse(Object id, String name, String slug, String type, String role) {
