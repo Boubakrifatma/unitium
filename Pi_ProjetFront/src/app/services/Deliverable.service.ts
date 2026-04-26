@@ -36,7 +36,7 @@ export interface FileUploadResponse {
   originalName: string;
   fileType: string;
   fileSizeKb: number;
-  scanStatus?: 'clean' | 'unverified';
+  scanStatus?: 'clean' | 'unverified' | 'infected' | 'pending';
   virusName?: string | null;
   status?: string;
 }

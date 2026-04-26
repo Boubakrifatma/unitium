@@ -31,6 +31,8 @@ import { DeliverableService } from "../../../services/Deliverable.service";
 import { UserService, UserDTO } from "../../../users/user.service";
 import { ProjectService, Project } from "../../../services/project-service";
 import { DeliverableDialogComponent, DeliverableFormData } from "../deliverable/deliverable-dialog.component";
+import { StudentSubmitDialogComponent } from "../student/student-submit-dialog.component";
+import { StudentDeliverableService, StudentDeliverable } from "../../../services/student-deliverable.service";
 import { AuthService } from "../../../auth/auth.service";
 import { WorkloadService, WorkloadPressure } from "../../../services/workload.service";
 
@@ -74,11 +76,14 @@ export class KanbanComponent implements OnInit {
 
   readonly dialog     = inject(MatDialog);
   private taskService = inject(TaskService);
-  private deliverableService = inject(DeliverableService);
+  private deliverableService        = inject(DeliverableService);
+  private studentDeliverableService = inject(StudentDeliverableService);
   private userService = inject(UserService);
   private projectService = inject(ProjectService);
   private authService    = inject(AuthService);
   private workloadSvc    = inject(WorkloadService);
+
+  isStudent = computed(() => this.authService.currentUser()?.role === 'STUDENT');
 
   // ── Pressure indicator (loaded once after tasks) ───────────────
   pressureData = signal<WorkloadPressure | null>(null);
@@ -89,7 +94,9 @@ export class KanbanComponent implements OnInit {
   error                = signal('');
   selectedProjectId    = signal<string>('all');
   dialogLoading        = signal(false);
-  taskDeliverables     = signal<Map<number, { hasDeliverable: boolean; deliverableId?: number }>>(new Map());
+  taskDeliverables        = signal<Map<number, { hasDeliverable: boolean; deliverableId?: number }>>(new Map());
+  /** student deliverables keyed by task title (lowercase) — for the student kanban workflow */
+  studentDeliverablesByTitle = signal<Map<string, StudentDeliverable>>(new Map());
 
   // ── Distinct projects from tasks ─────────────────────────────
   projectList = computed(() => {
@@ -236,6 +243,7 @@ export class KanbanComponent implements OnInit {
         
         // Load deliverables for each task
         this.loadTaskDeliverables(mappedTasks);
+        if (this.isStudent()) this.loadStudentDeliverables();
         
         // Auto-select first project
         const first = this.projectList()[0];
@@ -406,10 +414,6 @@ export class KanbanComponent implements OnInit {
       }
     });
 
-    // Auto-open deliverable dialog if task is completed
-    if (newStatus === 'completed') {
-      setTimeout(() => this.openDeliverableDialog(movedTask), 300);
-    }
   }
 
   // ── Open Deliverable Dialog ───────────────────────────────────
@@ -470,6 +474,66 @@ export class KanbanComponent implements OnInit {
         this.error.set('Error loading users and projects.');
         console.error('Error loading deliverable dialog data:', err);
       }
+    });
+  }
+
+  // ── Student deliverable tracking ──────────────────────────────
+  private loadStudentDeliverables() {
+    const user = this.authService.currentUser();
+    if (!user?.id) return;
+    this.studentDeliverableService.getByStudent(user.id).subscribe({
+      next: list => {
+        const map = new Map<string, StudentDeliverable>();
+        list.filter(d => d.parentId === null).forEach(d => {
+          map.set(d.title.toLowerCase(), d);
+        });
+        this.studentDeliverablesByTitle.set(map);
+      },
+      error: () => {},
+    });
+  }
+
+  hasStudentDeliverable(taskTitle: string): boolean {
+    return this.studentDeliverablesByTitle().has(taskTitle.toLowerCase());
+  }
+
+  getStudentDeliverable(taskTitle: string): StudentDeliverable | undefined {
+    return this.studentDeliverablesByTitle().get(taskTitle.toLowerCase());
+  }
+
+  // ── Submit student deliverable to tutor ───────────────────────
+  openStudentSubmitDialog(task: TaskItem) {
+    const ref = this.dialog.open(StudentSubmitDialogComponent, {
+      width: '560px',
+      maxWidth: '95vw',
+      data: {
+        mode: 'create',
+        title: task.title,
+        description: task.description,
+        projectId: task.projectId,
+        projectName: task.projectName,
+      },
+    });
+    ref.afterClosed().subscribe(saved => {
+      if (saved) this.loadStudentDeliverables();
+    });
+  }
+
+  openStudentVersionDialog(task: TaskItem) {
+    const existing = this.getStudentDeliverable(task.title);
+    if (!existing) return;
+    const ref = this.dialog.open(StudentSubmitDialogComponent, {
+      width: '560px',
+      maxWidth: '95vw',
+      data: {
+        mode: 'add-version',
+        parentId: existing.id,
+        parentTitle: existing.title,
+        parentVersion: existing.versionNumber ?? 1,
+      },
+    });
+    ref.afterClosed().subscribe(saved => {
+      if (saved) this.loadStudentDeliverables();
     });
   }
 }

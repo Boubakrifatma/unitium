@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -34,7 +35,7 @@ public class VirusTotalScanService {
 
     private static final String BASE_URL = "https://www.virustotal.com/api/v3";
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
     private final String apiKey;
     private final int maxAttempts;
     private final long intervalMs;
@@ -44,13 +45,21 @@ public class VirusTotalScanService {
             @Value("${virustotal.api.key:}") String apiKey,
             @Value("${virustotal.poll.max-attempts:12}") int maxAttempts,
             @Value("${virustotal.poll.interval-ms:5000}") long intervalMs,
-            @Value("${virustotal.mode:permissive}") String mode) {
-        this.apiKey     = apiKey;
+            @Value("${virustotal.mode:permissive}") String mode,
+            @Value("${virustotal.timeout.connect-ms:5000}") int connectTimeoutMs,
+            @Value("${virustotal.timeout.read-ms:10000}") int readTimeoutMs) {
+        this.apiKey      = apiKey;
         this.maxAttempts = maxAttempts;
         this.intervalMs  = intervalMs;
         this.permissive  = !"strict".equalsIgnoreCase(mode);
-        log.info("VirusTotalScanService initialised — mode={} key={}",
-                mode, apiKey.isBlank() ? "NOT SET" : "***");
+
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(connectTimeoutMs);
+        factory.setReadTimeout(readTimeoutMs);
+        this.restTemplate = new RestTemplate(factory);
+
+        log.info("VirusTotalScanService initialised — mode={} key={} connectTimeout={}ms readTimeout={}ms",
+                mode, apiKey.isBlank() ? "NOT SET" : "***", connectTimeoutMs, readTimeoutMs);
     }
 
     /**

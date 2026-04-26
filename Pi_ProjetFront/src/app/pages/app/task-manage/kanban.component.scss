@@ -697,6 +697,38 @@
   }
 }
 
+/* Student submit to tutor row */
+.kb-student-submit-row {
+  padding-top: 8px;
+  border-top: 1px dashed #bfdbfe;
+  margin-top: 6px;
+}
+
+.kb-submit-tutor-btn {
+  font-size: 0.73rem !important;
+  min-height: 30px !important;
+  line-height: 30px !important;
+  padding: 0 12px !important;
+  border-radius: 10px !important;
+  border-color: #3b82f6 !important;
+  color: #1e40af !important;
+  width: 100%;
+  transition: all 0.2s ease !important;
+
+  mat-icon {
+    font-size: 15px;
+    width: 15px;
+    height: 15px;
+    vertical-align: middle;
+    margin-right: 4px;
+  }
+
+  &:hover {
+    background: #eff6ff !important;
+    transform: translateY(-1px);
+  }
+}
+
 /* ──────────────────────────────────────────────────────────────
    COMPACT VIEW
 ───────────────────────────────────────────────────────────────── */

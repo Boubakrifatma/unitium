@@ -149,6 +149,7 @@ export class AppSidebarComponent {
     get isAdmin(): boolean      { return this.role === 'ADMIN' || this.isSuperAdmin; }
     get isManager(): boolean    { return this.role === 'MANAGER' || this.isAdmin; }
     get isTutor(): boolean      { return this.role === 'TUTOR'; }
+    get isStudent(): boolean    { return this.role === 'STUDENT'; }
     get canManageWorkspaces(): boolean { return this.isManager || this.isTutor; }
     get isProductOwner(): boolean { return this.role === 'PRODUCT_OWNER'}
 
@@ -187,7 +188,7 @@ export class AppSidebarComponent {
 
         // Manager/Admin/Tutor roles can access broader project/task workspace management views.
         if (this.canManageWorkspaces) {
-            if (!this.isManager && !this.isTutor) {
+            if (!this.isManager) {
                 projectChildren.push(
                     { name: "Projects (Template)", route: "/app/projects", icon: "assignment" },
                     { name: "Project Details (Template)", route: "/app/project-details", icon: "subject" },
@@ -215,10 +216,9 @@ export class AppSidebarComponent {
         const applicationsChildren: NavItem[] = [
             { name: "Deliverables", route: "/app/deliverables", icon: "upload_file" },
         ];
-        if (!this.isManager && !this.isTutor) {
+        if (!this.isManager) {
             applicationsChildren.unshift({ name: "Task Kanban", route: "/app/kanban", icon: "view_kanban" });
         }
-
         applicationsChildren.push({ name: "Chat", route: "/app/chat", icon: "chat" });
         all.push({
             name: "Applications",
@@ -271,13 +271,25 @@ export class AppSidebarComponent {
             });
            }
 
-        // TUTOR-only: compare two students' deliverable files
+        // TUTOR — evaluation dashboard + legacy file comparison
         if (this.isTutor) {
             all.push({
                 name: "Tutor",
                 icon: "school",
                 children: [
-                    { name: "Comparer livrables", route: "/app/tutor-compare-deliverables", icon: "compare_arrows" },
+                    { name: "Evaluation Dashboard", route: "/app/tutor-dashboard",               icon: "rate_review" },
+                    { name: "Compare Files",         route: "/app/tutor-compare-deliverables",   icon: "compare_arrows" },
+                ],
+            });
+        }
+
+        // STUDENT — submit and track deliverables
+        if (this.isStudent) {
+            all.push({
+                name: "My Deliverables",
+                icon: "assignment",
+                children: [
+                    { name: "My Submissions", route: "/app/student-deliverables", icon: "upload_file" },
                 ],
             });
         }

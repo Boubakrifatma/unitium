@@ -75,7 +75,7 @@ export const routes: Routes = [
         children: [
             {
                 path: "",
-                redirectTo: "master-dashboard",
+                redirectTo: "dashboard",
                 pathMatch: "full",
             },
             {
@@ -175,6 +175,14 @@ export const routes: Routes = [
             {
                 path: "tutor-compare-deliverables",
                 loadComponent: () => import("./pages/app/intelligence/tutor-compare-deliverables.component").then((m) => m.TutorCompareDeliverablesComponent),
+            },
+            {
+                path: "tutor-dashboard",
+                loadComponent: () => import("./pages/app/tutor/tutor-dashboard.component").then((m) => m.TutorDashboardComponent),
+            },
+            {
+                path: "student-deliverables",
+                loadComponent: () => import("./pages/app/student/student-deliverable-list.component").then((m) => m.StudentDeliverableListComponent),
             },
             {
                 path: "mes-fichiers",

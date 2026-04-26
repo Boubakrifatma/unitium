@@ -225,11 +225,13 @@
                   {{ getTasksForColumn(column.id).length }}
                 </span>
               </div>
-              <button mat-icon-button class="kb-add-task-btn"
-                      [matTooltip]="'Add task to ' + column.title"
-                      (click)="openDeliverableDialog({ taskId: 0, projectId: '', projectName: '', title: '', description: '', status: column.id, type: 'task', assignedTo: '', assignedToEmail: '', priority: 'medium', assignHours: '0h', loggedHours: '0h', dueDate: '' })">
-                <mat-icon class="material-icons-outlined" style="font-size:18px">add</mat-icon>
-              </button>
+              @if (!isStudent()) {
+                <button mat-icon-button class="kb-add-task-btn"
+                        [matTooltip]="'Add task to ' + column.title"
+                        (click)="openDeliverableDialog({ taskId: 0, projectId: '', projectName: '', title: '', description: '', status: column.id, type: 'task', assignedTo: '', assignedToEmail: '', priority: 'medium', assignHours: '0h', loggedHours: '0h', dueDate: '' })">
+                  <mat-icon class="material-icons-outlined" style="font-size:18px">add</mat-icon>
+                </button>
+              }
             </div>
           </div>
 
@@ -344,8 +346,8 @@
                       </span>
                     </div>
 
-                    <!-- Deliverable row (completed tasks only) -->
-                    @if (task.status === 'completed') {
+                    <!-- Deliverable row (employee workflow — hidden for students) -->
+                    @if (task.status === 'completed' && !isStudent()) {
                       <div class="kb-deliverable-row">
                         @if (hasDeliverable(task.taskId)) {
                           <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -366,6 +368,34 @@
                                   matTooltip="Add deliverable">
                             <mat-icon class="material-icons-outlined">upload_file</mat-icon>
                             Deliverable
+                          </button>
+                        }
+                      </div>
+                    }
+
+                    <!-- Submit to tutor (student workflow, completed tasks only) -->
+                    @if (isStudent() && task.status === 'completed') {
+                      <div class="kb-student-submit-row">
+                        @if (hasStudentDeliverable(task.title)) {
+                          <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <button mat-stroked-button class="kb-submit-tutor-btn" disabled
+                                    matTooltip="Deliverable already submitted for this task">
+                              <mat-icon class="material-icons-outlined">school</mat-icon>
+                              Submit to Tutor
+                            </button>
+                            <button mat-stroked-button color="accent" class="kb-deliv-btn"
+                                    (click)="openStudentVersionDialog(task)"
+                                    matTooltip="Submit a new version">
+                              <mat-icon class="material-icons-outlined">add_circle</mat-icon>
+                              New Version
+                            </button>
+                          </div>
+                        } @else {
+                          <button mat-stroked-button class="kb-submit-tutor-btn"
+                                  (click)="openStudentSubmitDialog(task)"
+                                  matTooltip="Submit this task as a deliverable to your tutor">
+                            <mat-icon class="material-icons-outlined">school</mat-icon>
+                            Submit to Tutor
                           </button>
                         }
                       </div>

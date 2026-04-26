@@ -55,6 +55,56 @@ export class VirusWarningDialogComponent {
   readonly data: { message: string } = inject(MAT_DIALOG_DATA);
 }
 
+// ── Scan Status Dialog ────────────────────────────────────────────────────────
+@Component({
+  selector: 'app-scan-status-dialog',
+  standalone: true,
+  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule],
+  template: `
+    <div style="padding: 8px 0 0 0;">
+      <h2 mat-dialog-title style="display:flex; align-items:center; gap:10px; margin:0 0 4px 0;"
+          [style.color]="titleColor">
+        <mat-icon style="font-size:28px; height:28px; width:28px;" [style.color]="titleColor">{{ icon }}</mat-icon>
+        {{ title }}
+      </h2>
+      <mat-dialog-content style="padding-top:12px;">
+        <div style="display:flex; gap:14px; align-items:flex-start; border-radius:8px; padding:16px;"
+             [style.background]="bgColor" [style.border-left]="'4px solid ' + borderColor">
+          <mat-icon style="margin-top:2px; flex-shrink:0;" [style.color]="borderColor">{{ bodyIcon }}</mat-icon>
+          <div>
+            <p style="margin:0 0 6px 0; font-weight:600;" [style.color]="titleColor">{{ headline }}</p>
+            <p style="margin:0; color:#555; font-size:13.5px;">{{ body }}</p>
+          </div>
+        </div>
+      </mat-dialog-content>
+      <mat-dialog-actions align="end" style="padding:8px 0 0 0;">
+        <button mat-raised-button mat-dialog-close [style.background]="borderColor" style="color:#fff; min-width:100px;">
+          <mat-icon>check</mat-icon> OK
+        </button>
+      </mat-dialog-actions>
+    </div>
+  `,
+})
+export class ScanStatusDialogComponent {
+  readonly data: { status: 'clean' | 'unverified' | 'pending' | 'infected'; virusName?: string | null } = inject(MAT_DIALOG_DATA);
+
+  get isClean()      { return this.data.status === 'clean'; }
+  get isUnverified() { return this.data.status === 'unverified' || this.data.status === 'pending'; }
+
+  get titleColor()  { return this.isClean ? '#1b5e20' : '#e65100'; }
+  get bgColor()     { return this.isClean ? '#f1f8e9' : '#fff8e1'; }
+  get borderColor() { return this.isClean ? '#43a047' : '#fb8c00'; }
+  get icon()        { return this.isClean ? 'verified_user' : 'help_outline'; }
+  get bodyIcon()    { return this.isClean ? 'check_circle' : 'warning_amber'; }
+  get title()       { return this.isClean ? 'Fichier sûr' : 'Antivirus indisponible'; }
+  get headline()    { return this.isClean ? 'Aucune menace détectée.' : 'Analyse impossible pour l\'instant.'; }
+  get body() {
+    return this.isClean
+      ? 'Le fichier a été analysé par l\'antivirus et aucune menace n\'a été détectée. Vous pouvez soumettre votre livrable en toute sécurité.'
+      : 'L\'antivirus n\'a pas pu analyser ce fichier. Il sera marqué "non vérifié". Vous pouvez tout de même soumettre votre livrable.';
+  }
+}
+
 const VAGUE_PHRASES = [
   'work done', 'done', 'finished', 'completed', 'ok', 'good',
   'travail fait', 'fait', 'terminé', 'fini', 'nothing', 'n/a', 'rien'
@@ -218,7 +268,7 @@ export class DeliverableDialogComponent implements OnInit {
   // ── Antivirus scan UI state ─────────────────────────────────────────────
   scanState = signal<'idle' | 'scanning' | 'clean' | 'unverified' | 'rejected'>('idle');
   scanMessage = signal('');
-  scanResult: { status?: 'clean' | 'unverified'; virusName?: string | null } = {};
+  scanResult: { status?: 'clean' | 'unverified' | 'pending' | 'infected'; virusName?: string | null } = {};
 
   // ── Smart Description Analyzer ──────────────────────────────────────────
   descriptionScore = signal(0);
