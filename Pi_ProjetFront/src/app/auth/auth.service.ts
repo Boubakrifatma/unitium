@@ -1,4 +1,4 @@
-import { Injectable, signal, PLATFORM_ID, inject } from '@angular/core';
+import { Injectable, signal, PLATFORM_ID, inject, NgZone } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
@@ -14,6 +14,7 @@ export class AuthService {
   private readonly USER_ID_KEY = 'session_user_id';
   private readonly USER_KEY    = 'session_user';
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly zone = inject(NgZone);
 
   currentUser = signal<User | null>(null);
   currentOrganization = signal<OrganizationContext | null>(null);
@@ -140,6 +141,15 @@ export class AuthService {
 
   isLoggedIn(): boolean {
     return !!this.getToken() && !!this.currentUser();
+  }
+
+  /** Update fields on the current user in memory AND persist to localStorage. */
+  patchCurrentUser(patch: Partial<User>): void {
+    const cur = this.currentUser();
+    if (!cur) return;
+    const updated = { ...cur, ...patch };
+    if (this.isBrowser) localStorage.setItem(this.USER_KEY, JSON.stringify(updated));
+    this.zone.run(() => this.currentUser.set(updated));
   }
 
   private setToken(token: string): void {

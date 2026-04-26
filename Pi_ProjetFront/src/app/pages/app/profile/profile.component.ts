@@ -61,28 +61,19 @@ import { UserService, UserDTO } from '../../../users/user.service';
 
                             <!-- Avatar -->
                             <div class="avatar-section">
-                                <div class="avatar-wrap" (click)="fileInput.click()">
+                                <div class="avatar-wrap" (click)="!uploading && fileInput.click()">
                                     <div class="avatar-img"
                                          [style.background-image]="'url(' + (avatarPreview || user()?.avatarUrl || defaultAvatar) + ')'">
                                     </div>
-                                    <div class="avatar-overlay">
+                                    <div class="avatar-overlay" *ngIf="!uploading">
                                         <mat-icon>photo_camera</mat-icon>
+                                    </div>
+                                    <div class="avatar-loading-overlay" *ngIf="uploading">
+                                        <mat-spinner diameter="28" color="accent"></mat-spinner>
                                     </div>
                                 </div>
                                 <input #fileInput type="file" accept="image/*" class="d-none"
                                        (change)="onFileChange($event)" />
-                            </div>
-
-                            <!-- Avatar upload actions -->
-                            <div class="text-center px-4 mb-1" *ngIf="avatarPreview">
-                                <div class="d-flex justify-content-center gap-2">
-                                    <button matButton="filled" color="primary" (click)="saveAvatar()" [disabled]="uploading">
-                                        <mat-spinner diameter="14" *ngIf="uploading"></mat-spinner>
-                                        <mat-icon *ngIf="!uploading">cloud_upload</mat-icon>
-                                        {{ uploading ? 'Saving…' : 'Save Photo' }}
-                                    </button>
-                                    <button matButton (click)="cancelAvatar()">Cancel</button>
-                                </div>
                             </div>
                             <p class="feedback-ok" *ngIf="uploadMsg">{{ uploadMsg }}</p>
                             <p class="feedback-err" *ngIf="uploadErr">{{ uploadErr }}</p>
@@ -352,6 +343,12 @@ import { UserService, UserDTO } from '../../../users/user.service';
         }
         .avatar-overlay mat-icon { color: white; font-size: 22px; }
         .avatar-wrap:hover .avatar-overlay { opacity: 1; }
+        .avatar-loading-overlay {
+            position: absolute; inset: 0;
+            background: rgba(0,0,0,0.48);
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 50%;
+        }
 
         /* Identity */
         .identity-block {
@@ -598,9 +595,8 @@ export class ProfileComponent implements OnInit {
         if (userId) {
             this.userService.getById(userId).subscribe(dto => {
                 this.user.set(dto);
-                const cur = this.authService.currentUser();
-                if (cur && dto.avatarUrl !== cur.avatarUrl) {
-                    this.authService.currentUser.set({ ...cur, avatarUrl: dto.avatarUrl });
+                if (dto.avatarUrl !== this.authService.currentUser()?.avatarUrl) {
+                    this.authService.patchCurrentUser({ avatarUrl: dto.avatarUrl });
                 }
             });
         }
@@ -615,6 +611,7 @@ export class ProfileComponent implements OnInit {
         reader.readAsDataURL(file);
         this.uploadMsg = '';
         this.uploadErr = '';
+        this.saveAvatar();
     }
 
     cancelAvatar(): void {
@@ -634,8 +631,7 @@ export class ProfileComponent implements OnInit {
                 this.avatarPreview = null;
                 this.avatarFile    = null;
                 this.user.update(prev => prev ? { ...prev, avatarUrl: dto.avatarUrl } : prev);
-                const cur = this.authService.currentUser();
-                if (cur) this.authService.currentUser.set({ ...cur, avatarUrl: dto.avatarUrl });
+                this.authService.patchCurrentUser({ avatarUrl: dto.avatarUrl });
                 setTimeout(() => this.uploadMsg = '', 3000);
             },
             error: () => {

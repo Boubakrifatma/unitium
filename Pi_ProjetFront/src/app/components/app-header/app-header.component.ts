@@ -1,4 +1,4 @@
-import { Component, Input, Renderer2, Output, EventEmitter, signal, computed, Inject, inject, effect } from "@angular/core";
+import { Component, Input, Renderer2, Output, EventEmitter, signal, computed, effect, Inject, inject } from "@angular/core";
 import { DOCUMENT } from "@angular/common";
 import { AuthService } from "../../auth/auth.service";
 import { CommonModule } from "@angular/common";
@@ -158,9 +158,14 @@ import { NotificationService, DeliverableNotification } from "../../services/not
 
                 <!-- Avatar button -->
                 <button class="user-btn" [matMenuTriggerFor]="userMenu">
-                    <div class="user-avatar"
-                         [ngStyle]="{'background-image': 'url(' + (authService.currentUser()?.avatarUrl || 'assets/img/user-6.jpg') + ')'}">
-                        <mat-icon *ngIf="!authService.currentUser()?.avatarUrl" class="avatar-fallback-icon">account_circle</mat-icon>
+                    <div class="user-avatar">
+                        <div class="avatar-skeleton" *ngIf="avatarLoading()"></div>
+                        <img class="avatar-img"
+                             [src]="avatarSrc()"
+                             [class.avatar-hidden]="avatarLoading()"
+                             (load)="_loadedToolbarUrl.set(avatarSrc())"
+                             (error)="onAvatarError($event, 'toolbar')"
+                             alt="avatar" />
                     </div>
                     <div class="user-btn-text">
                         <span class="user-btn-name">{{ authService.currentUser()?.fullName }}</span>
@@ -175,8 +180,14 @@ import { NotificationService, DeliverableNotification } from "../../services/not
                     <!-- Compact header -->
                     <div class="udm-header" (click)="$event.stopPropagation()">
                         <div class="udm-photo-wrap">
-                            <div class="udm-photo"
-                                 [ngStyle]="{'background-image': 'url(' + (authService.currentUser()?.avatarUrl || 'assets/img/user-6.jpg') + ')'}">
+                            <div class="udm-photo">
+                                <div class="avatar-skeleton" *ngIf="dropdownAvatarLoading()"></div>
+                                <img class="avatar-img"
+                                     [src]="avatarSrc()"
+                                     [class.avatar-hidden]="dropdownAvatarLoading()"
+                                     (load)="_loadedDropdownUrl.set(avatarSrc())"
+                                     (error)="onAvatarError($event, 'dropdown')"
+                                     alt="avatar" />
                             </div>
                             <div class="udm-online"></div>
                         </div>
@@ -192,20 +203,14 @@ import { NotificationService, DeliverableNotification } from "../../services/not
 
                     <!-- Navigation -->
                     <div class="udm-nav-section">
-                        <button mat-menu-item routerLink="./dashboard" class="udm-nav-item">
-                            <mat-icon class="udm-nav-icon">dashboard</mat-icon>
-                            <span class="udm-nav-label">Dashboard</span>
-                        </button>
+                      
 
                         <button mat-menu-item routerLink="./profile" class="udm-nav-item">
                             <mat-icon class="udm-nav-icon">person</mat-icon>
                             <span class="udm-nav-label">Profile</span>
                         </button>
 
-                        <button mat-menu-item routerLink="./subscription" class="udm-nav-item">
-                            <mat-icon class="udm-nav-icon">workspace_premium</mat-icon>
-                            <span class="udm-nav-label">Subscription</span>
-                        </button>
+                        
 
                         <button mat-menu-item (click)="logout()" class="udm-nav-item udm-nav-logout">
                             <mat-icon class="udm-nav-icon">logout</mat-icon>
@@ -343,22 +348,36 @@ import { NotificationService, DeliverableNotification } from "../../services/not
             width: 34px;
             height: 34px;
             border-radius: 50%;
-            background-size: cover;
-            background-position: center;
             background-color: rgba(0,0,0,.06);
             border: 1px solid rgba(0,0,0,.12);
             flex-shrink: 0;
-            position: relative;
             overflow: hidden;
-        }
-        .avatar-fallback-icon {
-            font-size: 20px !important;
-            color: rgba(0,0,0,.55) !important;
-            width: 100%;
-            height: 100%;
+            position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
+        }
+        .avatar-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+            display: block;
+        }
+        .avatar-hidden {
+            display: none;
+        }
+        .avatar-skeleton {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: linear-gradient(90deg, rgba(0,0,0,.08) 25%, rgba(0,0,0,.15) 50%, rgba(0,0,0,.08) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.2s ease-in-out infinite;
+        }
+        @keyframes shimmer {
+            0%   { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
         }
         .user-btn-text {
             display: flex;
@@ -425,11 +444,13 @@ import { NotificationService, DeliverableNotification } from "../../services/not
             width: 46px;
             height: 46px;
             border-radius: 50%;
-            background-size: cover;
-            background-position: center;
             background-color: rgba(0,0,0,.06);
             border: 1px solid rgba(0,0,0,.08);
+            overflow: hidden;
             position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .udm-online {
             position: absolute;
@@ -596,6 +617,8 @@ export class AppHeaderComponent {
 
     notifMuted = signal<boolean>(false);
     speakingNotifId = signal<string | null>(null);
+    _loadedToolbarUrl = signal<string>('');
+    _loadedDropdownUrl = signal<string>('');
     private notifLoaded = false;
     private availableVoices: SpeechSynthesisVoice[] = [];
 
@@ -614,7 +637,14 @@ export class AppHeaderComponent {
 
     authService = inject(AuthService);
 
+    readonly avatarSrc = computed(() =>
+        this.authService.currentUser()?.avatarUrl || 'assets/img/user-6.jpg'
+    );
+    readonly avatarLoading = computed(() => this.avatarSrc() !== this._loadedToolbarUrl());
+    readonly dropdownAvatarLoading = computed(() => this.avatarSrc() !== this._loadedDropdownUrl());
+
     constructor(private router: Router, private renderer: Renderer2, @Inject(DOCUMENT) private document: Document) {
+
         // Auto-save notifications to localStorage whenever they change (handles push, markAllRead, clearAll)
         effect(() => {
             const notifs = this.notifService.notifications();
@@ -816,6 +846,13 @@ export class AppHeaderComponent {
             roomId: n.roomId,
         });
         this.router.navigate(['/app/chat']);
+    }
+
+    onAvatarError(event: Event, which: 'toolbar' | 'dropdown'): void {
+        const img = event.target as HTMLImageElement;
+        if (!img.src.includes('user-6.jpg')) img.src = 'assets/img/user-6.jpg';
+        if (which === 'toolbar') this._loadedToolbarUrl.set(this.avatarSrc());
+        else this._loadedDropdownUrl.set(this.avatarSrc());
     }
 
     formatRelativeTime(date: Date): string {

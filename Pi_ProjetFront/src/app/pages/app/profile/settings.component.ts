@@ -105,23 +105,18 @@ const NAV_ITEMS = [
                 <p class="sc-subtitle">Click on your avatar to upload a new photo</p>
               </div>
               <div class="avatar-section">
-                <div class="avatar-wrap" (click)="fileInput.click()">
+                <div class="avatar-wrap" (click)="!avatarUploading && fileInput.click()">
                   <div class="avatar-img" [style.background-image]="'url(' + (avatarPreview || currentUser()?.avatarUrl || defaultAvatar) + ')'"></div>
-                  <div class="avatar-overlay"><mat-icon>photo_camera</mat-icon></div>
+                  <div class="avatar-overlay" *ngIf="!avatarUploading"><mat-icon>photo_camera</mat-icon></div>
+                  <div class="avatar-loading-overlay" *ngIf="avatarUploading">
+                    <mat-spinner diameter="28" color="accent"></mat-spinner>
+                  </div>
                 </div>
                 <input #fileInput type="file" accept="image/*" class="d-none" (change)="onFileChange($event)" />
                 <div class="avatar-meta">
                   <h3 class="avatar-name">{{ currentUser()?.fullName }}</h3>
                   <p class="avatar-email">{{ currentUser()?.email }}</p>
                   <span class="role-pill">{{ currentUser()?.role }}</span>
-                  <div class="avatar-actions" *ngIf="avatarPreview">
-                    <button matButton="filled" color="primary" (click)="uploadAvatar()" [disabled]="avatarUploading">
-                      <mat-spinner diameter="14" *ngIf="avatarUploading"></mat-spinner>
-                      <mat-icon *ngIf="!avatarUploading">cloud_upload</mat-icon>
-                      {{ avatarUploading ? 'Uploading…' : 'Save Photo' }}
-                    </button>
-                    <button matButton (click)="cancelAvatar()">Cancel</button>
-                  </div>
                   <p class="feedback success mt-2" *ngIf="avatarMsg">{{ avatarMsg }}</p>
                   <p class="feedback error mt-2" *ngIf="avatarError">{{ avatarError }}</p>
                 </div>
@@ -685,6 +680,12 @@ const NAV_ITEMS = [
     }
     .avatar-overlay mat-icon { color: white; font-size: 24px; }
     .avatar-wrap:hover .avatar-overlay { opacity: 1; }
+    .avatar-loading-overlay {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0.48);
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 50%;
+    }
     .avatar-meta { flex: 1; min-width: 0; }
     .avatar-name {
       font-size: 16px; font-weight: 700;
@@ -995,6 +996,7 @@ export class SettingsComponent implements OnInit {
     reader.readAsDataURL(file);
     this.avatarMsg = '';
     this.avatarError = '';
+    this.uploadAvatar();
   }
 
   cancelAvatar(): void {
@@ -1013,11 +1015,8 @@ export class SettingsComponent implements OnInit {
         this.avatarUploading = false;
         this.avatarPreview   = null;
         this.avatarFile      = null;
-        this.avatarMsg       = 'Photo updated successfully!';
-        const cur = this.currentUser();
-        if (cur) {
-          this.authService.currentUser.set({ ...cur, avatarUrl: dto.avatarUrl });
-        }
+        this.avatarMsg = 'Photo updated successfully!';
+        this.authService.patchCurrentUser({ avatarUrl: dto.avatarUrl });
         setTimeout(() => this.avatarMsg = '', 3000);
       },
       error: () => {
@@ -1039,10 +1038,7 @@ export class SettingsComponent implements OnInit {
       next: (dto) => {
         this.infoSaving = false;
         this.infoMsg    = 'Profile updated successfully!';
-        const cur = this.currentUser();
-        if (cur) {
-          this.authService.currentUser.set({ ...cur, fullName: dto.fullName, email: dto.email });
-        }
+        this.authService.patchCurrentUser({ fullName: dto.fullName, email: dto.email });
         this.infoForm.markAsPristine();
         setTimeout(() => this.infoMsg = '', 3000);
       },
