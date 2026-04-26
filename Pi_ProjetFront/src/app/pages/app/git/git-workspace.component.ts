@@ -21,6 +21,7 @@ import {
   GitBranches, GitCommit, GitRepoLink, GitService, GitStatus,
   GithubRepo, GithubTokenStatus, ManagerBranch,
 } from '../../../services/git.service';
+import { Project, ProjectService } from '../../../services/project-service';
 
 @Component({
   selector: 'app-git-workspace',
@@ -367,13 +368,21 @@ import {
       <mat-card-content>
         <div class="link-list" *ngIf="links().length; else noLinks">
           <span class="repo-list-label">Linked to a project (click to work on it):</span>
-          <mat-chip-set>
-            <mat-chip *ngFor="let l of links()"
-                     [highlighted]="l.id === activeLinkId()"
-                     (click)="selectLink(l)" class="repo-chip">
-              <mat-icon>account_tree</mat-icon> {{ l.owner }}/{{ l.repoName }}
-            </mat-chip>
-          </mat-chip-set>
+          <div class="linked-repo-cards">
+            <div *ngFor="let l of links()"
+                 class="linked-repo-card"
+                 [class.active]="l.id === activeLinkId()"
+                 (click)="selectLink(l)">
+              <div class="lrc-top">
+                <mat-icon class="lrc-icon">account_tree</mat-icon>
+                <span class="lrc-repo">{{ l.owner }}/{{ l.repoName }}</span>
+              </div>
+              <div class="lrc-project" *ngIf="getProjectName(l.projectId) as pname">
+                <mat-icon class="lrc-proj-icon">folder_special</mat-icon>
+                <span>{{ pname }}</span>
+              </div>
+            </div>
+          </div>
         </div>
         <ng-template #noLinks>
           <div class="muted small">No linked repos yet.</div>
@@ -395,8 +404,13 @@ import {
               </mat-select>
             </mat-form-field>
             <mat-form-field appearance="outline" class="grow">
-              <mat-label>Project ID</mat-label>
-              <input matInput type="number" [(ngModel)]="newLinkProjectId" placeholder="123" />
+              <mat-label>Projet</mat-label>
+              <mat-select [(ngModel)]="newLinkProjectId">
+                <mat-option *ngFor="let p of projects()" [value]="+p.id">
+                  <mat-icon style="font-size:14px;vertical-align:middle;margin-right:4px">folder_special</mat-icon>
+                  {{ p.name }}
+                </mat-option>
+              </mat-select>
             </mat-form-field>
             <mat-form-field appearance="outline" class="grow-2">
               <mat-label>Local path (optional)</mat-label>
@@ -417,7 +431,12 @@ import {
         <!-- Changes -->
         <mat-card class="gw-card">
           <mat-card-header>
-            <mat-card-title><mat-icon>edit_note</mat-icon> Changes</mat-card-title>
+            <mat-card-title>
+              <mat-icon>edit_note</mat-icon> Changes
+              <span *ngIf="activeProjectName()" class="active-project-pill">
+                <mat-icon>folder_special</mat-icon>{{ activeProjectName() }}
+              </span>
+            </mat-card-title>
             <span class="grow"></span>
             <mat-chip *ngIf="status()" class="branch-chip">
               <mat-icon>call_split</mat-icon> {{ status()!.branch }}
@@ -652,8 +671,34 @@ import {
     .branch-chip { background:#eef2ff !important; color:#4338ca !important; }
     .gw-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
     @media(max-width:960px) { .gw-grid { grid-template-columns:1fr; } }
-    .repo-list-label { font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:.5px; display:block; margin-bottom:6px; }
+    .repo-list-label { font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:.5px; display:block; margin-bottom:10px; }
     .repo-chip { cursor:pointer; }
+
+    /* Linked repo cards */
+    .linked-repo-cards { display:flex; flex-wrap:wrap; gap:10px; }
+    .linked-repo-card {
+      display:flex; flex-direction:column; gap:5px;
+      padding:10px 14px; border-radius:12px; cursor:pointer;
+      border:1px solid #e2e8f0; background:#f8fafc;
+      transition:all .15s; min-width:200px;
+    }
+    .linked-repo-card:hover { background:#eef2ff; border-color:#a5b4fc; }
+    .linked-repo-card.active { background:#eef2ff; border-color:#6366f1; box-shadow:0 0 0 2px rgba(99,102,241,.2); }
+    .lrc-top { display:flex; align-items:center; gap:6px; }
+    .lrc-icon { font-size:16px; width:16px; height:16px; color:#6366f1; }
+    .lrc-repo { font-weight:600; font-size:.85rem; color:#1e293b; }
+    .lrc-project { display:flex; align-items:center; gap:5px; font-size:.76rem; color:#059669; font-weight:500; }
+    .lrc-proj-icon { font-size:13px; width:13px; height:13px; }
+
+    /* Active project pill in card title */
+    .active-project-pill {
+      display:inline-flex; align-items:center; gap:4px;
+      background:#d1fae5; color:#059669;
+      padding:2px 10px; border-radius:99px;
+      font-size:.75rem; font-weight:600;
+      margin-left:8px;
+    }
+    .active-project-pill mat-icon { font-size:13px; width:13px; height:13px; }
     .link-panel  { box-shadow:none !important; border:1px solid #e2e8f0; border-radius:10px !important; }
     .link-form   { display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap; padding-top:8px; }
     .link-form .grow   { flex:1 1 200px; }
@@ -682,9 +727,10 @@ import {
   `],
 })
 export class GitWorkspaceComponent implements OnInit {
-  readonly git   = inject(GitService);
-  private auth   = inject(AuthService);
-  private snack  = inject(MatSnackBar);
+  readonly git            = inject(GitService);
+  private auth            = inject(AuthService);
+  private snack           = inject(MatSnackBar);
+  private projectService  = inject(ProjectService);
 
   // ── Shared ───────────────────────────────────────────────────────────────
   readonly tokenStatus = signal<GithubTokenStatus | null>(null);
@@ -740,6 +786,21 @@ export class GitWorkspaceComponent implements OnInit {
     );
   });
 
+  // ── Projects ─────────────────────────────────────────────────────────────
+  readonly projects = signal<Project[]>([]);
+
+  getProjectName(projectId: number | null): string {
+    if (!projectId) return '';
+    return this.projects().find(p => +p.id === projectId)?.name ?? `Projet #${projectId}`;
+  }
+
+  readonly activeProjectName = computed(() => {
+    const id = this.activeLinkId();
+    if (id == null) return '';
+    const link = this.links().find(l => l.id === id);
+    return link ? this.getProjectName(link.projectId) : '';
+  });
+
   // ── Dev state ────────────────────────────────────────────────────────────
   readonly githubRepos = signal<GithubRepo[]>([]);
   readonly links       = signal<GitRepoLink[]>([]);
@@ -758,6 +819,10 @@ export class GitWorkspaceComponent implements OnInit {
   // ── Init ─────────────────────────────────────────────────────────────────
 
   ngOnInit(): void {
+    this.projectService.getMyProjects().subscribe({
+      next: ps => this.projects.set(ps ?? []),
+      error: () => {},
+    });
     this.git.checkToken().subscribe({
       next: s => {
         this.tokenStatus.set(s);

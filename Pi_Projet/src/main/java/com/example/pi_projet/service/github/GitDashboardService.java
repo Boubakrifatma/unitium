@@ -52,9 +52,9 @@ public class GitDashboardService {
 
             try (Git git = Git.open(dir)) {
                 int repoCount = 0;
-                for (RevCommit c : git.log().call()) {
+                for (RevCommit c : git.log().all().call()) {
                     Instant date = Instant.ofEpochSecond(c.getCommitTime());
-                    if (date.isBefore(cutoff)) break;
+                    if (date.isBefore(cutoff)) continue;
                     repoCount++;
                     totalCommits++;
 

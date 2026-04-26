@@ -72,6 +72,10 @@ interface Snapshot {
       </div>
     </div>
     <div class="gd-hero-right">
+      <mat-button-toggle-group [(ngModel)]="allBranches" (change)="refresh()" class="branch-toggle">
+        <mat-button-toggle [value]="false"><mat-icon style="font-size:14px;width:14px;height:14px;margin-right:4px">commit</mat-icon>main</mat-button-toggle>
+        <mat-button-toggle [value]="true"><mat-icon style="font-size:14px;width:14px;height:14px;margin-right:4px">call_split</mat-icon>Toutes les branches</mat-button-toggle>
+      </mat-button-toggle-group>
       <mat-button-toggle-group [(ngModel)]="rangeDays" (change)="refresh()" class="range-toggle">
         <mat-button-toggle [value]="7">7j</mat-button-toggle>
         <mat-button-toggle [value]="30">30j</mat-button-toggle>
@@ -368,6 +372,7 @@ interface Snapshot {
     .gd-hero-sub   { margin:4px 0 0; opacity:.85; font-size:14px; }
     .gd-hero-right { display:flex; align-items:center; gap:8px; }
     .range-toggle  { background:rgba(255,255,255,.95); border-radius:8px; }
+    .branch-toggle { background:rgba(255,255,255,.95); border-radius:8px; }
 
     .loading-bar { display:flex; align-items:center; gap:12px; color:#6366f1; font-size:.88rem; padding:8px 0; }
 
@@ -485,6 +490,7 @@ export class TutorGitDashboardComponent implements OnInit, AfterViewInit, OnDest
   readonly busy          = signal(false);
 
   rangeDays: 7 | 30 | 90 = 30;
+  allBranches = true;
   selectedRepoKey = '';
   newUsername     = '';
   newPermission: 'pull' | 'triage' | 'push' | 'maintain' | 'admin' = 'push';
@@ -531,26 +537,78 @@ export class TutorGitDashboardComponent implements OnInit, AfterViewInit, OnDest
     this.loading.set(true);
     this.snapshot.set(null);
 
-    // 1. Load all repos
     this.git.managerListRepos(1, 100).subscribe({
       next: repos => {
         this.repos.set(repos ?? []);
         if (!repos || repos.length === 0) { this.loading.set(false); return; }
 
-        // 2. Load commits for up to 10 repos in parallel
         const targets = repos.slice(0, 10);
-        const calls = targets.map(r =>
-          this.git.managerCommits(r.owner!.login, r.name, r.default_branch, 100).pipe(
-            catchError(() => of([]))
-          )
+
+        if (!this.allBranches) {
+          // Default branch only
+          const calls = targets.map(r =>
+            this.git.managerCommits(r.owner!.login, r.name, r.default_branch, 100).pipe(
+              catchError(() => of([]))
+            )
+          );
+          forkJoin(calls).subscribe({
+            next: results => {
+              const snap = this.buildSnapshot(targets, results as any[][], repos.length);
+              this.snapshot.set(snap);
+              this.loading.set(false);
+              setTimeout(() => this.drawCharts(snap), 50);
+            },
+            error: () => this.loading.set(false),
+          });
+          return;
+        }
+
+        // All branches: fetch branches first, then commits per branch, deduplicate by SHA
+        const branchCalls = targets.map(r =>
+          this.git.managerListBranches(r.owner!.login, r.name).pipe(catchError(() => of([])))
         );
 
-        forkJoin(calls).subscribe({
-          next: results => {
-            const snap = this.buildSnapshot(targets, results as any[][], repos.length);
-            this.snapshot.set(snap);
-            this.loading.set(false);
-            setTimeout(() => this.drawCharts(snap), 50);
+        forkJoin(branchCalls).subscribe({
+          next: allBranchLists => {
+            const pairs: { ri: number; branch: string }[] = [];
+            (allBranchLists as ManagerBranch[][]).forEach((branches, ri) => {
+              (branches ?? []).slice(0, 5).forEach(b => pairs.push({ ri, branch: b.name }));
+            });
+
+            if (pairs.length === 0) {
+              const snap = this.buildSnapshot(targets, targets.map(() => []), repos.length);
+              this.snapshot.set(snap);
+              this.loading.set(false);
+              setTimeout(() => this.drawCharts(snap), 50);
+              return;
+            }
+
+            const commitCalls = pairs.map(p =>
+              this.git.managerCommits(
+                targets[p.ri].owner!.login, targets[p.ri].name, p.branch, 100
+              ).pipe(catchError(() => of([])))
+            );
+
+            forkJoin(commitCalls).subscribe({
+              next: allBranchCommits => {
+                const byRepo: any[][] = targets.map(() => []);
+                const seen: Set<string>[] = targets.map(() => new Set<string>());
+                (allBranchCommits as any[][]).forEach((commits, idx) => {
+                  const ri = pairs[idx].ri;
+                  (commits ?? []).forEach((c: any) => {
+                    if (c.sha && !seen[ri].has(c.sha)) {
+                      seen[ri].add(c.sha);
+                      byRepo[ri].push(c);
+                    }
+                  });
+                });
+                const snap = this.buildSnapshot(targets, byRepo, repos.length);
+                this.snapshot.set(snap);
+                this.loading.set(false);
+                setTimeout(() => this.drawCharts(snap), 50);
+              },
+              error: () => this.loading.set(false),
+            });
           },
           error: () => this.loading.set(false),
         });

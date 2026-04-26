@@ -163,7 +163,7 @@ type FilterStatus = 'ALL' | 'SUBMITTED' | 'UNDER_REVIEW' | 'ACCEPTED' | 'REJECTE
               <!-- Title + version -->
               <div class="card-title-row">
                 <h3 class="card-title">{{ d.title }}</h3>
-                <span class="version-badge">v{{ d.versionNumber ?? 1 }}</span>
+                <span class="version-badge">v{{ d.versionNumber }}</span>
               </div>
 
               <!-- Description -->

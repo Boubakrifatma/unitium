@@ -329,10 +329,13 @@ const NAV_ITEMS = [
                     <strong>Step 1</strong> — Scan this QR code with <strong>Google Authenticator</strong>
                   </p>
                   <div class="qr-wrap" *ngIf="mfaQrUrl">
-                    <img [src]="'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeUri(mfaQrUrl)"
-                         alt="QR Code 2FA" class="qr-img" />
+                    <img [src]="qrImageUrl" alt="QR Code 2FA" class="qr-img"
+                         (error)="qrImageUrl = ''" />
+                    <p *ngIf="!qrImageUrl" class="small text-secondary mt-1" style="color:#ef4444;font-size:12px">
+                      QR code indisponible — utilisez la clé manuelle ci-dessous.
+                    </p>
                     <p class="small text-secondary mt-2">
-                      Or enter manually: <code class="secret-code">{{ mfaSecret }}</code>
+                      Clé manuelle : <code class="secret-code">{{ mfaSecret }}</code>
                     </p>
                   </div>
                   <p class="small text-secondary mb-2 mt-3">
@@ -920,6 +923,7 @@ export class SettingsComponent implements OnInit {
   showMfaDisable = false;
   mfaSecret      = '';
   mfaQrUrl       = '';
+  qrImageUrl     = '';
   mfaVerifyCode  = '';
   mfaSaving      = false;
   mfaMsg         = '';
@@ -1093,16 +1097,13 @@ export class SettingsComponent implements OnInit {
   }
 
   // ── Two-Factor Authentication ─────────────────────────────────────
-  encodeUri(uri: string): string {
-    return encodeURIComponent(uri);
-  }
-
   startMfaSetup(): void {
     this.mfaMsg = ''; this.mfaError = '';
     this.authService.setup2FA().subscribe({
       next: (res) => {
         this.mfaSecret    = res.secret;
         this.mfaQrUrl     = res.otpAuthUri;
+        this.qrImageUrl   = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(res.otpAuthUri)}`;
         this.showMfaSetup = true;
         this.cdr.detectChanges();
       },
@@ -1137,6 +1138,7 @@ export class SettingsComponent implements OnInit {
     this.showMfaSetup  = false;
     this.mfaSecret     = '';
     this.mfaQrUrl      = '';
+    this.qrImageUrl    = '';
     this.mfaVerifyCode = '';
     this.mfaError      = '';
   }
