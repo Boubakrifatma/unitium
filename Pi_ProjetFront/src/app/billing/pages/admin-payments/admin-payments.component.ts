@@ -162,8 +162,7 @@ import { PaymentResponse } from '../../models/billing.models';
                 </span>
               </div>
               <div class="card-amount">
-                <span class="amount">\${{ p.amount | number:'1.2-2' }}</span>
-                <span class="currency">{{ p.currency }}</span>
+                <span class="amount">{{ p.amount | number:'1.3-3' }} DT</span>
               </div>
             </div>
 

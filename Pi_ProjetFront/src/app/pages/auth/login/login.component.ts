@@ -672,8 +672,11 @@ export class LoginComponent implements OnInit {
                 }
 
                 const redirectMap: Record<string, string> = {
-                    SUPER_ADMIN: '/app/super-admin',
+                    SUPER_ADMIN: '/app/activity-stats',
+                    ADMIN: '/app/m2-admin',
                     PRODUCT_OWNER: '/app/po',
+                    MANAGER: '/app/master-dashboard',
+                    TUTOR: '/app/master-dashboard',
                 };
                 const redirect = redirectMap[res.role] ?? '/app/dashboard';
                 this.router.navigate([redirect]);
@@ -702,8 +705,11 @@ export class LoginComponent implements OnInit {
                     return;
                 }
                 const redirectMap: Record<string, string> = {
-                    SUPER_ADMIN: '/app/super-admin',
+                    SUPER_ADMIN: '/app/activity-stats',
+                    ADMIN: '/app/m2-admin',
                     PRODUCT_OWNER: '/app/po',
+                    MANAGER: '/app/master-dashboard',
+                    TUTOR: '/app/master-dashboard',
                 };
                 this.router.navigate([redirectMap[res.role] ?? '/app/dashboard']);
             },
@@ -739,8 +745,11 @@ export class LoginComponent implements OnInit {
                 });
 
                 const redirectMap: Record<string, string> = {
-                    SUPER_ADMIN: '/app/super-admin',
+                    SUPER_ADMIN: '/app/activity-stats',
+                    ADMIN: '/app/m2-admin',
                     PRODUCT_OWNER: '/app/po',
+                    MANAGER: '/app/master-dashboard',
+                    TUTOR: '/app/master-dashboard',
                 };
                 const redirect = redirectMap[res.role] ?? '/app/dashboard';
                 this.router.navigate([redirect]);

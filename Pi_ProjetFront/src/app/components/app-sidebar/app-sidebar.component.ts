@@ -145,13 +145,15 @@ export class AppSidebarComponent {
         return this.authService.currentUser()?.role ?? '';
     }
 
-    get isSuperAdmin(): boolean { return this.role === 'SUPER_ADMIN'; }
-    get isAdmin(): boolean      { return this.role === 'ADMIN' || this.isSuperAdmin; }
-    get isManager(): boolean    { return this.role === 'MANAGER' || this.isAdmin; }
-    get isTutor(): boolean      { return this.role === 'TUTOR'; }
-    get isStudent(): boolean    { return this.role === 'STUDENT'; }
+    get isSuperAdmin(): boolean     { return this.role === 'SUPER_ADMIN'; }
+    get isAdmin(): boolean          { return this.role === 'ADMIN' || this.isSuperAdmin; }
+    get isManager(): boolean        { return this.role === 'MANAGER' || this.isAdmin; }
+    get isActualManager(): boolean  { return this.role === 'MANAGER'; }
+    get isActualAdmin(): boolean    { return this.role === 'ADMIN'; }
+    get isTutor(): boolean          { return this.role === 'TUTOR'; }
+    get isStudent(): boolean        { return this.role === 'STUDENT'; }
     get canManageWorkspaces(): boolean { return this.isManager || this.isTutor; }
-    get isProductOwner(): boolean { return this.role === 'PRODUCT_OWNER'}
+    get isProductOwner(): boolean   { return this.role === 'PRODUCT_OWNER'; }
 
 
     get navItems(): NavItem[] {
@@ -159,21 +161,23 @@ export class AppSidebarComponent {
 
         // SUPER_ADMIN only
         if (this.isSuperAdmin) {
+
+            all.push({ name: "Platform Dashboard", route: "/app/activity-stats", icon: "bar_chart" });
+
+            all.push({ name: "Organizations", route: "/app/organizations", icon: "corporate_fare" });
+
             all.push({ name: "Platform Overview", route: "/app/super-admin", icon: "admin_panel_settings" });
             all.push({ name: "All Users", route: "/app/users", icon: "manage_accounts" });
 
-            all.push({ name: "Organizations", route: "/app/organizations", icon: "corporate_fare" });
             all.push({ name: "Audit Log", route: "/app/audit-logs", icon: "history" });
-            all.push({ name: "Platform Dashboard", route: "/app/activity-stats", icon: "bar_chart" });
             all.push({ name: "Churn ML", route: "/app/churn-dashboard", icon: "psychology" });
         }
 
         // ADMIN only (not SUPER_ADMIN)
         if (this.isAdmin && !this.isSuperAdmin) {
-            all.push({ name: "Dashboard", route: "/app/dashboard", icon: "house" });
+            all.push({ name: "Admin Dashboard", route: "/app/m2-admin", icon: "admin_panel_settings" });
             all.push({ name: "My Organization", route: "/app/my-organization", icon: "corporate_fare" });
             all.push({ name: "Employees", route: "/app/employee", icon: "person" });
-            all.push({ name: "Admin Dashboard", route: "/app/m2-admin", icon: "admin_panel_settings" });
         }
 
         // All authenticated roles can access Workspaces list and their projects.
@@ -183,70 +187,79 @@ export class AppSidebarComponent {
         ];
         if (this.canManageWorkspaces) {
             projectChildren.unshift({ name: "Master Dashboard", route: "/app/master-dashboard", icon: "space_dashboard" });
-            projectChildren.push({ name: "Templates Hub", route: "/app/templates", icon: "layers" });
+            if (this.isActualManager || this.isTutor) {
+                projectChildren.push({ name: "Templates Hub", route: "/app/templates", icon: "layers" });
+            }
         }
 
-        // Manager/Admin/Tutor roles can access broader project/task workspace management views.
-        if (this.canManageWorkspaces) {
-            if (!this.isManager) {
+        // Manager/Tutor only — not plain ADMIN
+        if (this.isActualManager || this.isTutor) {
+            if (!this.isActualManager) {
                 projectChildren.push(
                     { name: "Projects (Template)", route: "/app/projects", icon: "assignment" },
-                    { name: "Project Details (Template)", route: "/app/project-details", icon: "subject" },
                 );
             }
             projectChildren.push(
                 { name: "Milestones", route: "/app/milestones", icon: "flag" },
-                { name: "Manager Delivrable", route: "/app/manager-deliverables", icon: "assignment_turned_in" },
                 { name: "Notifications", route: "/app/notifications", icon: "notifications" },
             );
         }
-        if (this.isManager) {
+        if (this.isActualManager) {
             projectChildren.push(
+                { name: "Manager Delivrable", route: "/app/manager-deliverables", icon: "assignment_turned_in" },
                 { name: "Brainstorming", route: "/app/brainstorming", icon: "psychology" },
             );
         }
-
-        all.push({
-            name: "Projects",
-            icon: "dashboard",
-            children: projectChildren,
-        });
-
-        // EMPLOYEE + above
-        const applicationsChildren: NavItem[] = [
-            { name: "Deliverables", route: "/app/deliverables", icon: "upload_file" },
-        ];
-        if (!this.isManager && !this.isTutor) {
-            applicationsChildren.unshift({ name: "Task Kanban", route: "/app/kanban", icon: "view_kanban" });
+        if (this.isActualManager || this.isTutor) {
+            projectChildren.push({ name: "Chat", route: "/app/chat", icon: "chat" });
         }
-        applicationsChildren.push({ name: "Chat", route: "/app/chat", icon: "chat" });
-        all.push({
-            name: "Applications",
-            icon: "apps",
-            children: applicationsChildren,
-        });
-        // Git integration — workspace for everyone, dashboard for managers/admins/tutors
-        const gitChildren: NavItem[] = [
-            { name: "My Workspace", route: "/app/git/workspace", icon: "code" },
-        ];
-        if (this.isManager) {
-            gitChildren.push({ name: "Manager Dashboard", route: "/app/git/dashboard",     icon: "insights"      });
-            gitChildren.push({ name: "Code Browser",      route: "/app/git/code-browser",  icon: "manage_search" });
-            gitChildren.push({ name: "Code Quality",      route: "/app/git/quality",        icon: "analytics"     });
-        }
-        if (this.isTutor) {
-            gitChildren.push({ name: "Git Dashboard",     route: "/app/tutor/git",          icon: "insights"      });
-            gitChildren.push({ name: "Code Browser",      route: "/app/git/code-browser",   icon: "manage_search" });
-            gitChildren.push({ name: "Code Quality",      route: "/app/git/quality",        icon: "analytics"     });
-        }
-        all.push({
-            name: "Git",
-            icon: "account_tree",
-            children: gitChildren,
-        });
 
-        // Executive analytics — managers and above
-        if (this.isManager) {
+        if (!this.isSuperAdmin) {
+            all.push({
+                name: "Projects",
+                icon: "dashboard",
+                children: projectChildren,
+            });
+        }
+
+        if (!this.isSuperAdmin && !this.isActualManager && !this.isActualAdmin && !this.isTutor) {
+            // EMPLOYEE: Task Kanban, Chat
+            const applicationsChildren: NavItem[] = [
+                { name: "Task Kanban", route: "/app/kanban", icon: "view_kanban" },
+                { name: "Deliverables", route: "/app/deliverables", icon: "upload_file" },
+                { name: "Chat", route: "/app/chat", icon: "chat" },
+            ];
+            all.push({
+                name: "Applications",
+                icon: "apps",
+                children: applicationsChildren,
+            });
+        }
+
+        if (!this.isSuperAdmin && !this.isActualAdmin) {
+            // Git integration — manager, tutor, employee
+            const gitChildren: NavItem[] = [
+                { name: "My Workspace", route: "/app/git/workspace", icon: "code" },
+            ];
+            if (this.isActualManager) {
+                gitChildren.push({ name: "Manager Dashboard", route: "/app/git/dashboard",     icon: "insights"      });
+                gitChildren.push({ name: "Code Browser",      route: "/app/git/code-browser",  icon: "manage_search" });
+                gitChildren.push({ name: "Code Quality",      route: "/app/git/quality",        icon: "analytics"     });
+            }
+            if (this.isTutor) {
+                gitChildren.push({ name: "Git Dashboard",     route: "/app/tutor/git",          icon: "insights"      });
+                gitChildren.push({ name: "Code Browser",      route: "/app/git/code-browser",   icon: "manage_search" });
+                gitChildren.push({ name: "Code Quality",      route: "/app/git/quality",        icon: "analytics"     });
+            }
+            all.push({
+                name: "Git",
+                icon: "account_tree",
+                children: gitChildren,
+            });
+        }
+
+        // Executive analytics — actual manager only
+        if (this.isActualManager) {
             all.push({
                 name: "Analytics",
                 icon: "bar_chart",
@@ -289,15 +302,6 @@ export class AppSidebarComponent {
         }
 
         // STUDENT — submit and track deliverables
-        if (this.isStudent) {
-            all.push({
-                name: "My Deliverables",
-                icon: "assignment",
-                children: [
-                    { name: "My Submissions", route: "/app/student-deliverables", icon: "upload_file" },
-                ],
-            });
-        }
         // ADMIN + above — billing
         if (this.isAdmin) {
         // SUPER_ADMIN — platform billing management

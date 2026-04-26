@@ -41,7 +41,7 @@ import { PaymentResponse } from '../../models/billing.models';
             <div class="sum-row" *ngIf="payment()?.amount">
               <mat-icon class="material-icons-outlined sum-icon">payments</mat-icon>
               <span class="sum-label">Amount</span>
-              <strong class="sum-val">\${{ payment()!.amount | number:'1.2-2' }} {{ payment()!.currency }}</strong>
+              <strong class="sum-val">{{ payment()!.amount | number:'1.3-3' }} DT</strong>
             </div>
             <div class="sum-row" *ngIf="payment()?.paymentId">
               <mat-icon class="material-icons-outlined sum-icon">tag</mat-icon>

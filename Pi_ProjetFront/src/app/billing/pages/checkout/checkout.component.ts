@@ -134,7 +134,7 @@ import { Plan, OrgType, BillingCycle } from '../../models/billing.models';
                 </div>
                 <span class="cycle-price ms-auto">
                   @if (selectedPlan()?.monthlyPrice !== null) {
-                    \${{ selectedPlan()?.monthlyPrice }}/mo
+                    {{ selectedPlan()?.monthlyPrice }} DT/mo
                   } @else { Custom }
                 </span>
               </label>
@@ -150,7 +150,7 @@ import { Plan, OrgType, BillingCycle } from '../../models/billing.models';
                 <div class="ms-auto d-flex align-items-center gap-2">
                   @if (!selectedPlan()?.onRequest) {
                     <span class="save-badge">Save 20%</span>
-                    <span class="cycle-price">\${{ selectedPlan()?.annualPrice }}/mo</span>
+                    <span class="cycle-price">{{ selectedPlan()?.annualPrice }} DT/mo</span>
                   } @else {
                     <span class="cycle-price">Custom</span>
                   }
@@ -202,16 +202,16 @@ import { Plan, OrgType, BillingCycle } from '../../models/billing.models';
             <span class="sp-label">Base price</span>
             <span class="sp-value">
               @if (selectedPlan()?.onRequest) { Custom }
-              @else if (billingCycleValue() === 'monthly') { \${{ selectedPlan()?.monthlyPrice }}/mo }
-              @else { \${{ selectedPlan()?.annualPrice }}/mo }
+              @else if (billingCycleValue() === 'monthly') { {{ selectedPlan()?.monthlyPrice }} DT/mo }
+              @else { {{ selectedPlan()?.annualPrice }} DT/mo }
             </span>
           </div>
           <div class="summary-price-row total">
             <span class="sp-label">Total</span>
             <span class="sp-value">
               @if (selectedPlan()?.onRequest) { Custom }
-              @else if (billingCycleValue() === 'monthly') { \${{ selectedPlan()?.monthlyPrice }}/mo }
-              @else { \${{ selectedPlan()?.annualPrice }}/mo }
+              @else if (billingCycleValue() === 'monthly') { {{ selectedPlan()?.monthlyPrice }} DT/mo }
+              @else { {{ selectedPlan()?.annualPrice }} DT/mo }
             </span>
           </div>
           <hr class="summary-hr">

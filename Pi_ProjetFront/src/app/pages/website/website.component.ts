@@ -47,7 +47,7 @@ import { register } from "swiper/element/bundle";
                   @if (firstCoupon.discountType === 'PERCENTAGE') {
                     <span class="coupon-badge-discount">{{ firstCoupon.discountValue }}% OFF</span>
                   } @else {
-                    <span class="coupon-badge-discount">\${{ firstCoupon.discountValue }} OFF</span>
+                    <span class="coupon-badge-discount">{{ firstCoupon.discountValue }} DT OFF</span>
                   }
                   @if (firstCoupon.description) {
                     <span class="coupon-desc">{{ firstCoupon.description }}</span>
@@ -75,7 +75,7 @@ import { register } from "swiper/element/bundle";
                         </h1>
                         <p class="opacity-75 mb-4 mb-lg-5 lead">All-in-one solution for modern teams: project tracking, real-time collaboration, AI productivity insights, and smart resource management — built for SMEs, startups, and academic institutions.</p>
                         <div class="hero-buttons">
-                            <button (click)="scrollToPlans()" mat-raised-button color="primary" class="mx-2 btn-lg">Start Free Trial <mat-icon iconPositionEnd>arrow_forward</mat-icon></button>
+                            <button (click)="scrollToPlans()" mat-raised-button color="primary" class="mx-2 btn-lg"> Get started <mat-icon iconPositionEnd>arrow_forward</mat-icon></button>
                             <button (click)="scrollToFeatures()" mat-stroked-button class="mx-2 btn-lg">Explore Features</button>
                         </div>
                         <div class="trust-badge mt-4">
@@ -439,7 +439,7 @@ import { register } from "swiper/element/bundle";
                         </div>
                         <div class="plan-price">
                             @if (plan.onRequest) { <span class="price-amount">On Request</span><p class="text-secondary small mb-0">Custom pricing</p> }
-                            @else { <span class="price-currency">$</span><span class="price-amount">{{ getHomePrice(plan) }}</span><span class="price-period">/mo</span> }
+                            @else { <span class="price-amount">{{ getHomePrice(plan) }}</span><span class="price-currency"> DT</span><span class="price-period">/mo</span> }
                         </div>
                         <ul class="plan-features flex-grow-1">
                             @for (feature of plan.features.slice(0,5); track feature) { <li><mat-icon class="feature-check">check_circle</mat-icon>{{ feature }}</li> }
@@ -466,7 +466,7 @@ import { register } from "swiper/element/bundle";
                         </div>
                         <div class="plan-price">
                             @if (plan.onRequest) { <span class="price-amount">On Request</span><p class="text-secondary small mb-0">Custom pricing</p> }
-                            @else { <span class="price-currency">$</span><span class="price-amount">{{ getHomePrice(plan) }}</span><span class="price-period">/mo</span> }
+                            @else { <span class="price-amount">{{ getHomePrice(plan) }}</span><span class="price-currency"> DT</span><span class="price-period">/mo</span> }
                         </div>
                         <ul class="plan-features flex-grow-1">
                             @for (feature of plan.features.slice(0,5); track feature) { <li><mat-icon class="feature-check">check_circle</mat-icon>{{ feature }}</li> }

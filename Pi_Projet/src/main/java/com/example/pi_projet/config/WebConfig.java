@@ -52,6 +52,14 @@ public class WebConfig implements WebMvcConfigurer {
                     "/api/billing/coupons/active",       // coupons actifs pour home page (public)
                     "/api/files/**",                     // deliverable file download (public by URL)
                     "/api/deliverable-notifications/stream", // SSE — EventSource cannot send JWT header
+                    "/api/billing/invoices/integrity-check",         // invoice integrity check (super-admin/test)
+                    "/api/billing/invoices/*/verify",                // single invoice verify (super-admin/test)
+                    "/api/billing/security/alerts",                  // security alerts dashboard
+                    "/api/billing/invoices/resign-all",              // re-sign after test
+                    "/api/billing/invoices/trigger-integrity-check", // manual trigger for testing
+                    "/api/ml/predict/*",                             // churn prediction (test)
+                    "/api/ml/predictions/**",                        // prediction results (test)
+                    "/api/ml/health",                                // ML health check
                     "/swagger-ui/**",
                     "/v3/api-docs/**"
                 );

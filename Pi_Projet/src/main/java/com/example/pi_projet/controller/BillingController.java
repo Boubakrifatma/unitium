@@ -341,6 +341,18 @@ public class BillingController {
         return ResponseEntity.ok(Map.of("message", "Security alerts cleared"));
     }
 
+    @Operation(summary = "Manually trigger the integrity check job now — fires email + in-app alerts immediately (test/admin)")
+    @PostMapping("/invoices/trigger-integrity-check")
+    public ResponseEntity<?> triggerIntegrityCheckNow() {
+        try {
+            invoiceTamperingService.triggerIntegrityCheckNow();
+            return ResponseEntity.ok(Map.of("message", "Integrity check triggered. Email + alerts sent if tampering detected."));
+        } catch (Exception e) {
+            log.error("Manual integrity check error: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @Operation(summary = "Re-sign all invoices with updated hash algorithm (super admin — run once after hash change)")
     @PostMapping("/invoices/resign-all")
     public ResponseEntity<?> resignAllInvoices() {

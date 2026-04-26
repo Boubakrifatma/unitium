@@ -68,12 +68,12 @@ import { environment } from '../../../../environments/environment';
               <div class="toggle-info">
                 <span class="toggle-label">Annual billing</span>
                 @if (annualSavings() > 0) {
-                  <span class="savings-badge">Save {{ annualSavings() }} $</span>
+                  <span class="savings-badge">Save {{ annualSavings() }} DT</span>
                 }
               </div>
             </div>
             @if (s.billingCycle === 'annual') {
-              <div class="annual-price-note">{{ annualMonthly() }} $/mo</div>
+              <div class="annual-price-note">{{ annualMonthly() }} DT/mo</div>
             }
           </div>
 
@@ -96,7 +96,7 @@ import { environment } from '../../../../environments/environment';
             }
             <div class="line-item">
               <span class="li-label">Tax <span class="li-info">ⓘ</span></span>
-              <span class="li-value">$0.00</span>
+              <span class="li-value">0,000 DT</span>
             </div>
           </div>
 
@@ -693,14 +693,14 @@ export class PaymentComponent implements OnInit, OnDestroy {
     if (!s) return '';
     if (s.plan.onRequest) return 'Sur devis';
     const price = s.billingCycle === 'monthly' ? s.plan.monthlyPrice! : s.plan.annualPrice!;
-    return `${price},00 $US`;
+    return `${price},000 DT`;
   }
 
   priceValue(): string {
     const s = this.checkoutState.checkoutState();
     if (!s || s.plan.onRequest) return '—';
     const price = s.billingCycle === 'monthly' ? s.plan.monthlyPrice! : s.plan.annualPrice!;
-    return `${price},00 $US`;
+    return `${price},000 DT`;
   }
 
   annualSavings(): number {
@@ -810,8 +810,8 @@ export class PaymentComponent implements OnInit, OnDestroy {
 
   couponSavingDisplay(): string {
     const r = this.couponResult();
-    if (!r || !r.discountCents) return '$0.00';
-    return '$' + (r.discountCents / 100).toFixed(2);
+    if (!r || !r.discountCents) return '0,000 DT';
+    return (r.discountCents / 100).toFixed(3) + ' DT';
   }
 
   discountedTotalDisplay(): string {
@@ -821,9 +821,9 @@ export class PaymentComponent implements OnInit, OnDestroy {
     const price = s.billingCycle === 'monthly' ? s.plan.monthlyPrice! : s.plan.annualPrice!;
     const r = this.couponResult();
     if (r?.valid && r.finalAmountCents != null) {
-      return '$' + (r.finalAmountCents / 100).toFixed(2) + ' USD';
+      return (r.finalAmountCents / 100).toFixed(3) + ' DT';
     }
-    return '$' + price.toFixed(2) + ' USD';
+    return price.toFixed(3) + ' DT';
   }
 
   requestConfirm() {

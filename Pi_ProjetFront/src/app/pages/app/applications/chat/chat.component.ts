@@ -4987,14 +4987,26 @@ export class ScheduledDetailsDialogComponent {
                                             <p class="wa-empty-subtitle">Star channels to access them quickly</p>
                                         </div>
                                     } @else {
-                                        <div class="text-center py-5 px-3">
-                                            <mat-icon class="material-icons-outlined mb-2"
-                                                      style="font-size:36px;width:36px;height:36px;color:var(--mat-sys-outline-variant)">
-                                                forum
-                                            </mat-icon>
-                                            <p class="small text-secondary mb-0">
-                                                {{ searchQuery() ? 'No channels matched your search.' : (canManageMembers ? 'No channels yet — click + to create one.' : 'You haven\'t been added to any channels yet.') }}
-                                            </p>
+                                        <div class="wa-empty-state">
+                                            @if (searchQuery()) {
+                                                <div class="wa-empty-icon-wrap">
+                                                    <mat-icon class="material-icons-outlined wa-empty-icon">search_off</mat-icon>
+                                                </div>
+                                                <p class="wa-empty-title">No results for "{{ searchQuery() }}"</p>
+                                                <p class="wa-empty-hint">Try a different name or check your spelling.</p>
+                                            } @else if (canManageMembers) {
+                                                <div class="wa-empty-icon-wrap">
+                                                    <mat-icon class="material-icons-outlined wa-empty-icon">add_comment</mat-icon>
+                                                </div>
+                                                <p class="wa-empty-title">No channels yet</p>
+                                                <p class="wa-empty-hint">Create your first channel to start collaborating with your team.</p>
+                                            } @else {
+                                                <div class="wa-empty-icon-wrap">
+                                                    <mat-icon class="material-icons-outlined wa-empty-icon">inbox</mat-icon>
+                                                </div>
+                                                <p class="wa-empty-title">No channels yet</p>
+                                                <p class="wa-empty-hint">You'll appear here once someone adds you to a channel.</p>
+                                            }
                                         </div>
                                     }
                                 }
@@ -12143,6 +12155,44 @@ export class ScheduledDetailsDialogComponent {
 
         .wa-room-unread {
             font-weight: 700 !important;
+        }
+
+        /* ── Empty state ── */
+        .wa-empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            text-align: center;
+        }
+        .wa-empty-icon-wrap {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            background: var(--mat-sys-surface-variant);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+        .wa-empty-icon {
+            font-size: 28px;
+            width: 28px;
+            height: 28px;
+            color: var(--mat-sys-on-surface-variant);
+        }
+        .wa-empty-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--mat-sys-on-surface);
+            margin: 0 0 6px;
+        }
+        .wa-empty-hint {
+            font-size: 12px;
+            color: var(--mat-sys-outline);
+            margin: 0;
+            line-height: 1.5;
         }
 
         /* ── Unread badge ── */
@@ -20492,6 +20542,32 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
                 this.notifService.clearRetry();
             }
         });
+
+        // Load summaries from localStorage when active room changes
+        effect(() => {
+            const roomId = this.activeRoom()?.id;
+            if (roomId) {
+                const saved = localStorage.getItem('chat_summaries_' + roomId);
+                if (saved) {
+                    try {
+                        const data = JSON.parse(saved);
+                        this.groupSummaries.set(new Map(data));
+                    } catch {}
+                } else {
+                    this.groupSummaries.set(new Map());
+                }
+                this.collapsedGroups.set(new Set());
+            }
+        });
+
+        // Toggle body class when lightbox opens/closes
+        effect(() => {
+            if (this.lightboxItem()) {
+                this.document.body.classList.add('lightbox-visible');
+            } else {
+                this.document.body.classList.remove('lightbox-visible');
+            }
+        });
     }
 
     ngOnInit(): void {
@@ -20560,32 +20636,6 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
 
         // Refresh meeting status badges every 30 s
         this.meetingStatusInterval = setInterval(() => this.meetingStatusNow.set(new Date()), 30_000);
-
-        // Load summaries from localStorage when active room changes
-        effect(() => {
-            const roomId = this.activeRoom()?.id;
-            if (roomId) {
-                const saved = localStorage.getItem('chat_summaries_' + roomId);
-                if (saved) {
-                    try {
-                        const data = JSON.parse(saved);
-                        this.groupSummaries.set(new Map(data));
-                    } catch {}
-                } else {
-                    this.groupSummaries.set(new Map());
-                }
-                this.collapsedGroups.set(new Set());
-            }
-        });
-
-        // Toggle body class when lightbox opens/closes
-        effect(() => {
-            if (this.lightboxItem()) {
-                this.document.body.classList.add('lightbox-visible');
-            } else {
-                this.document.body.classList.remove('lightbox-visible');
-            }
-        });
     }
 
     private _loadFavorites(): void {

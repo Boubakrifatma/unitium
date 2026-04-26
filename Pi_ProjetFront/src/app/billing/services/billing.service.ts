@@ -14,8 +14,8 @@ export class BillingService {
       name: 'Starter',
       subtitle: 'Perfect for small teams',
       icon: 'rocket_launch',
-      monthlyPrice: 49,
-      annualPrice: 39,
+      monthlyPrice: 149,
+      annualPrice: 119,
       orgType: 'enterprise',
       features: [
         '5 team members',
@@ -33,8 +33,8 @@ export class BillingService {
       name: 'Pro',
       subtitle: 'For growing organizations',
       icon: 'workspace_premium',
-      monthlyPrice: 149,
-      annualPrice: 119,
+      monthlyPrice: 449,
+      annualPrice: 359,
       orgType: 'enterprise',
       recommended: true,
       features: [
@@ -55,8 +55,8 @@ export class BillingService {
       name: 'Business',
       subtitle: 'For large enterprises',
       icon: 'corporate_fare',
-      monthlyPrice: 349,
-      annualPrice: 279,
+      monthlyPrice: 1049,
+      annualPrice: 839,
       orgType: 'enterprise',
       features: [
         '100 team members',
@@ -101,8 +101,8 @@ export class BillingService {
       name: 'Academic Starter',
       subtitle: 'For small classes & labs',
       icon: 'school',
-      monthlyPrice: 29,
-      annualPrice: 23,
+      monthlyPrice: 89,
+      annualPrice: 69,
       orgType: 'academic',
       features: [
         '50 students',
@@ -119,8 +119,8 @@ export class BillingService {
       name: 'Faculty',
       subtitle: 'Departments & labs',
       icon: 'menu_book',
-      monthlyPrice: 39,
-      annualPrice: 31,
+      monthlyPrice: 119,
+      annualPrice: 95,
       orgType: 'academic',
       features: [
         '100 students',
@@ -136,8 +136,8 @@ export class BillingService {
       name: 'Institution',
       subtitle: 'For the whole school',
       icon: 'account_balance',
-      monthlyPrice: 99,
-      annualPrice: 79,
+      monthlyPrice: 299,
+      annualPrice: 239,
       orgType: 'academic',
       recommended: true,
       features: [
@@ -328,6 +328,18 @@ export class BillingService {
 
   clearSecurityAlerts(): Observable<any> {
     return this.http.delete(`${this.API}/security/alerts`);
+  }
+
+  runIntegrityCheck(): Observable<any> {
+    return this.http.get(`${this.API}/invoices/integrity-check`);
+  }
+
+  triggerIntegrityCheckNow(): Observable<any> {
+    return this.http.post(`${this.API}/invoices/trigger-integrity-check`, {});
+  }
+
+  resignAllInvoices(): Observable<any> {
+    return this.http.post(`${this.API}/invoices/resign-all`, {});
   }
 
   // ── Coupons ──────────────────────────────────────────────────────────────

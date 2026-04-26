@@ -105,7 +105,7 @@ import { Plan, OrgType, BillingCycle } from '../../models/billing.models';
                   </div>
                 } @else {
                   <div>
-                    <span class="price-currency">$</span>
+                    <span class="price-currency">DT</span>
                     <span class="price-amount">{{ getPrice(plan) }}</span>
                     <span class="price-period">/ {{ billingCycle() === 'monthly' ? 'mo' : 'mo · billed annually' }}</span>
                   </div>

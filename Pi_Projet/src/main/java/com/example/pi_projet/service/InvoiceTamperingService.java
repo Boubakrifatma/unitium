@@ -85,6 +85,12 @@ public class InvoiceTamperingService {
         return count;
     }
 
+    // ── Manual Trigger (test / admin) ────────────────────────────────────────
+
+    public void triggerIntegrityCheckNow() {
+        scheduledIntegrityCheck();
+    }
+
     // ── Scheduled Job ─────────────────────────────────────────────────────────
 
     @Scheduled(cron = "0 0 * * * *")
