@@ -38,7 +38,7 @@ if [ ! -f "requirements.txt" ]; then
     echo "❌ Error: requirements.txt not found in $ML_SERVICE_DIR"
     exit 1
 fi
-pip install -q -r requirements.txt
+python3 -m pip install  -r requirements.txt 
 echo -e "${GREEN}✓ Dependencies installed${NC}"
 
 # Step 4: Export artifacts (if models directory is empty)

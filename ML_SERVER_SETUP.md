@@ -34,7 +34,7 @@ cd m2_ml_service
 
 ### Step 2: Install Dependencies (one time)
 ```bash
-pip install -r requirements.txt
+python3 pip install -r requirements.txt
 ```
 
 This installs:
