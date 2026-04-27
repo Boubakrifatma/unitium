@@ -4767,13 +4767,24 @@ export class ScheduledDetailsDialogComponent {
         SnackbarSuccessComponent,
     ],
     template: `
-        <!-- ══ Dashboard Access ══════════════════════════════════════════════ -->
+        <!-- ══ CLEAN ACTION BUTTONS - Dashboard & Analytics ══════════════════ -->
         @if (canManageMembers) {
-            <div class="mb-3">
-                <button mat-icon-button (click)="openDashboard()"
-                        matTooltip="My Dashboard"
-                        class="chat-header-btn">
-                    <mat-icon class="material-icons-outlined">bar_chart</mat-icon>
+            <div class="clean-btn-group mb-3">
+                <!-- Dashboard Button -->
+                <button class="clean-btn clean-btn-dashboard"
+                        (click)="openDashboard()"
+                        matTooltip="Dashboard">
+                    <mat-icon class="clean-btn-icon">dashboard</mat-icon>
+                    <span class="clean-btn-label">Dashboard</span>
+                </button>
+
+                <!-- Analytics Button -->
+                <button class="clean-btn clean-btn-analytics"
+                        (click)="navigateToSentimentAnalytics()"
+                        matTooltip="Sentiment Analytics">
+                    <mat-icon class="clean-btn-icon">analytics</mat-icon>
+                    <span class="clean-btn-label">Analytics</span>
+                    <span class="clean-btn-badge">ALL</span>
                 </button>
             </div>
         }
@@ -4795,16 +4806,24 @@ export class ScheduledDetailsDialogComponent {
                             <span class="wa-sidebar-title">Chats</span>
                         </div>
                         <div class="wa-sidebar-actions">
-                            @if (canManageMembers) {
-                                <button matIconButton class="wa-icon-btn"
-                                        (click)="openMeetingCalendar()" matTooltip="Meeting calendar">
-                                    <mat-icon>calendar_month</mat-icon>
-                                </button>
-                                <button class="wa-create-btn"
-                                        (click)="openCreate()" matTooltip="New channel">
-                                    <mat-icon style="font-size:18px;width:18px;height:18px">add</mat-icon>
-                                </button>
-                            }
+                            <div class="wa-action-group">
+                                @if (canManageMembers) {
+                                    <button matIconButton class="wa-action-icon-btn"
+                                            (click)="openMeetingCalendar()"
+                                            matTooltip="Meeting calendar"
+                                            [matTooltipPosition]="'right'">
+                                        <span class="wa-btn-glow"></span>
+                                        <mat-icon class="material-icons-outlined">calendar_month</mat-icon>
+                                    </button>
+                                    <button class="wa-create-btn-premium"
+                                            (click)="openCreate()"
+                                            matTooltip="New channel"
+                                            [matTooltipPosition]="'right'">
+                                        <span class="wa-btn-glow-create"></span>
+                                        <mat-icon style="font-size:18px;width:18px;height:18px">add</mat-icon>
+                                    </button>
+                                }
+                            </div>
                             <button matIconButton class="wa-icon-btn"
                                     [matMenuTriggerFor]="sidebarMoreMenu"
                                     matTooltip="More options">
@@ -4827,37 +4846,51 @@ export class ScheduledDetailsDialogComponent {
                     </div>
 
                     <!-- ── WhatsApp-style search bar ── -->
-                    <div class="wa-search-wrap">
-                        <div class="wa-search-box">
-                            <mat-icon class="wa-search-icon material-icons-outlined">search</mat-icon>
-                            <input class="wa-search-input"
-                                   [ngModel]="searchQuery()"
-                                   (ngModelChange)="searchQuery.set($event)"
-                                   placeholder="Search or start a discussion" />
-                            @if (searchQuery()) {
-                                <button class="wa-search-clear" (click)="searchQuery.set('')" type="button">
-                                    <mat-icon style="font-size:16px;width:16px;height:16px">close</mat-icon>
-                                </button>
-                            }
+                    <!-- ════ ENHANCED SEARCH & FILTER SECTION ════ -->
+                    <div class="premium-search-section">
+                        <!-- Search Box -->
+                        <div class="premium-search-wrap">
+                            <div class="premium-search-box">
+                                <mat-icon class="premium-search-icon material-icons-outlined">search</mat-icon>
+                                <input class="premium-search-input"
+                                       [ngModel]="searchQuery()"
+                                       (ngModelChange)="searchQuery.set($event)"
+                                       placeholder="Search channels..." />
+                                @if (searchQuery()) {
+                                    <button class="premium-search-clear" (click)="searchQuery.set('')" type="button" matTooltip="Clear">
+                                        <mat-icon style="font-size:16px;width:16px;height:16px">close</mat-icon>
+                                    </button>
+                                }
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- ── Filter chips ── -->
-                    <div class="wa-chips-row">
-                        <button class="wa-chip" type="button"
-                                [class.wa-chip-active]="activeFilter() === 'all'"
-                                (click)="activeFilter.set('all')">All</button>
-                        <button class="wa-chip" type="button"
-                                [class.wa-chip-active]="activeFilter() === 'unread'"
-                                (click)="activeFilter.set('unread')">
-                            Unread
-                            @if (totalUnread() > 0) {
-                                <span class="wa-chip-badge">{{ totalUnread() }}</span>
-                            }
-                        </button>
-                        <button class="wa-chip" type="button"
-                                [class.wa-chip-active]="activeFilter() === 'favorites'"
-                                (click)="activeFilter.set('favorites')">Favorites</button>
+                        <!-- Filter Chips -->
+                        <div class="premium-chips-row">
+                            <button class="premium-chip premium-chip-all" type="button"
+                                    [class.premium-chip-active]="activeFilter() === 'all'"
+                                    (click)="activeFilter.set('all')"
+                                    matTooltip="Show all channels">
+                                <mat-icon class="premium-chip-icon">inbox</mat-icon>
+                                <span>All</span>
+                            </button>
+                            <button class="premium-chip premium-chip-unread" type="button"
+                                    [class.premium-chip-active]="activeFilter() === 'unread'"
+                                    (click)="activeFilter.set('unread')"
+                                    matTooltip="Show unread only">
+                                <mat-icon class="premium-chip-icon">mail</mat-icon>
+                                <span>Unread</span>
+                                @if (totalUnread() > 0) {
+                                    <span class="premium-chip-badge">{{ totalUnread() }}</span>
+                                }
+                            </button>
+                            <button class="premium-chip premium-chip-star" type="button"
+                                    [class.premium-chip-active]="activeFilter() === 'favorites'"
+                                    (click)="activeFilter.set('favorites')"
+                                    matTooltip="Show favorites only">
+                                <mat-icon class="premium-chip-icon">star</mat-icon>
+                                <span>Favorites</span>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Global error -->
@@ -7155,81 +7188,89 @@ export class ScheduledDetailsDialogComponent {
                      [class.chat-right-panel-hidden]="!rightPanelOpen()"
                      [@rightPanelSlide]="rightPanelOpen() ? 'open' : 'closed'">
 
-                    <!-- ── Notifications section ── -->
-                    <div class="rp-section">
-                        <div class="rp-section-header">
-                            <span class="rp-section-title">Notifications</span>
+                    <!-- ══ ENHANCED Notifications section ══ -->
+                    <div class="premium-rp-section premium-notif-section">
+                        <div class="premium-rp-header">
+                            <div class="premium-rp-title-group">
+                                <mat-icon class="premium-rp-icon">notifications_active</mat-icon>
+                                <span class="premium-rp-title">Notifications</span>
+                            </div>
                             @if (notifService.unreadCount() > 0) {
-                                <span class="rp-notif-badge">{{ notifService.unreadCount() }}</span>
-                            }
-                            @if (notifService.unreadCount() > 0) {
-                                <button class="rp-mark-read-btn" (click)="notifService.markAllRead()">Mark all read</button>
+                                <div class="premium-notif-controls">
+                                    <span class="premium-notif-badge">{{ notifService.unreadCount() }}</span>
+                                    <button class="premium-mark-read-btn" (click)="notifService.markAllRead()" matTooltip="Mark all as read">
+                                        <mat-icon style="font-size:13px;width:13px;height:13px">done_all</mat-icon>
+                                    </button>
+                                </div>
                             }
                         </div>
-                        <div class="rp-notif-list">
+                        <div class="premium-notif-list">
                             @if (notifService.notifications().length === 0) {
-                                <div class="rp-empty">
-                                    <mat-icon class="material-icons-outlined rp-empty-icon">notifications_none</mat-icon>
-                                    <span>No notifications yet</span>
+                                <div class="premium-empty-state">
+                                    <div class="premium-empty-icon">
+                                        <mat-icon class="material-icons-outlined">notifications_none</mat-icon>
+                                    </div>
+                                    <span class="premium-empty-text">No notifications</span>
                                 </div>
                             } @else {
                                 @for (n of notifService.notifications().slice(0, 5); track n.id; let i = $index) {
-                                    <div class="rp-notif-item" [class.rp-notif-unread]="!n.read"
+                                    <div class="premium-notif-item" [class.premium-notif-unread]="!n.read"
                                          [@rpItemEnter] [style.animation-delay]="i * 60 + 'ms'"
                                          (click)="notifService.markAllRead(); selectRoomById(n.roomId)">
-                                        <div class="rp-notif-avatar" [ngStyle]="getAvatarGradient(n.roomName)">
+                                        <div class="premium-notif-avatar" [ngStyle]="getAvatarGradient(n.roomName)">
                                             <mat-icon style="font-size:13px;width:13px;height:13px;color:#fff">{{ n.icon }}</mat-icon>
                                         </div>
-                                        <div class="rp-notif-info">
-                                            <span class="rp-notif-text">
-                                                <span class="rp-notif-room">{{ n.roomName }}</span>
-                                                — {{ n.message }}
+                                        <div class="premium-notif-content">
+                                            <span class="premium-notif-text">
+                                                <span class="premium-notif-room">{{ n.roomName }}</span>
+                                                <span class="premium-notif-desc">{{ n.message }}</span>
                                             </span>
-                                            <span class="rp-notif-time">{{ formatMessageTime(n.timestamp.toString()) }}</span>
+                                            <span class="premium-notif-time">{{ formatMessageTime(n.timestamp.toString()) }}</span>
                                         </div>
-                                        @if (!n.read) { <span class="rp-notif-dot"></span> }
+                                        @if (!n.read) { <span class="premium-notif-indicator"></span> }
                                     </div>
                                 }
                             }
                         </div>
                     </div>
 
-                    <!-- ── Members / Suggestions section ── -->
-                    <div class="rp-section rp-section-members">
-                        <div class="rp-section-header">
-                            <div class="rp-section-title-row">
-                                <mat-icon class="rp-section-icon material-icons-outlined">group</mat-icon>
-                                <span class="rp-section-title">{{ activeRoom() ? 'Members' : 'Suggestions' }}</span>
+                    <!-- ══ ENHANCED Members / Suggestions section ══ -->
+                    <div class="premium-rp-section premium-members-section">
+                        <div class="premium-rp-header">
+                            <div class="premium-rp-title-group">
+                                <mat-icon class="premium-rp-icon material-icons-outlined">
+                                    {{ activeRoom() ? 'group' : 'lightbulb' }}
+                                </mat-icon>
+                                <span class="premium-rp-title">{{ activeRoom() ? 'Members' : 'Suggestions' }}</span>
                             </div>
                             @if (activeRoom() && members().length > 0) {
-                                <span class="rp-member-count">{{ members().length }}</span>
+                                <span class="premium-member-badge">{{ members().length }}</span>
                             }
                             @if (activeRoom() && canManageMembers) {
-                                <button class="rp-section-add-btn" (click)="membersPanelOpen.set(true)" matTooltip="Add member">
+                                <button class="premium-add-member-btn" (click)="membersPanelOpen.set(true)" matTooltip="Add member">
                                     <mat-icon style="font-size:13px;width:13px;height:13px">person_add</mat-icon>
-                                    Add
                                 </button>
                             }
                         </div>
 
                         @if (activeRoom() && members().length > 0) {
-                            <!-- Online count bar -->
-                            <div class="rp-online-bar">
-                                <span class="rp-online-dot-live"></span>
-                                <span class="rp-online-label">
+                            <!-- Member count bar -->
+                            <div class="premium-member-bar">
+                                <span class="premium-online-indicator"></span>
+                                <span class="premium-member-label">
                                     {{ members().length }} member{{ members().length !== 1 ? 's' : '' }}
                                 </span>
                             </div>
                         }
 
-                        <div class="rp-member-list">
+                        <div class="premium-member-list">
                             @if (!activeRoom()) {
-                                <div class="rp-empty">
-                                    <div class="rp-empty-icon-wrap">
-                                        <mat-icon class="material-icons-outlined">group</mat-icon>
+                                <div class="premium-suggestions-empty">
+                                    <div class="premium-empty-icon-large">
+                                        <mat-icon class="material-icons-outlined">lightbulb_outline</mat-icon>
                                     </div>
-                                    <span class="rp-empty-title">No channel selected</span>
-                                    <span class="rp-empty-sub">Select a channel to view its members</span>
+                                    <span class="premium-empty-title">No Channel Selected</span>
+                                    <span class="premium-empty-desc">Select a channel from the list to view its members</span>
                                 </div>
                             } @else if (membersLoading()) {
                                 <div class="rp-loading-wrap">
@@ -11810,8 +11851,209 @@ export class ScheduledDetailsDialogComponent {
         .wa-sidebar-actions {
             display: flex;
             align-items: center;
-            gap: 2px;
+            gap: 6px;
         }
+
+        /* ═══════════════════════════════════════════════════════════ */
+        /* PREMIUM ACTION GROUP - PROFESSIONAL BUTTON STYLING */
+        /* ═══════════════════════════════════════════════════════════ */
+        .wa-action-group {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            padding: 4px 6px;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.06) 100%);
+            border-radius: 12px;
+            border: 1px solid rgba(102, 126, 234, 0.15);
+            backdrop-filter: blur(8px);
+            animation: slideInLeft 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.5),
+                        0 2px 8px rgba(102, 126, 234, 0.12);
+        }
+
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-12px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* Premium Action Icon Button */
+        .wa-action-icon-btn {
+            position: relative;
+            width: 40px !important;
+            height: 40px !important;
+            min-width: 40px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            border-radius: 10px !important;
+            background: rgba(255, 255, 255, 0.6) !important;
+            border: 1.5px solid rgba(102, 126, 234, 0.2) !important;
+            color: var(--mat-sys-on-surface-variant) !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            overflow: hidden !important;
+            cursor: pointer !important;
+            padding: 0 !important;
+        }
+
+        .wa-action-icon-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, transparent 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .wa-action-icon-btn:hover {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.08) 100%) !important;
+            border-color: rgba(102, 126, 234, 0.35) !important;
+            color: var(--mat-sys-primary) !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.2),
+                        inset 0 1px 2px rgba(255, 255, 255, 0.6) !important;
+        }
+
+        .wa-action-icon-btn:active {
+            transform: translateY(0) !important;
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.15) !important;
+        }
+
+        .wa-action-icon-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.8), transparent 70%);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .wa-action-icon-btn:hover::before {
+            animation: pulse-glow 0.6s ease-out;
+        }
+
+        @keyframes pulse-glow {
+            0% { opacity: 1; transform: scale(0.5); }
+            100% { opacity: 0; transform: scale(2); }
+        }
+
+        .wa-action-icon-btn mat-icon {
+            position: relative;
+            z-index: 2;
+            font-size: 20px !important;
+            width: 20px !important;
+            height: 20px !important;
+            transition: all 0.3s ease !important;
+        }
+
+        .wa-action-icon-btn:hover mat-icon {
+            transform: scale(1.1) !important;
+        }
+
+        .wa-btn-glow {
+            position: absolute;
+            inset: 0;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            opacity: 0;
+            z-index: 0;
+            filter: blur(8px);
+            transition: opacity 0.3s ease;
+        }
+
+        .wa-action-icon-btn:hover .wa-btn-glow {
+            opacity: 0.2;
+        }
+
+        .wa-btn-badge {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 2px 5px;
+            border-radius: 6px;
+            min-width: 18px;
+            text-align: center;
+            border: 1.5px solid white;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+            animation: badgePop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes badgePop {
+            0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1) rotate(0); opacity: 1; }
+        }
+
+        /* Premium Create Button */
+        .wa-create-btn-premium {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+            font-size: 18px;
+            padding: 0;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3),
+                        inset 0 1px 2px rgba(255, 255, 255, 0.3);
+        }
+
+        .wa-create-btn-premium:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 12px 24px rgba(102, 126, 234, 0.4),
+                        inset 0 1px 2px rgba(255, 255, 255, 0.4);
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        }
+
+        .wa-create-btn-premium:active {
+            transform: translateY(-1px) scale(0.98);
+            box-shadow: 0 6px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .wa-create-btn-premium mat-icon {
+            position: relative;
+            z-index: 2;
+            font-size: 18px !important;
+            width: 18px !important;
+            height: 18px !important;
+            transition: all 0.3s ease !important;
+        }
+
+        .wa-create-btn-premium:hover mat-icon {
+            transform: rotate(90deg) scale(1.15) !important;
+        }
+
+        .wa-btn-glow-create {
+            position: absolute;
+            inset: -2px;
+            border-radius: 10px;
+            background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.3), transparent 70%);
+            opacity: 0;
+            z-index: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .wa-create-btn-premium:hover .wa-btn-glow-create {
+            animation: createPulse 0.6s ease-out;
+        }
+
+        @keyframes createPulse {
+            0% { opacity: 0.8; transform: scale(0.8); }
+            100% { opacity: 0; transform: scale(1.3); }
+        }
+
         .wa-icon-btn {
             color: var(--mat-sys-on-surface-variant) !important;
             transition: color 0.15s, background 0.15s !important;
@@ -11879,6 +12121,178 @@ export class ScheduledDetailsDialogComponent {
         .wa-search-clear:hover {
             background: var(--mat-sys-outline-variant);
             color: var(--mat-sys-on-surface);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════ */
+        /* PREMIUM SEARCH & FILTER SECTION */
+        /* ═══════════════════════════════════════════════════════════════════ */
+        .premium-search-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px 12px;
+            animation: slideInDown 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes slideInDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Premium Search Box */
+        .premium-search-wrap {
+            flex-shrink: 0;
+        }
+
+        .premium-search-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #ffffff 0%, #f9fafc 100%);
+            border-radius: 10px;
+            padding: 10px 14px;
+            border: 1.5px solid rgba(102, 126, 234, 0.15);
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .premium-search-box:focus-within {
+            border-color: rgba(102, 126, 234, 0.35);
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.15);
+            background: #ffffff;
+        }
+
+        .premium-search-icon {
+            font-size: 18px !important;
+            width: 18px !important;
+            height: 18px !important;
+            color: #667eea !important;
+            flex-shrink: 0;
+            transition: all 0.3s ease !important;
+        }
+
+        .premium-search-box:focus-within .premium-search-icon {
+            transform: scale(1.1) !important;
+        }
+
+        .premium-search-input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 13.5px;
+            color: var(--mat-sys-on-surface);
+            font-family: inherit;
+            transition: all 0.3s ease;
+        }
+
+        .premium-search-input::placeholder {
+            color: #bbb;
+            font-weight: 500;
+        }
+
+        .premium-search-clear {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border: none;
+            background: rgba(102, 126, 234, 0.08);
+            border-radius: 6px;
+            cursor: pointer;
+            color: #667eea;
+            padding: 0;
+            flex-shrink: 0;
+            transition: all 0.25s ease;
+        }
+
+        .premium-search-clear:hover {
+            background: rgba(102, 126, 234, 0.15);
+            transform: scale(1.08);
+        }
+
+        /* Premium Filter Chips */
+        .premium-chips-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .premium-chip {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 7px 12px;
+            border: none;
+            border-radius: 8px;
+            background: white;
+            color: #555;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 12.5px;
+            font-weight: 600;
+            font-family: inherit;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            position: relative;
+        }
+
+        .premium-chip:hover:not(.premium-chip-active) {
+            background: #f5f5f5;
+            border-color: rgba(0, 0, 0, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .premium-chip-active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .premium-chip-icon {
+            font-size: 15px !important;
+            width: 15px !important;
+            height: 15px !important;
+            transition: all 0.25s ease !important;
+        }
+
+        .premium-chip:hover .premium-chip-icon {
+            transform: scale(1.1) !important;
+        }
+
+        .premium-chip-active .premium-chip-icon {
+            filter: brightness(1.2);
+        }
+
+        .premium-chip-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            background: rgba(255, 107, 107, 0.15);
+            color: #FF6B6B;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 0 5px;
+            margin-left: 2px;
+            animation: badgePulse 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .premium-chip-active .premium-chip-badge {
+            background: rgba(255, 255, 255, 0.3);
+            color: #fff;
+        }
+
+        @keyframes badgePulse {
+            0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+            60% { transform: scale(1.1); }
+            100% { transform: scale(1) rotate(0); opacity: 1; }
         }
 
         /* ── Filter chips row ── */
@@ -14770,6 +15184,129 @@ export class ScheduledDetailsDialogComponent {
             background: color-mix(in srgb, var(--mat-sys-primary-container) 70%, transparent) !important;
             transform: scale(1.08);
             box-shadow: 0 4px 12px color-mix(in srgb, var(--mat-sys-primary) 25%, transparent);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════ */
+        /* CLEAN ACTION BUTTONS - Simple & Horizontal */
+        /* ═══════════════════════════════════════════════════════════════════ */
+        .clean-btn-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: rgba(102, 126, 234, 0.06);
+            border-radius: 12px;
+            border: 1px solid rgba(102, 126, 234, 0.12);
+            animation: slideInDown 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes slideInDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .clean-btn {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-size: 12.5px;
+            font-weight: 600;
+            font-family: inherit;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .clean-btn:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-color: rgba(0, 0, 0, 0.12);
+            transform: translateY(-1px);
+        }
+
+        .clean-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Dashboard Button */
+        .clean-btn-dashboard {
+            color: #2196F3;
+            border-color: rgba(33, 150, 243, 0.15);
+        }
+
+        .clean-btn-dashboard:hover {
+            background: rgba(33, 150, 243, 0.08);
+            border-color: rgba(33, 150, 243, 0.2);
+        }
+
+        /* Analytics Button */
+        .clean-btn-analytics {
+            color: #667eea;
+            border-color: rgba(102, 126, 234, 0.15);
+        }
+
+        .clean-btn-analytics:hover {
+            background: rgba(102, 126, 234, 0.08);
+            border-color: rgba(102, 126, 234, 0.2);
+        }
+
+        .clean-btn-icon {
+            font-size: 16px !important;
+            width: 16px !important;
+            height: 16px !important;
+            transition: all 0.25s ease !important;
+        }
+
+        .clean-btn:hover .clean-btn-icon {
+            transform: scale(1.1) !important;
+        }
+
+        .clean-btn-label {
+            transition: all 0.25s ease;
+        }
+
+        .clean-btn-badge {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            background: linear-gradient(135deg, #FF6B6B 0%, #EE5A6F 100%);
+            color: white;
+            font-size: 7px;
+            font-weight: 900;
+            padding: 2px 5px;
+            border-radius: 4px;
+            border: 1.5px solid white;
+            box-shadow: 0 2px 6px rgba(255, 107, 107, 0.3);
+            animation: badgePop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            letter-spacing: 0.5px;
+        }
+
+        @keyframes badgePop {
+            0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+            60% { transform: scale(1.1); }
+            100% { transform: scale(1) rotate(0); opacity: 1; }
+        }
+
+        @media (max-width: 480px) {
+            .clean-btn-group {
+                gap: 6px;
+                padding: 6px;
+            }
+            .clean-btn {
+                padding: 6px 10px;
+                gap: 4px;
+                font-size: 11.5px;
+            }
+            .clean-btn-icon {
+                font-size: 14px !important;
+                width: 14px !important;
+                height: 14px !important;
+            }
         }
 
         /* ══ ENHANCED SIDEBAR STYLING ════════════════════════════════════ */
@@ -19235,6 +19772,540 @@ export class ScheduledDetailsDialogComponent {
         }
         .sc-add-confirm-btn mat-icon { font-size: 18px !important; width: 18px !important; height: 18px !important; }
 
+        /* ══ PREMIUM NOTIFICATIONS & SUGGESTIONS PANEL STYLING ═════════════════ */
+        .premium-rp-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+            animation: slideInDown 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .premium-rp-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 16px 12px;
+            position: sticky;
+            top: 0;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%);
+            backdrop-filter: blur(12px);
+            z-index: 10;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+        }
+
+        .premium-rp-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            color: #1a1a2e;
+            flex: 1;
+            letter-spacing: 0.2px;
+        }
+
+        .premium-rp-icon {
+            font-size: 18px !important;
+            width: 18px !important;
+            height: 18px !important;
+            color: #667eea;
+            animation: iconPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes iconPulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        .premium-notif-section {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            padding: 8px 0;
+        }
+
+        .premium-notif-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px 14px;
+            margin: 4px 8px;
+            cursor: pointer;
+            border-radius: 10px;
+            transition: all 0.24s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            background: transparent;
+            border-left: 3px solid transparent;
+        }
+
+        .premium-notif-item:hover {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.04) 100%);
+            border-left-color: #667eea;
+            transform: translateX(2px);
+            box-shadow: 0 3px 12px rgba(102, 126, 234, 0.12);
+        }
+
+        .premium-notif-item.unread {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.12) 0%, rgba(118, 75, 162, 0.06) 100%);
+            border-left-color: #667eea;
+        }
+
+        .premium-notif-item.unread:hover {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.18) 0%, rgba(118, 75, 162, 0.1) 100%);
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.18);
+        }
+
+        .premium-notif-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25);
+            font-size: 14px;
+            font-weight: 700;
+            color: #fff;
+            animation: avatarPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes avatarPop {
+            0% { transform: scale(0.8); }
+            100% { transform: scale(1); }
+        }
+
+        .premium-notif-avatar:hover {
+            transform: scale(1.08);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+        }
+
+        .premium-notif-content {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .premium-notif-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .premium-notif-room {
+            font-weight: 700;
+            color: #667eea;
+            font-size: 12px;
+            transition: all 0.24s ease;
+        }
+
+        .premium-notif-item:hover .premium-notif-room {
+            color: #764ba2;
+            text-decoration: underline;
+            text-decoration-thickness: 1.5px;
+            text-underline-offset: 2px;
+        }
+
+        .premium-notif-time {
+            font-size: 9px;
+            color: #999;
+            opacity: 0.7;
+            font-weight: 500;
+            transition: opacity 0.24s ease;
+        }
+
+        .premium-notif-item:hover .premium-notif-time {
+            opacity: 0.9;
+        }
+
+        .premium-notif-text {
+            font-size: 12px;
+            line-height: 1.5;
+            color: #444;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            transition: color 0.24s ease;
+        }
+
+        .premium-notif-item:hover .premium-notif-text {
+            color: #1a1a2e;
+        }
+
+        .premium-members-section {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            padding: 8px 0;
+        }
+
+        .premium-member-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            margin: 4px 8px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.24s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            border-left: 3px solid transparent;
+        }
+
+        .premium-member-bar:hover {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.04) 100%);
+            border-left-color: #667eea;
+            transform: translateX(4px);
+            box-shadow: 0 3px 12px rgba(102, 126, 234, 0.12);
+        }
+
+        .premium-member-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 800;
+            flex-shrink: 0;
+            letter-spacing: -0.5px;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25);
+            transition: all 0.24s ease;
+        }
+
+        .premium-member-bar:hover .premium-member-avatar {
+            transform: scale(1.08);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+        }
+
+        .premium-member-info {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            position: relative;
+        }
+
+        .premium-member-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1a1a2e;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            transition: color 0.24s ease;
+        }
+
+        .premium-member-bar:hover .premium-member-name {
+            color: #667eea;
+        }
+
+        .premium-member-status {
+            font-size: 10px;
+            color: #999;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .premium-member-status.online {
+            color: #22c55e;
+            font-weight: 600;
+        }
+
+        .premium-member-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #22c55e;
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+        }
+
+        .premium-empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.03) 0%, rgba(118, 75, 162, 0.02) 100%);
+            border-radius: 12px;
+            margin: 16px;
+            animation: fadeIn 0.4s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .premium-empty-icon-large {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.05) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 8px;
+            box-shadow: inset 0 2px 8px rgba(102, 126, 234, 0.1);
+        }
+
+        .premium-empty-icon-large mat-icon {
+            font-size: 32px !important;
+            width: 32px !important;
+            height: 32px !important;
+            color: #667eea;
+            opacity: 0.7;
+        }
+
+        .premium-empty-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1a1a2e;
+            letter-spacing: -0.3px;
+        }
+
+        .premium-empty-desc {
+            font-size: 12px;
+            color: #999;
+            line-height: 1.5;
+            max-width: 200px;
+        }
+
+        /* ══ ADDITIONAL PREMIUM COMPONENTS ═════════════════════════════════ */
+        .premium-rp-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 16px 12px;
+            position: sticky;
+            top: 0;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%);
+            backdrop-filter: blur(12px);
+            z-index: 10;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+        }
+
+        .premium-rp-title-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .premium-notif-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .premium-notif-badge {
+            background: linear-gradient(135deg, #FF6B6B 0%, #EE5A6F 100%);
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 3px 7px;
+            border-radius: 10px;
+            min-width: 20px;
+            text-align: center;
+            box-shadow: 0 2px 6px rgba(255, 107, 107, 0.3);
+            animation: badgePulse 2s ease-in-out infinite;
+        }
+
+        @keyframes badgePulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .premium-mark-read-btn {
+            background: transparent;
+            border: 1px solid #667eea;
+            cursor: pointer;
+            padding: 5px 8px;
+            border-radius: 6px;
+            color: #667eea;
+            transition: all 0.24s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: inherit;
+        }
+
+        .premium-mark-read-btn:hover {
+            background: rgba(102, 126, 234, 0.1);
+            border-color: #667eea;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+        }
+
+        .premium-notif-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            padding: 8px 0;
+        }
+
+        .premium-notif-content {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .premium-notif-text {
+            font-size: 12px;
+            line-height: 1.5;
+            color: #444;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            transition: color 0.24s ease;
+        }
+
+        .premium-notif-room {
+            font-weight: 700;
+            color: #667eea;
+            font-size: 12px;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .premium-notif-desc {
+            display: block;
+            color: #666;
+            font-size: 11px;
+        }
+
+        .premium-notif-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #667eea;
+            flex-shrink: 0;
+            margin-top: 4px;
+            animation: rp-dot-pulse 2s ease-in-out infinite;
+            box-shadow: 0 0 8px rgba(102, 126, 234, 0.6);
+        }
+
+        .premium-empty-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: rgba(102, 126, 234, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 8px;
+            box-shadow: inset 0 2px 6px rgba(102, 126, 234, 0.1);
+        }
+
+        .premium-empty-icon mat-icon {
+            font-size: 24px !important;
+            width: 24px !important;
+            height: 24px !important;
+            color: #667eea;
+            opacity: 0.6;
+        }
+
+        .premium-empty-text {
+            font-size: 12px;
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+
+        .premium-member-badge {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.1) 100%);
+            color: #667eea;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 8px;
+            min-width: 22px;
+            text-align: center;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+        }
+
+        .premium-add-member-btn {
+            background: transparent;
+            border: 1px solid #667eea;
+            cursor: pointer;
+            padding: 6px 8px;
+            border-radius: 6px;
+            color: #667eea;
+            transition: all 0.24s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: inherit;
+        }
+
+        .premium-add-member-btn:hover {
+            background: rgba(102, 126, 234, 0.1);
+            border-color: #667eea;
+            transform: scale(1.08);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+        }
+
+        .premium-member-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            padding: 8px 0;
+        }
+
+        .premium-online-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #22c55e;
+            display: inline-block;
+            flex-shrink: 0;
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+
+        .premium-member-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #1a1a2e;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .premium-suggestions-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.03) 0%, rgba(118, 75, 162, 0.02) 100%);
+            border-radius: 12px;
+            margin: 16px;
+            animation: fadeIn 0.4s ease-in;
+        }
+
     `],
     animations: [
         trigger('messageBubbleIn', [
@@ -21357,6 +22428,10 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
 
     togglePinnedPanel(): void {
         this.pinnedPanelOpen.update(v => !v);
+    }
+
+    navigateToSentimentAnalytics(): void {
+        this.router.navigate(['/app/chat/sentiment-stats']);
     }
 
     openPinnedDialog(): void {
