@@ -23,39 +23,65 @@ import { HttpClient } from "@angular/common/http";
 import Swiper from "swiper";
 import { register } from "swiper/element/bundle";
 
+interface Coupon {
+  code: string;
+  discountType: 'PERCENTAGE' | 'FIXED';
+  discountValue: number;
+  description?: string;
+}
+
 @Component({
     selector: "app-website",
     standalone: true,
     imports: [CommonModule, RouterLink, FormsModule, MatExpansionModule, MatButtonToggleModule, MatListModule, MatMenuModule, MatButtonModule, MatIconModule, MatInputModule, MatFormFieldModule, MatCardModule, MatToolbarModule, BarBlueChartjs100Component, AreaBlueChartjs60Component],
     template: `
         <!-- Coupon Popup for First-time Visitors -->
-        @if (showCouponPopup && firstCoupon) {
-          <div class="coupon-overlay" (click)="couponClickable && closeCouponPopup()">
+        @if (showCouponPopup() && firstCoupon()) {
+          <div class="coupon-overlay" (click)="couponClickable() && closeCouponPopup()">
             <div class="coupon-popup" (click)="$event.stopPropagation()">
-              <button class="coupon-close" (click)="closeCouponPopup()">
+              <!-- Close Button -->
+              <button class="coupon-close" (click)="closeCouponPopup()" title="Close">
                 <mat-icon>close</mat-icon>
               </button>
+
+              <!-- Icon Section with Gradient -->
               <div class="coupon-icon-wrap">
                 <mat-icon class="coupon-main-icon">local_offer</mat-icon>
               </div>
-              <h4 class="coupon-title">Welcome to Unitum!</h4>
-              <p class="coupon-subtitle">Use this exclusive coupon on your first subscription</p>
+
+              <!-- Title & Subtitle -->
+              <h4 class="coupon-title">🎉 Welcome to Unitum!</h4>
+              <p class="coupon-subtitle">Unlock exclusive access with your limited-time coupon</p>
+
+              <!-- Coupon Code Box -->
               <div class="coupon-code-box">
-                <span class="coupon-code-label">Your Coupon Code</span>
-                <div class="coupon-code-value">{{ firstCoupon.code }}</div>
+                <span class="coupon-code-label">✨ Your Exclusive Code</span>
+                <div class="coupon-code-value">{{ firstCoupon()?.code }}</div>
+
+                <!-- Discount Badge & Description -->
                 <div class="coupon-discount-info">
-                  @if (firstCoupon.discountType === 'PERCENTAGE') {
-                    <span class="coupon-badge-discount">{{ firstCoupon.discountValue }}% OFF</span>
+                  @if (firstCoupon()?.discountType === 'PERCENTAGE') {
+                    <span class="coupon-badge-discount">
+                      <mat-icon style="font-size: 16px; width: 16px; height: 16px; vertical-align: middle;">trending_down</mat-icon>
+                      {{ firstCoupon()?.discountValue }}% OFF
+                    </span>
                   } @else {
-                    <span class="coupon-badge-discount">{{ firstCoupon.discountValue }} DT OFF</span>
-                  }
-                  @if (firstCoupon.description) {
-                    <span class="coupon-desc">{{ firstCoupon.description }}</span>
+                    <span class="coupon-badge-discount">
+                      <mat-icon style="font-size: 16px; width: 16px; height: 16px; vertical-align: middle;">sell</mat-icon>
+                      {{ firstCoupon()?.discountValue }} DT OFF
+                    </span>
                   }
                 </div>
+
+                @if (firstCoupon()?.description) {
+                  <span class="coupon-desc">💡 {{ firstCoupon()?.description }}</span>
+                }
               </div>
+
+              <!-- CTA Button -->
               <button class="coupon-btn-use" (click)="scrollToPlans(); closeCouponPopup()">
-                <mat-icon>rocket_launch</mat-icon> Get Started with Unitum
+                <mat-icon>rocket_launch</mat-icon>
+                <span>Get Started with Unitum</span>
               </button>
             </div>
           </div>
@@ -550,10 +576,209 @@ import { register } from "swiper/element/bundle";
     .plan-price .price-amount { font-size: 2.3rem; font-weight: 800; }
     .feature-check { color: #198754 !important; }
     .home-cta-btn { border-radius: 40px !important; font-weight: 600 !important; }
-    .coupon-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 9999; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
-    .coupon-popup { background: white; border-radius: 32px; padding: 32px; max-width: 420px; text-align: center; animation: slideUp 0.3s ease; }
-    @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-    .coupon-code-value { font-size: 1.8rem; font-weight: 800; letter-spacing: 3px; font-family: monospace; color: #0d6efd; }
+    .coupon-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+      animation: fadeInOverlay 0.3s ease;
+    }
+    @keyframes fadeInOverlay {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .coupon-popup {
+      background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+      border-radius: 24px;
+      padding: 0;
+      max-width: 420px;
+      text-align: center;
+      animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.6);
+      border: 1px solid rgba(13,110,253,0.1);
+      overflow: hidden;
+      position: relative;
+    }
+    .coupon-popup::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #0d6efd, #0dcaf0, #0d6efd);
+    }
+    @keyframes slideUp {
+      from {
+        transform: translateY(60px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+    .coupon-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: rgba(0,0,0,0.05);
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      z-index: 10;
+    }
+    .coupon-close:hover {
+      background: rgba(0,0,0,0.1);
+      transform: rotate(90deg);
+    }
+    .coupon-icon-wrap {
+      background: linear-gradient(135deg, #0d6efd, #0dcaf0);
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    .coupon-icon-wrap::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -50%;
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle, rgba(255,255,255,0.1), transparent);
+      border-radius: 50%;
+    }
+    .coupon-main-icon {
+      font-size: 56px !important;
+      width: 56px !important;
+      height: 56px !important;
+      color: white;
+      position: relative;
+      z-index: 1;
+    }
+    .coupon-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin: 24px 24px 8px;
+      color: #1a202c;
+      letter-spacing: -0.3px;
+    }
+    .coupon-subtitle {
+      font-size: 14px;
+      color: #64748b;
+      margin: 0 24px 24px;
+      line-height: 1.5;
+    }
+    .coupon-code-box {
+      padding: 24px;
+      margin: 0 24px;
+      background: linear-gradient(135deg, rgba(13,110,253,0.08), rgba(13,202,240,0.08));
+      border-radius: 16px;
+      border: 1px solid rgba(13,110,253,0.15);
+      margin-bottom: 24px;
+    }
+    .coupon-code-label {
+      display: block;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: #64748b;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .coupon-code-value {
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: 4px;
+      font-family: 'Monaco', 'Courier New', monospace;
+      color: #0d6efd;
+      margin-bottom: 16px;
+      text-shadow: 0 2px 8px rgba(13,110,253,0.1);
+    }
+    .coupon-discount-info {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .coupon-badge-discount {
+      display: inline-block;
+      background: linear-gradient(135deg, #ec4899, #f43f5e);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 14px;
+      box-shadow: 0 4px 12px rgba(244, 63, 94, 0.25);
+    }
+    .coupon-desc {
+      display: inline-block;
+      font-size: 13px;
+      color: #0d6efd;
+      background: rgba(13,110,253,0.1);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-weight: 500;
+    }
+    .coupon-btn-use {
+      background: linear-gradient(135deg, #0d6efd, #0dcaf0) !important;
+      color: white !important;
+      border: none;
+      border-radius: 12px !important;
+      padding: 12px 32px !important;
+      font-weight: 700 !important;
+      font-size: 14px !important;
+      margin: 0 24px 24px !important;
+      width: calc(100% - 48px) !important;
+      cursor: pointer;
+      transition: all 0.3s ease !important;
+      box-shadow: 0 8px 20px rgba(13,110,253,0.3) !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 8px;
+    }
+    .coupon-btn-use:hover {
+      transform: translateY(-2px) !important;
+      box-shadow: 0 12px 28px rgba(13,110,253,0.4) !important;
+    }
+    .coupon-btn-use:active {
+      transform: translateY(0) !important;
+    }
+    @media (max-width: 480px) {
+      .coupon-popup {
+        max-width: 90vw;
+        border-radius: 20px;
+        padding: 0;
+      }
+      .coupon-title {
+        font-size: 20px;
+        margin: 20px 20px 6px;
+      }
+      .coupon-subtitle {
+        font-size: 13px;
+        margin: 0 20px 20px;
+      }
+      .coupon-code-value {
+        font-size: 1.8rem;
+        letter-spacing: 2px;
+      }
+      .coupon-btn-use {
+        margin: 0 20px 20px !important;
+        width: calc(100% - 40px) !important;
+      }
+    }
     .badge-outline-theme { border: 1.5px solid #0d6efd; background: transparent; padding: 4px 16px; border-radius: 40px; }
     .pricing-tabs { background: #f1f3f5; border-radius: 60px; padding: 4px; }
     .ptab { padding: 8px 24px; border-radius: 40px; font-weight: 600; background: transparent; border: none; }
@@ -565,9 +790,9 @@ import { register } from "swiper/element/bundle";
 export class WebsiteComponent implements OnInit, AfterViewInit {
     private readonly API = 'http://localhost:8084/api/billing';
 
-    showCouponPopup = false;
-    couponClickable = false;
-    firstCoupon: any = null;
+    showCouponPopup = signal(false);
+    couponClickable = signal(false);
+    firstCoupon = signal<Coupon | null>(null);
 
     teamMembers = [
         { name: 'Motez Selmi', role: 'Lead Developer', image: 'assets/img/motez.png' },
@@ -591,11 +816,29 @@ export class WebsiteComponent implements OnInit, AfterViewInit {
                 this.http.get<any[]>(`${this.API}/coupons/active`).subscribe({
                     next: (coupons) => {
                         if (coupons && coupons.length) {
-                            this.firstCoupon = coupons[0];
-                            setTimeout(() => { this.showCouponPopup = true; setTimeout(() => { this.couponClickable = true; }, 400); }, 600);
+                            this.firstCoupon.set(coupons[0]);
+                        } else {
+                            // Demo coupon for testing when no active coupons
+                            this.firstCoupon.set({
+                                code: 'UNITUM20',
+                                discountType: 'PERCENTAGE',
+                                discountValue: 30,
+                                description: 'Use this exclusive coupon on your first subscription'
+                            });
                         }
+                        setTimeout(() => { this.showCouponPopup.set(true); setTimeout(() => { this.couponClickable.set(true); }, 400); }, 600);
                     },
-                    error: () => {}
+                    error: (err) => {
+                        console.error('Coupon API error:', err);
+                        // Demo coupon for testing when API fails
+                        this.firstCoupon.set({
+                            code: 'UNITUM20',
+                            discountType: 'PERCENTAGE',
+                            discountValue: 30,
+                            description: 'Use this exclusive coupon on your first subscription'
+                        });
+                        setTimeout(() => { this.showCouponPopup.set(true); setTimeout(() => { this.couponClickable.set(true); }, 400); }, 600);
+                    }
                 });
             }
         }
@@ -608,8 +851,8 @@ export class WebsiteComponent implements OnInit, AfterViewInit {
     }
 
     closeCouponPopup() {
-        this.showCouponPopup = false;
-        this.couponClickable = false;
+        this.showCouponPopup.set(false);
+        this.couponClickable.set(false);
         if (isPlatformBrowser(this.platformId)) localStorage.setItem('coupon_popup_seen', '1');
     }
 

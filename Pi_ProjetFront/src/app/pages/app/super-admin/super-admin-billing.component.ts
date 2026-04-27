@@ -339,42 +339,7 @@ import { PaymentResponse } from '../../../billing/models/billing.models';
               </div>
             </mat-tab>
 
-            <!-- TAB 5 : UPSELL (READ ONLY - ML) -->
-            <mat-tab>
-              <ng-template mat-tab-label>
-                <mat-icon class="material-icons-outlined tab-icon">trending_up</mat-icon>Upsell
-              </ng-template>
-              <div class="tab-content">
-                <div class="tab-header">
-                  <div>
-                    <h4 class="mb-1">Upsell Recommendations</h4>
-                    <p class="text-secondary small mb-0">Table: <code>upsell_recommendations</code> — global view, read only</p>
-                  </div>
-                  <span class="pill pill-purple">ML GENERATED</span>
-                </div>
-                <div class="row gx-3 mt-3">
-                  <div class="col-12 col-md-6 col-lg-4" *ngFor="let u of upsellMock">
-                    <mat-card class="mb-3">
-                      <mat-card-content>
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                          <h5 class="mb-0">{{ u.org }}</h5>
-                          <span class="pill" [class]="getUpsellClass(u.status)">{{ u.status }}</span>
-                        </div>
-                        <p class="text-secondary small mb-1">Current: <strong>{{ u.current }}</strong></p>
-                        <p class="text-secondary small mb-1">→ Recommended: <strong class="text-theme">{{ u.target }}</strong></p>
-                        <p class="text-secondary small mb-0">Revenue impact: <strong style="color:#22c55e">+\${{ u.impact }}/mo</strong></p>
-                      </mat-card-content>
-                    </mat-card>
-                  </div>
-                </div>
-                <div class="empty-state">
-                  <mat-icon class="material-icons-outlined">auto_graph</mat-icon>
-                  <p>Triggered when quota utilization > 80% for > 5 days. Inference: daily batch + real-time.</p>
-                </div>
-              </div>
-            </mat-tab>
-
-            <!-- TAB 6 : ANALYTICS DASHBOARD -->
+            <!-- TAB 5 : ANALYTICS DASHBOARD -->
             <mat-tab>
               <ng-template mat-tab-label>
                 <mat-icon class="material-icons-outlined tab-icon">analytics</mat-icon>
@@ -1073,10 +1038,6 @@ export class SuperAdminBillingComponent implements OnInit {
     { org:'TechHub Inc', plan:'Pro', score:.45, risk:'MEDIUM', wau:'61%' },
     { org:'EduSchool', plan:'Faculty', score:.12, risk:'LOW', wau:'88%' },
   ];
-  upsellMock = [
-    { org:'Acme Corp', current:'Starter', target:'Pro', impact:100, status:'PENDING' },
-    { org:'TechHub Inc', current:'Pro', target:'Business', impact:200, status:'SHOWN' },
-  ];
 
   paymentAttempts: PaymentAttemptDTO[] = [];
   attemptsGlobalDS = new MatTableDataSource<PaymentAttemptDTO>([]);
@@ -1091,24 +1052,24 @@ export class SuperAdminBillingComponent implements OnInit {
   get confirmedPayments() { return this.payments.filter(p=>p.status==='CONFIRMED').length; }
 
   ngOnInit() {
-    this.orgBilling.getActivePlans().subscribe(d => { this.plans = d; });
-    this.orgBilling.getAllInvoices().subscribe(d => {
-      this.allInvoices = d;
-      this.invoicesDS.data = d;
-    });
-    this.orgBilling.getAllPaymentAttempts().subscribe(d => {
-      this.paymentAttempts = d;
-      this.attemptsGlobalDS.data = d;
-    });
-    this.orgBilling.getAllUsageQuotas().subscribe(d => {
-      this.usageQuotas = d;
-    });
-    this.billingService.getAllPayments().subscribe(d => {
-      this.payments = d;
-      this.paymentsDS.data = d;
-    });
-    this.billingService.getSecurityAlerts().subscribe(res => {
-      this.securityAlerts = res.alerts;
+    forkJoin({
+      plans: this.orgBilling.getActivePlans(),
+      invoices: this.orgBilling.getAllInvoices(),
+      attempts: this.orgBilling.getAllPaymentAttempts(),
+      quotas: this.orgBilling.getAllUsageQuotas(),
+      payments: this.billingService.getAllPayments(),
+      alerts: this.billingService.getSecurityAlerts()
+    }).subscribe(({ plans, invoices, attempts, quotas, payments, alerts }) => {
+      this.plans = plans;
+      this.allInvoices = invoices;
+      this.invoicesDS.data = invoices;
+      this.paymentAttempts = attempts;
+      this.attemptsGlobalDS.data = attempts;
+      this.usageQuotas = quotas;
+      this.payments = payments;
+      this.paymentsDS.data = payments;
+      this.securityAlerts = alerts.alerts;
+      setTimeout(() => this.renderAnalytics(), 100);
     });
     this.loadCoupons();
   }
@@ -1217,7 +1178,7 @@ export class SuperAdminBillingComponent implements OnInit {
   // ── Analytics ──────────────────────────────────────────────────────────────
 
   onTabChange(index: number) {
-    if (index !== 5) return;
+    if (index !== 4) return;
     forkJoin({
       invoices: this.orgBilling.getAllInvoices(),
       quotas:   this.orgBilling.getAllUsageQuotas(),
@@ -1467,5 +1428,4 @@ export class SuperAdminBillingComponent implements OnInit {
   getInvClass(s:string) { return ({PAID:'pill-green',OPEN:'pill-yellow',DRAFT:'pill-blue',VOID:'pill-red'})[s]??'pill-blue'; }
   getPayStatus(s:string) { return ({CONFIRMED:'pill-green',PENDING:'pill-yellow',REJECTED:'pill-red'})[s]??'pill-blue'; }
   getRiskClass(r:string) { return ({HIGH:'pill-red',MEDIUM:'pill-yellow',LOW:'pill-green'})[r]??'pill-blue'; }
-  getUpsellClass(s:string) { return ({PENDING:'pill-yellow',SHOWN:'pill-blue',ACCEPTED:'pill-green',DISMISSED:'pill-red'})[s]??'pill-blue'; }
 }

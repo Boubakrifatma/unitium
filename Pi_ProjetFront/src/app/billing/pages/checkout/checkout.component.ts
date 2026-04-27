@@ -1,6 +1,6 @@
 import { Component, OnInit, signal, inject, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -97,21 +97,19 @@ import { Plan, OrgType, BillingCycle } from '../../models/billing.models';
               </div>
               <div class="field-wrap">
                 <input class="f-input" formControlName="phone"
-                  placeholder="Phone Number **" type="tel">
+                  placeholder="Phone Number (max 8 digits) **"
+                  type="tel"
+                  pattern="[0-9]*"
+                  maxlength="8"
+                  inputmode="numeric">
                 <mat-icon class="f-icon">phone</mat-icon>
                 @if (f['phone'].invalid && f['phone'].touched) {
-                  <span class="f-err">Required</span>
-                }
-              </div>
-              <div class="field-wrap number-wrap">
-                <label class="number-label">Number of {{ isAcademic() ? 'Students' : 'Users' }} **</label>
-                <div class="number-inner">
-                  <input class="f-input number-input" formControlName="numUsers"
-                    type="number" min="1">
-                  <mat-icon class="f-icon">group</mat-icon>
-                </div>
-                @if (f['numUsers'].invalid && f['numUsers'].touched) {
-                  <span class="f-err">Min. 1</span>
+                  @if (f['phone'].hasError('required')) {
+                    <span class="f-err">Phone number is required</span>
+                  }
+                  @if (f['phone'].hasError('maxDigits')) {
+                    <span class="f-err">Maximum 8 digits allowed</span>
+                  }
                 }
               </div>
             </div>
@@ -309,16 +307,6 @@ import { Plan, OrgType, BillingCycle } from '../../models/billing.models';
     }
     .f-err { font-size: .73rem; color: #ef4444; padding-left: 14px; display: block; margin-top: 3px; }
 
-    /* Number field */
-    .number-wrap { position: relative; }
-    .number-label {
-      position: absolute; top: -8px; left: 16px; z-index: 2;
-      font-size: .72rem; color: #64748b; background: #f8fafc;
-      padding: 0 4px; pointer-events: none;
-    }
-    .number-inner { position: relative; }
-    .number-input { padding-top: 18px !important; }
-
     /* Billing cycle */
     .cycle-options { display: flex; flex-direction: column; gap: 10px; }
     .cycle-option {
@@ -419,6 +407,15 @@ export class CheckoutComponent implements OnInit {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
 
+  // Validateur personnalisé pour max 8 chiffres
+  maxDigitsValidator(max: number) {
+    return (control: AbstractControl): ValidationErrors | null => {
+      if (!control.value) return null;
+      const digits = control.value.replace(/\D/g, '');
+      return digits.length > max ? { maxDigits: { value: control.value, max } } : null;
+    };
+  }
+
   constructor() {
     // Met à jour le plan sélectionné dès que l'API répond
     effect(() => {
@@ -430,6 +427,17 @@ export class CheckoutComponent implements OnInit {
         this.pendingPlanId.set(null);
       }
     });
+
+    // Met à jour numUsers en fonction du plan sélectionné
+    effect(() => {
+      const plan = this.selectedPlan();
+      if (plan) {
+        const numUsers = typeof plan.limits.users === 'string'
+          ? parseInt(plan.limits.users, 10)
+          : plan.limits.users;
+        this.form.get('numUsers')?.setValue(numUsers, { emitEvent: false });
+      }
+    });
   }
 
   form = this.fb.group({
@@ -437,7 +445,7 @@ export class CheckoutComponent implements OnInit {
     orgName: ['', [Validators.required, Validators.minLength(2)]],
     adminName: ['', [Validators.required, Validators.minLength(2)]],
     adminEmail: ['', [Validators.required, Validators.email]],
-    phone: ['', Validators.required],
+    phone: ['', [Validators.required, this.maxDigitsValidator(8)]],
     numUsers: [1, [Validators.required, Validators.min(1)]],
     billingCycle: ['monthly' as BillingCycle, Validators.required],
     address: [''],

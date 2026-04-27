@@ -93,7 +93,7 @@ public class InvoiceTamperingService {
 
     // ── Scheduled Job ─────────────────────────────────────────────────────────
 
-    @Scheduled(cron = "0 0 * * * *")
+    @Scheduled(cron = "0 */2 * * * *")
     public void scheduledIntegrityCheck() {
         log.info("Starting scheduled invoice integrity check...");
         List<TamperingCheckDTO> results = verifyAllInvoices();
