@@ -65,7 +65,7 @@ public class AcademicSeedService implements CommandLineRunner {
     private static final String PLAINTEXT_PASSWORD = "Password123!";
 
     // ── Data holders populated during seed ──────────────────────────────────
-    private User admin, tutor1, tutor2, student1, student2, student3, student4;
+    private User admin, tutor1, tutor2, tutor3, student1, student2, student3, student4;
     private Organization academyOrg;
     private Workspace courseWorkspace;
     private Project courseProject;
@@ -117,7 +117,7 @@ public class AcademicSeedService implements CommandLineRunner {
     // ─────────────────────────────────────────────────────────────────────────
 
     private void step01_createUsers() {
-        log.info("[AcademicSeedService] Step 1: Creating 7 users (1 admin, 2 tutors, 4 students)...");
+        log.info("[AcademicSeedService] Step 1: Creating 8 users (1 admin, 3 tutors, 4 students)...");
         String hashedPwd = passwordEncoder.encode(PLAINTEXT_PASSWORD);
 
         admin = userRepository.save(User.builder()
@@ -133,7 +133,7 @@ public class AcademicSeedService implements CommandLineRunner {
             .email("tutor1@academy.edu")
             .fullName("Prof. Sarah Johnson")
             .passwordHash(hashedPwd)
-            .role(User.RoleName.EMPLOYEE)
+            .role(User.RoleName.TUTOR)
             .isActive(true)
             .isVerified(true)
             .build());
@@ -142,7 +142,16 @@ public class AcademicSeedService implements CommandLineRunner {
             .email("tutor2@academy.edu")
             .fullName("Dr. Michael Chen")
             .passwordHash(hashedPwd)
-            .role(User.RoleName.EMPLOYEE)
+            .role(User.RoleName.TUTOR)
+            .isActive(true)
+            .isVerified(true)
+            .build());
+
+        tutor3 = userRepository.save(User.builder()
+            .email("tutor3@academy.edu")
+            .fullName("Ms. Olivia Carter")
+            .passwordHash(hashedPwd)
+            .role(User.RoleName.TUTOR)
             .isActive(true)
             .isVerified(true)
             .build());
@@ -151,7 +160,7 @@ public class AcademicSeedService implements CommandLineRunner {
             .email("student1@academy.edu")
             .fullName("Emma Williams")
             .passwordHash(hashedPwd)
-            .role(User.RoleName.EMPLOYEE)
+            .role(User.RoleName.STUDENT)
             .isActive(true)
             .isVerified(true)
             .build());
@@ -160,7 +169,7 @@ public class AcademicSeedService implements CommandLineRunner {
             .email("student2@academy.edu")
             .fullName("James Brown")
             .passwordHash(hashedPwd)
-            .role(User.RoleName.EMPLOYEE)
+            .role(User.RoleName.STUDENT)
             .isActive(true)
             .isVerified(true)
             .build());
@@ -169,7 +178,7 @@ public class AcademicSeedService implements CommandLineRunner {
             .email("student3@academy.edu")
             .fullName("Sophia Martinez")
             .passwordHash(hashedPwd)
-            .role(User.RoleName.EMPLOYEE)
+            .role(User.RoleName.STUDENT)
             .isActive(true)
             .isVerified(true)
             .build());
@@ -178,7 +187,7 @@ public class AcademicSeedService implements CommandLineRunner {
             .email("student4@academy.edu")
             .fullName("Lucas Anderson")
             .passwordHash(hashedPwd)
-            .role(User.RoleName.EMPLOYEE)
+            .role(User.RoleName.STUDENT)
             .isActive(true)
             .isVerified(true)
             .build());
@@ -190,8 +199,14 @@ public class AcademicSeedService implements CommandLineRunner {
             Timestamp.valueOf(LocalDateTime.of(2026, 4, 24, 14, 30)), tutor1.getId());
         jdbcTemplate.update("UPDATE users SET last_login_at = ? WHERE id = ?",
             Timestamp.valueOf(LocalDateTime.of(2026, 4, 25, 9, 0)), tutor2.getId());
+        jdbcTemplate.update("UPDATE users SET last_login_at = ? WHERE id = ?",
+            Timestamp.valueOf(LocalDateTime.of(2026, 4, 26, 11, 0)), tutor3.getId());
+        jdbcTemplate.update("UPDATE users SET last_login_at = ? WHERE id = ?",
+            Timestamp.valueOf(LocalDateTime.of(2026, 4, 27, 8, 0)), student1.getId());
+        jdbcTemplate.update("UPDATE users SET last_login_at = ? WHERE id = ?",
+            Timestamp.valueOf(LocalDateTime.of(2026, 4, 26, 20, 0)), student2.getId());
 
-        log.info("[AcademicSeedService]   ✓ 7 users created: Admin, 2 Tutors, 4 Students");
+        log.info("[AcademicSeedService]   ✓ 8 users created: Admin, 3 Tutors, 4 Students");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -230,6 +245,12 @@ public class AcademicSeedService implements CommandLineRunner {
 
         organizationMemberRepository.save(OrganizationMember.builder()
             .organization(academyOrg)
+            .userId(tutor3.getId())
+            .role(OrganizationMember.OrganizationRole.MEMBER)
+            .build());
+
+        organizationMemberRepository.save(OrganizationMember.builder()
+            .organization(academyOrg)
             .userId(student1.getId())
             .role(OrganizationMember.OrganizationRole.MEMBER)
             .build());
@@ -252,7 +273,7 @@ public class AcademicSeedService implements CommandLineRunner {
             .role(OrganizationMember.OrganizationRole.MEMBER)
             .build());
 
-        log.info("[AcademicSeedService]   ✓ Academic organization created with 7 members");
+        log.info("[AcademicSeedService]   ✓ Academic organization created with 8 members");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -323,6 +344,12 @@ public class AcademicSeedService implements CommandLineRunner {
 
         workspaceMemberRepository.save(WorkspaceMember.builder()
             .workspace(courseWorkspace)
+            .userId(tutor3.getId())
+            .role(WorkspaceMember.WorkspaceRole.ADMIN)
+            .build());
+
+        workspaceMemberRepository.save(WorkspaceMember.builder()
+            .workspace(courseWorkspace)
             .userId(student1.getId())
             .role(WorkspaceMember.WorkspaceRole.EMPLOYEE)
             .build());
@@ -345,7 +372,7 @@ public class AcademicSeedService implements CommandLineRunner {
             .role(WorkspaceMember.WorkspaceRole.EMPLOYEE)
             .build());
 
-        log.info("[AcademicSeedService]   ✓ Workspace created (createdAt: 2026-01-15) + 7 members");
+        log.info("[AcademicSeedService]   ✓ Workspace created (createdAt: 2026-01-15) + 8 members");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -388,6 +415,12 @@ public class AcademicSeedService implements CommandLineRunner {
 
         projectMemberRepository.save(ProjectMember.builder()
             .project(courseProject)
+            .userId(tutor3.getId())
+            .role(ProjectMember.ProjectRole.DEVELOPER)
+            .build());
+
+        projectMemberRepository.save(ProjectMember.builder()
+            .project(courseProject)
             .userId(student1.getId())
             .role(ProjectMember.ProjectRole.OBSERVER)
             .build());
@@ -410,7 +443,7 @@ public class AcademicSeedService implements CommandLineRunner {
             .role(ProjectMember.ProjectRole.OBSERVER)
             .build());
 
-        log.info("[AcademicSeedService]   ✓ Project created + 7 members");
+        log.info("[AcademicSeedService]   ✓ Project created + 8 members");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -693,7 +726,7 @@ public class AcademicSeedService implements CommandLineRunner {
             .build());
 
         // Add all users to both rooms
-        for (User user : Arrays.asList(admin, tutor1, tutor2, student1, student2, student3, student4)) {
+        for (User user : Arrays.asList(admin, tutor1, tutor2, tutor3, student1, student2, student3, student4)) {
             roomMemberRepository.save(RoomMember.builder()
                 .room(classroomChat)
                 .user(user)
@@ -704,7 +737,7 @@ public class AcademicSeedService implements CommandLineRunner {
                 .build());
         }
 
-        log.info("[AcademicSeedService]   ✓ 2 chat rooms created + 14 memberships");
+        log.info("[AcademicSeedService]   ✓ 2 chat rooms created + 16 memberships");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -714,53 +747,92 @@ public class AcademicSeedService implements CommandLineRunner {
     private void step10_createMessages() {
         log.info("[AcademicSeedService] Step 10: Creating messages...");
 
-        // Announcements (6 messages)
+        // ── Announcements (10 messages — official, stern, encouraging, warning) ──
         insertMessage(announcements.getId(), admin.getId(),
-            "Welcome to CS-101: Introduction to Computer Science! This is your course hub. Check the modules for assignments and updates.",
+            "Welcome to CS-101! This channel is for official course updates only. All coursework lives in the project modules.",
             "2026-01-15 09:00");
         insertMessage(announcements.getId(), tutor1.getId(),
-            "Module 1 is now live! Please complete the algorithm design assignment by Jan 29. Office hours: Tue/Thu 3-4pm.",
+            "Module 1 is live! Algorithm design assignment due Jan 29. Office hours: Tue/Thu 3-4pm. Don't wait until the last day.",
             "2026-01-20 10:00");
         insertMessage(announcements.getId(), admin.getId(),
-            "Module 1 is now complete! Great work everyone. Module 2 begins Feb 16 with focus on data structures.",
+            "Reminder: All submissions must go through the portal. Late work incurs a 10% daily penalty. No exceptions will be made.",
+            "2026-01-25 08:00");
+        insertMessage(announcements.getId(), admin.getId(),
+            "Module 1 is complete. Strong results overall. Module 2 starts Feb 16 — data structures are significantly harder. Prepare accordingly.",
             "2026-02-16 08:00");
         insertMessage(announcements.getId(), tutor2.getId(),
-            "Module 2 Assignment 1 (BSTs) solutions posted. Next: Graph Algorithms assignment due Mar 22.",
+            "BST assignment due Mar 5. This is the most challenging task of the semester. Start early — I cannot grant extensions.",
+            "2026-02-20 09:00");
+        insertMessage(announcements.getId(), tutor1.getId(),
+            "Several students have not attended any office hours yet. If you are struggling, please come — that's what office hours are for.",
+            "2026-03-01 10:00");
+        insertMessage(announcements.getId(), tutor2.getId(),
+            "Module 2 Assignment 1 (BSTs) solutions posted. Graph algorithms assignment is next, due Mar 22.",
             "2026-03-08 14:00");
         insertMessage(announcements.getId(), tutor1.getId(),
-            "Module 2 quiz is open now through Mar 31. It covers all data structures topics.",
+            "Module 2 quiz is open through Mar 31. It covers everything from the last 6 weeks. Study your notes.",
             "2026-03-23 09:00");
+        insertMessage(announcements.getId(), tutor3.getId(),
+            "I will host extra study sessions every Wednesday 5-6pm for Module 3 topics. Dynamic programming and greedy algorithms covered first.",
+            "2026-04-03 11:00");
         insertMessage(announcements.getId(), admin.getId(),
-            "Final project guidelines are posted. Teams should be formed by Apr 5. Presentations on May 10.",
+            "Final project guidelines posted. Teams of 2-4. Compositions due Apr 5. Presentations on May 10. No solo projects accepted.",
             "2026-04-01 10:00");
 
-        // Classroom Discussion (8 messages)
+        // ── Classroom Discussion (17 messages — positive, negative, frustrated, supportive, conflict) ──
         insertMessage(classroomChat.getId(), student1.getId(),
-            "Hi everyone! Is there a recommended text editor for the C++ assignments in module 2?",
-            "2026-02-18 16:30");
-        insertMessage(classroomChat.getId(), tutor2.getId(),
-            "Great question! VSCode or CLion both work well. We recommend VSCode for beginners.",
-            "2026-02-19 09:00");
+            "Hi everyone! So excited to finally start CS-101. Has anyone started the algorithm assignment yet?",
+            "2026-01-16 17:00");
         insertMessage(classroomChat.getId(), student2.getId(),
-            "How much time should we spend on the BST assignment? Mine is taking longer than expected.",
-            "2026-03-02 18:00");
+            "Just read through it. Looks doable but I'm a bit nervous about the complexity analysis part.",
+            "2026-01-16 17:30");
         insertMessage(classroomChat.getId(), tutor1.getId(),
-            "The assignment is open-ended. If you have a working solution, that's sufficient. Optimization is extra credit.",
-            "2026-03-03 10:30");
+            "Don't be nervous — complexity analysis is a skill you build over time. Post specific questions here anytime.",
+            "2026-01-17 09:00");
         insertMessage(classroomChat.getId(), student3.getId(),
-            "Can we work in groups for the final project?",
+            "I've been stuck on the BST assignment for 3 days. I literally cannot figure out the rebalancing logic. This is brutal.",
+            "2026-02-28 20:00");
+        insertMessage(classroomChat.getId(), tutor2.getId(),
+            "What specifically is failing — insertion, deletion, or rotation? Share your approach and I'll guide you through it.",
+            "2026-03-01 09:15");
+        insertMessage(classroomChat.getId(), student3.getId(),
+            "It's the left-right rotation after insertion. My tree is correct before but wrong after the rotation.",
+            "2026-03-01 10:00");
+        insertMessage(classroomChat.getId(), tutor2.getId(),
+            "Classic issue. Your rotation is likely updating the parent pointer but forgetting the grandparent. Check lines 40-55 carefully.",
+            "2026-03-01 10:30");
+        insertMessage(classroomChat.getId(), student4.getId(),
+            "Is anyone else finding this course way harder than advertised? The workload is really hitting me.",
+            "2026-03-10 19:00");
+        insertMessage(classroomChat.getId(), student1.getId(),
+            "It's hard for sure, but I'm genuinely learning more here than in any other course. Worth it.",
+            "2026-03-10 19:30");
+        insertMessage(classroomChat.getId(), admin.getId(),
+            "The difficulty is intentional. CS fundamentals require struggle. If it feels hard, you're engaging with the material correctly.",
+            "2026-03-11 08:00");
+        insertMessage(classroomChat.getId(), student2.getId(),
+            "Got my Module 1 grade back — 92%! I didn't expect that at all. So relieved and happy!",
+            "2026-02-18 16:00");
+        insertMessage(classroomChat.getId(), tutor1.getId(),
+            "Outstanding result, James. That score reflects real effort. Keep that same discipline for Module 2.",
+            "2026-02-19 09:00");
+        insertMessage(classroomChat.getId(), student3.getId(),
+            "I got a 68 on Module 1. Really disappointed — I thought I understood the material.",
+            "2026-02-18 17:00");
+        insertMessage(classroomChat.getId(), tutor1.getId(),
+            "68 is a passing grade. Come to my office hours this week — we'll go through exactly where marks were lost and how to improve.",
+            "2026-02-19 09:15");
+        insertMessage(classroomChat.getId(), student3.getId(),
+            "Can we work in groups for the final project? I really need teammates who are motivated.",
             "2026-04-05 14:00");
         insertMessage(classroomChat.getId(), admin.getId(),
-            "Yes! Teams of 2-4 are encouraged. Submit team composition by Apr 5.",
+            "Yes — teams of 2-4 are strongly encouraged. Submit your team composition via the portal by end of day today.",
             "2026-04-05 15:00");
-        insertMessage(classroomChat.getId(), student4.getId(),
-            "Thanks for clarifying the grading rubric in the last video!",
-            "2026-04-10 11:00");
-        insertMessage(classroomChat.getId(), tutor2.getId(),
-            "You're welcome! Feel free to ask any more questions before the final project deadline.",
-            "2026-04-10 11:30");
+        insertMessage(classroomChat.getId(), tutor3.getId(),
+            "Wednesday study sessions are on! Bring your toughest questions on dynamic programming. See you there.",
+            "2026-04-11 09:00");
 
-        log.info("[AcademicSeedService]   ✓ 14 messages created");
+        log.info("[AcademicSeedService]   ✓ 27 messages created (10 Announcements, 17 Classroom — mixed sentiments)");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -913,6 +985,7 @@ public class AcademicSeedService implements CommandLineRunner {
         log.info("[AcademicSeedService] ║ Organization Admin                ║ admin@academy.edu               ║ Password123! ║");
         log.info("[AcademicSeedService] ║ Tutor 1 (Prof. Sarah Johnson)     ║ tutor1@academy.edu              ║ Password123! ║");
         log.info("[AcademicSeedService] ║ Tutor 2 (Dr. Michael Chen)        ║ tutor2@academy.edu              ║ Password123! ║");
+        log.info("[AcademicSeedService] ║ Tutor 3 (Ms. Olivia Carter)       ║ tutor3@academy.edu              ║ Password123! ║");
         log.info("[AcademicSeedService] ║ Student 1 (Emma Williams)         ║ student1@academy.edu            ║ Password123! ║");
         log.info("[AcademicSeedService] ║ Student 2 (James Brown)           ║ student2@academy.edu            ║ Password123! ║");
         log.info("[AcademicSeedService] ║ Student 3 (Sophia Martinez)       ║ student3@academy.edu            ║ Password123! ║");

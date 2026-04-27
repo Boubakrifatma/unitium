@@ -261,7 +261,7 @@ class BootstrapService:
     def _db_connection(self):
         host = os.getenv("DB_HOST", "localhost")
         port = int(os.getenv("DB_PORT", "3306"))
-        db_name = os.getenv("DB_NAME", "PiProjet")
+        db_name = os.getenv("DB_NAME", "valigg")
         user = os.getenv("DB_USER", "root")
         password = os.getenv("DB_PASS", "")
 
@@ -330,6 +330,7 @@ class BootstrapService:
                         COALESCE(ml_fitness_score, 0.0) AS fitness_score
                     FROM project_templates
                     WHERE deleted_at IS NULL
+                      AND status = 'APPROVED'
                     ORDER BY COALESCE(ml_fitness_score, 0.0) DESC, updated_at DESC
                     """
                 )

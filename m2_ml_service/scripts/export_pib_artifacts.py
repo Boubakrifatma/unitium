@@ -24,7 +24,7 @@ RNG_SEED = 20260419
 def _db_connection() -> pymysql.connections.Connection:
     host = os.getenv("DB_HOST", "localhost")
     port = int(os.getenv("DB_PORT", "3306"))
-    db_name = os.getenv("DB_NAME", "PiProjet")
+    db_name = os.getenv("DB_NAME", "valigg")
     user = os.getenv("DB_USER", "root")
     password = os.getenv("DB_PASS", "")
 
@@ -76,6 +76,7 @@ def _fetch_templates(cur: DictCursor) -> pd.DataFrame:
             COALESCE(ml_fitness_score, 0.72) AS ml_fitness_score
         FROM project_templates
         WHERE deleted_at IS NULL
+          AND status = 'APPROVED'
         ORDER BY updated_at DESC, created_at DESC
         """
     )

@@ -1288,7 +1288,17 @@ public class M2DevSeedService {
             Optional<ProjectTemplate> existingOpt = projectTemplateRepository.findById(templateId);
             if (existingOpt.isPresent()) {
                 ProjectTemplate existing = existingOpt.get();
-                if (ensureTemplateHasStructure(existing, name, phasesJson)) {
+                boolean changed = ensureTemplateHasStructure(existing, name, phasesJson);
+                // Always ensure PIB templates are APPROVED and public
+                if (existing.getStatus() != TemplateStatus.APPROVED) {
+                    existing.setStatus(TemplateStatus.APPROVED);
+                    changed = true;
+                }
+                if (!Boolean.TRUE.equals(existing.getIsPublic())) {
+                    existing.setIsPublic(true);
+                    changed = true;
+                }
+                if (changed) {
                     projectTemplateRepository.save(existing);
                 }
                 return;
@@ -1696,52 +1706,50 @@ public class M2DevSeedService {
 
         if (existing.isPresent()) {
             Project p = existing.get();
-            boolean changed = false;
+            boolean jpaChanged = false;
 
+            // ── JDBC-only updates (fields with updatable=false join companions) ──
             if (!Objects.equals(p.getCreatedBy(), creatorId)) {
-                p.setCreatedBy(creatorId);
-                changed = true;
-            }
-            if (!Objects.equals(p.getName(), name)) {
-                p.setName(name);
-                changed = true;
-            }
-            if (!Objects.equals(p.getStatus(), status)) {
-                p.setStatus(status);
-                changed = true;
-            }
-            if (!Objects.equals(p.getVisibility(), visibility)) {
-                p.setVisibility(visibility);
-                changed = true;
-            }
-            if (!Objects.equals(p.getStartDate(), startDate)) {
-                p.setStartDate(startDate);
-                changed = true;
-            }
-            if (!Objects.equals(p.getEndDate(), endDate)) {
-                p.setEndDate(endDate);
-                changed = true;
+                jdbcTemplate.update("UPDATE projects SET created_by = ? WHERE id = ?", creatorId, p.getId().toString());
             }
 
             UUID expectedTemplateId = template != null ? template.getId() : null;
             if (!Objects.equals(p.getTemplateId(), expectedTemplateId)) {
-                p.setTemplateId(expectedTemplateId);
-                changed = true;
-            }
-
-            if (template != null && !Objects.equals(p.getPhasesJson(), template.getDefaultPhasesJson())) {
-                p.setPhasesJson(template.getDefaultPhasesJson());
-                changed = true;
+                String tidStr = expectedTemplateId != null ? expectedTemplateId.toString() : null;
+                jdbcTemplate.update("UPDATE projects SET template_id = ? WHERE id = ?", tidStr, p.getId().toString());
             }
 
             if (p.getCreatedAt() == null || p.getCreatedAt().isAfter(SEEDED_CREATED_AT)) {
-                // Use direct JDBC update because created_at is updatable=false in JPA mapping
                 jdbcTemplate.update("UPDATE projects SET created_at = ? WHERE id = ?", java.sql.Timestamp.from(SEEDED_CREATED_AT), p.getId().toString());
-                p.setCreatedAt(SEEDED_CREATED_AT);
-                changed = true;
             }
 
-            if (changed) {
+            // ── JPA-safe updates ─────────────────────────────────────────────────
+            if (!Objects.equals(p.getName(), name)) {
+                p.setName(name);
+                jpaChanged = true;
+            }
+            if (!Objects.equals(p.getStatus(), status)) {
+                p.setStatus(status);
+                jpaChanged = true;
+            }
+            if (!Objects.equals(p.getVisibility(), visibility)) {
+                p.setVisibility(visibility);
+                jpaChanged = true;
+            }
+            if (!Objects.equals(p.getStartDate(), startDate)) {
+                p.setStartDate(startDate);
+                jpaChanged = true;
+            }
+            if (!Objects.equals(p.getEndDate(), endDate)) {
+                p.setEndDate(endDate);
+                jpaChanged = true;
+            }
+            if (template != null && !Objects.equals(p.getPhasesJson(), template.getDefaultPhasesJson())) {
+                p.setPhasesJson(template.getDefaultPhasesJson());
+                jpaChanged = true;
+            }
+
+            if (jpaChanged) {
                 p = projectRepository.save(p);
             }
             return p;

@@ -772,85 +772,116 @@ public class UnitiumSeedService implements CommandLineRunner {
     private void step11_createMessages() {
         log.info("[UnitiumSeedService] Step 11: Creating messages...");
 
-        // Room 1: General (8 messages)
+        // ── Room 1: General (20 messages — positive, negative, neutral, resolving) ──
         insertMessage(roomGeneral.getId(), userJames.getId(),
-            "Project kickoff! Welcome to Platform Modernization Initiative. All aboard for a successful delivery.",
+            "Project kickoff! Welcome everyone to the Platform Modernization Initiative. Let's make this a great one.",
             "2026-03-10 08:00");
+        insertMessage(roomGeneral.getId(), userAlice.getId(),
+            "Excited to be part of this team. The scope is ambitious but I think we can absolutely deliver.",
+            "2026-03-10 08:45");
         insertMessage(roomGeneral.getId(), userJames.getId(),
-            "Requirements doc reviewed and signed off. Great work Alice. Architecture design can start.",
+            "Requirements doc reviewed and signed off. Great work Alice — architecture design can now start.",
             "2026-03-15 10:30");
         insertMessage(roomGeneral.getId(), userMarc.getId(),
-            "Architecture proposal published. Microservices approach with event-driven messaging confirmed.",
+            "Architecture proposal published. Microservices with event-driven messaging confirmed after team vote.",
             "2026-03-20 14:00");
-        insertMessage(roomGeneral.getId(), userAlice.getId(),
-            "CI/CD pipeline is live. First deploy went green on all 12 checks.",
-            "2026-03-26 16:00");
+        insertMessage(roomGeneral.getId(), userManager2.getId(),
+            "Honestly, I'm not convinced by the microservices choice. This adds a lot of operational complexity we may not be ready for.",
+            "2026-03-20 15:10");
+        insertMessage(roomGeneral.getId(), userMarc.getId(),
+            "The scalability requirements make microservices necessary. This was evaluated thoroughly in the architecture review.",
+            "2026-03-20 15:30");
         insertMessage(roomGeneral.getId(), userJames.getId(),
-            "Sprint planning finalized. WBS approved by all stakeholders.",
+            "The team evaluated multiple approaches. Microservices won on long-term maintainability. Let's move forward with weekly risk reviews.",
+            "2026-03-20 16:00");
+        insertMessage(roomGeneral.getId(), userAlice.getId(),
+            "CI/CD pipeline is live. First deploy went green on all 12 checks. Build time is 8 minutes.",
+            "2026-03-26 16:00");
+        insertMessage(roomGeneral.getId(), userAnalyst.getId(),
+            "8-minute builds are too slow for a fast-iteration sprint cycle. We need to shave that down.",
+            "2026-03-27 09:15");
+        insertMessage(roomGeneral.getId(), userAlice.getId(),
+            "Fair point. I'll optimize the Docker layer caching this week. Should get us under 4 minutes.",
+            "2026-03-27 09:40");
+        insertMessage(roomGeneral.getId(), userJames.getId(),
+            "Sprint planning finalized. WBS approved by all stakeholders. Milestone 1 officially closing!",
             "2026-04-04 17:30");
         insertMessage(roomGeneral.getId(), userJames.getId(),
-            "Milestone 1 COMPLETE — 100% on time and on budget. Excellent execution!",
+            "MILESTONE 1 COMPLETE — delivered 100% on time and on budget. Exceptional work from everyone.",
             "2026-04-05 09:00");
-        insertMessage(roomGeneral.getId(), userAlice.getId(),
-            "Core API wrapped up. 198 endpoints, 94% test coverage.",
-            "2026-04-17 19:00");
-        insertMessage(roomGeneral.getId(), userAlice.getId(),
-            "Security sprint in progress. Found 3 medium CVEs, patching now.",
-            "2026-04-27 09:00");
-
-        // Team sentiment messages for ML analysis (mixed sentiments)
-        insertMessage(roomGeneral.getId(), userManager.getId(),
-            "Great progress team! The deliverables are looking solid. Keep up the excellent work everyone! 💪",
-            "2026-04-27 10:15");
         insertMessage(roomGeneral.getId(), userEmployee.getId(),
-            "Thanks for the encouragement! I'm really enjoying working on this project. The collaboration has been fantastic so far.",
-            "2026-04-27 10:45");
-        insertMessage(roomGeneral.getId(), userAnalyst.getId(),
-            "I'm a bit concerned about the timeline. We're cutting it close with some of the deliverables. Need to accelerate.",
-            "2026-04-27 11:00");
-        insertMessage(roomGeneral.getId(), userViewer.getId(),
-            "Agreed with the analyst. The quality vs speed trade-off is getting tighter. We might need to deprioritize some features.",
-            "2026-04-27 11:20");
-        insertMessage(roomGeneral.getId(), userJames.getId(),
-            "Let's discuss this in the standup. We have contingency plans but we need team input. Schedule a sync for 3pm?",
-            "2026-04-27 11:35");
+            "This team is genuinely incredible. I'm proud to be part of something this well-run.",
+            "2026-04-05 09:30");
         insertMessage(roomGeneral.getId(), userAlice.getId(),
-            "3pm works for me. I think we can optimize the API layer to gain some time back. Confident we can deliver on schedule.",
-            "2026-04-27 11:50");
-        insertMessage(roomGeneral.getId(), userMarc.getId(),
-            "Frontend is ready to integrate. Excited to see everything come together! This has been a challenging but rewarding milestone.",
-            "2026-04-27 12:00");
+            "Core API wrapped up — 198 endpoints, 94% unit test coverage, OpenAPI spec fully documented.",
+            "2026-04-17 19:00");
+        insertMessage(roomGeneral.getId(), userAnalyst.getId(),
+            "94% is good but I noticed we have zero integration tests on the auth flows. That's a risk.",
+            "2026-04-18 08:30");
+        insertMessage(roomGeneral.getId(), userAlice.getId(),
+            "You're absolutely right. I'll add auth integration tests in the next sprint. Thanks for catching that.",
+            "2026-04-18 09:00");
         insertMessage(roomGeneral.getId(), userManager.getId(),
-            "Excellent attitude from everyone. Challenges are what make us grow. Trust the team, trust the process. We've got this! 🎯",
-            "2026-04-27 12:15");
+            "Security scan flagged 3 medium CVEs in the auth library. This needs to be prioritized immediately.",
+            "2026-04-27 09:00");
+        insertMessage(roomGeneral.getId(), userViewer.getId(),
+            "Should we delay UAT until the CVEs are patched? I'd hate to demo with known vulnerabilities.",
+            "2026-04-27 09:20");
+        insertMessage(roomGeneral.getId(), userJames.getId(),
+            "Correct decision. UAT moves to May 12. Alice owns the CVE patching. Team stays focused — we can handle this.",
+            "2026-04-27 09:45");
+        insertMessage(roomGeneral.getId(), userMarc.getId(),
+            "Frontend integration is clean and ready. Frustrating about the delay but security first. Let's get it done right.",
+            "2026-04-27 10:00");
 
-        // Room 2: Milestone 2 (8 messages)
+        // ── Room 2: Milestone 2 (15 messages — rejected deliverable, frustration, celebration) ──
         insertMessage(roomMilestone2.getId(), userJames.getId(),
-            "Milestone 2 kick-off. API development starts today — Alice leads the backend sprint.",
+            "Milestone 2 kick-off. API development starts today — Alice leads the backend, Marc leads frontend integration.",
             "2026-04-06 09:00");
         insertMessage(roomMilestone2.getId(), userAlice.getId(),
-            "Core endpoints for users, orgs, and workspaces complete. Performance benchmarks passing.",
+            "Core endpoints for users, orgs, workspaces, and projects are complete. All performance benchmarks passing.",
             "2026-04-10 11:00");
+        insertMessage(roomMilestone2.getId(), userPooja.getId(),
+            "Great start on the API! Can everyone make sure deliverables include full technical docs — learned from last sprint.",
+            "2026-04-11 10:00");
         insertMessage(roomMilestone2.getId(), userMarc.getId(),
-            "Deliverable for task 2.2 submitted. Frontend module integration report v1 ready for review.",
+            "Frontend module integration is 70% done. Slight blocker on the auth token refresh flow — investigating.",
+            "2026-04-15 14:00");
+        insertMessage(roomMilestone2.getId(), userAlice.getId(),
+            "Marc, the refresh token logic is in AuthService.refreshToken(). Ping me if you need a walkthrough.",
+            "2026-04-15 14:30");
+        insertMessage(roomMilestone2.getId(), userMarc.getId(),
+            "Deliverable 2.2 submitted — Frontend Module Integration Report v1. Ready for review.",
             "2026-04-18 14:00");
         insertMessage(roomMilestone2.getId(), userPooja.getId(),
-            "Reviewed 2.2 deliverable. REJECTED: missing technical documentation, wrong file format. Details in review comments.",
+            "Reviewed deliverable 2.2: REJECTED. Missing full technical documentation and submitted in wrong format. See review comments.",
             "2026-04-20 16:00");
         insertMessage(roomMilestone2.getId(), userMarc.getId(),
-            "Understood. Will fix the docs format and provide full technical specs.",
+            "Honestly, I'm really frustrated. I put three weeks into this and the format issue wasn't in the acceptance criteria.",
+            "2026-04-20 17:00");
+        insertMessage(roomMilestone2.getId(), userJames.getId(),
+            "Marc, I hear you. Let's sync tomorrow to align on exactly what Pooja needs. The format standard is in the delivery guidelines — worth a review together.",
+            "2026-04-20 17:30");
+        insertMessage(roomMilestone2.getId(), userMarc.getId(),
+            "Understood. I'll fix the docs and resubmit properly. Won't happen again.",
             "2026-04-21 10:00");
         insertMessage(roomMilestone2.getId(), userAlice.getId(),
-            "Deliverable for task 2.1 submitted. Core API final delivery with full docs, test suite, and deployment guide.",
+            "Deliverable 2.1 submitted — Core API final delivery with OpenAPI spec, 94% test coverage, and deployment runbook.",
             "2026-04-24 15:00");
         insertMessage(roomMilestone2.getId(), userPooja.getId(),
-            "Task 2.1 deliverable reviewed and VALIDATED. All criteria met — excellent documentation, Alice!",
+            "Deliverable 2.1 VALIDATED. Every criterion met, documentation is outstanding. Alice, this is a benchmark for the whole team.",
             "2026-04-25 10:00");
+        insertMessage(roomMilestone2.getId(), userAlice.getId(),
+            "Thank you Pooja! Happy it hit the mark. Hopefully helpful for Marc's resubmit too.",
+            "2026-04-25 10:30");
+        insertMessage(roomMilestone2.getId(), userManager.getId(),
+            "CVE-2026-4821 found in the auth library — CVSS 7.4. We need to patch before any UAT demos.",
+            "2026-04-27 08:00");
         insertMessage(roomMilestone2.getId(), userJames.getId(),
-            "Security sprint on track. ETA May 8 for hardening completion.",
+            "Critical. Alice owns the patch. UAT pushed to May 12. Everyone — update your sprint capacity accordingly.",
             "2026-04-27 08:30");
 
-        log.info("[UnitiumSeedService]   ✓ 16 messages created (8 per room, historical timestamps)");
+        log.info("[UnitiumSeedService]   ✓ 35 messages created (20 General, 15 Milestone2 — mixed sentiments)");
     }
 
     private void insertMessage(Long roomId, Long senderId, String text, String createdAt) {
