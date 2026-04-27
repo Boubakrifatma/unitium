@@ -60,3 +60,5 @@ m2_ml_service/models/template_metadata.csv
 
 # ── Claude Code memory ─────────────────────────────────────────────────────────
 .claude/
+sentiment-model/model.safetensors
+sentiment-model/model.safetensors

@@ -260,6 +260,11 @@ export const routes: Routes = [
                         canActivate: [authGuard, roleGuard],
                         loadComponent: () => import("./pages/app/applications/chat/chat-dashboard-page.component").then((c) => c.ChatDashboardPageComponent),
                     },
+                    {
+                        path: "sentiment-stats",
+                        canActivate: [authGuard, roleGuard],
+                        loadComponent: () => import("./pages/app/applications/chat/chat-sentiment-stats.component").then((c) => c.ChatSentimentStatsComponent),
+                    },
                 ],
             },
             {

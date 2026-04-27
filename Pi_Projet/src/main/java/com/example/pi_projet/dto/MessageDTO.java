@@ -27,6 +27,9 @@ public record MessageDTO(
         // ── shared-content classification (null for ordinary messages) ───────────
         String  category,
         String  extractedUrl,
+        // ── sentiment ────────────────────────────────────────────────────────────
+        String  sentimentLabel,
+        Double  sentimentScore,
         // ── deletion event marker ────────────────────────────────────────────────
         boolean deleted,
         // ── moderation soft-delete ───────────────────────────────────────────────
@@ -68,6 +71,8 @@ public record MessageDTO(
                 m.getPinnedBy() != null ? m.getPinnedBy().getFullName() : null,
                 null,  // category — set only by getSharedContent
                 null,  // extractedUrl — set only by getSharedContent
+                m.getSentimentLabel(),
+                m.getSentimentScore(),
                 false, // deleted
                 m.isDeleted(),
                 Boolean.TRUE.equals(m.getIsSystemMessage()),
@@ -102,6 +107,8 @@ public record MessageDTO(
                 m.getPinnedBy() != null ? m.getPinnedBy().getFullName() : null,
                 category,
                 extractedUrl,
+                m.getSentimentLabel(),
+                m.getSentimentScore(),
                 false, // deleted
                 m.isDeleted(),
                 Boolean.TRUE.equals(m.getIsSystemMessage()),
@@ -122,6 +129,7 @@ public record MessageDTO(
                 null, null, null, null,
                 false, null, null, null,
                 null, null,
+                null, null, // sentimentLabel, sentimentScore
                 true,  // deleted
                 false, // isDeleted
                 false, // isSystemMessage

@@ -66,6 +66,13 @@ public class Message {
     @Builder.Default
     private boolean agendaDone = false;
 
+    // ── Sentiment analysis ───────────────────────────────────────────────────────
+    @Column(name = "sentiment_label")
+    private String sentimentLabel; // POSITIVE | NEUTRAL | NEGATIVE
+
+    @Column(name = "sentiment_score")
+    private Double sentimentScore;
+
     @Column(name = "is_edited")
     private boolean isEdited;
 

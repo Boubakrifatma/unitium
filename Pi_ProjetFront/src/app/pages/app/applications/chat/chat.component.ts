@@ -30,6 +30,7 @@ import { AuthService } from "../../../../auth/auth.service";
 import { UserService, UserDTO } from "../../../../users/user.service";
 import { Subscription } from 'rxjs';
 import { ChatMessageService, MessageDTO, ReactionDTO, ScheduledMessageDTO, ScheduledPayload, ScheduledNotificationEvent } from './chat-message.service';
+import { SentimentWarningDialogComponent } from './sentiment-warning-dialog.component';
 import { ScheduledNotificationService, ScheduledNotification, ScheduledRetryRequest } from './scheduled-notification.service';
 import {
     trigger, style, transition, animate, state,
@@ -21276,9 +21277,32 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         const text = this.messageInput.trim();
         const roomId = this.activeRoom()?.id;
         if (!text || !roomId) return;
-        this.chatMessageService.sendMessage(roomId, text);
-        this.messageInput = '';
-        // Do NOT append locally — wait for the WebSocket echo from the server
+
+        this.chatMessageService.analyzeSentiment(text).subscribe({
+            next: (result) => {
+                if (result.label === 'NEGATIVE') {
+                    const ref = this.dialog.open(SentimentWarningDialogComponent, {
+                        data: { score: result.score },
+                        disableClose: true,
+                        panelClass: 'sentiment-warning-panel',
+                    });
+                    ref.afterClosed().subscribe((confirmed: boolean) => {
+                        if (confirmed) {
+                            this.chatMessageService.sendMessage(roomId, text);
+                            this.messageInput = '';
+                        }
+                    });
+                } else {
+                    this.chatMessageService.sendMessage(roomId, text);
+                    this.messageInput = '';
+                }
+            },
+            error: () => {
+                // If sentiment service is down, send without check
+                this.chatMessageService.sendMessage(roomId, text);
+                this.messageInput = '';
+            },
+        });
     }
 
     get currentUser() {
@@ -22609,6 +22633,7 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         if (!this.hasText && !this.selectedFile) return;
 
         if (this.selectedFile) {
+            // File uploads skip sentiment check (no text to analyze meaningfully)
             const formData = new FormData();
             if (this.richContent) formData.append('content', this.richContent);
             formData.append('file', this.selectedFile);
@@ -22623,8 +22648,33 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
                 },
             });
         } else {
-            this.chatMessageService.sendMessage(roomId, this.richContent);
-            this.clearInput();
+            const plainText = this.stripHtml(this.richContent).trim();
+            const richSnapshot = this.richContent;
+
+            const doSend = () => {
+                this.chatMessageService.sendMessage(roomId, richSnapshot);
+                this.clearInput();
+            };
+
+            if (!plainText) { doSend(); return; }
+
+            this.chatMessageService.analyzeSentiment(plainText).subscribe({
+                next: (result) => {
+                    if (result.label === 'NEGATIVE') {
+                        const ref = this.dialog.open(SentimentWarningDialogComponent, {
+                            data: { score: result.score },
+                            disableClose: true,
+                            panelClass: 'sentiment-warning-panel',
+                        });
+                        ref.afterClosed().subscribe((confirmed: boolean) => {
+                            if (confirmed) doSend();
+                        });
+                    } else {
+                        doSend();
+                    }
+                },
+                error: () => doSend(), // sentiment service down — send anyway
+            });
         }
     }
 

@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.*;
 import java.util.*;
+import java.math.BigDecimal;
 
 /**
  * Production-quality showcase seed for the Unitium organization.
@@ -57,6 +58,9 @@ public class UnitiumSeedService implements CommandLineRunner {
     private final PoDecisionRepository poDecisionRepository;
     private final ChurnPredictionRepository churnPredictionRepository;
     private final UsageQuotaRepository usageQuotaRepository;
+    private final InvoiceRepository invoiceRepository;
+    private final InvoiceLineItemRepository invoiceLineItemRepository;
+    private final PaymentAttemptRepository paymentAttemptRepository;
     private final JdbcTemplate jdbcTemplate;
     private final BCryptPasswordEncoder passwordEncoder;
 
@@ -67,7 +71,7 @@ public class UnitiumSeedService implements CommandLineRunner {
     private static final String PLAINTEXT_PASSWORD = "Password123!";
 
     // ── Data holders populated during seed ──────────────────────────────────
-    private User userSarah, userJames, userAlice, userMarc, userPooja;
+    private User userJames, userAlice, userMarc, userPooja, userManager, userManager2, userAnalyst, userEmployee, userViewer;
     private Organization unitiumOrg;
     private Workspace unitiumWorkspace;
     private Project unitiumProject;
@@ -103,7 +107,8 @@ public class UnitiumSeedService implements CommandLineRunner {
             step11_createMessages();
             step12_createDeliverables();
             step13_createChurnPrediction();
-            step14_createUsageQuotas();
+            step14_createPaymentData();
+            step15_createUsageQuotas();
 
             printCredentialsTable();
             log.info("[UnitiumSeedService] ═══════════════════════════════════════════════════════");
@@ -116,21 +121,12 @@ public class UnitiumSeedService implements CommandLineRunner {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    //  Step 1: Create 5 Users
+    //  Step 1: Create 9 Users (Unitium + M2 Module users)
     // ─────────────────────────────────────────────────────────────────────────
 
     private void step01_createUsers() {
-        log.info("[UnitiumSeedService] Step 1: Creating 5 users...");
+        log.info("[UnitiumSeedService] Step 1: Creating 9 users for Unitium and M2 module...");
         String hashedPwd = passwordEncoder.encode(PLAINTEXT_PASSWORD);
-
-        userSarah = userRepository.save(User.builder()
-            .email("sarah.chen@unitium.io")
-            .fullName("Sarah Chen")
-            .passwordHash(hashedPwd)
-            .role(User.RoleName.SUPER_ADMIN)
-            .isActive(true)
-            .isVerified(true)
-            .build());
 
         userJames = userRepository.save(User.builder()
             .email("james.morgan@unitium.io")
@@ -168,9 +164,52 @@ public class UnitiumSeedService implements CommandLineRunner {
             .isVerified(true)
             .build());
 
+        userManager = userRepository.save(User.builder()
+            .email("manager@unitium.io")
+            .fullName("Michael Manager")
+            .passwordHash(hashedPwd)
+            .role(User.RoleName.MANAGER)
+            .isActive(true)
+            .isVerified(true)
+            .build());
+
+        userManager2 = userRepository.save(User.builder()
+            .email("manager2@unitium.io")
+            .fullName("Maxwell Rivera")
+            .passwordHash(hashedPwd)
+            .role(User.RoleName.MANAGER)
+            .isActive(true)
+            .isVerified(true)
+            .build());
+
+        userAnalyst = userRepository.save(User.builder()
+            .email("analyst@unitium.io")
+            .fullName("Aria Analyst")
+            .passwordHash(hashedPwd)
+            .role(User.RoleName.EMPLOYEE)
+            .isActive(true)
+            .isVerified(true)
+            .build());
+
+        userEmployee = userRepository.save(User.builder()
+            .email("employee@unitium.io")
+            .fullName("Emma Employee")
+            .passwordHash(hashedPwd)
+            .role(User.RoleName.EMPLOYEE)
+            .isActive(true)
+            .isVerified(true)
+            .build());
+
+        userViewer = userRepository.save(User.builder()
+            .email("viewer@unitium.io")
+            .fullName("Victoria Viewer")
+            .passwordHash(hashedPwd)
+            .role(User.RoleName.VIEWER)
+            .isActive(true)
+            .isVerified(true)
+            .build());
+
         // Set last login times via JdbcTemplate
-        jdbcTemplate.update("UPDATE users SET last_login_at = ? WHERE id = ?",
-            Timestamp.valueOf(LocalDateTime.of(2026, 4, 26, 9, 0)), userSarah.getId());
         jdbcTemplate.update("UPDATE users SET last_login_at = ? WHERE id = ?",
             Timestamp.valueOf(LocalDateTime.of(2026, 4, 25, 14, 0)), userJames.getId());
         jdbcTemplate.update("UPDATE users SET last_login_at = ? WHERE id = ?",
@@ -180,7 +219,7 @@ public class UnitiumSeedService implements CommandLineRunner {
         jdbcTemplate.update("UPDATE users SET last_login_at = ? WHERE id = ?",
             Timestamp.valueOf(LocalDateTime.of(2026, 4, 25, 11, 0)), userPooja.getId());
 
-        log.info("[UnitiumSeedService]   ✓ 5 users created: Sarah, James, Alice, Marc, Pooja");
+        log.info("[UnitiumSeedService]   ✓ 9 users created: James, Alice, Marc, Pooja, Manager, Manager2, Analyst, Employee, Viewer");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -193,7 +232,7 @@ public class UnitiumSeedService implements CommandLineRunner {
         unitiumOrg = organizationRepository.save(Organization.builder()
             .name("Unitium")
             .slug(SEED_ORG_SLUG)
-            .ownerId(userSarah.getId())
+            .ownerId(userJames.getId())
             .orgType(Organization.OrgType.ENTERPRISE)
             .billingEmail("billing@unitium.io")
             .build());
@@ -201,14 +240,8 @@ public class UnitiumSeedService implements CommandLineRunner {
         // Create org members
         organizationMemberRepository.save(OrganizationMember.builder()
             .organization(unitiumOrg)
-            .userId(userSarah.getId())
-            .role(OrganizationMember.OrganizationRole.OWNER)
-            .build());
-
-        organizationMemberRepository.save(OrganizationMember.builder()
-            .organization(unitiumOrg)
             .userId(userJames.getId())
-            .role(OrganizationMember.OrganizationRole.ADMIN)
+            .role(OrganizationMember.OrganizationRole.OWNER)
             .build());
 
         organizationMemberRepository.save(OrganizationMember.builder()
@@ -229,7 +262,13 @@ public class UnitiumSeedService implements CommandLineRunner {
             .role(OrganizationMember.OrganizationRole.MEMBER)
             .build());
 
-        log.info("[UnitiumSeedService]   ✓ Organization created with 5 members");
+        organizationMemberRepository.save(OrganizationMember.builder()
+            .organization(unitiumOrg)
+            .userId(userManager.getId())
+            .role(OrganizationMember.OrganizationRole.MEMBER)
+            .build());
+
+        log.info("[UnitiumSeedService]   ✓ Organization created with 6 members");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -269,7 +308,7 @@ public class UnitiumSeedService implements CommandLineRunner {
             .id(workspaceId)
             .name("Unitium Platform Workspace")
             .slug(SEED_WORKSPACE_SLUG)
-            .ownerId(userSarah.getId())
+            .ownerId(userJames.getId())
             .organization(unitiumOrg)
             .orgType("enterprise")
             .build());
@@ -282,14 +321,8 @@ public class UnitiumSeedService implements CommandLineRunner {
         // Create workspace members
         workspaceMemberRepository.save(WorkspaceMember.builder()
             .workspace(unitiumWorkspace)
-            .userId(userSarah.getId())
-            .role(WorkspaceMember.WorkspaceRole.OWNER)
-            .build());
-
-        workspaceMemberRepository.save(WorkspaceMember.builder()
-            .workspace(unitiumWorkspace)
             .userId(userJames.getId())
-            .role(WorkspaceMember.WorkspaceRole.ADMIN)
+            .role(WorkspaceMember.WorkspaceRole.OWNER)
             .build());
 
         workspaceMemberRepository.save(WorkspaceMember.builder()
@@ -310,7 +343,13 @@ public class UnitiumSeedService implements CommandLineRunner {
             .role(WorkspaceMember.WorkspaceRole.MEMBER)
             .build());
 
-        log.info("[UnitiumSeedService]   ✓ Workspace created (createdAt: 2026-03-10) + 5 members");
+        workspaceMemberRepository.save(WorkspaceMember.builder()
+            .workspace(unitiumWorkspace)
+            .userId(userManager.getId())
+            .role(WorkspaceMember.WorkspaceRole.MEMBER)
+            .build());
+
+        log.info("[UnitiumSeedService]   ✓ Workspace created (createdAt: 2026-03-10) + 6 members");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -322,7 +361,7 @@ public class UnitiumSeedService implements CommandLineRunner {
 
         unitiumProject = projectRepository.save(Project.builder()
             .workspace(unitiumWorkspace)
-            .createdBy(userSarah.getId())
+            .createdBy(userJames.getId())
             .name("Platform Modernization Initiative")
             .description("End-to-end modernization of Unitium's core platform infrastructure. " +
                 "Includes API redesign, microservices migration, and enhanced analytics.")
@@ -335,14 +374,8 @@ public class UnitiumSeedService implements CommandLineRunner {
         // Create project members
         projectMemberRepository.save(ProjectMember.builder()
             .project(unitiumProject)
-            .userId(userSarah.getId())
-            .role(ProjectMember.ProjectRole.PROJECT_MANAGER)
-            .build());
-
-        projectMemberRepository.save(ProjectMember.builder()
-            .project(unitiumProject)
             .userId(userJames.getId())
-            .role(ProjectMember.ProjectRole.REVIEWER)
+            .role(ProjectMember.ProjectRole.PROJECT_MANAGER)
             .build());
 
         projectMemberRepository.save(ProjectMember.builder()
@@ -363,7 +396,13 @@ public class UnitiumSeedService implements CommandLineRunner {
             .role(ProjectMember.ProjectRole.OBSERVER)
             .build());
 
-        log.info("[UnitiumSeedService]   ✓ Project created + 5 members");
+        projectMemberRepository.save(ProjectMember.builder()
+            .project(unitiumProject)
+            .userId(userManager.getId())
+            .role(ProjectMember.ProjectRole.REVIEWER)
+            .build());
+
+        log.info("[UnitiumSeedService]   ✓ Project created + 6 members");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -419,7 +458,7 @@ public class UnitiumSeedService implements CommandLineRunner {
             .startDate(LocalDate.of(2026, 3, 10))
             .dueDate(LocalDate.of(2026, 3, 18))
             .completedAt(LocalDateTime.of(2026, 3, 18, 16, 0))
-            .createdBy(userSarah)
+            .createdBy(userJames)
             .build());
 
         task12 = taskRepository.save(Task.builder()
@@ -437,7 +476,7 @@ public class UnitiumSeedService implements CommandLineRunner {
             .startDate(LocalDate.of(2026, 3, 19))
             .dueDate(LocalDate.of(2026, 3, 25))
             .completedAt(LocalDateTime.of(2026, 3, 26, 14, 0))
-            .createdBy(userSarah)
+            .createdBy(userJames)
             .build());
 
         task13 = taskRepository.save(Task.builder()
@@ -455,7 +494,7 @@ public class UnitiumSeedService implements CommandLineRunner {
             .startDate(LocalDate.of(2026, 3, 26))
             .dueDate(LocalDate.of(2026, 4, 1))
             .completedAt(LocalDateTime.of(2026, 4, 1, 11, 0))
-            .createdBy(userSarah)
+            .createdBy(userJames)
             .build());
 
         task14 = taskRepository.save(Task.builder()
@@ -473,7 +512,7 @@ public class UnitiumSeedService implements CommandLineRunner {
             .startDate(LocalDate.of(2026, 4, 2))
             .dueDate(LocalDate.of(2026, 4, 5))
             .completedAt(LocalDateTime.of(2026, 4, 4, 17, 0))
-            .createdBy(userSarah)
+            .createdBy(userJames)
             .build());
 
         // ── Milestone 2 Tasks (2 DONE, 1 IN_PROGRESS, 1 TODO) ──
@@ -492,7 +531,7 @@ public class UnitiumSeedService implements CommandLineRunner {
             .startDate(LocalDate.of(2026, 4, 6))
             .dueDate(LocalDate.of(2026, 4, 18))
             .completedAt(LocalDateTime.of(2026, 4, 17, 18, 0))
-            .createdBy(userSarah)
+            .createdBy(userJames)
             .build());
 
         task22 = taskRepository.save(Task.builder()
@@ -510,7 +549,7 @@ public class UnitiumSeedService implements CommandLineRunner {
             .startDate(LocalDate.of(2026, 4, 19))
             .dueDate(LocalDate.of(2026, 4, 28))
             .completedAt(LocalDateTime.of(2026, 4, 26, 15, 0))
-            .createdBy(userSarah)
+            .createdBy(userJames)
             .build());
 
         task23 = taskRepository.save(Task.builder()
@@ -528,7 +567,7 @@ public class UnitiumSeedService implements CommandLineRunner {
             .startDate(LocalDate.of(2026, 4, 29))
             .dueDate(LocalDate.of(2026, 5, 10))
             .completedAt(null)
-            .createdBy(userSarah)
+            .createdBy(userJames)
             .build());
 
         task24 = taskRepository.save(Task.builder()
@@ -546,7 +585,7 @@ public class UnitiumSeedService implements CommandLineRunner {
             .startDate(LocalDate.of(2026, 5, 11))
             .dueDate(LocalDate.of(2026, 5, 30))
             .completedAt(null)
-            .createdBy(userSarah)
+            .createdBy(userJames)
             .build());
 
         log.info("[UnitiumSeedService]   ✓ 8 tasks created (4 M1 DONE, 2 M2 DONE, 1 IN_PROGRESS, 1 TODO)");
@@ -563,42 +602,42 @@ public class UnitiumSeedService implements CommandLineRunner {
             .task(task12)
             .dependsOnTask(task11)
             .dependencyType(TaskDependency.DependencyType.finish_to_start)
-            .createdBy(userSarah)
+            .createdBy(userJames)
             .build());
 
         taskDependencyRepository.save(TaskDependency.builder()
             .task(task13)
             .dependsOnTask(task12)
             .dependencyType(TaskDependency.DependencyType.finish_to_start)
-            .createdBy(userSarah)
+            .createdBy(userJames)
             .build());
 
         taskDependencyRepository.save(TaskDependency.builder()
             .task(task14)
             .dependsOnTask(task13)
             .dependencyType(TaskDependency.DependencyType.finish_to_start)
-            .createdBy(userSarah)
+            .createdBy(userJames)
             .build());
 
         taskDependencyRepository.save(TaskDependency.builder()
             .task(task22)
             .dependsOnTask(task21)
             .dependencyType(TaskDependency.DependencyType.finish_to_start)
-            .createdBy(userSarah)
+            .createdBy(userJames)
             .build());
 
         taskDependencyRepository.save(TaskDependency.builder()
             .task(task23)
             .dependsOnTask(task22)
             .dependencyType(TaskDependency.DependencyType.finish_to_start)
-            .createdBy(userSarah)
+            .createdBy(userJames)
             .build());
 
         taskDependencyRepository.save(TaskDependency.builder()
             .task(task24)
             .dependsOnTask(task23)
             .dependencyType(TaskDependency.DependencyType.finish_to_start)
-            .createdBy(userSarah)
+            .createdBy(userJames)
             .build());
 
         log.info("[UnitiumSeedService]   ✓ 6 dependencies created (3 in M1, 3 in M2)");
@@ -682,7 +721,7 @@ public class UnitiumSeedService implements CommandLineRunner {
 
         roomGeneral = chatRoomRepository.save(ChatRoom.builder()
             .project(unitiumProject)
-            .createdBy(userSarah)
+            .createdBy(userJames)
             .name("General")
             .roomType(RoomType.general)
             .description("General project discussion and announcements")
@@ -690,14 +729,14 @@ public class UnitiumSeedService implements CommandLineRunner {
 
         roomMilestone2 = chatRoomRepository.save(ChatRoom.builder()
             .project(unitiumProject)
-            .createdBy(userSarah)
+            .createdBy(userJames)
             .name("Milestone 2 – Execution & Delivery")
             .roomType(RoomType.task_thread)
             .description("Execution phase: API development, integration, and testing")
             .build());
 
-        // Add all 5 users to both rooms
-        for (User user : Arrays.asList(userSarah, userJames, userAlice, userMarc, userPooja)) {
+        // Add all users to both rooms
+        for (User user : Arrays.asList(userJames, userAlice, userMarc, userPooja, userManager, userManager2, userAnalyst, userEmployee, userViewer)) {
             roomMemberRepository.save(RoomMember.builder()
                 .room(roomGeneral)
                 .user(user)
@@ -708,7 +747,7 @@ public class UnitiumSeedService implements CommandLineRunner {
                 .build());
         }
 
-        log.info("[UnitiumSeedService]   ✓ 2 chat rooms created + 10 memberships");
+        log.info("[UnitiumSeedService]   ✓ 2 chat rooms created + 18 memberships (all users included for sentiment analysis)");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -719,7 +758,7 @@ public class UnitiumSeedService implements CommandLineRunner {
         log.info("[UnitiumSeedService] Step 11: Creating messages...");
 
         // Room 1: General (8 messages)
-        insertMessage(roomGeneral.getId(), userSarah.getId(),
+        insertMessage(roomGeneral.getId(), userJames.getId(),
             "Project kickoff! Welcome to Platform Modernization Initiative. All aboard for a successful delivery.",
             "2026-03-10 08:00");
         insertMessage(roomGeneral.getId(), userJames.getId(),
@@ -734,7 +773,7 @@ public class UnitiumSeedService implements CommandLineRunner {
         insertMessage(roomGeneral.getId(), userJames.getId(),
             "Sprint planning finalized. WBS approved by all stakeholders.",
             "2026-04-04 17:30");
-        insertMessage(roomGeneral.getId(), userSarah.getId(),
+        insertMessage(roomGeneral.getId(), userJames.getId(),
             "Milestone 1 COMPLETE — 100% on time and on budget. Excellent execution!",
             "2026-04-05 09:00");
         insertMessage(roomGeneral.getId(), userAlice.getId(),
@@ -744,8 +783,34 @@ public class UnitiumSeedService implements CommandLineRunner {
             "Security sprint in progress. Found 3 medium CVEs, patching now.",
             "2026-04-27 09:00");
 
+        // Team sentiment messages for ML analysis (mixed sentiments)
+        insertMessage(roomGeneral.getId(), userManager.getId(),
+            "Great progress team! The deliverables are looking solid. Keep up the excellent work everyone! 💪",
+            "2026-04-27 10:15");
+        insertMessage(roomGeneral.getId(), userEmployee.getId(),
+            "Thanks for the encouragement! I'm really enjoying working on this project. The collaboration has been fantastic so far.",
+            "2026-04-27 10:45");
+        insertMessage(roomGeneral.getId(), userAnalyst.getId(),
+            "I'm a bit concerned about the timeline. We're cutting it close with some of the deliverables. Need to accelerate.",
+            "2026-04-27 11:00");
+        insertMessage(roomGeneral.getId(), userViewer.getId(),
+            "Agreed with the analyst. The quality vs speed trade-off is getting tighter. We might need to deprioritize some features.",
+            "2026-04-27 11:20");
+        insertMessage(roomGeneral.getId(), userJames.getId(),
+            "Let's discuss this in the standup. We have contingency plans but we need team input. Schedule a sync for 3pm?",
+            "2026-04-27 11:35");
+        insertMessage(roomGeneral.getId(), userAlice.getId(),
+            "3pm works for me. I think we can optimize the API layer to gain some time back. Confident we can deliver on schedule.",
+            "2026-04-27 11:50");
+        insertMessage(roomGeneral.getId(), userMarc.getId(),
+            "Frontend is ready to integrate. Excited to see everything come together! This has been a challenging but rewarding milestone.",
+            "2026-04-27 12:00");
+        insertMessage(roomGeneral.getId(), userManager.getId(),
+            "Excellent attitude from everyone. Challenges are what make us grow. Trust the team, trust the process. We've got this! 🎯",
+            "2026-04-27 12:15");
+
         // Room 2: Milestone 2 (8 messages)
-        insertMessage(roomMilestone2.getId(), userSarah.getId(),
+        insertMessage(roomMilestone2.getId(), userJames.getId(),
             "Milestone 2 kick-off. API development starts today — Alice leads the backend sprint.",
             "2026-04-06 09:00");
         insertMessage(roomMilestone2.getId(), userAlice.getId(),
@@ -775,8 +840,8 @@ public class UnitiumSeedService implements CommandLineRunner {
 
     private void insertMessage(Long roomId, Long senderId, String text, String createdAt) {
         jdbcTemplate.update(
-            "INSERT INTO messages (room_id, sender_id, content_text, content_type, is_system_message, created_at) " +
-            "VALUES (?, ?, ?, 'text', false, ?)",
+            "INSERT INTO messages (room_id, sender_id, content_text, content_type, is_system_message, is_pinned, is_deleted, created_at) " +
+            "VALUES (?, ?, ?, 'text', false, false, false, ?)",
             roomId, senderId, text, createdAt);
     }
 
@@ -905,38 +970,170 @@ public class UnitiumSeedService implements CommandLineRunner {
     // ─────────────────────────────────────────────────────────────────────────
 
     private void step13_createChurnPrediction() {
-        log.info("[UnitiumSeedService] Step 13: Creating churn prediction...");
+        log.info("[UnitiumSeedService] Step 13: Creating churn predictions with multiple risk scenarios...");
 
         Subscription subscription = subscriptionRepository.findAll().stream()
             .filter(s -> s.getOrganization().getId().equals(unitiumOrg.getId()))
             .findFirst()
             .orElseThrow(() -> new IllegalStateException("Subscription not found"));
 
+        // HIGH_RISK - Discount offer triggered (TODAY)
         churnPredictionRepository.save(ChurnPrediction.builder()
             .organization(unitiumOrg)
             .subscription(subscription)
             .predictionDate(LocalDate.of(2026, 4, 27))
-            .churnProbability(0.12)
-            .riskSegment(ChurnPrediction.RiskSegment.STABLE)
-            .wauRatio(0.85)
-            .mlUsageRate(0.70)
-            .supportTicketCount(0)
-            .lastLoginDeltaDays(1)
-            .planUtilizationPct(45.0)
-            .paymentFailuresCount(0)
-            .tenureMonths((short) 2)
+            .churnProbability(BigDecimal.valueOf(0.82))
+            .riskSegment(ChurnPrediction.RiskSegment.HIGH_RISK)
+            .wauRatio(BigDecimal.valueOf(0.15))
+            .mlUsageRate(BigDecimal.valueOf(0.05))
+            .supportTicketCount((short) 5)
+            .lastLoginDeltaDays(21)
+            .planUtilizationPct(BigDecimal.valueOf(95.0))
+            .paymentFailuresCount((short) 2)
+            .tenureMonths((short) 3)
+            .actionTriggered(ChurnPrediction.ActionTriggered.DISCOUNT_OFFER)
+            .actionTriggeredAt(LocalDateTime.of(2026, 4, 27, 9, 0))
             .modelVersion("xgb-1.0.0")
             .build());
 
-        log.info("[UnitiumSeedService]   ✓ Churn prediction created (STABLE, 0.12 probability)");
+        // MEDIUM_RISK - Email action triggered (TODAY)
+        churnPredictionRepository.save(ChurnPrediction.builder()
+            .organization(unitiumOrg)
+            .subscription(subscription)
+            .predictionDate(LocalDate.of(2026, 4, 27))
+            .churnProbability(BigDecimal.valueOf(0.35))
+            .riskSegment(ChurnPrediction.RiskSegment.MEDIUM_RISK)
+            .wauRatio(BigDecimal.valueOf(0.45))
+            .mlUsageRate(BigDecimal.valueOf(0.25))
+            .supportTicketCount((short) 2)
+            .lastLoginDeltaDays(10)
+            .planUtilizationPct(BigDecimal.valueOf(72.0))
+            .paymentFailuresCount((short) 0)
+            .tenureMonths((short) 6)
+            .actionTriggered(ChurnPrediction.ActionTriggered.EMAIL)
+            .actionTriggeredAt(LocalDateTime.of(2026, 4, 27, 10, 30))
+            .modelVersion("xgb-1.0.0")
+            .build());
+
+        // STABLE - No action needed (TODAY)
+        churnPredictionRepository.save(ChurnPrediction.builder()
+            .organization(unitiumOrg)
+            .subscription(subscription)
+            .predictionDate(LocalDate.of(2026, 4, 27))
+            .churnProbability(BigDecimal.valueOf(0.12))
+            .riskSegment(ChurnPrediction.RiskSegment.STABLE)
+            .wauRatio(BigDecimal.valueOf(0.85))
+            .mlUsageRate(BigDecimal.valueOf(0.70))
+            .supportTicketCount((short) 0)
+            .lastLoginDeltaDays(1)
+            .planUtilizationPct(BigDecimal.valueOf(45.0))
+            .paymentFailuresCount((short) 0)
+            .tenureMonths((short) 2)
+            .actionTriggered(ChurnPrediction.ActionTriggered.NONE)
+            .modelVersion("xgb-1.0.0")
+            .build());
+
+        log.info("[UnitiumSeedService]   ✓ 3 churn predictions created (1 STABLE, 1 MEDIUM, 1 HIGH)");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    //  Step 14: Create Usage Quotas (7 snapshots for Time Machine)
+    //  Step 14: Create Payment Data (Invoices and Payment Attempts)
     // ─────────────────────────────────────────────────────────────────────────
 
-    private void step14_createUsageQuotas() {
-        log.info("[UnitiumSeedService] Step 14: Creating usage quota snapshots...");
+    private void step14_createPaymentData() {
+        log.info("[UnitiumSeedService] Step 14: Creating payment data with successful and failed attempts...");
+
+        Subscription subscription = subscriptionRepository.findAll().stream()
+            .filter(s -> s.getOrganization().getId().equals(unitiumOrg.getId()))
+            .findFirst()
+            .orElseThrow(() -> new IllegalStateException("Subscription not found"));
+
+        // Create invoices for March, April, and May
+        LocalDate[] invoiceDates = {
+            LocalDate.of(2026, 3, 1),
+            LocalDate.of(2026, 4, 1),
+            LocalDate.of(2026, 5, 1)
+        };
+
+        int invoiceNum = 1;
+        for (LocalDate invoiceDate : invoiceDates) {
+            // Create invoice
+            Invoice invoice = Invoice.builder()
+                .organization(unitiumOrg)
+                .subscription(subscription)
+                .invoiceNumber("INV-UNITIUM-" + invoiceDate.getMonthValue() + "-" + invoiceDate.getYear())
+                .billingPeriodStart(invoiceDate)
+                .billingPeriodEnd(invoiceDate.plusMonths(1).minusDays(1))
+                .dueDate(invoiceDate.plusDays(30))
+                .currency("USD")
+                .subtotalCents(99900) // $999.00
+                .taxRate(0.0)
+                .taxAmountCents(0)
+                .totalCents(99900)
+                .status(Invoice.InvoiceStatus.PAID)
+                .build();
+            invoice = invoiceRepository.save(invoice);
+
+            // Create line item
+            invoiceLineItemRepository.save(InvoiceLineItem.builder()
+                .invoice(invoice)
+                .description("Platform Subscription - Enterprise Plan")
+                .quantity(1)
+                .unitPriceCents(99900)
+                .totalPriceCents(99900)
+                .taxRate(0.0)
+                .build());
+
+            // Create payment attempts
+            if (invoiceNum <= 2) {
+                // First two invoices: successful payment on first attempt
+                paymentAttemptRepository.save(PaymentAttempt.builder()
+                    .organization(unitiumOrg)
+                    .subscription(subscription)
+                    .invoice(invoice)
+                    .attemptNumber((short) 1)
+                    .status(PaymentAttempt.AttemptStatus.SUCCEEDED)
+                    .amountCents(99900)
+                    .stripePaymentIntentId("pi_unitium_" + invoiceNum)
+                    .build());
+            } else {
+                // Third invoice: initial failure, then successful retry
+                paymentAttemptRepository.save(PaymentAttempt.builder()
+                    .organization(unitiumOrg)
+                    .subscription(subscription)
+                    .invoice(invoice)
+                    .attemptNumber((short) 1)
+                    .status(PaymentAttempt.AttemptStatus.FAILED)
+                    .amountCents(99900)
+                    .stripePaymentIntentId("pi_unitium_" + invoiceNum + "_fail")
+                    .failureCode("card_declined")
+                    .failureMessage("Your card was declined. Please contact your card issuer.")
+                    .nextRetryAt(invoiceDate.plusDays(3).atStartOfDay())
+                    .build());
+
+                paymentAttemptRepository.save(PaymentAttempt.builder()
+                    .organization(unitiumOrg)
+                    .subscription(subscription)
+                    .invoice(invoice)
+                    .attemptNumber((short) 2)
+                    .status(PaymentAttempt.AttemptStatus.SUCCEEDED)
+                    .amountCents(99900)
+                    .stripePaymentIntentId("pi_unitium_" + invoiceNum + "_success")
+                    .build());
+            }
+
+            invoiceNum++;
+        }
+
+        log.info("[UnitiumSeedService]   ✓ 3 invoices created with 4 payment attempts (3 successful, 1 failed + retry)");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Step 15: Create Usage Quotas (7 snapshots for Time Machine)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private void step15_createUsageQuotas() {
+        log.info("[UnitiumSeedService] Step 15: Creating usage quota snapshots...");
 
         Subscription subscription = subscriptionRepository.findAll().stream()
             .filter(s -> s.getOrganization().getId().equals(unitiumOrg.getId()))
@@ -983,11 +1180,11 @@ public class UnitiumSeedService implements CommandLineRunner {
         log.info("[UnitiumSeedService] ╔═══════════════════════════════════╦═════════════════════════════════╦══════════════╗");
         log.info("[UnitiumSeedService] ║ Role                              ║ Email                           ║ Password     ║");
         log.info("[UnitiumSeedService] ╠═══════════════════════════════════╬═════════════════════════════════╬══════════════╣");
-        log.info("[UnitiumSeedService] ║ Super Admin (Org Owner)           ║ sarah.chen@unitium.io           ║ Password123! ║");
-        log.info("[UnitiumSeedService] ║ Admin 2                           ║ james.morgan@unitium.io         ║ Password123! ║");
+        log.info("[UnitiumSeedService] ║ Organization Owner (Admin)        ║ james.morgan@unitium.io         ║ Password123! ║");
         log.info("[UnitiumSeedService] ║ Employee 1                        ║ alice.dupont@unitium.io         ║ Password123! ║");
         log.info("[UnitiumSeedService] ║ Employee 2                        ║ marc.leroy@unitium.io           ║ Password123! ║");
         log.info("[UnitiumSeedService] ║ PO User (Product Owner)           ║ pooja.sharma@unitium.io         ║ Password123! ║");
+        log.info("[UnitiumSeedService] ║ Manager                           ║ manager@unitium.io              ║ Password123! ║");
         log.info("[UnitiumSeedService] ╚═══════════════════════════════════╩═════════════════════════════════╩══════════════╝");
         log.info("\n");
     }

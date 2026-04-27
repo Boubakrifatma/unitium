@@ -44,4 +44,20 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
             @Param("rooms") List<ChatRoom> rooms,
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to);
+
+    /** Count by sentiment label across all rooms (non-system messages with label set). */
+    @Query("SELECT m.sentimentLabel, COUNT(m) FROM Message m WHERE m.sentimentLabel IS NOT NULL AND (m.isSystemMessage = false OR m.isSystemMessage IS NULL) GROUP BY m.sentimentLabel")
+    List<Object[]> countBySentimentLabel();
+
+    /** Count by sentiment label for a specific room. */
+    @Query("SELECT m.sentimentLabel, COUNT(m) FROM Message m WHERE m.room = :room AND m.sentimentLabel IS NOT NULL AND (m.isSystemMessage = false OR m.isSystemMessage IS NULL) GROUP BY m.sentimentLabel")
+    List<Object[]> countBySentimentLabelForRoom(@Param("room") ChatRoom room);
+
+    /** Daily sentiment breakdown over recent days (global). */
+    @Query("SELECT CAST(m.createdAt AS date), m.sentimentLabel, COUNT(m) FROM Message m WHERE m.sentimentLabel IS NOT NULL AND m.createdAt >= :since AND (m.isSystemMessage = false OR m.isSystemMessage IS NULL) GROUP BY CAST(m.createdAt AS date), m.sentimentLabel ORDER BY CAST(m.createdAt AS date) ASC")
+    List<Object[]> dailySentimentSince(@Param("since") LocalDateTime since);
+
+    /** All messages with sentiment label (for per-user breakdown). */
+    @Query("SELECT m FROM Message m WHERE m.sentimentLabel IS NOT NULL AND (m.isSystemMessage = false OR m.isSystemMessage IS NULL)")
+    List<Message> findAllWithSentiment();
 }

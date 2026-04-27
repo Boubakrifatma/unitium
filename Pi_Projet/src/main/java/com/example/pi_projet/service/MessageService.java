@@ -39,6 +39,7 @@ public class MessageService {
     private final UserMuteRepository userMuteRepository;
     private final FileStorageService fileStorageService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final SentimentService sentimentService;
 
     // ── package-visible so MessageReactionService can reuse it ─────────────────
     ChatRoom getAccessibleRoom(Long roomId, User user) {
@@ -108,19 +109,27 @@ public class MessageService {
                 });
     }
 
+    // ── Sentiment helper ───────────────────────────────────────────────────────
+    private void applySentiment(Message.MessageBuilder builder, String text) {
+        if (text != null && !text.isBlank()) {
+            SentimentService.SentimentResult sr = sentimentService.analyze(text);
+            builder.sentimentLabel(sr.label()).sentimentScore(sr.score());
+        }
+    }
+
     // ── WebSocket text-only send (existing — unchanged) ────────────────────────
     public MessageDTO sendMessage(Long roomId, String content, User sender) {
         ChatRoom room = getAccessibleRoom(roomId, sender);
         checkNotMuted(sender, room);
 
-        Message message = Message.builder()
+        Message.MessageBuilder builder = Message.builder()
                 .room(room)
                 .sender(sender)
                 .contentText(content)
-                .contentType(ContentType.text)
-                .build();
+                .contentType(ContentType.text);
+        applySentiment(builder, content);
 
-        Message saved = messageRepository.save(message);
+        Message saved = messageRepository.save(builder.build());
         MessageDTO dto = MessageDTO.from(saved);
         messagingTemplate.convertAndSend("/topic/rooms/" + roomId, dto);
         processMentions(saved, room, sender);
@@ -132,18 +141,18 @@ public class MessageService {
         ChatRoom room = getAccessibleRoom(roomId, sender);
         checkNotMuted(sender, room);
 
-        Message message = Message.builder()
+        Message.MessageBuilder builder = Message.builder()
                 .room(room)
                 .sender(sender)
                 .contentText(request.content())
                 .contentType(ContentType.text)
-                .isSystemMessage(false) // agenda items are never system messages
+                .isSystemMessage(false)
                 .isAgendaItem(request.isAgendaItem())
                 .agendaOrder(request.agendaOrder())
-                .agendaDuration(request.agendaDuration())
-                .build();
+                .agendaDuration(request.agendaDuration());
+        applySentiment(builder, request.content());
 
-        Message saved = messageRepository.save(message);
+        Message saved = messageRepository.save(builder.build());
         MessageDTO dto = buildDTO(saved);
         messagingTemplate.convertAndSend("/topic/rooms/" + roomId, (Object) dto);
         processMentions(saved, room, sender);
@@ -172,6 +181,7 @@ public class MessageService {
         } else {
             builder.contentType(ContentType.text);
         }
+        applySentiment(builder, content);
 
         Message saved = messageRepository.save(builder.build());
         MessageDTO dto = buildDTO(saved);

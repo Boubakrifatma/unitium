@@ -46,6 +46,19 @@ export interface ScheduledNotificationEvent {
   nextSendAt?: string;
 }
 
+export interface SentimentResult {
+  label: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
+  score: number;
+}
+
+export interface SentimentStats {
+  total: number;
+  distribution: { POSITIVE: number; NEUTRAL: number; NEGATIVE: number };
+  dailyTrend: { date: string; positive: number; neutral: number; negative: number }[];
+  roomBreakdown: { roomId: number; roomName: string; positive: number; neutral: number; negative: number; total: number }[];
+  topFlaggedUsers: { userName: string; negativeCount: number }[];
+}
+
 export interface MessageDTO {
   id: number;
   roomId: number;
@@ -68,6 +81,9 @@ export interface MessageDTO {
   // shared content fields
   category?: 'IMAGE' | 'FILE' | 'LINK';
   extractedUrl?: string;
+  // sentiment fields
+  sentimentLabel?: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
+  sentimentScore?: number;
   deleted?: boolean;
   isDeleted?: boolean;
   isSystemMessage?: boolean;
@@ -342,6 +358,21 @@ export class ChatMessageService {
   summarize(prompt: string): Observable<string> {
     return this.http.post<{result: string}>(`${this.BASE_URL}/api/ai/summarize`, { prompt })
       .pipe(map(res => res.result));
+  }
+
+  /** REST: analyze sentiment of a text before sending. */
+  analyzeSentiment(text: string): Observable<SentimentResult> {
+    return this.http.post<SentimentResult>(`${this.BASE_URL}/api/sentiment/analyze`, { text });
+  }
+
+  /** REST: get global sentiment stats (manager/tutor only). */
+  getSentimentStats(): Observable<SentimentStats> {
+    return this.http.get<SentimentStats>(`${this.BASE_URL}/api/chat/sentiment-stats`);
+  }
+
+  /** REST: get sentiment stats for a specific room. */
+  getRoomSentimentStats(roomId: number): Observable<any> {
+    return this.http.get<any>(`${this.BASE_URL}/api/chat/rooms/${roomId}/sentiment-stats`);
   }
 
   /**

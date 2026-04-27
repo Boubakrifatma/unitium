@@ -1,10 +1,11 @@
-import { Component, Input } from "@angular/core";
+import { Component, Input, ChangeDetectionStrategy } from "@angular/core";
 import { NgCircleProgressModule, CircleProgressOptions } from "ng-circle-progress";
 
 @Component({
     selector: "app-circle-progress-blue",
     standalone: true,
     imports: [NgCircleProgressModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [
         {
             provide: CircleProgressOptions,

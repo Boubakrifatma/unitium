@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-@Order(2)
+@Order(5)
 @Slf4j
 public class Module2OrganizationInitializer implements CommandLineRunner {
 
@@ -23,7 +23,7 @@ public class Module2OrganizationInitializer implements CommandLineRunner {
     public void run(String... args) {
         try {
             m2DevSeedService.seed();
-            log.info("[Module2OrganizationInitializer] Module 2 startup scenario applied.");
+            log.info("[Module2OrganizationInitializer] Module 2 startup scenario applied (Academic organizations created).");
         } catch (Exception ex) {
             log.error("[Module2OrganizationInitializer] Failed to apply Module 2 startup scenario", ex);
         }

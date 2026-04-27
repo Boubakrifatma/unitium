@@ -90,23 +90,24 @@ public class M2DevSeedService {
     public Map<String, Object> seed() {
         log.info("[M2DevSeedService] Starting rich seed...");
 
-        // ── 1. Load all required users ───────────────────────────────────────
-        User manager   = requireUser("manager@test.com");
-        User manager2  = requireUser("manager2@test.com");
-        User tutor     = requireUser("tutor@test.com");
-        User tutor2    = requireUser("tutor2@test.com");
-        User dev1      = requireUser("dev1@test.com");
-        User dev2      = requireUser("dev2@test.com");
-        User dev3      = requireUser("dev3@test.com");
-        User analyst   = requireUser("analyst@test.com");
-        User employee  = requireUser("employee@test.com");
-        User viewer    = requireUser("viewer@test.com");
-        User student   = requireUser("student@test.com");
-        User student1  = requireUser("student1@test.com");
-        User student2  = requireUser("student2@test.com");
-        User student3  = requireUser("student3@test.com");
-        User ta        = requireUser("ta@test.com");
-        User po        = requireUser("po@test.com");
+        // ── 1. Load all required users (from UnitiumSeedService + AcademicSeedService) ─
+        User admin     = requireUser("admin@academy.edu");
+        User manager   = requireUser("james.morgan@unitium.io");
+        User manager2  = requireUser("manager2@unitium.io");
+        User tutor     = requireUser("tutor1@academy.edu");
+        User tutor2    = requireUser("tutor2@academy.edu");
+        User dev1      = requireUser("alice.dupont@unitium.io");
+        User dev2      = requireUser("marc.leroy@unitium.io");
+        User dev3      = requireUser("analyst@unitium.io");
+        User analyst   = requireUser("analyst@unitium.io");
+        User employee  = requireUser("employee@unitium.io");
+        User viewer    = requireUser("viewer@unitium.io");
+        User student   = requireUser("student1@academy.edu");
+        User student1  = requireUser("student2@academy.edu");
+        User student2  = requireUser("student3@academy.edu");
+        User student3  = requireUser("student4@academy.edu");
+        User ta        = requireUser("tutor1@academy.edu");
+        User po        = requireUser("pooja.sharma@unitium.io");
 
         // ── 2. Plans ─────────────────────────────────────────────────────────
         Plan enterprisePro  = planRepository.findByName("pro")

@@ -1,4 +1,4 @@
-import { Component, AfterViewInit, ChangeDetectorRef } from "@angular/core";
+import { Component, AfterViewInit, ChangeDetectorRef, ChangeDetectionStrategy } from "@angular/core";
 import { Location } from "@angular/common";
 import { NgCircleProgressModule, CircleProgressOptions } from "ng-circle-progress";
 
@@ -6,6 +6,7 @@ import { NgCircleProgressModule, CircleProgressOptions } from "ng-circle-progres
     selector: "app-circle-progress-green-blank",
     standalone: true,
     imports: [NgCircleProgressModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [
         {
             provide: CircleProgressOptions,

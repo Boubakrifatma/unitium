@@ -243,7 +243,7 @@ public class M2AdminService {
     private UUID resolveAdminOrgId(User user) {
         if (user == null || user.getRole() == User.RoleName.SUPER_ADMIN) return null;
         List<Map<String, Object>> rows = jdbc.queryForList(
-            "SELECT organization_id FROM organization_members WHERE user_id = ? AND deleted_at IS NULL LIMIT 1",
+            "SELECT organization_id FROM org_members WHERE user_id = ? AND deleted_at IS NULL LIMIT 1",
             user.getId());
         if (rows.isEmpty()) return null;
         Object raw = rows.get(0).get("organization_id");
