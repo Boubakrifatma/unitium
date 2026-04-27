@@ -5,6 +5,8 @@ import com.example.pi_projet.dto.OrganizationDTO;
 import com.example.pi_projet.dto.UpdateOrganizationRequest;
 import com.example.pi_projet.entity.AuditLog;
 import com.example.pi_projet.entity.Organization;
+import com.example.pi_projet.entity.OrganizationMember;
+import com.example.pi_projet.repository.OrganizationMemberRepository;
 import com.example.pi_projet.repository.OrganizationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -12,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -19,6 +22,7 @@ import java.util.UUID;
 public class OrganizationService {
 
     private final OrganizationRepository organizationRepository;
+    private final OrganizationMemberRepository organizationMemberRepository;
     private final AuditLogService auditLogService;
 
     public OrganizationDTO create(CreateOrganizationRequest body) {
@@ -47,8 +51,17 @@ public class OrganizationService {
     }
 
     public OrganizationDTO getByOwnerId(Long ownerId) {
-        return organizationRepository.findByOwnerId(ownerId)
-                .map(OrganizationDTO::from)
+        // Check organizations.owner_id first (primary owner)
+        Optional<Organization> byOwner = organizationRepository.findByOwnerId(ownerId);
+        if (byOwner.isPresent()) {
+            return OrganizationDTO.from(byOwner.get());
+        }
+        // Fall back: user has OWNER role in org_members (co-owner / admin seeded as OWNER)
+        return organizationMemberRepository
+                .findAllByUserIdAndRoleAndDeletedAtIsNull(ownerId, OrganizationMember.OrganizationRole.OWNER)
+                .stream()
+                .findFirst()
+                .map(m -> OrganizationDTO.from(m.getOrganization()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No organization found for this user."));
     }
 
