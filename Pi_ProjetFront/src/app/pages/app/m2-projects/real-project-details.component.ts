@@ -1,7 +1,7 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from "@angular/common/http";
 import { Component, OnInit, computed, inject, signal } from "@angular/core";
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl } from "@angular/forms";
+import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, Validators, AbstractControl } from "@angular/forms";
 import { DomSanitizer, SafeResourceUrl } from "@angular/platform-browser";
 import { MatButtonModule } from "@angular/material/button";
 import { MatCardModule } from "@angular/material/card";
@@ -62,6 +62,7 @@ interface ProjectMilestoneSnapshot {
         CommonModule,
         RouterLink,
         ReactiveFormsModule,
+        FormsModule,
         MatCardModule,
         MatIconModule,
         MatButtonModule,
@@ -308,7 +309,7 @@ interface ProjectMilestoneSnapshot {
                         @if (validStatusTransitions().length > 0) {
                             <mat-form-field appearance="outline" class="w-100 mb-0">
                                 <mat-label>Change Status</mat-label>
-                                <mat-select [ngModel]="null" (ngModelChange)="changeStatus($event)">
+                                <mat-select [ngModel]="null" (ngModelChange)="changeStatus($any($event))">
                                     @for (opt of validStatusTransitions(); track opt.value) {
                                         <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
                                     }
@@ -779,7 +780,7 @@ interface ProjectMilestoneSnapshot {
                         <div class="col-8 col-md-4">
                             <mat-form-field appearance="outline" class="w-100 inline-small" style="margin:0;">
                                 <mat-label>Country</mat-label>
-                                <input matInput [(ngModel)]="projectHolidayCountry" (ngModelChange)="onProjectHolidayCountryChanged($event)" maxlength="2" placeholder="TN" />
+                                <input matInput [(ngModel)]="projectHolidayCountry" (ngModelChange)="onProjectHolidayCountryChanged($any($event))" maxlength="2" placeholder="TN" />
                             </mat-form-field>
                         </div>
                         <div class="col-4 col-md-2 d-flex align-items-center">

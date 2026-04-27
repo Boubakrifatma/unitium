@@ -2,6 +2,8 @@
    Professional Gantt Chart — gantt-view.component.scss
    ═══════════════════════════════════════════════════════════════ */
 
+@use "sass:color";
+
 :host { display: block; }
 
 // ── Variables ────────────────────────────────────────────────────────
@@ -82,7 +84,7 @@ $late:       #dc2626;
       color: #fff;
     }
 
-    &:not(.active):hover { background: darken($bg, 3%); }
+    &:not(.active):hover { background: color.adjust($bg, $lightness: -3%); }
   }
 }
 
@@ -196,7 +198,7 @@ $late:       #dc2626;
   .leg.done::before        { background: $done; }
   .leg.blocked::before     { background: $blocked; }
   .leg.review::before      { background: $review; }
-  .leg.late-leg::before    { background: $late; border: 2px solid darken($late, 10%); border-radius: 50%; }
+  .leg.late-leg::before    { background: $late; border: 2px solid color.adjust($late, $lightness: -10%); border-radius: 50%; }
 
   .today-dot {
     display: inline-block;
@@ -474,11 +476,11 @@ $late:       #dc2626;
 }
 
 // Bar color skins
-.bar-todo        { background: linear-gradient(135deg, lighten($todo,  8%), $todo); }
-.bar-in_progress { background: linear-gradient(135deg, lighten($inprog, 8%), $inprog); }
-.bar-done        { background: linear-gradient(135deg, lighten($done,  8%), $done); }
-.bar-blocked     { background: linear-gradient(135deg, lighten($blocked,8%), $blocked); }
-.bar-review      { background: linear-gradient(135deg, lighten($review, 8%), $review); }
+.bar-todo        { background: linear-gradient(135deg, color.adjust($todo,  $lightness: 8%), $todo); }
+.bar-in_progress { background: linear-gradient(135deg, color.adjust($inprog, $lightness: 8%), $inprog); }
+.bar-done        { background: linear-gradient(135deg, color.adjust($done,  $lightness: 8%), $done); }
+.bar-blocked     { background: linear-gradient(135deg, color.adjust($blocked, $lightness: 8%), $blocked); }
+.bar-review      { background: linear-gradient(135deg, color.adjust($review, $lightness: 8%), $review); }
 
 .bar-late {
   outline: 2px solid $late;

@@ -62,7 +62,7 @@ interface IntelRec {
             <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-color)">
               <span style="font-size:11px;color:var(--text-color-secondary);font-weight:500">Events in timeline:</span>
               <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">
-                @for (event of snapshot()!.timelineCheckpoints.slice(0, 10); track event.at) {
+                @for (event of (snapshot()?.timelineCheckpoints ?? []).slice(0, 10); track event.at) {
                   <button matButton
                           (click)="selectSnapshot(event.at)"
                           [class.active-snapshot]="isSelectedDate(event.at)"
@@ -79,7 +79,6 @@ interface IntelRec {
         </mat-card>
       </div>
     }
-`
     <!-- ── HEADER ────────────────────────────────────────────────── -->
     <div class="container-fluid fade-in mb-3 mb-lg-4">
       <mat-card class="bg-light-theme shadow-none pt-3 pb-lg-3 px-3">
@@ -401,7 +400,7 @@ interface IntelRec {
                 <span class="wr-panel-title">Member Workload</span>
               </div>
               <mat-icon class="info-btn material-icons-outlined"
-                        matTooltip="Estimated workload per member. Amber = 70–85%, Red = above 85% (burnout risk)."
+                        matTooltip="Estimated workload per member. Amber = 70-85%, Red = above 85% (burnout risk)."
                         matTooltipPosition="left">info_outline</mat-icon>
             </div>
             @if (snapshot()?.memberWorkloads?.length) {
@@ -489,7 +488,7 @@ interface IntelRec {
                 <span class="wr-panel-title">Project Health Matrix</span>
               </div>
               <mat-icon class="info-btn material-icons-outlined"
-                        matTooltip="Scores each project on 4 dimensions (0–100). Green ≥ 80, Amber ≥ 50, Red < 50."
+                        matTooltip="Scores each project on 4 dimensions (0-100). Green ≥ 80, Amber ≥ 50, Red < 50."
                         matTooltipPosition="left">info_outline</mat-icon>
             </div>
             @if (snapshot()?.healthMatrix?.projectNames?.length) {
@@ -1064,8 +1063,8 @@ export class WarRoomComponent implements OnInit, OnDestroy {
       score = Math.round(all.reduce((a, b) => a + b, 0) / all.length);
     }
     // Penalise overloaded members
-    if (snap.memberCount > 0) {
-      score = Math.round(score * (1 - (snap.overloadedMemberCount / snap.memberCount) * 0.35));
+    if (snap.memberCount > 0 && (snap.overloadedMemberCount ?? 0) > 0) {
+      score = Math.round(score * (1 - ((snap.overloadedMemberCount ?? 0) / snap.memberCount) * 0.35));
     }
     score = Math.max(0, Math.min(100, score));
 
@@ -1081,11 +1080,11 @@ export class WarRoomComponent implements OnInit, OnDestroy {
         detail: `${overloaded.map(m => m.displayName).join(', ')} exceed${overloaded.length === 1 ? 's' : ''} 85% workload. Redistribute tasks to prevent burnout.`,
       });
     }
-    if (snap.onTrackPercentage < 50 && snap.totalProjects > 0) {
+    if ((snap.onTrackPercentage ?? 0) < 50 && snap.totalProjects > 0) {
       recs.push({
         level: 'warning', icon: 'trending_down',
         title: 'Delivery health below 50%',
-        detail: `Only ${snap.onTrackPercentage.toFixed(0)}% of projects are active or completed. Review stalled projects and unblock the team.`,
+        detail: `Only ${(snap.onTrackPercentage ?? 0).toFixed(0)}% of projects are active or completed. Review stalled projects and unblock the team.`,
       });
     }
     if (snap.memberCount > 1 && !snap.collaborationEdges.length) {
@@ -1102,11 +1101,11 @@ export class WarRoomComponent implements OnInit, OnDestroy {
         detail: 'All tracked tasks are currently closed. Confirm upcoming milestones have enough execution capacity.',
       });
     }
-    if (snap.onTrackPercentage >= 80 && overloaded.length === 0 && snap.totalProjects > 0) {
+    if ((snap.onTrackPercentage ?? 0) >= 80 && overloaded.length === 0 && snap.totalProjects > 0) {
       recs.push({
         level: 'success', icon: 'check_circle',
         title: 'Workspace performing well',
-        detail: `${snap.onTrackPercentage.toFixed(0)}% on-track rate and no overloaded members. Excellent execution momentum.`,
+        detail: `${(snap.onTrackPercentage ?? 0).toFixed(0)}% on-track rate and no overloaded members. Excellent execution momentum.`,
       });
     }
 
@@ -1184,8 +1183,8 @@ export class WarRoomComponent implements OnInit, OnDestroy {
     let s = `${snap.totalProjects} ${pw} across ${snap.memberCount} ${mw} — workspace is ${status} (${score}/100).`;
     if (overloaded.length) {
       s += ` Immediate attention: ${overloaded.map(m => m.displayName).slice(0, 2).join(' & ')} ${overloaded.length === 1 ? 'is' : 'are'} overloaded.`;
-    } else if (snap.onTrackPercentage > 0) {
-      s += ` ${snap.onTrackPercentage.toFixed(0)}% of projects are on track.`;
+    } else if ((snap.onTrackPercentage ?? 0) > 0) {
+      s += ` ${(snap.onTrackPercentage ?? 0).toFixed(0)}% of projects are on track.`;
     }
     return s;
   }

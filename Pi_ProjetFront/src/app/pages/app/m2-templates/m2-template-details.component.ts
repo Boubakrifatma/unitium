@@ -201,7 +201,7 @@ export class RejectTemplateDialogComponent {
     selector: "app-m2-template-details",
     standalone: true,
     imports: [
-        CommonModule, RouterLink, FormsModule,
+        CommonModule, RouterLink, FormsModule, ReactiveFormsModule,
         MatCardModule, MatIconModule, MatButtonModule, MatDividerModule,
         MatFormFieldModule, MatInputModule, MatSelectModule,
         MatSnackBarModule, MatDialogModule, MatTooltipModule,
