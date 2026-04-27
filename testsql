@@ -13,11 +13,11 @@ SET @today = NOW();
 -- PART 1: CREATE USERS (using IDs 200-210 to avoid conflicts)
 -- ============================================================================
 
--- Super Admin (Organization Owner)
+-- SUPER ADMIN (Platform Administrator - manages the whole application)
 INSERT INTO `users` (`id`, `email`, `full_name`, `password_hash`, `role`, `is_active`, `is_verified`, `avatar_url`, `created_at`, `updated_at`, `mfa_enabled`, `must_change_password`, `last_login_at`)
-VALUES (200, 'alex.super@unitium.io', 'Alex Morgan', '$2a$10$Lg.VqB7pQyKj4ZnYqXLw8eqZpYJxYGq1VR5n5ZUwK5Ko9kK5tG.Ka', 'ADMIN', b'1', b'1', 'https://ui-avatars.com/api/?name=Alex+Morgan&background=4F46E5&color=fff', @workspace_created, @today, b'0', b'0', DATE_ADD(@workspace_created, INTERVAL 40 DAY));
+VALUES (200, 'super.admin@unitium.io', 'Alex Morgan', '$2a$10$Lg.VqB7pQyKj4ZnYqXLw8eqZpYJxYGq1VR5n5ZUwK5Ko9kK5tG.Ka', 'SUPER_ADMIN', b'1', b'1', 'https://ui-avatars.com/api/?name=Alex+Morgan&background=4F46E5&color=fff', @workspace_created, @today, b'0', b'0', DATE_ADD(@workspace_created, INTERVAL 40 DAY));
 
--- Admin 2
+-- ADMIN (Organization Owner - manages Unitium organization)
 INSERT INTO `users` (`id`, `email`, `full_name`, `password_hash`, `role`, `is_active`, `is_verified`, `avatar_url`, `created_at`, `updated_at`, `mfa_enabled`, `must_change_password`, `last_login_at`)
 VALUES (201, 'jane.admin@unitium.io', 'Jane Cooper', '$2a$10$Lg.VqB7pQyKj4ZnYqXLw8eqZpYJxYGq1VR5n5ZUwK5Ko9kK5tG.Ka', 'ADMIN', b'1', b'1', 'https://ui-avatars.com/api/?name=Jane+Cooper&background=4F46E5&color=fff', @workspace_created, @today, b'0', b'0', DATE_ADD(@workspace_created, INTERVAL 35 DAY));
 
@@ -37,11 +37,12 @@ VALUES (204, 'david.kim@unitium.io', 'David Kim', '$2a$10$Lg.VqB7pQyKj4ZnYqXLw8e
 INSERT INTO `users` (`id`, `email`, `full_name`, `password_hash`, `role`, `is_active`, `is_verified`, `avatar_url`, `created_at`, `updated_at`, `mfa_enabled`, `must_change_password`, `last_login_at`)
 VALUES 
 (205, 'alex.viewer@unitium.io', 'Alex Rivera', '$2a$10$Lg.VqB7pQyKj4ZnYqXLw8eqZpYJxYGq1VR5n5ZUwK5Ko9kK5tG.Ka', 'VIEWER', b'1', b'1', 'https://ui-avatars.com/api/?name=Alex+Rivera&background=6366F1&color=fff', @workspace_created, @today, b'0', b'0', DATE_ADD(@workspace_created, INTERVAL 20 DAY)),
-(206, 'contractor.temp@unitium.io', 'Temporary Contractor', '$2a$10$Lg.VqB7pQyKj4ZnYqXLw8eqZpYJxYGq1VR5n5ZUwK5Ko9kK5tG.Ka', 'EMPLOYEE', b'1', b'1', 'https://ui-avatars.com/api/?name=Temp+Contractor&background=EF4444&color=fff', @workspace_created, @today, b'0', b'0', DATE_ADD(@workspace_created, INTERVAL 15 DAY));
+(206, 'contractor.temp@unitium.io', 'Temp Contractor', '$2a$10$Lg.VqB7pQyKj4ZnYqXLw8eqZpYJxYGq1VR5n5ZUwK5Ko9kK5tG.Ka', 'EMPLOYEE', b'1', b'1', 'https://ui-avatars.com/api/?name=Temp+Contractor&background=EF4444&color=fff', @workspace_created, @today, b'0', b'0', DATE_ADD(@workspace_created, INTERVAL 15 DAY));
 
 -- ============================================================================
 -- PART 2: CREATE UNITIUM ORGANIZATION
 -- ============================================================================
+-- Owner is the ADMIN (Jane Cooper - ID 201)
 
 INSERT INTO `organizations` (`id`, `name`, `slug`, `org_type`, `owner_id`, `created_at`, `updated_at`, `billing_email`, `billing_country`, `vat_number`, `billing_address_json`)
 VALUES (
@@ -49,7 +50,7 @@ VALUES (
     'Unitium', 
     'unitium', 
     'ENTERPRISE', 
-    200,
+    201,
     @workspace_created,
     @today,
     'billing@unitium.io',
@@ -64,13 +65,13 @@ VALUES (
 
 INSERT INTO `org_members` (`id`, `organization_id`, `user_id`, `role`, `joined_at`, `invited_by`)
 VALUES 
-(UUID(), 'unitium-org-001', 200, 'OWNER', @workspace_created, NULL),
-(UUID(), 'unitium-org-001', 201, 'ADMIN', @workspace_created, 200),
-(UUID(), 'unitium-org-001', 202, 'MEMBER', @workspace_created, 200),
-(UUID(), 'unitium-org-001', 203, 'MEMBER', @workspace_created, 200),
-(UUID(), 'unitium-org-001', 204, 'MEMBER', @workspace_created, 200),
-(UUID(), 'unitium-org-001', 205, 'MEMBER', @workspace_created, 200),
-(UUID(), 'unitium-org-001', 206, 'MEMBER', @workspace_created, 200);
+(UUID(), 'unitium-org-001', 200, 'ADMIN', @workspace_created, 201),
+(UUID(), 'unitium-org-001', 201, 'OWNER', @workspace_created, NULL),
+(UUID(), 'unitium-org-001', 202, 'MEMBER', @workspace_created, 201),
+(UUID(), 'unitium-org-001', 203, 'MEMBER', @workspace_created, 201),
+(UUID(), 'unitium-org-001', 204, 'MEMBER', @workspace_created, 201),
+(UUID(), 'unitium-org-001', 205, 'MEMBER', @workspace_created, 201),
+(UUID(), 'unitium-org-001', 206, 'MEMBER', @workspace_created, 201);
 
 -- ============================================================================
 -- PART 4: CREATE SUBSCRIPTION (for ML churn agent)
@@ -104,7 +105,7 @@ VALUES (
     'Unitium Core Workspace',
     'unitium-core',
     'unitium-org-001',
-    200,
+    201,
     @workspace_created,
     'enterprise'
 );
@@ -115,8 +116,8 @@ VALUES (
 
 INSERT INTO `workspace_members` (`id`, `workspace_id`, `user_id`, `role`, `joined_at`, `ml_profile_vector`, `ml_skill_match_score`, `ml_chemistry_score`, `ml_availability_score`, `ml_role_history_score`, `ml_top_roles_json`)
 VALUES 
-(UUID(), 'unitium-ws-001', 200, 'OWNER', @workspace_created, '[0.85,0.92,0.88,0.91,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]', 0.92, 0.88, 0.91, 0.85, '["PROJECT_MANAGER","REVIEWER"]'),
-(UUID(), 'unitium-ws-001', 201, 'ADMIN', @workspace_created, '[0.82,0.88,0.85,0.79,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]', 0.88, 0.85, 0.79, 0.82, '["PROJECT_MANAGER","REVIEWER"]'),
+(UUID(), 'unitium-ws-001', 200, 'ADMIN', @workspace_created, '[0.85,0.92,0.88,0.91,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]', 0.92, 0.88, 0.91, 0.85, '["PROJECT_MANAGER","REVIEWER"]'),
+(UUID(), 'unitium-ws-001', 201, 'OWNER', @workspace_created, '[0.82,0.88,0.85,0.79,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]', 0.88, 0.85, 0.79, 0.82, '["PROJECT_MANAGER","REVIEWER"]'),
 (UUID(), 'unitium-ws-001', 202, 'MEMBER', @workspace_created, '[0.65,0.78,0.72,0.68,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]', 0.78, 0.72, 0.68, 0.65, '["DEVELOPER","REVIEWER"]'),
 (UUID(), 'unitium-ws-001', 203, 'MEMBER', @workspace_created, '[0.72,0.82,0.75,0.71,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]', 0.82, 0.75, 0.71, 0.72, '["DEVELOPER","REVIEWER"]'),
 (UUID(), 'unitium-ws-001', 204, 'MEMBER', @workspace_created, '[0.70,0.85,0.78,0.65,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]', 0.85, 0.78, 0.65, 0.70, '["PRODUCT_OWNER","MANAGER"]'),
@@ -136,7 +137,7 @@ VALUES (
     'Quantum Platform Migration',
     'Modernizing legacy infrastructure to cloud-native architecture with zero-downtime migration strategy for Unitium enterprise customers',
     'unitium-ws-001',
-    200,
+    201,
     'ACTIVE',
     '2026-03-10',
     '2026-05-30',
@@ -155,47 +156,45 @@ VALUES (
 
 INSERT INTO `project_members` (`id`, `project_id`, `user_id`, `role`, `assigned_at`, `assigned_by`)
 VALUES 
-(UUID(), 'unitium-proj-001', 200, 'PROJECT_MANAGER', @workspace_created, 200),
-(UUID(), 'unitium-proj-001', 201, 'REVIEWER', @workspace_created, 200),
-(UUID(), 'unitium-proj-001', 202, 'DEVELOPER', @workspace_created, 200),
-(UUID(), 'unitium-proj-001', 203, 'DEVELOPER', @workspace_created, 200),
-(UUID(), 'unitium-proj-001', 204, 'REVIEWER', @workspace_created, 200),  -- PO User as REVIEWER in project context
-(UUID(), 'unitium-proj-001', 205, 'OBSERVER', @workspace_created, 200),
-(UUID(), 'unitium-proj-001', 206, 'DEVELOPER', @workspace_created, 200);
+(UUID(), 'unitium-proj-001', 201, 'PROJECT_MANAGER', @workspace_created, 201),
+(UUID(), 'unitium-proj-001', 200, 'REVIEWER', @workspace_created, 201),
+(UUID(), 'unitium-proj-001', 202, 'DEVELOPER', @workspace_created, 201),
+(UUID(), 'unitium-proj-001', 203, 'DEVELOPER', @workspace_created, 201),
+(UUID(), 'unitium-proj-001', 204, 'REVIEWER', @workspace_created, 201),
+(UUID(), 'unitium-proj-001', 205, 'OBSERVER', @workspace_created, 201),
+(UUID(), 'unitium-proj-001', 206, 'DEVELOPER', @workspace_created, 201);
 
 -- ============================================================================
--- PART 9: CREATE MILESTONES
+-- PART 9: CREATE MILESTONES (CORRECTED - NO start_date)
 -- ============================================================================
 
 -- Milestone 1: Foundation & Planning (Completed)
-INSERT INTO `milestones` (`id`, `project_id`, `name`, `description`, `start_date`, `due_date`, `status`, `completion_pct`, `created_by`, `created_at`, `updated_at`, `is_gate`)
+INSERT INTO `milestones` (`id`, `project_id`, `name`, `description`, `due_date`, `status`, `completion_pct`, `created_by`, `created_at`, `updated_at`, `is_gate`)
 VALUES (
     10001,
     'unitium-proj-001',
     'Foundation & Planning',
     'Complete requirements gathering, architecture design, and infrastructure provisioning for the cloud migration',
-    '2026-03-10',
     '2026-04-05',
     'completed',
     100,
-    200,
+    201,
     @workspace_created,
     @today,
     b'0'
 );
 
 -- Milestone 2: Execution & Delivery (In Progress)
-INSERT INTO `milestones` (`id`, `project_id`, `name`, `description`, `start_date`, `due_date`, `status`, `completion_pct`, `created_by`, `created_at`, `updated_at`, `is_gate`)
+INSERT INTO `milestones` (`id`, `project_id`, `name`, `description`, `due_date`, `status`, `completion_pct`, `created_by`, `created_at`, `updated_at`, `is_gate`)
 VALUES (
     10002,
     'unitium-proj-001',
     'Execution & Delivery',
     'Implementation, testing, deployment, and final delivery of migrated platform with zero downtime',
-    '2026-04-06',
     '2026-05-30',
     'in_progress',
     55,
-    200,
+    201,
     DATE_ADD(@workspace_created, INTERVAL 27 DAY),
     @today,
     b'0'
@@ -212,7 +211,7 @@ VALUES (
     'unitium-proj-001',
     10001,
     202,
-    200,
+    201,
     '1.1 - Requirements Gathering & Documentation',
     'Collect and document all functional and non-functional requirements from stakeholders. Create user stories and acceptance criteria for the cloud migration project.',
     'task',
@@ -235,7 +234,7 @@ VALUES (
     'unitium-proj-001',
     10001,
     203,
-    200,
+    201,
     '1.2 - System Architecture & Design',
     'Design cloud-native architecture including microservices, data flow, security, and scaling strategy for AWS EKS deployment.',
     'task',
@@ -258,7 +257,7 @@ VALUES (
     'unitium-proj-001',
     10001,
     206,
-    200,
+    201,
     '1.3 - Infrastructure & Environment Setup',
     'Provision AWS infrastructure (EKS, RDS, S3), configure CI/CD pipelines with GitHub Actions, and set up monitoring with Prometheus/Grafana.',
     'task',
@@ -280,8 +279,8 @@ VALUES (
     100004,
     'unitium-proj-001',
     10001,
-    201,
     200,
+    201,
     '1.4 - Planning & Design Review',
     'Review all planning artifacts with stakeholders and obtain final sign-off for execution phase.',
     'task',
@@ -308,7 +307,7 @@ VALUES (
     'unitium-proj-001',
     10002,
     202,
-    200,
+    201,
     '2.1 - Core API Implementation',
     'Implement core REST API endpoints, authentication (OAuth2/JWT), and business logic layer for the new platform.',
     'task',
@@ -331,7 +330,7 @@ VALUES (
     'unitium-proj-001',
     10002,
     202,
-    200,
+    201,
     '2.2 - Data Migration Scripts & ETL',
     'Develop and execute data migration from legacy Oracle database to Aurora PostgreSQL with validation and rollback capabilities.',
     'task',
@@ -354,7 +353,7 @@ VALUES (
     'unitium-proj-001',
     10002,
     203,
-    200,
+    201,
     '2.3 - Integration Testing & QA',
     'Perform comprehensive integration testing, performance testing (k6), security audit, and user acceptance testing preparation.',
     'task',
@@ -376,7 +375,7 @@ VALUES (
     'unitium-proj-001',
     10002,
     206,
-    200,
+    201,
     '2.4 - Production Deployment & Go-Live',
     'Deploy to production environment with blue-green strategy, conduct final validation, execute go-live procedures, and post-deployment monitoring.',
     'task',
@@ -398,16 +397,16 @@ VALUES (
 -- Milestone 1 dependencies (1.1 → 1.2 → 1.3 → 1.4)
 INSERT INTO `task_dependencies` (`task_id`, `depends_on_task_id`, `dependency_type`, `created_at`, `created_by`)
 VALUES 
-(100002, 100001, 'finish_to_start', @today, 200),
-(100003, 100002, 'finish_to_start', @today, 200),
-(100004, 100003, 'finish_to_start', @today, 200);
+(100002, 100001, 'finish_to_start', @today, 201),
+(100003, 100002, 'finish_to_start', @today, 201),
+(100004, 100003, 'finish_to_start', @today, 201);
 
 -- Milestone 2 dependencies (2.1 → 2.2 → 2.3 → 2.4)
 INSERT INTO `task_dependencies` (`task_id`, `depends_on_task_id`, `dependency_type`, `created_at`, `created_by`)
 VALUES 
-(100006, 100005, 'finish_to_start', @today, 200),
-(100007, 100006, 'finish_to_start', @today, 200),
-(100008, 100007, 'finish_to_start', @today, 200);
+(100006, 100005, 'finish_to_start', @today, 201),
+(100007, 100006, 'finish_to_start', @today, 201),
+(100008, 100007, 'finish_to_start', @today, 201);
 
 -- ============================================================================
 -- PART 13: TIME ENTRIES (For burndown chart - realistic S-curve)
@@ -474,7 +473,7 @@ VALUES (
     '🚀 Quantum Platform - General',
     'General discussion channel for the Quantum Platform Migration project',
     'unitium-proj-001',
-    200,
+    201,
     'general',
     @workspace_created,
     @today
@@ -487,7 +486,7 @@ VALUES (
     '⚙️ Execution & Delivery',
     'Dedicated channel for Milestone 2: Implementation, testing, and deployment coordination',
     'unitium-proj-001',
-    200,
+    201,
     'task_thread',
     DATE_ADD(@workspace_created, INTERVAL 28 DAY),
     @today
@@ -519,39 +518,35 @@ INSERT INTO `room_members` (`room_id`, `user_id`, `joined_at`) VALUES
 -- Messages for General Chat (Room 20001)
 INSERT INTO `messages` (`id`, `room_id`, `sender_id`, `content_text`, `content_type`, `created_at`, `is_pinned`, `is_system_message`)
 VALUES
-(30001, 20001, 200, '🎉 Welcome everyone to the Quantum Platform Migration project! Our mission: modernize legacy infrastructure with zero downtime. Let\'s make this a success!', 'text', @workspace_created, b'1', b'0'),
+(30001, 20001, 201, '🎉 Welcome everyone to the Quantum Platform Migration project! Our mission: modernize legacy infrastructure with zero downtime. Let\'s make this a success!', 'text', @workspace_created, b'1', b'0'),
 (30002, 20001, 204, 'Thanks for having me as PO. I\'ve uploaded the initial requirements document to the shared drive. Please review by Friday, March 14th.', 'text', DATE_ADD(@workspace_created, INTERVAL 1 DAY), b'0', b'0'),
 (30003, 20001, 202, '@David Kim reviewing now. Quick question - are we prioritizing observability features in the first sprint?', 'text', DATE_ADD(@workspace_created, INTERVAL 2 DAY), b'0', b'0'),
 (30004, 20001, 204, '@Mike Chen Yes, observability is critical for the migration. Datadog integration is a must-have for launch.', 'text', DATE_ADD(@workspace_created, INTERVAL 2 DAY), b'0', b'0'),
-(30005, 20001, 200, 'Architecture review scheduled for March 20th at 2 PM. @Sarah Johnson please prepare the infrastructure diagrams.', 'text', DATE_ADD(@workspace_created, INTERVAL 5 DAY), b'0', b'0'),
+(30005, 20001, 201, 'Architecture review scheduled for March 20th at 2 PM. @Sarah Johnson please prepare the infrastructure diagrams.', 'text', DATE_ADD(@workspace_created, INTERVAL 5 DAY), b'0', b'0'),
 (30006, 20001, 203, 'Got it! Working on the AWS EKS architecture diagram now. Should we include multi-region failover?', 'text', DATE_ADD(@workspace_created, INTERVAL 6 DAY), b'0', b'0'),
-(30007, 20001, 200, 'Yes, especially since we\'re dealing with critical customer data. Design for high availability from day one.', 'text', DATE_ADD(@workspace_created, INTERVAL 7 DAY), b'0', b'0'),
+(30007, 20001, 201, 'Yes, especially since we\'re dealing with critical customer data. Design for high availability from day one.', 'text', DATE_ADD(@workspace_created, INTERVAL 7 DAY), b'0', b'0'),
 (30008, 20001, 206, 'CI/CD pipeline with GitHub Actions is ready for dev environment. I\'ve also set up the Grafana monitoring dashboard.', 'text', DATE_ADD(@workspace_created, INTERVAL 14 DAY), b'0', b'0'),
 (30009, 20001, 204, 'Great progress team! The requirements document has been approved by stakeholders. Moving to design phase. 🎯', 'text', DATE_ADD(@workspace_created, INTERVAL 18 DAY), b'0', b'0'),
-(30010, 20001, 200, 'Milestone 1 completed! All planning tasks done and signed off. On to implementation! 🚀', 'text', DATE_ADD(@workspace_created, INTERVAL 26 DAY), b'1', b'0'),
-(30011, 20001, 201, '🚨 Important: Data migration timeline adjusted due to legacy DB complexity. Let\'s discuss in tomorrow\'s standup at 10 AM.', 'text', DATE_ADD(@workspace_created, INTERVAL 30 DAY), b'0', b'0'),
+(30010, 20001, 201, 'Milestone 1 completed! All planning tasks done and signed off. On to implementation! 🚀', 'text', DATE_ADD(@workspace_created, INTERVAL 26 DAY), b'1', b'0'),
+(30011, 20001, 200, '🚨 Important: Data migration timeline adjusted due to legacy DB complexity. Let\'s discuss in tomorrow\'s standup at 10 AM.', 'text', DATE_ADD(@workspace_created, INTERVAL 30 DAY), b'0', b'0'),
 (30012, 20001, 203, 'Testing phase has uncovered some performance issues with the reporting service. Working on optimization now.', 'text', @today, b'0', b'0'),
 (30013, 20001, 202, 'Good catch @Sarah Johnson. I\'ll help with the query optimization for the reporting service later today.', 'text', @today, b'0', b'0');
 
 -- Messages for Execution Chat (Room 20002)
 INSERT INTO `messages` (`id`, `room_id`, `sender_id`, `content_text`, `content_type`, `created_at`, `is_pinned`, `is_system_message`)
 VALUES
-(31001, 20002, 200, 'Welcome to the Execution Task Force! This channel is for Milestone 2 coordination - Implementation, Testing, and Deployment.', 'text', DATE_ADD(@workspace_created, INTERVAL 28 DAY), b'1', b'0'),
+(31001, 20002, 201, 'Welcome to the Execution Task Force! This channel is for Milestone 2 coordination - Implementation, Testing, and Deployment.', 'text', DATE_ADD(@workspace_created, INTERVAL 28 DAY), b'1', b'0'),
 (31002, 20002, 202, 'Core API implementation is progressing well. Authentication module completed 2 days ahead of schedule! 👍', 'text', DATE_ADD(@workspace_created, INTERVAL 30 DAY), b'0', b'0'),
 (31003, 20002, 204, 'Great news @Mike Chen! Can you share the API documentation when ready? The frontend team needs it.', 'text', DATE_ADD(@workspace_created, INTERVAL 31 DAY), b'0', b'0'),
 (31004, 20002, 202, 'Will do. Swagger docs are live at /api-docs. Expect 95% coverage by Friday, April 18th.', 'text', DATE_ADD(@workspace_created, INTERVAL 32 DAY), b'0', b'0'),
 (31005, 20002, 206, 'Data migration scripts are ready for dry run on staging. Let me know when the environment is available.', 'text', DATE_ADD(@workspace_created, INTERVAL 34 DAY), b'0', b'0'),
-(31006, 20002, 200, 'Staging environment is provisioned. You can start the dry run tomorrow morning at 9 AM.', 'text', DATE_ADD(@workspace_created, INTERVAL 35 DAY), b'0', b'0'),
+(31006, 20002, 201, 'Staging environment is provisioned. You can start the dry run tomorrow morning at 9 AM.', 'text', DATE_ADD(@workspace_created, INTERVAL 35 DAY), b'0', b'0'),
 (31007, 20002, 203, 'Integration testing is in full swing. So far 85% of test cases are passing. The failing ones are being fixed.', 'text', DATE_ADD(@workspace_created, INTERVAL 42 DAY), b'0', b'0'),
 (31008, 20002, 204, 'Good progress on testing. Please focus on the critical path scenarios first - authentication, payments, reporting.', 'text', DATE_ADD(@workspace_created, INTERVAL 43 DAY), b'0', b'0'),
 (31009, 20002, 202, 'Data migration dry run was successful! Only minor issues found with timestamp formats. Will fix by EOD.', 'text', DATE_ADD(@workspace_created, INTERVAL 44 DAY), b'0', b'0'),
-(31010, 20002, 200, 'Excellent work team! We\'re making solid progress toward the May 30 deadline. Keep the momentum! 💪', 'text', DATE_ADD(@workspace_created, INTERVAL 45 DAY), b'0', b'0'),
+(31010, 20002, 201, 'Excellent work team! We\'re making solid progress toward the May 30 deadline. Keep the momentum! 💪', 'text', DATE_ADD(@workspace_created, INTERVAL 45 DAY), b'0', b'0'),
 (31011, 20002, 203, '⚠️ Alert: Load testing showed bottlenecks in the reporting service at 5000 concurrent users. Investigating root cause.', 'text', @today, b'0', b'0'),
 (31012, 20002, 202, 'Looking into the reporting service query patterns now. Might need to add Redis caching for frequently accessed reports.', 'text', @today, b'0', b'0');
-
--- ============================================================================
--- PART 17: PURCHASE ORDERS AND DELIVERABLES
--- ============================================================================
 
 -- ============================================================================
 -- PART 17: PURCHASE ORDERS AND DELIVERABLES (CORRECTED)
@@ -592,7 +587,7 @@ VALUES (
     40001,
     40001,
     204,
-    200,
+    201,
     'rejected',
     DATE_ADD(@workspace_created, INTERVAL 37 DAY),
     'Deliverable does NOT meet the acceptance criteria outlined in task 2.2 "Data Migration Scripts & ETL". 
@@ -661,7 +656,7 @@ VALUES (
     40002,
     40002,
     204,
-    200,
+    201,
     'validated',
     DATE_ADD(@workspace_created, INTERVAL 34 DAY),
     '✅ DELIVERABLE APPROVED - Excellent work!
@@ -693,6 +688,7 @@ VALUES (
     DATE_ADD(@workspace_created, INTERVAL 34 DAY),
     b'0'
 );
+
 -- ============================================================================
 -- PART 18: ML CHURN AGENT DATA
 -- ============================================================================
@@ -743,7 +739,7 @@ VALUES (
     'DevOps Automation Platform',
     'Automate infrastructure provisioning and release workflows across staging and production environments',
     'unitium-ws-001',
-    200,
+    201,
     'PLANNING',
     '2026-05-01',
     'PRIVATE',
@@ -760,7 +756,7 @@ VALUES (
     'Security Audit & Compliance 2026',
     'Annual security audit, penetration testing, and SOC2 compliance certification renewal',
     'unitium-ws-001',
-    201,
+    200,
     'ON_HOLD',
     '2026-06-01',
     '2026-07-30',
@@ -773,17 +769,17 @@ VALUES (
 -- OUTPUT: CREDENTIALS TABLE FOR QA LOGIN TESTING
 -- ============================================================================
 /*
-╔═══════════════════════════════════╦══════════════╦══════════════════════╗
-║              Email                ║   Password   ║        Role          ║
-╠═══════════════════════════════════╬══════════════╬══════════════════════╣
-║ alex.super@unitium.io             ║ Password123! ║ ADMIN (ORG OWNER)    ║
-║ jane.admin@unitium.io             ║ Password123! ║ ADMIN                ║
-║ mike.chen@unitium.io              ║ Password123! ║ EMPLOYEE             ║
-║ sarah.johnson@unitium.io          ║ Password123! ║ EMPLOYEE             ║
-║ david.kim@unitium.io              ║ Password123! ║ PRODUCT_OWNER        ║
-║ alex.viewer@unitium.io            ║ Password123! ║ VIEWER               ║
-║ contractor.temp@unitium.io        ║ Password123! ║ EMPLOYEE             ║
-╚═══════════════════════════════════╩══════════════╩══════════════════════╝
+╔═══════════════════════════════════╦══════════════╦══════════════════════════╗
+║              Email                ║   Password   ║        Role              ║
+╠═══════════════════════════════════╬══════════════╬══════════════════════════╣
+║ super.admin@unitium.io            ║ Password123! ║ SUPER_ADMIN (Platform)   ║
+║ jane.admin@unitium.io             ║ Password123! ║ ADMIN (Org Owner)        ║
+║ mike.chen@unitium.io              ║ Password123! ║ EMPLOYEE                 ║
+║ sarah.johnson@unitium.io          ║ Password123! ║ EMPLOYEE                 ║
+║ david.kim@unitium.io              ║ Password123! ║ PRODUCT_OWNER            ║
+║ alex.viewer@unitium.io            ║ Password123! ║ VIEWER                   ║
+║ contractor.temp@unitium.io        ║ Password123! ║ EMPLOYEE                 ║
+╚═══════════════════════════════════╩══════════════╩══════════════════════════╝
 
 Password hash used: $2a$10$Lg.VqB7pQyKj4ZnYqXLw8eqZpYJxYGq1VR5n5ZUwK5Ko9kK5tG.Ka
 Plain text password: Password123!
