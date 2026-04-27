@@ -243,7 +243,7 @@ public class UnitiumSeedService implements CommandLineRunner {
             .slug(SEED_ORG_SLUG)
             .ownerId(userJames.getId())
             .orgType(Organization.OrgType.ENTERPRISE)
-            .billingEmail("billing@unitium.io")
+            .billingEmail("hemdenminiar@gmail.com")
             .build());
 
         // Create org members

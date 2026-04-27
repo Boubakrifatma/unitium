@@ -18,6 +18,9 @@ public interface ChurnPredictionRepository extends JpaRepository<ChurnPrediction
     Optional<ChurnPrediction> findFirstByOrganizationOrderByPredictionDateDesc(
             Organization organization);
 
+    Optional<ChurnPrediction> findFirstByOrganizationOrderByChurnProbabilityDesc(
+            Organization organization);
+
     List<ChurnPrediction> findByOrganizationOrderByPredictionDateDesc(
             Organization organization);
 

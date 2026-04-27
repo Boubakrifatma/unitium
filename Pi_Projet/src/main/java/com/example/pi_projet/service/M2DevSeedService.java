@@ -64,6 +64,7 @@ public class M2DevSeedService {
     // ── Repositories ────────────────────────────────────────────────────────
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
     private final UserRepository userRepository;
+    private final org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder passwordEncoder;
     private final OrganizationMemberRepository organizationMemberRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final WorkspaceRepository workspaceRepository;
@@ -92,7 +93,7 @@ public class M2DevSeedService {
 
         // ── 1. Load all required users (from UnitiumSeedService + AcademicSeedService) ─
         User admin     = requireUser("admin@academy.edu");
-        User manager   = requireUser("hemdenminiar@gmail.com");
+        User manager   = ensureUser("manager@test.com", "NexusCorp Manager", User.RoleName.MANAGER);
         User manager2  = requireUser("manager2@unitium.io");
         User tutor     = requireUser("tutor1@academy.edu");
         User tutor2    = requireUser("tutor2@academy.edu");
@@ -2660,5 +2661,17 @@ public class M2DevSeedService {
     private User requireUser(String email) {
         return userRepository.findByEmail(email)
             .orElseThrow(() -> new IllegalStateException("[M2DevSeedService] Missing required user: " + email));
+    }
+
+    private User ensureUser(String email, String fullName, User.RoleName role) {
+        return userRepository.findByEmail(email).orElseGet(() ->
+            userRepository.save(User.builder()
+                .email(email)
+                .fullName(fullName)
+                .passwordHash(passwordEncoder.encode("Password123!"))
+                .role(role)
+                .isActive(true)
+                .isVerified(true)
+                .build()));
     }
 }
