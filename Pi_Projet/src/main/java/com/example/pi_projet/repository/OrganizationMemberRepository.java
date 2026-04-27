@@ -62,4 +62,9 @@ public interface OrganizationMemberRepository extends JpaRepository<Organization
     long countByOrganization_IdAndDeletedAtIsNull(UUID organizationId);
 
     boolean existsByOrganization_IdAndUserIdAndDeletedAtIsNull(UUID organizationId, Long userId);
+
+    @Query("SELECT m FROM OrganizationMember m WHERE m.userId = :userId AND m.role = :role AND m.deletedAt IS NULL")
+    List<OrganizationMember> findAllByUserIdAndRoleAndDeletedAtIsNull(
+            @Param("userId") Long userId,
+            @Param("role") OrganizationMember.OrganizationRole role);
 }
