@@ -83,38 +83,52 @@ interface WorkspaceActivity {
         SkeletonCardComponent,
     ],
     template: `
-        <div class="container-fluid fade-in mb-3 mb-lg-4">
-            <mat-card class="bg-light-theme shadow-none pt-3 pb-lg-3 px-3">
-                <div class="row gx-3 align-items-center">
-                    <div class="col-12 col-md mb-3 mb-xl-0 py-1 order-1 order-lg-1">
-                        <h3 class="mb-1">Workspace: {{ workspace()?.name || "Details" }}</h3>
-                        <p class="small mb-0">
-                            <span routerLink="/app/dashboard" class="me-2 text-theme style-none"><mat-icon class="material-icons-outlined align-middle text-sm">house</mat-icon> Home</span>
-                            <mat-icon class="material-icons-outlined align-middle text-sm me-2">chevron_right</mat-icon>
-                            <span routerLink="/app/workspaces" class="me-2 text-theme style-none">Workspaces</span>
-                            <mat-icon class="material-icons-outlined align-middle text-sm me-2">chevron_right</mat-icon>
-                            Workspace Details
-                        </p>
-                    </div>
+        <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:3rem 2rem;box-shadow:0 12px 40px rgba(102,126,234,0.2);position:relative;overflow:hidden;">
+            <div style="position:absolute;top:-50%;right:-10%;width:500px;height:500px;background:radial-gradient(circle,rgba(255,255,255,0.1),transparent 70%);pointer-events:none;"></div>
+            <div style="max-width:1420px;margin:0 auto;position:relative;z-index:2;">
+                <!-- Breadcrumb -->
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1.5rem;font-size:0.85rem;color:rgba(255,255,255,0.8);font-weight:500;">
+                    <span style="cursor:pointer;transition:all 0.2s;" routerLink="/app/dashboard">Dashboard</span>
+                    <mat-icon style="font-size:16px;width:16px;height:16px;">chevron_right</mat-icon>
+                    <span style="cursor:pointer;transition:all 0.2s;" routerLink="/app/workspaces">Workspaces</span>
+                    <mat-icon style="font-size:16px;width:16px;height:16px;">chevron_right</mat-icon>
+                    <span style="color:rgba(255,255,255,0.95);">{{ workspace()?.name || 'Workspace Details' }}</span>
+                </div>
 
-                    <div class="col-auto order-2 order-lg-5 mb-3 mb-xl-0 d-flex align-items-center">
-                        <mat-form-field appearance="outline" style="width:220px;margin-right:8px;">
+                <!-- Title and Actions -->
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:2rem;flex-wrap:wrap;">
+                    <div>
+                        <h1 style="margin:0;color:white;font-size:2.2rem;font-weight:700;letter-spacing:-0.5px;line-height:1.2;">{{ workspace()?.name || 'Workspace' }}</h1>
+                        <p style="margin:0.8rem 0 0;color:rgba(255,255,255,0.85);font-size:0.95rem;">{{ workspace()?.organization?.name || '' }}</p>
+                    </div>
+                    <div style="display:flex;gap:0.8rem;flex-wrap:wrap;align-items:center;">
+                        <!-- Date picker -->
+                        <mat-form-field appearance="outline" style="width:200px;margin:0;--mdc-outlined-text-field-outline-color:rgba(255,255,255,0.4);--mdc-outlined-text-field-label-text-color:rgba(255,255,255,0.8);--mdc-outlined-text-field-input-text-color:white;">
                             <input matInput [matDatepicker]="asOfPicker" placeholder="View as of" [value]="historicalAsDate()" (dateChange)="onDateSelected($event)" [min]="pickerMinDate()" [max]="pickerMaxDate()" [matDatepickerFilter]="dateFilter">
-                            <mat-datepicker-toggle matSuffix [for]="asOfPicker"></mat-datepicker-toggle>
+                            <mat-datepicker-toggle matSuffix [for]="asOfPicker" style="color:rgba(255,255,255,0.8);"></mat-datepicker-toggle>
                             <mat-datepicker #asOfPicker [dateClass]="timelineDateClass"></mat-datepicker>
                         </mat-form-field>
-                        <button matButton (click)="backToWorkspaces()"><mat-icon class="material-icons-outlined">arrow_back</mat-icon> Back</button>
-                        <button matButton class="ms-1" (click)="refresh()"><mat-icon class="material-icons-outlined">refresh</mat-icon> Refresh</button>
-                        @if (canEditWorkspace()) {
-                        <button matButton="filled" class="ms-1" (click)="openEditWorkspaceDialog()"><mat-icon class="material-icons-outlined">edit</mat-icon> Edit</button>
-                        <button matButton class="ms-1" [disabled]="exporting()" (click)="exportPdf()">
-                            <mat-icon class="material-icons-outlined">download</mat-icon>
-                            {{ exporting() ? 'Exporting...' : 'Export PDF' }}
+                        <button matButton (click)="backToWorkspaces()" style="background:rgba(255,255,255,0.15);color:white;border-radius:10px;transition:all 0.2s;">
+                            <mat-icon style="font-size:18px;width:18px;height:18px;margin-right:6px;">arrow_back</mat-icon>
+                            Back
                         </button>
+                        <button matButton (click)="refresh()" style="background:rgba(255,255,255,0.15);color:white;border-radius:10px;transition:all 0.2s;">
+                            <mat-icon style="font-size:18px;width:18px;height:18px;margin-right:6px;">refresh</mat-icon>
+                            Refresh
+                        </button>
+                        @if (canEditWorkspace()) {
+                            <button matButton (click)="openEditWorkspaceDialog()" style="background:white;color:#667eea;border-radius:10px;font-weight:700;transition:all 0.2s;">
+                                <mat-icon style="font-size:18px;width:18px;height:18px;margin-right:6px;">edit</mat-icon>
+                                Edit
+                            </button>
+                            <button matButton [disabled]="exporting()" (click)="exportPdf()" style="background:rgba(255,255,255,0.15);color:white;border-radius:10px;transition:all 0.2s;">
+                                <mat-icon style="font-size:18px;width:18px;height:18px;margin-right:6px;">download</mat-icon>
+                                {{ exporting() ? 'Exporting...' : 'Export PDF' }}
+                            </button>
                         }
                     </div>
                 </div>
-            </mat-card>
+            </div>
         </div>
 
         @if (historicalMode()) {
@@ -1391,48 +1405,51 @@ interface WorkspaceActivity {
     `,
     styles: [`
             .proj-card {
-                border: 1.5px solid rgba(0,0,0,0.07);
-                border-radius: 14px;
+                border: 1px solid #e5e7eb;
+                border-radius: 12px;
                 cursor: pointer;
                 overflow: hidden;
-                transition: all 0.18s ease;
+                transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
             }
             .proj-card:hover {
-                border-color: rgba(0,136,255,0.25);
-                box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-                transform: translateY(-1px);
+                border-color: #667eea;
+                box-shadow: 0 12px 32px rgba(102, 126, 234, 0.15);
+                transform: translateY(-3px);
             }
-            .proj-card__bar { height: 3px; background: #e2e8f0; }
-            .proj-card__bar--active { background: linear-gradient(90deg, #22c55e, #4ade80); }
-            .proj-card__bar--done { background: linear-gradient(90deg, #94a3b8, #cbd5e1); }
-            .proj-card__bar--hold { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+            .proj-card__bar { height: 3px; background: #e5e7eb; }
+            .proj-card__bar--active { background: linear-gradient(90deg, #10b981, #059669); }
+            .proj-card__bar--done { background: linear-gradient(90deg, #667eea, #764ba2); }
+            .proj-card__bar--hold { background: linear-gradient(90deg, #f59e0b, #d97706); }
 
             .bulk-action-bar {
-                border: 1px solid rgba(0, 136, 255, 0.3);
-                background: rgba(0, 136, 255, 0.06);
+                border: 1px solid rgba(102, 126, 234, 0.3);
+                background: rgba(102, 126, 234, 0.06);
                 border-radius: 12px;
             }
 
             .selected-count {
                 min-width: 120px;
-                color: #0088ff;
+                color: #667eea;
             }
 
             button[matIconButton].active {
-                border: 1px solid rgba(0, 136, 255, 0.5);
-                background: rgba(0, 136, 255, 0.1);
+                border: 1px solid rgba(102, 126, 234, 0.5);
+                background: rgba(102, 126, 234, 0.1);
+                color: #667eea;
             }
 
             .projects-action-wrap .ai-pill-btn {
-                background: linear-gradient(135deg, #0f766e 0%, #0ea5a4 100%);
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                 color: #ffffff;
                 border: 0;
-                box-shadow: 0 8px 18px rgba(15, 118, 110, 0.32);
+                box-shadow: 0 8px 18px rgba(102, 126, 234, 0.32);
             }
 
             .projects-action-wrap .ai-pill-btn:hover {
                 filter: brightness(1.05);
-                transform: translateY(-1px);
+                transform: translateY(-2px);
+                box-shadow: 0 12px 24px rgba(102, 126, 234, 0.4);
             }
 
             .ai-pill-btn {
@@ -1464,7 +1481,7 @@ interface WorkspaceActivity {
             /* Identity card */
             .ov-id-banner {
                 height: 72px;
-                background: linear-gradient(135deg, #1e3a5f 0%, #0f6fa8 60%, #0ea5e9 100%);
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                 border-radius: 8px 8px 0 0;
                 display: flex;
                 align-items: center;
@@ -1519,17 +1536,18 @@ interface WorkspaceActivity {
                 gap: 5px;
                 font-size: 12px;
                 font-weight: 600;
-                padding: 6px 0;
-                border-radius: 8px;
-                border: 1.5px solid rgba(14, 165, 233, 0.4);
-                color: #0ea5e9;
-                background: rgba(14, 165, 233, 0.06);
+                padding: 8px 12px;
+                border-radius: 10px;
+                border: 1px solid rgba(102, 126, 234, 0.3);
+                color: #667eea;
+                background: rgba(102, 126, 234, 0.08);
                 cursor: pointer;
-                transition: background .2s, border-color .2s;
+                transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
             }
             .ov-pulse-btn:hover {
-                background: rgba(14, 165, 233, 0.12);
-                border-color: rgba(14, 165, 233, 0.7);
+                background: rgba(102, 126, 234, 0.15);
+                border-color: rgba(102, 126, 234, 0.6);
+                transform: translateY(-1px);
             }
 
             /* KPI strip */
@@ -1577,9 +1595,9 @@ interface WorkspaceActivity {
                 border-radius: 20px;
                 color: #fff;
             }
-            .ov-status--healthy  { background: #1D9E75; }
-            .ov-status--warning  { background: #EF9F27; }
-            .ov-status--critical { background: #E24B4A; }
+            .ov-status--healthy  { background: #10b981; }
+            .ov-status--warning  { background: #f59e0b; }
+            .ov-status--critical { background: #dc2626; }
 
             /* SVG ring */
             .ov-ring-wrap {
@@ -1757,15 +1775,15 @@ interface WorkspaceActivity {
             }
 
             .mb-invite-btn {
-                background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                 color: white;
                 border: 0;
-                box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-                transition: transform 0.2s ease, box-shadow 0.2s ease;
+                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+                transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
             }
             .mb-invite-btn:hover {
-                transform: translateY(-1px);
-                box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+                transform: translateY(-2px);
+                box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
             }
 
             .mb-analytics-card {

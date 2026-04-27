@@ -67,117 +67,406 @@ interface RealProjectRow {
     ],
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
     styles: [`
-        /* ===== Header & Workspace Switcher ===== */
-        .header-section {
-            background: linear-gradient(135deg, #f5f3ff 0%, #f0f4ff 100%);
-            border-radius: 12px;
-            border: 1px solid rgba(99, 102, 241, 0.1);
-            transition: all 0.3s ease;
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+        :host {
+            --rp-primary: #667eea;
+            --rp-secondary: #764ba2;
+            --rp-completed: #10b981;
+            --rp-active: #6366f1;
+            --rp-on-hold: #f97316;
+            --rp-planning: #64748b;
+            --rp-cancelled: #ef4444;
+            display: block;
+            font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+            color: #1f2937;
+            background: #fafbfc;
         }
-        .workspace-context {
+
+        /* ── Page Shell ── */
+        .page-shell {
+            position: relative;
+            padding: 0;
+            background: #fafbfc;
+            overflow: hidden;
+            min-height: 100%;
+        }
+
+        /* ── Hero Panel ── */
+        .hero-panel {
+            position: relative;
+            z-index: 1;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 2.5rem 2rem;
+            margin-bottom: 0;
+            border: none;
+            border-radius: 0;
+            box-shadow: 0 8px 32px rgba(102,126,234,0.2);
+            overflow: hidden;
+        }
+        .hero-panel::before {
+            content: "";
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(255,255,255,0.1), transparent 70%);
+            pointer-events: none;
+        }
+        .hero-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 2rem;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 2;
+        }
+        .eyebrow {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: rgba(255,255,255,0.8);
+            margin: 0 0 0.4rem;
+            font-weight: 700;
+            word-spacing: 0.2em;
+        }
+        .page-title {
+            font-family: "Space Grotesk", "Segoe UI", sans-serif;
+            font-size: clamp(1.6rem, 1.2rem + 1.5vw, 2.2rem);
+            margin: 0 0 0.6rem 0;
+            color: white;
+            font-weight: 700;
+            line-height: 1.2;
+            letter-spacing: -0.5px;
+        }
+        .breadcrumb-row {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 0.4rem;
+            margin: 0.6rem 0 0;
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.8);
+            font-weight: 500;
         }
+        .breadcrumb-row .bc-link {
+            color: white;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .breadcrumb-row mat-icon {
+            font-size: 13px;
+            width: 13px;
+            height: 13px;
+        }
+        .hero-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* ── Workspace Badge ── */
         .workspace-badge {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
-            background: white;
-            border: 1px solid rgba(99, 102, 241, 0.2);
-            border-radius: 8px;
+            gap: 0.6rem;
+            padding: 0.7rem 1.3rem;
+            background: rgba(255,255,255,0.15);
+            border: 1.5px solid rgba(255,255,255,0.25);
+            border-radius: 14px;
             cursor: pointer;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: white;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
         }
         .workspace-badge:hover {
-            border-color: #6366f1;
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
-            background: linear-gradient(135deg, #f5f3ff, white);
+            background: rgba(255,255,255,0.2);
+            border-color: rgba(255,255,255,0.35);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
         }
-        .workspace-badge mat-icon {
-            color: #6366f1;
-        }
-        .workspace-name-text {
-            font-weight: 500;
-            color: #1a202c;
-            font-size: 14px;
-        }
-        .workspace-switch-btn {
-            position: relative;
-        }
-        .workspace-switch-btn:hover {
-            background: rgba(99, 102, 241, 0.05) !important;
-        }
+        .workspace-badge mat-icon { color: white; font-size: 18px; width: 18px; height: 18px; }
+        .workspace-name-text { font-weight: 700; color: white; font-size: 0.9rem; }
 
-        /* ===== Status Chips ===== */
-        .status-chip {
-            border: 1px solid rgba(0, 0, 0, 0.13);
-            background: white;
-            padding: 6px 14px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 12px;
-            color: #475569;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            font-weight: 500;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .status-chip:hover {
-            border-color: rgba(99, 102, 241, 0.3);
-            background: rgba(99, 102, 241, 0.02);
-            transform: translateY(-1px);
-        }
-        .status-chip.active {
-            border-color: #6366f1;
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(99, 102, 241, 0.02));
-            color: #6366f1;
-            font-weight: 600;
-            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
-        }
-        .status-count {
-            font-size: 11px;
-            opacity: 0.7;
-            margin-left: 4px;
-            background: rgba(0, 0, 0, 0.05);
-            padding: 2px 6px;
-            border-radius: 10px;
-        }
-
-        /* ===== Search & Filters ===== */
-        .search-section {
+        /* ── Filters Row ── */
+        .filters-row {
+            margin-top: 1.6rem;
+            padding-top: 1.6rem;
+            border-top: 1px solid rgba(255,255,255,0.12);
             display: flex;
-            gap: 12px;
             align-items: center;
+            gap: 0.8rem;
             flex-wrap: wrap;
+            position: relative;
+            z-index: 2;
+        }
+        .filter-label {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: rgba(255,255,255,0.65);
+            font-weight: 800;
+            margin-right: 0.4rem;
         }
         .filter-divider {
             width: 1px;
-            height: 24px;
-            background: rgba(0, 0, 0, 0.1);
-            margin: 0 8px;
+            height: 20px;
+            background: rgba(255,255,255,0.15);
+            margin: 0 2px;
         }
 
-        /* ===== Bulk Action Bar ===== */
+        /* ── Status Chips ── */
+        .status-chip {
+            border: 1.5px solid #d1d5db;
+            background: white;
+            padding: 0.5rem 1rem;
+            border-radius: 22px;
+            cursor: pointer;
+            font-size: 0.78rem;
+            color: #6b7280;
+            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: inherit;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+        }
+        .status-chip:hover {
+            border-color: #667eea;
+            color: #667eea;
+            box-shadow: 0 4px 12px rgba(102,126,234,0.12);
+            transform: translateY(-1px);
+        }
+        .status-chip.active {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 700;
+            box-shadow: 0 6px 20px rgba(102,126,234,0.25);
+        }
+        .status-count {
+            font-size: 0.68rem;
+            opacity: 0.8;
+            background: rgba(0,0,0,0.08);
+            padding: 2px 6px;
+            border-radius: 9px;
+            font-weight: 600;
+        }
+
+        /* ── Content Panels ── */
+        .content-wrap {
+            position: relative;
+            z-index: 1;
+            padding: 2rem 2.5rem;
+            max-width: 1420px;
+            margin: 0 auto;
+        }
+        .panel {
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            background: white;
+            padding: 1.5rem 1.8rem;
+            margin-bottom: 1rem;
+            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .panel:hover {
+            border-color: #667eea;
+            box-shadow: 0 12px 32px rgba(102,126,234,0.15);
+            transform: translateY(-3px);
+        }
+
+        /* ── Historical Banner ── */
+        .hist-banner {
+            border: 1px solid rgba(217,119,6,0.32);
+            background: rgba(255,242,214,0.88);
+            border-radius: 12px;
+            padding: 0.8rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            margin-bottom: 0.8rem;
+            flex-wrap: wrap;
+            position: relative; z-index: 1;
+        }
+        .hist-banner mat-icon { color: #f97316; }
+
+        /* ── Error Banner ── */
+        .error-banner {
+            border: 1px solid rgba(239,68,68,0.3);
+            border-radius: 12px;
+            background: #fee2e2;
+            color: #991b1b;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.8rem;
+            position: relative; z-index: 1;
+        }
+
+        /* ── Loading ── */
+        .loading-shell {
+            min-height: 200px;
+            display: grid;
+            place-items: center;
+            gap: 0.7rem;
+            color: #6b7280;
+            text-align: center;
+        }
+
+        /* ── Empty State ── */
+        .empty-state-wrap {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #6b7280;
+            animation: fadeIn 0.6s ease-out;
+        }
+        .empty-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 8px 24px rgba(102,126,234,0.25);
+        }
+        .empty-icon mat-icon {
+            font-size: 40px;
+            width: 40px;
+            height: 40px;
+        }
+
+        /* ── Promo Card ── */
+        .promo-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            padding: 1.8rem 2rem;
+            color: #fff;
+            margin-bottom: 1rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 8px 24px rgba(102,126,234,0.3);
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .promo-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 16px 48px rgba(102,126,234,0.4);
+        }
+        .promo-card::before {
+            content: "";
+            position: absolute;
+            top: -40px; right: -40px;
+            width: 160px; height: 160px;
+            background: radial-gradient(circle, rgba(255,255,255,0.12), transparent 70%);
+            animation: float 6s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+        .promo-card h2 {
+            font-family: "Space Grotesk", "Segoe UI", sans-serif;
+            font-size: 1.1rem;
+            margin: 0 0 0.5rem;
+            position: relative; z-index: 1;
+        }
+        .promo-card p { margin: 0 0 0.9rem; opacity: 0.85; font-size: 0.83rem; position: relative; z-index: 1; }
+        .promo-actions { display: flex; flex-wrap: wrap; gap: 8px; position: relative; z-index: 1; }
+        .promo-btn {
+            background: rgba(255,255,255,0.16) !important;
+            color: #fff !important;
+            border-radius: 999px !important;
+            border: 1px solid rgba(255,255,255,0.28) !important;
+            transition: background 0.2s ease !important;
+        }
+        .promo-btn:hover { background: rgba(255,255,255,0.26) !important; }
+        .promo-btn-ghost { color: rgba(255,255,255,0.88) !important; }
+
+        /* ── Bulk Action Bar ── */
         .bulk-bar {
             position: fixed;
             bottom: 24px;
             left: 50%;
             transform: translateX(-50%);
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-            padding: 14px 24px;
+            background: rgba(255,255,255,0.96);
+            border-radius: 14px;
+            box-shadow: 0 14px 42px rgba(15,47,58,0.2);
+            padding: 0.9rem 1.5rem;
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 1rem;
             z-index: 1000;
             min-width: 360px;
-            border: 1px solid rgba(0, 0, 0, 0.08);
-            animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid #e5e7eb;
+            animation: slideUp 0.28s cubic-bezier(0.4,0,0.2,1);
+            backdrop-filter: blur(10px);
         }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateX(-50%) translateY(18px); }
+            to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+
+        /* ── Action Buttons ── */
+        .action-btn {
+            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border-radius: 11px !important;
+            color: white !important;
+            opacity: 0.9;
+        }
+        .action-btn:hover {
+            background: rgba(255,255,255,0.2) !important;
+            opacity: 1;
+        }
+        .primary-btn {
+            background: white !important;
+            color: #667eea !important;
+            border-radius: 999px !important;
+            font-weight: 700 !important;
+            font-size: 0.85rem !important;
+            padding: 0.6rem 1.4rem !important;
+            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+        }
+        .primary-btn:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15) !important;
+        }
+
+        /* ── Animations ── */
+        .reveal {
+            animation: revealIn 600ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
+
+        @keyframes revealIn {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
         @keyframes slideUp {
             from {
                 opacity: 0;
@@ -189,343 +478,416 @@ interface RealProjectRow {
             }
         }
 
-        /* ===== Action Buttons ===== */
-        .action-button {
-            transition: all 0.2s ease;
-        }
-        .action-button:hover {
-            background: rgba(99, 102, 241, 0.05);
+        /* ── KPI Strip ── */
+        .kpi-strip {
+            display: flex;
+            gap: 16px;
+            align-items: stretch;
+            flex-wrap: wrap;
+            margin-bottom: 2.5rem;
+            position: relative;
+            z-index: 1;
+            animation: slideDown 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
-        /* ===== Empty State ===== */
-        .empty-state-icon {
-            width: 80px;
-            height: 80px;
-            background: rgba(99, 102, 241, 0.1);
-            border-radius: 16px;
-            display: inline-flex;
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-16px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .kpi-box {
+            flex: 1;
+            min-width: 110px;
+            border-radius: 14px;
+            padding: 18px 20px;
+            display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            color: #6366f1;
-            margin-bottom: 16px;
-        }
-        .empty-state-icon mat-icon {
-            font-size: 40px;
-            width: 40px;
-            height: 40px;
+            gap: 6px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border: 1px solid rgba(0,0,0,0.05);
         }
 
-        /* ===== Error Card ===== */
-        .error-card {
-            border-left: 4px solid #ef4444;
+        .kpi-box:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 32px rgba(0,0,0,0.12);
         }
 
-        /* ===== Responsive ===== */
+        .kpi-num {
+            font-size: 2.2rem;
+            font-weight: 900;
+            line-height: 1;
+            letter-spacing: -1px;
+        }
+
+        .kpi-label {
+            font-size: 0.73rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            opacity: 0.8;
+        }
+
+        .kpi-total { background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%); color: #6d28d9; }
+        .kpi-planning { background: linear-gradient(135deg, #e0e7ff 0%, #ddd6fe 100%); color: #4f46e5; }
+        .kpi-active { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); color: #1e40af; }
+        .kpi-on-hold { background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%); color: #b45309; }
+        .kpi-completed { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); color: #065f46; }
+        .kpi-cancelled { background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); color: #991b1b; }
+
+        /* ── Responsive ── */
+        @media (max-width: 1024px) {
+            .content-wrap { padding: 1.8rem 2rem; }
+            .hero-panel { padding: 2rem; }
+        }
+
         @media (max-width: 768px) {
-            .workspace-badge {
-                padding: 6px 12px;
-                font-size: 13px;
-            }
-            .search-section {
+            .hero-top {
                 flex-direction: column;
-                width: 100%;
+                gap: 1.2rem;
             }
-            .filter-divider {
-                display: none;
+            .page-title {
+                font-size: clamp(1.4rem, 1rem + 1vw, 1.8rem);
+            }
+            .workspace-badge {
+                padding: 0.6rem 1rem;
+                font-size: 0.8rem;
             }
             .bulk-bar {
                 min-width: auto;
                 width: calc(100% - 32px);
                 left: 16px;
                 transform: none;
+                padding: 0.8rem 1.2rem;
+            }
+            .content-wrap {
+                padding: 1.5rem 1.2rem;
+            }
+            .kpi-strip {
+                gap: 10px;
+                margin-bottom: 1.8rem;
+            }
+            .kpi-box {
+                min-width: 90px;
+                padding: 14px 16px;
+            }
+            .kpi-num {
+                font-size: 1.8rem;
+            }
+            .kpi-label {
+                font-size: 0.68rem;
+            }
+            .filters-row {
+                margin-top: 1rem;
+                padding-top: 1rem;
+                gap: 0.6rem;
             }
         }
 
-        /* ===== Loading Animation ===== */
-        @keyframes shimmer {
-            0% { background-position: -1000px 0; }
-            100% { background-position: 1000px 0; }
+        @media (max-width: 480px) {
+            :host {
+                font-size: 0.95rem;
+            }
+            .hero-panel {
+                padding: 1.5rem;
+            }
+            .page-title {
+                font-size: 1.3rem;
+            }
+            .kpi-strip {
+                flex-direction: column;
+                gap: 8px;
+            }
+            .kpi-box {
+                width: 100%;
+                flex: auto;
+            }
+            .hero-actions {
+                flex-direction: column;
+                width: 100%;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .reveal, .bulk-bar, .kpi-strip { animation: none !important; }
+            * { transition: none !important; }
         }
     `],
     template: `
-        <!-- Header Section -->
-        <div class="container-fluid fade-in mb-4">
-            <mat-card class="header-section shadow-none p-4">
-                <div class="row gx-3 gx-lg-4 align-items-center mb-3">
-                    <div class="col-12 col-lg-auto mb-3 mb-lg-0">
-                        <div>
-                            <h2 class="mb-2" style="font-size: 28px; font-weight: 700; color: #1a202c;">Real Projects</h2>
-                            <p class="text-secondary small mb-0">
-                                <span routerLink="/app/dashboard" class="text-theme style-none d-inline-flex align-items-center gap-1">
-                                    <mat-icon class="material-icons-outlined" style="font-size: 16px;">home</mat-icon> Dashboard
-                                </span>
-                                <span class="mx-2">/</span>
-                                <span style="color: #6366f1; font-weight: 500;">Real Projects</span>
-                            </p>
+        <section class="page-shell">
+
+            <!-- ── Hero Panel ── -->
+            <header class="hero-panel reveal">
+                <div class="hero-top">
+                    <div>
+                        <p class="eyebrow">CMP Project Portfolio</p>
+                        <h1 class="page-title">Real Projects</h1>
+                        <div class="breadcrumb-row">
+                            <span class="bc-link" routerLink="/app/dashboard">Home</span>
+                            <mat-icon class="material-icons-outlined">chevron_right</mat-icon>
+                            <span>Real Projects</span>
                         </div>
                     </div>
-
-                    <div class="col-12 col-lg-auto ms-lg-auto mb-3 mb-lg-0">
+                    <div class="hero-actions">
                         @if (selectedWorkspaceName()) {
-                            <div class="workspace-context">
-                                <div class="workspace-badge" (click)="openWorkspaceSwitcher()" 
-                                    matTooltip="Click to switch workspace">
-                                    <mat-icon class="material-icons-outlined" style="font-size: 18px;">business</mat-icon>
-                                    <span class="workspace-name-text">{{ selectedWorkspaceName() }}</span>
-                                    <mat-icon class="material-icons-outlined" style="font-size: 16px; margin-left: 4px;">unfold_more</mat-icon>
-                                </div>
+                            <div class="workspace-badge" (click)="openWorkspaceSwitcher()" matTooltip="Click to switch workspace">
+                                <mat-icon class="material-icons-outlined">business</mat-icon>
+                                <span class="workspace-name-text">{{ selectedWorkspaceName() }}</span>
+                                <mat-icon class="material-icons-outlined" style="font-size:16px;width:16px;height:16px;">unfold_more</mat-icon>
                             </div>
                         } @else {
-                            <button mat-raised-button color="primary" (click)="openWorkspaceSwitcher()" class="workspace-switch-btn">
+                            <button mat-flat-button type="button" class="primary-btn" (click)="openWorkspaceSwitcher()">
                                 <mat-icon class="material-icons-outlined">language</mat-icon>
                                 Choose Workspace
                             </button>
                         }
-                    </div>
-                </div>
-
-                <!-- Search & Filters Row -->
-                <div class="row gx-3 gx-lg-4 align-items-center">
-                    <div class="col-12 col-lg-8 mb-3 mb-lg-0">
-                        <mat-form-field appearance="outline" class="w-100">
-                            <mat-label>Search projects</mat-label>
-                            <mat-icon matPrefix>search</mat-icon>
-                            <input matInput placeholder="By name, workspace, or manager..." (input)="onSearch($event)" />
+                        <mat-form-field appearance="outline" style="width:240px;margin:0;--mdc-theme-primary:white;">
+                            <mat-label style="color:rgba(255,255,255,0.8)!important;">Search projects</mat-label>
+                            <mat-icon matPrefix style="color:white;">search</mat-icon>
+                            <input matInput placeholder="Name, workspace, manager…" (input)="onSearch($event)" style="color:white;" />
                         </mat-form-field>
-                    </div>
-
-                    <div class="col-12 col-lg-auto ms-lg-auto mb-3 mb-lg-0 d-flex gap-2 align-items-center flex-wrap">
-                        <button matIconButton matTooltip="Refresh" (click)="loadRealProjects()" class="action-button">
+                        <button matIconButton matTooltip="Refresh" (click)="loadRealProjects()" class="action-btn">
                             <mat-icon class="material-icons-outlined">refresh</mat-icon>
                         </button>
                         @if (selectedWorkspaceId()) {
                             <span class="filter-divider"></span>
-                            <button matButton class="action-button" (click)="showAllWorkspaces()" matTooltip="Clear workspace filter">
+                            <button matButton class="action-btn" (click)="showAllWorkspaces()" matTooltip="Clear workspace filter">
                                 <mat-icon class="material-icons-outlined">close</mat-icon>
                                 Clear Filter
                             </button>
                         }
-                        <button matIconButton 
+                        <button matIconButton
                             [class.text-theme]="bulkMode()"
                             matTooltip="{{ bulkMode() ? 'Exit select mode' : 'Multi-select' }}"
                             (click)="toggleBulkMode()"
-                            class="action-button">
+                            class="action-btn">
                             <mat-icon class="material-icons-outlined">{{ bulkMode() ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
                         </button>
                     </div>
                 </div>
 
-                <!-- Status Filter Chips -->
                 @if (projectCardsData().length > 0) {
-                    <div class="mt-4 pt-3 border-top d-flex align-items-center gap-2 flex-wrap">
-                        <p class="small text-secondary mb-0 me-3" style="margin-bottom: 0 !important;">Filter:</p>
+                    <div class="filters-row">
+                        <span class="filter-label">Filter:</span>
                         @for (opt of statusOptions; track opt.value) {
                             <button class="status-chip" [class.active]="statusFilter() === opt.value"
                                 (click)="statusFilter.set(opt.value)">
-                                <mat-icon class="material-icons-outlined" style="font-size: 14px; margin-right: 2px;">
-                                    {{ opt.value === 'ALL' ? 'apps' : 'circle' }}
-                                </mat-icon>
                                 <span>{{ opt.label }}</span>
                                 <span class="status-count">{{ countByStatus(opt.value) }}</span>
                             </button>
                         }
                     </div>
                 }
-            </mat-card>
-        </div>
+            </header>
 
-        @if (historicalMode()) {
-        <div class="container fade-in mb-3">
-            <mat-card class="mb-3" style="background:#fff7ed;border-left:4px solid #f59e0b;">
-                <mat-card-content>
-                    <div class="d-flex align-items-start align-items-lg-center gap-2 flex-column flex-lg-row">
-                        <div class="d-flex align-items-center">
-                            <mat-icon style="color:#b45309">history_toggle_off</mat-icon>
-                            <div style="margin-left:12px">
-                                <div style="font-weight:600">Viewing projects as of {{ historicalDisplay() }}</div>
-                                <div class="small text-secondary">Read-only historical mode</div>
-                            </div>
+            <!-- ── KPI Strip ── -->
+            @if (projectCardsData().length > 0) {
+                <div class="content-wrap" style="padding-top: 0; padding-bottom: 0;">
+                    <div class="kpi-strip">
+                        <div class="kpi-box kpi-total">
+                            <span class="kpi-num">{{ projectCardsData().length }}</span>
+                            <span class="kpi-label">Total</span>
                         </div>
-                        <div class="d-flex flex-wrap gap-1 ms-lg-auto">
-                            @for (checkpoint of timelineQuickDates(); track checkpoint.at + '-' + $index) {
-                                <button
-                                    matButton
-                                    class="badge-light"
-                                    [matTooltip]="checkpoint.label || checkpoint.kind || checkpoint.at"
-                                    (click)="jumpToHistoricalDate(checkpoint.at)">
-                                    {{ checkpoint.at | date:'yyyy-MM-dd' }}
-                                </button>
-                            }
-                            <button matButton (click)="clearHistorical()">Exit</button>
+                        <div class="kpi-box kpi-planning">
+                            <span class="kpi-num">{{ countByStatus('PLANNING') }}</span>
+                            <span class="kpi-label">Planning</span>
                         </div>
-                    </div>
-                </mat-card-content>
-            </mat-card>
-        </div>
-        }
-
-        <div class="container fade-in">
-            @if (lastError()) {
-            <mat-card class="mb-3 mb-lg-4 border theme-red">
-                <mat-card-content>
-                    <div class="d-flex align-items-start">
-                        <mat-icon class="material-icons-outlined me-2 theme-red">error</mat-icon>
-                        <div>
-                            <p class="fw-medium mb-1">Failed to load real projects</p>
-                            <p class="small mb-0">{{ lastError() }}</p>
+                        <div class="kpi-box kpi-active">
+                            <span class="kpi-num">{{ countByStatus('ACTIVE') }}</span>
+                            <span class="kpi-label">Active</span>
+                        </div>
+                        <div class="kpi-box kpi-on-hold">
+                            <span class="kpi-num">{{ countByStatus('ON_HOLD') }}</span>
+                            <span class="kpi-label">On Hold</span>
+                        </div>
+                        <div class="kpi-box kpi-completed">
+                            <span class="kpi-num">{{ countByStatus('COMPLETED') }}</span>
+                            <span class="kpi-label">Completed</span>
+                        </div>
+                        <div class="kpi-box kpi-cancelled">
+                            <span class="kpi-num">{{ countByStatus('CANCELLED') }}</span>
+                            <span class="kpi-label">Cancelled</span>
                         </div>
                     </div>
-                </mat-card-content>
-            </mat-card>
-            }
-
-            @if (isLoading()) {
-            <mat-card class="mb-3 mb-lg-4">
-                <mat-card-content>
-                    <p class="mb-0">Loading real projects...</p>
-                </mat-card-content>
-            </mat-card>
-            }
-
-            @if (!isLoading() && projectCardsData().length === 0) {
-            <mat-card class="mb-3 mb-lg-4">
-                <mat-card-content class="text-center py-5">
-                    <div class="avatar avatar-80 rounded-circle bg-light-theme text-theme d-inline-flex align-items-center justify-content-center mb-3">
-                        <mat-icon class="material-icons-outlined fs-1">dataset</mat-icon>
-                    </div>
-                    <h3 class="mb-2">No real projects found</h3>
-                    <p class="text-secondary mb-3">Create a project in the workspace first, then it will appear here as a real card.</p>
-                </mat-card-content>
-            </mat-card>
-            }
-
-            @if (selectedWorkspaceId()) {
-            <div class="row gx-3 gx-lg-4">
-                <div class="col-12 col-lg-6 col-xl-4">
-                    <mat-card class="bg-theme text-white mb-3 mb-lg-4">
-                        <mat-card-content>
-                            <h1 class="mb-3">
-                                Let's create a project<br />
-                                for your workspace
-                            </h1>
-                            <p class="opacity-75 mb-md-4 pb-lg-2">You can start with your very new project or you can create a task within your current project</p>
-
-                            <button matButton="elevated" [disabled]="historicalMode()" (click)="openCreateProjectDialog()"><mat-icon class="material-icons-outlined">add_circle</mat-icon> New Project</button>
-                            @if (canShowCreateWithAi()) {
-                            <button matButton="filled" class="ms-1" [disabled]="historicalMode()" (click)="openCreateWithAiDialog()"><mat-icon class="material-icons-outlined">auto_awesome</mat-icon> AI 4-Stage Bootstrap</button>
-                            }
-                            <button matButton class="ms-1 text-theme" [disabled]="historicalMode()" (click)="openTemplatePickerDialog()"><mat-icon class="material-icons-outlined">layers</mat-icon> From Template</button>
-                            <button matButton="filled" class="ms-1" disabled><mat-icon class="material-icons-outlined">add</mat-icon> New Task</button>
-                        </mat-card-content>
-                    </mat-card>
                 </div>
+            }
 
-                @if (highlightProjects().length > 0) {
-                <div class="col-12 col-lg-6 col-xl-4">
-                    <swiper-container slides-per-view="1" space-between="20px" autoplay="false" navigation="true" class="swiper small-nav-v50">
-                        @for (highlight of highlightProjects(); track highlight.id) {
-                        <swiper-slide>
-                            <mat-card class="mb-3 mb-lg-4" style="cursor:pointer" (click)="openProjectByCard(highlight)">
-                                <mat-card-content class="pb-0">
-                                    <div class="row gx-3 align-items-center">
-                                        <div class="col-auto mb-3">
-                                            <div class="avatar avatar-80 rounded coverimg">
-                                                <img [src]="highlight.image" alt="" />
-                                            </div>
-                                        </div>
-                                        <div class="col mb-3">
-                                            <h3 class="text-theme mb-1">{{ highlight.company }}</h3>
-                                            <p class="mb-2">{{ highlight.name }}</p>
-                                            <p class="text-secondary small">Deadline {{ highlight.dueDate }}</p>
-                                        </div>
-                                    </div>
+            <!-- ── Content ── -->
+            <div class="content-wrap">
 
-                                    <div class="row gx-3 align-items-center">
-                                        <div class="col mb-3">
-                                            <h3 class="fw-medium mb-1 text-theme">{{ progressNumerator(highlight.progress) }}<span class="text-secondary">/{{ progressDenominator(highlight.progress) }}</span></h3>
-                                            <p class="small text-secondary">Task Completed</p>
-                                        </div>
-                                    </div>
-                                    <div class="row gx-3 align-items-center">
-                                        <div class="col mb-3">
-                                            <p class="mb-1">+ {{ teamMembersCount(highlight) }}</p>
-                                            <p class="text-secondary small">Team Members</p>
-                                        </div>
-                                    </div>
-                                </mat-card-content>
-                            </mat-card>
-                        </swiper-slide>
+                @if (historicalMode()) {
+                <div class="hist-banner reveal">
+                    <mat-icon class="material-icons-outlined">history_toggle_off</mat-icon>
+                    <div>
+                        <div style="font-weight:600;font-size:0.88rem;">Viewing projects as of {{ historicalDisplay() }}</div>
+                        <div style="font-size:0.76rem;color:var(--rp-muted);">Read-only historical mode</div>
+                    </div>
+                    <div style="margin-left:auto;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+                        @for (checkpoint of timelineQuickDates(); track checkpoint.at + '-' + $index) {
+                            <button matButton class="action-btn"
+                                [matTooltip]="checkpoint.label || checkpoint.kind || checkpoint.at"
+                                (click)="jumpToHistoricalDate(checkpoint.at)">
+                                {{ checkpoint.at | date:'yyyy-MM-dd' }}
+                            </button>
                         }
-                    </swiper-container>
+                        <button matButton (click)="clearHistorical()">Exit</button>
+                    </div>
                 </div>
+                }
 
-                <div class="col-12 col-lg-6 col-xl-4">
-                    <mat-card class="mb-3 mb-lg-4">
-                        <mat-card-header>
-                            <div class="mb-3">
-                                <h3 class="mb-1">Document Updates</h3>
-                                <p class="text-secondary small">Stay tuned with recent changes</p>
+                @if (lastError()) {
+                <div class="error-banner reveal">
+                    <mat-icon class="material-icons-outlined">error_outline</mat-icon>
+                    <div>
+                        <p style="font-weight:600;margin:0;font-size:0.88rem;">Failed to load real projects</p>
+                        <p style="margin:0;font-size:0.78rem;">{{ lastError() }}</p>
+                    </div>
+                </div>
+                }
+
+                @if (isLoading()) {
+                <div class="panel reveal">
+                    <div class="loading-shell">
+                        <mat-progress-spinner mode="indeterminate" diameter="48"></mat-progress-spinner>
+                        <p style="margin:0;font-size:0.88rem;">Loading real projects…</p>
+                    </div>
+                </div>
+                }
+
+                @if (!isLoading() && projectCardsData().length === 0) {
+                <div class="panel reveal">
+                    <div class="empty-state-wrap">
+                        <div class="empty-icon">
+                            <mat-icon class="material-icons-outlined">dataset</mat-icon>
+                        </div>
+                        <h3 style="font-family:'Space Grotesk',sans-serif;margin:0 0 0.5rem;color:var(--rp-ink);">No real projects found</h3>
+                        <p style="margin:0;font-size:0.85rem;">Create a project in the workspace first, then it will appear here as a real card.</p>
+                    </div>
+                </div>
+                }
+
+                @if (selectedWorkspaceId()) {
+                <div class="row gx-3 gx-lg-4">
+                    <div class="col-12 col-lg-6 col-xl-4">
+                        <div class="promo-card reveal">
+                            <h2>Let's create a project<br />for your workspace</h2>
+                            <p>Start fresh, use AI scaffolding, or pick a proven template to launch in seconds.</p>
+                            <div class="promo-actions">
+                                <button mat-flat-button type="button" class="promo-btn" [disabled]="historicalMode()" (click)="openCreateProjectDialog()">
+                                    <mat-icon class="material-icons-outlined">add_circle</mat-icon> New Project
+                                </button>
+                                @if (canShowCreateWithAi()) {
+                                <button mat-flat-button type="button" class="promo-btn" [disabled]="historicalMode()" (click)="openCreateWithAiDialog()">
+                                    <mat-icon class="material-icons-outlined">auto_awesome</mat-icon> AI Bootstrap
+                                </button>
+                                }
+                                <button mat-button type="button" class="promo-btn-ghost" [disabled]="historicalMode()" (click)="openTemplatePickerDialog()">
+                                    <mat-icon class="material-icons-outlined">layers</mat-icon> From Template
+                                </button>
                             </div>
-                        </mat-card-header>
-                        <mat-card-content class="pb-0 position-relative">
-                            <swiper-container slides-per-view="1" space-between="0px" autoplay="false" pagination='{"el":".pagination-v"}' pagination-clickable="true" direction="vertical" class="swiper height-160">
-                                @for (doc of documentProjects(); track doc.id) {
+                        </div>
+                    </div>
+
+                    @if (highlightProjects().length > 0) {
+                    <div class="col-12 col-lg-6 col-xl-4">
+                        <div class="panel reveal" style="padding:0.7rem;">
+                            <swiper-container slides-per-view="1" space-between="20px" autoplay="false" navigation="true" class="swiper small-nav-v50">
+                                @for (highlight of highlightProjects(); track highlight.id) {
                                 <swiper-slide>
-                                    <div class="row gx-3 align-items-center">
-                                        <div class="col-auto">
-                                            <div class="avatar avatar-40 rounded coverimg">
-                                                <img [src]="doc.image" alt="" />
+                                    <div style="padding:0.4rem;cursor:pointer;" (click)="openProjectByCard(highlight)">
+                                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+                                            <div style="width:60px;height:60px;border-radius:10px;overflow:hidden;flex-shrink:0;">
+                                                <img [src]="highlight.image" alt="" style="width:100%;height:100%;object-fit:cover;" />
+                                            </div>
+                                            <div>
+                                                <p style="font-weight:600;margin:0;color:var(--rp-teal);font-size:0.88rem;">{{ highlight.company }}</p>
+                                                <p style="margin:2px 0;font-size:0.84rem;color:var(--rp-ink);">{{ highlight.name }}</p>
+                                                <p style="margin:0;font-size:0.74rem;color:var(--rp-muted);">Due {{ highlight.dueDate }}</p>
                                             </div>
                                         </div>
-                                        <div class="col">
-                                            <p class="mb-1">{{ doc.company }}</p>
-                                            <p class="text-secondary small">{{ doc.name }}</p>
+                                        <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--rp-muted);">
+                                            <span>{{ progressNumerator(highlight.progress) }}/{{ progressDenominator(highlight.progress) }} tasks done</span>
+                                            <span>{{ teamMembersCount(highlight) }} members</span>
                                         </div>
                                     </div>
                                 </swiper-slide>
                                 }
                             </swiper-container>
-                            <div class="pagination-v position-absolute end-0 bottom-0 m-3"></div>
-                        </mat-card-content>
-                    </mat-card>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-lg-6 col-xl-4">
+                        <div class="panel reveal">
+                            <div style="margin-bottom:0.7rem;">
+                                <h4 style="font-family:'Space Grotesk',sans-serif;margin:0 0 2px;font-size:0.93rem;color:var(--rp-ink);">Document Updates</h4>
+                                <p style="margin:0;font-size:0.74rem;color:var(--rp-muted);">Stay tuned with recent changes</p>
+                            </div>
+                            <div style="position:relative;">
+                                <swiper-container slides-per-view="1" space-between="0px" autoplay="false" pagination='{"el":".pagination-v"}' pagination-clickable="true" direction="vertical" class="swiper height-160">
+                                    @for (doc of documentProjects(); track doc.id) {
+                                    <swiper-slide>
+                                        <div style="display:flex;align-items:center;gap:10px;padding:4px 0;">
+                                            <div style="width:40px;height:40px;border-radius:8px;overflow:hidden;flex-shrink:0;">
+                                                <img [src]="doc.image" alt="" style="width:100%;height:100%;object-fit:cover;" />
+                                            </div>
+                                            <div>
+                                                <p style="margin:0;font-size:0.84rem;font-weight:500;color:var(--rp-ink);">{{ doc.company }}</p>
+                                                <p style="margin:0;font-size:0.74rem;color:var(--rp-muted);">{{ doc.name }}</p>
+                                            </div>
+                                        </div>
+                                    </swiper-slide>
+                                    }
+                                </swiper-container>
+                                <div class="pagination-v position-absolute end-0 bottom-0 m-3"></div>
+                            </div>
+                        </div>
+                    </div>
+                    }
+                </div>
+                }
+
+                @if (filteredProjectCardsData().length > 0) {
+                    <app-projects-cards [projectsData]="filteredProjectCardsData()" [useRealRouting]="true" [historicalAt]="historicalAt()"></app-projects-cards>
+                    <app-projects-grid [projectsData]="filteredProjectCardsData()" [useRealRouting]="true" [historicalAt]="historicalAt()" (projectEdited)="onProjectEdited($event)"></app-projects-grid>
+                }
+
+                @if (!isLoading() && projectCardsData().length > 0 && filteredProjectCardsData().length === 0) {
+                <div class="panel reveal">
+                    <div class="empty-state-wrap">
+                        <mat-icon class="material-icons-outlined" style="font-size:52px;width:52px;height:52px;color:var(--rp-muted);">search_off</mat-icon>
+                        <h3 style="font-family:'Space Grotesk',sans-serif;margin:0.7rem 0 0.4rem;color:var(--rp-ink);">No projects match your search</h3>
+                        <p style="margin:0;font-size:0.85rem;">Try a different project name, workspace, or manager.</p>
+                    </div>
                 </div>
                 }
             </div>
-            }
 
-            @if (filteredProjectCardsData().length > 0) {
-                <app-projects-cards [projectsData]="filteredProjectCardsData()" [useRealRouting]="true" [historicalAt]="historicalAt()"></app-projects-cards>
-                <app-projects-grid [projectsData]="filteredProjectCardsData()" [useRealRouting]="true" [historicalAt]="historicalAt()" (projectEdited)="onProjectEdited($event)"></app-projects-grid>
+            <!-- ── Bulk Action Bar ── -->
+            @if (bulkMode() && selectedProjectIds().length > 0) {
+                <div class="bulk-bar">
+                    <mat-icon class="material-icons-outlined" style="color:var(--rp-teal);">checklist</mat-icon>
+                    <span style="font-size:0.84rem;font-weight:600;color:var(--rp-ink);">{{ selectedProjectIds().length }} selected</span>
+                    <mat-form-field appearance="outline" class="inline-small mb-0" style="min-width:160px;">
+                        <mat-label>Change status to</mat-label>
+                        <mat-select [(ngModel)]="bulkTargetStatus">
+                            @for (s of changeableStatuses; track s.value) {
+                                <mat-option [value]="s.value">{{ s.label }}</mat-option>
+                            }
+                        </mat-select>
+                    </mat-form-field>
+                    <button matButton style="color:var(--rp-teal);" [disabled]="!bulkTargetStatus" (click)="applyBulkStatus()">Apply</button>
+                    <button matButton (click)="clearBulkSelection()">Cancel</button>
+                </div>
             }
-
-            @if (!isLoading() && projectCardsData().length > 0 && filteredProjectCardsData().length === 0) {
-            <mat-card class="mb-3 mb-lg-4">
-                <mat-card-content class="text-center py-4">
-                    <mat-icon class="material-icons-outlined fs-1 text-secondary">search_off</mat-icon>
-                    <h3 class="mb-2 mt-2">No projects match your search</h3>
-                    <p class="text-secondary mb-0">Try a different project name, workspace, or manager.</p>
-                </mat-card-content>
-            </mat-card>
-            }
-        </div>
-
-        <!-- Bulk action floating bar -->
-        @if (bulkMode() && selectedProjectIds().length > 0) {
-            <div class="bulk-bar">
-                <mat-icon class="material-icons-outlined text-theme">checklist</mat-icon>
-                <span class="fw-medium" style="font-size:13px;">{{ selectedProjectIds().length }} selected</span>
-                <mat-form-field appearance="outline" class="inline-small mb-0" style="min-width:160px;">
-                    <mat-label>Change status to</mat-label>
-                    <mat-select [(ngModel)]="bulkTargetStatus">
-                        @for (s of changeableStatuses; track s.value) {
-                            <mat-option [value]="s.value">{{ s.label }}</mat-option>
-                        }
-                    </mat-select>
-                </mat-form-field>
-                <button matButton class="text-theme" [disabled]="!bulkTargetStatus" (click)="applyBulkStatus()">Apply</button>
-                <button matButton (click)="clearBulkSelection()">Cancel</button>
-            </div>
-        }
+        </section>
     `,
 })
 export class RealProjectsComponent implements OnInit {

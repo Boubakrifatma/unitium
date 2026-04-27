@@ -133,13 +133,23 @@ export interface WarRoomEvent {
   timestamp: string;  // Instant as string
 }
 
+export interface TimelineCheckpoint {
+  eventAt: string;  // Instant as ISO string
+  at: string;       // End of day as ISO string
+  kind: string;     // MEMBER_JOINED, MEMBER_LEFT, PROJECT_CREATED, PROJECT_REMOVED
+  label: string;    // Human-readable label
+}
+
 export interface WarRoomSnapshot {
+  workspaceId?: string;
   workspaceName: string;
+  workspaceCreatedAt?: string;
+  asOf?: string;
   totalProjects: number;
-  openTaskCount: number;
+  openTaskCount?: number;
   memberCount: number;
-  onTrackPercentage: number;
-  overloadedMemberCount: number;
+  onTrackPercentage?: number;
+  overloadedMemberCount?: number;
   memberWorkloads: MemberWorkloadDTO[];
   projectThroughputs: ProjectThroughputDTO[];
   collaborationEdges: CollaborationEdgeDTO[];
@@ -148,4 +158,10 @@ export interface WarRoomSnapshot {
   milestoneTimeline?: MilestoneTimelineDTO;
   threeSignals?: ThreeSignalsDTO;
   dataWarnings: string[];
+  // Time machine fields from SnapshotService
+  timelineCheckpoints?: TimelineCheckpoint[];
+  suggestedDates?: string[];
+  workspaceUnavailable?: boolean;
+  projects?: any[];
+  members?: any[];
 }

@@ -6,12 +6,15 @@ import com.example.pi_projet.exception.Module2Exception;
 import com.example.pi_projet.service.M2AuditLogService;
 import com.example.pi_projet.service.PulseEventBus;
 import com.example.pi_projet.service.PulseService;
+import com.example.pi_projet.service.SnapshotService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.time.DateTimeException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -23,16 +26,30 @@ import java.util.UUID;
 public class PulseController {
 
     private final PulseService pulseService;
+    private final SnapshotService snapshotService;
     private final PulseEventBus eventBus;
     private final M2AuditLogService auditLogService;
 
     @GetMapping("/snapshot")
     public Map<String, Object> getSnapshot(
             @PathVariable UUID workspaceId,
+            @RequestParam(required = false) String at,
             HttpServletRequest request) {
         User user = requireCurrentUser(request);
         auditLogService.writeAudit(user.getId(), null, "PULSE_VIEWED",
             "workspace", workspaceId.toString(), null, workspaceId, request.getRemoteAddr());
+
+        // If 'at' parameter is provided, use historical snapshot service for time machine
+        if (at != null && !at.isBlank()) {
+            try {
+                Instant ts = Instant.parse(at);
+                return snapshotService.buildSnapshot(workspaceId, ts);
+            } catch (DateTimeException ex) {
+                throw new Module2Exception(Module2Exception.ErrorCode.VALIDATION, "Invalid 'at' timestamp format. Use ISO-8601.");
+            }
+        }
+
+        // Otherwise use current snapshot service
         return pulseService.buildSnapshot(workspaceId);
     }
 

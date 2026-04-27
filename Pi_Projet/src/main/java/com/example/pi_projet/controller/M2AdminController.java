@@ -28,58 +28,66 @@ public class M2AdminController {
 
     @GetMapping("/stats")
     public Map<String, Object> getStats(HttpServletRequest request) {
-        requireAdminRole(requireCurrentUser(request));
-        return m2AdminService.getStats();
+        User user = requireCurrentUser(request);
+        requireAdminRole(user);
+        return m2AdminService.getStats(user);
     }
 
     // ── Workspaces ────────────────────────────────────────────────────────
 
     @GetMapping("/workspaces")
     public List<Map<String, Object>> getWorkspaces(HttpServletRequest request) {
-        requireAdminRole(requireCurrentUser(request));
-        return m2AdminService.getAdminWorkspaces();
+        User user = requireCurrentUser(request);
+        requireAdminRole(user);
+        return m2AdminService.getAdminWorkspaces(user);
     }
 
     @DeleteMapping("/workspaces/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteWorkspace(@PathVariable UUID id, HttpServletRequest request) {
-        requireAdminRole(requireCurrentUser(request));
-        m2AdminService.adminSoftDeleteWorkspace(id);
+        User user = requireCurrentUser(request);
+        requireAdminRole(user);
+        m2AdminService.adminSoftDeleteWorkspace(id, user);
     }
 
     @PostMapping("/workspaces/{id}/restore")
     public Map<String, Object> restoreWorkspace(@PathVariable UUID id, HttpServletRequest request) {
-        requireAdminRole(requireCurrentUser(request));
-        return m2AdminService.adminRestoreWorkspace(id);
+        User user = requireCurrentUser(request);
+        requireAdminRole(user);
+        return m2AdminService.adminRestoreWorkspace(id, user);
     }
 
     // ── Projects ──────────────────────────────────────────────────────────
 
     @GetMapping("/projects")
     public List<Map<String, Object>> getProjects(HttpServletRequest request) {
-        requireAdminRole(requireCurrentUser(request));
-        return m2AdminService.getAdminProjects();
+        User user = requireCurrentUser(request);
+        requireAdminRole(user);
+        return m2AdminService.getAdminProjects(user);
     }
 
     @PatchMapping("/projects/{id}/visibility")
     public Map<String, Object> toggleVisibility(@PathVariable UUID id, HttpServletRequest request) {
-        requireAdminRole(requireCurrentUser(request));
-        return m2AdminService.adminToggleProjectVisibility(id);
+        User user = requireCurrentUser(request);
+        requireAdminRole(user);
+        return m2AdminService.adminToggleProjectVisibility(id, user);
     }
 
     @DeleteMapping("/projects/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteProject(@PathVariable UUID id, HttpServletRequest request) {
-        requireAdminRole(requireCurrentUser(request));
-        m2AdminService.adminSoftDeleteProject(id);
+        User user = requireCurrentUser(request);
+        requireAdminRole(user);
+        m2AdminService.adminSoftDeleteProject(id, user);
     }
 
     // ── Quota monitor ─────────────────────────────────────────────────────
 
     @GetMapping("/orgs/quota")
     public List<Map<String, Object>> getOrgQuota(HttpServletRequest request) {
-        requireAdminRole(requireCurrentUser(request));
-        return m2AdminService.getOrgQuotaSummary();
+        User user = requireCurrentUser(request);
+        requireAdminRole(user);
+        return m2AdminService.getOrgQuotaSummary(user);
     }
 
     // ── Template ratings ──────────────────────────────────────────────────

@@ -30,6 +30,56 @@ interface IntelRec {
     MatProgressSpinnerModule, MatTooltipModule,
   ],
   template: `
+    <!-- ── TIME MACHINE TIMELINE ───────────────────────────────────── -->
+    @if (snapshot()?.timelineCheckpoints?.length || snapshot()?.suggestedDates?.length) {
+      <div class="container-fluid fade-in mb-3 px-3">
+        <mat-card class="bg-light-theme shadow-none p-3">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <mat-icon class="material-icons-outlined text-theme" style="font-size:16px">history</mat-icon>
+            <span style="font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-color-secondary)">
+              Time Machine · {{ currentSnapshot() ? ('Viewing: ' + formatDate(currentSnapshot()!)) : 'Select a date' }}
+            </span>
+            @if (currentSnapshot()) {
+              <button matIconButton (click)="clearSnapshot()"
+                      matTooltip="Return to live view" style="margin-left:auto">
+                <mat-icon class="material-icons-outlined" style="font-size:16px">close</mat-icon>
+              </button>
+            }
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;overflow-x:auto;padding:4px">
+            @for (date of suggestedDatesUI(); track date) {
+              <button matButton
+                      (click)="selectSnapshot(date)"
+                      [class.active-snapshot]="isSelectedDate(date)"
+                      style="font-size:11px;padding:4px 12px;border-radius:20px;white-space:nowrap;transition:all 0.2s"
+                      [style.background]="isSelectedDate(date) ? '#667eea' : 'var(--bg-color-secondary)'"
+                      [style.color]="isSelectedDate(date) ? 'white' : 'inherit'">
+                {{ formatDateShort(date) }}
+              </button>
+            }
+          </div>
+          @if (snapshot()?.timelineCheckpoints?.length) {
+            <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-color)">
+              <span style="font-size:11px;color:var(--text-color-secondary);font-weight:500">Events in timeline:</span>
+              <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">
+                @for (event of snapshot()!.timelineCheckpoints.slice(0, 10); track event.at) {
+                  <button matButton
+                          (click)="selectSnapshot(event.at)"
+                          [class.active-snapshot]="isSelectedDate(event.at)"
+                          matTooltip="{{ event.label }} on {{ formatDate(event.at) }}"
+                          style="font-size:10px;padding:3px 10px;border-radius:16px;white-space:nowrap;transition:all 0.2s"
+                          [style.background]="isSelectedDate(event.at) ? '#667eea' : '#f0f0f0'"
+                          [style.color]="isSelectedDate(event.at) ? 'white' : '#666'">
+                    {{ event.label }}
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        </mat-card>
+      </div>
+    }
+`
     <!-- ── HEADER ────────────────────────────────────────────────── -->
     <div class="container-fluid fade-in mb-3 mb-lg-4">
       <mat-card class="bg-light-theme shadow-none pt-3 pb-lg-3 px-3">
@@ -89,12 +139,18 @@ interface IntelRec {
           <div class="wr-panel wr-full wr-panel--accent">
             <div class="wr-panel-head">
               <div class="d-flex align-items-center gap-2">
-                <mat-icon class="wr-panel-icon">dashboard</mat-icon>
-                <span class="wr-panel-title">Workspace Overview</span>
+                <mat-icon class="wr-panel-icon">{{ currentSnapshot() ? 'history' : 'dashboard' }}</mat-icon>
+                <span class="wr-panel-title">{{ currentSnapshot() ? '📅 Historical Snapshot' : 'Workspace Overview (Live)' }}</span>
               </div>
               <div class="d-flex align-items-center gap-2">
-                <div class="live-ring"><div class="live-dot"></div></div>
-                <span style="font-size:11px;color:var(--text-color-secondary)">Live</span>
+                @if (!currentSnapshot()) {
+                  <div class="live-ring"><div class="live-dot"></div></div>
+                  <span style="font-size:11px;color:var(--text-color-secondary)">Live Now</span>
+                } @else {
+                  <span style="font-size:11px;font-weight:600;color:#d9534f">
+                    Viewing: {{ formatDateShort(currentSnapshot()!) }}
+                  </span>
+                }
               </div>
             </div>
 
@@ -255,13 +311,13 @@ interface IntelRec {
               </div>
               <div class="heatmap-legend">
                 <span class="wr-muted" style="font-size:10px">Less</span>
-                <div class="legend-cell" style="background:rgba(29,158,117,.22)"></div>
-                <div class="legend-cell" style="background:rgba(29,158,117,.48)"></div>
-                <div class="legend-cell" style="background:rgba(29,158,117,.72)"></div>
-                <div class="legend-cell" style="background:rgba(29,158,117,.95)"></div>
+                <div class="legend-cell" style="background:rgba(16,185,129,.22)"></div>
+                <div class="legend-cell" style="background:rgba(16,185,129,.48)"></div>
+                <div class="legend-cell" style="background:rgba(16,185,129,.72)"></div>
+                <div class="legend-cell" style="background:rgba(16,185,129,.95)"></div>
                 <span class="wr-muted" style="font-size:10px">More</span>
                 <div class="legend-sep"></div>
-                <div class="legend-cell" style="background:rgba(226,75,74,.7)"></div>
+                <div class="legend-cell" style="background:rgba(220,38,38,.7)"></div>
                 <span class="wr-muted" style="font-size:10px">Overdue</span>
               </div>
             } @else {
@@ -671,12 +727,12 @@ interface IntelRec {
 
     /* ── Design tokens ────────────────────────────────────────────── */
     :host {
-      --wr-green:    #1D9E75;
-      --wr-teal:     #0d9488;
-      --wr-amber:    #EF9F27;
-      --wr-red:      #E24B4A;
-      --wr-purple:   #7F77DD;
-      --wr-blue:     #3B82F6;
+      --wr-green:    #10b981;
+      --wr-teal:     #667eea;
+      --wr-amber:    #f59e0b;
+      --wr-red:      #dc2626;
+      --wr-purple:   #764ba2;
+      --wr-blue:     #0ea5e9;
       --wr-muted:    var(--text-color-secondary, #64748b);
       --wr-text:     var(--text-color, #1e293b);
       --wr-surface:  var(--surface-card, #ffffff);
@@ -776,10 +832,10 @@ interface IntelRec {
       display: flex; align-items: flex-start; gap: 12px;
       padding: 12px 14px; border-radius: 10px; border-left: 3px solid;
     }
-    .intel-rec--danger  { background: rgba(226,75,74,.08);  border-color: var(--wr-red);    }
-    .intel-rec--warning { background: rgba(239,159,39,.08); border-color: var(--wr-amber);  }
-    .intel-rec--success { background: rgba(29,158,117,.08); border-color: var(--wr-green);  }
-    .intel-rec--info    { background: rgba(59,130,246,.08); border-color: var(--wr-blue);   }
+    .intel-rec--danger  { background: rgba(220,38,38,.08);  border-color: var(--wr-red);    }
+    .intel-rec--warning { background: rgba(245,158,11,.08); border-color: var(--wr-amber);  }
+    .intel-rec--success { background: rgba(16,185,129,.08); border-color: var(--wr-green);  }
+    .intel-rec--info    { background: rgba(14,165,233,.08); border-color: var(--wr-blue);   }
     .intel-rec-icon {
       font-size: 18px !important; width: 18px !important; height: 18px !important;
       flex-shrink: 0; margin-top: 1px;
@@ -885,9 +941,9 @@ interface IntelRec {
       min-width: 36px; padding: 3px 10px; border-radius: 20px;
       font-size: 11px; font-weight: 700; cursor: default;
     }
-    .hp-green { background: rgba(29,158,117,.18); color: #0d7a5f; border: 1px solid rgba(29,158,117,.25); }
-    .hp-amber { background: rgba(239,159,39,.18);  color: #b36b00; border: 1px solid rgba(239,159,39,.3);  }
-    .hp-red   { background: rgba(226,75,74,.18);   color: #b52a28; border: 1px solid rgba(226,75,74,.25); }
+    .hp-green { background: rgba(16,185,129,.18); color: #047857; border: 1px solid rgba(16,185,129,.25); }
+    .hp-amber { background: rgba(245,158,11,.18);  color: #92400e; border: 1px solid rgba(245,158,11,.3);  }
+    .hp-red   { background: rgba(220,38,38,.18);   color: #7f1d1d; border: 1px solid rgba(220,38,38,.25); }
 
     /* ── Task Intelligence ───────────────────────────────────────── */
     .task-intel-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
@@ -931,30 +987,30 @@ interface IntelRec {
     .timeline-track-wrap { position: relative; height: 14px; }
     .timeline-track-line {
       position: absolute; left: 0; right: 0; top: 6px; height: 2px;
-      background: linear-gradient(90deg, rgba(226,75,74,.3), rgba(239,159,39,.3), rgba(29,158,117,.3));
+      background: linear-gradient(90deg, rgba(220,38,38,.3), rgba(245,158,11,.3), rgba(16,185,129,.3));
       border-radius: 2px;
     }
     .timeline-marker {
       position: absolute; top: 1px; transform: translateX(-50%);
       width: 12px; height: 12px; border-radius: 50%;
       background: var(--wr-teal); border: 2px solid #fff;
-      box-shadow: 0 0 0 2px rgba(13,148,136,.2);
+      box-shadow: 0 0 0 2px rgba(102,126,234,.2);
     }
-    .timeline-marker--gate { background: var(--wr-purple); box-shadow: 0 0 0 2px rgba(127,119,221,.25); }
-    .timeline-marker--overdue { background: var(--wr-red); box-shadow: 0 0 0 2px rgba(226,75,74,.3); }
+    .timeline-marker--gate { background: var(--wr-purple); box-shadow: 0 0 0 2px rgba(118,75,162,.25); }
+    .timeline-marker--overdue { background: var(--wr-red); box-shadow: 0 0 0 2px rgba(220,38,38,.3); }
     .timeline-tail { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
     .timeline-badge {
       font-size: 9px; letter-spacing: .04em; text-transform: uppercase;
       border-radius: 999px; padding: 1px 7px;
-      border: 1px solid rgba(13,148,136,.24); color: #0f766e; background: rgba(13,148,136,.12);
+      border: 1px solid rgba(102,126,234,.24); color: #4c63c4; background: rgba(102,126,234,.12);
     }
-    .timeline-badge--gate { border-color: rgba(127,119,221,.28); color: #5b4ec5; background: rgba(127,119,221,.14); }
+    .timeline-badge--gate { border-color: rgba(118,75,162,.28); color: #6b3c9e; background: rgba(118,75,162,.14); }
 
     /* Dark mode overrides for health pills */
     @media (prefers-color-scheme: dark) {
-      .hp-green { color: #4ade80; border-color: rgba(74,222,128,.3); }
-      .hp-amber { color: #fbbf24; border-color: rgba(251,191,36,.3);  }
-      .hp-red   { color: #f87171; border-color: rgba(248,113,113,.3); }
+      .hp-green { color: #6ee7b7; border-color: rgba(110,231,183,.3); }
+      .hp-amber { color: #fcd34d; border-color: rgba(252,211,77,.3);  }
+      .hp-red   { color: #fca5a5; border-color: rgba(252,165,165,.3); }
     }
 
     @media (max-width: 1100px) {
@@ -985,6 +1041,10 @@ export class WarRoomComponent implements OnInit, OnDestroy {
   readonly loading        = signal(true);
   readonly warningsVisible = signal(true);
   readonly Math = Math;
+
+  // Time machine
+  readonly currentSnapshot = signal<string | null>(null);  // 'at' parameter value
+  readonly suggestedDatesUI = computed(() => this.snapshot()?.suggestedDates ?? []);
 
   readonly workspaceId   = computed(() => this.route.snapshot.paramMap.get('workspaceId') ?? '');
   readonly workspaceName = computed(() => this.snapshot()?.workspaceName ?? '');
@@ -1059,6 +1119,7 @@ export class WarRoomComponent implements OnInit, OnDestroy {
     const id = this.workspaceId();
     if (!id) return;
     const at = this.route.snapshot.queryParamMap.get('at') || undefined;
+    if (at) this.currentSnapshot.set(at);
     this.reloadWarRoomData(id, at);
 
     // Only open live SSE when not viewing historical snapshot.
@@ -1135,7 +1196,7 @@ export class WarRoomComponent implements OnInit, OnDestroy {
   }
 
   gradeColor(grade: string): string {
-    const m: Record<string, string> = { A: '#1D9E75', B: '#3B82F6', C: '#EF9F27', D: '#F97316', F: '#E24B4A' };
+    const m: Record<string, string> = { A: '#10b981', B: '#0ea5e9', C: '#f59e0b', D: '#f97316', F: '#dc2626' };
     return m[grade] ?? '#94a3b8';
   }
 
@@ -1146,9 +1207,9 @@ export class WarRoomComponent implements OnInit, OnDestroy {
 
   rowHealthColor(scores: number[]): string {
     const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
-    if (avg >= 75) return '#1D9E75';
-    if (avg >= 50) return '#EF9F27';
-    return '#E24B4A';
+    if (avg >= 75) return '#10b981';
+    if (avg >= 50) return '#f59e0b';
+    return '#dc2626';
   }
 
   matrixColLabel(j: number): string {
@@ -1176,10 +1237,10 @@ export class WarRoomComponent implements OnInit, OnDestroy {
 
   priorityColor(label: string): string {
     return ({
-      BLOCKER: '#E24B4A',
-      HIGH: '#EF9F27',
-      MEDIUM: '#3B82F6',
-      LOW: '#1D9E75',
+      BLOCKER: '#dc2626',
+      HIGH: '#f59e0b',
+      MEDIUM: '#0ea5e9',
+      LOW: '#10b981',
       UNSPECIFIED: '#94a3b8',
     } as Record<string, string>)[label] ?? '#94a3b8';
   }
@@ -1203,9 +1264,9 @@ export class WarRoomComponent implements OnInit, OnDestroy {
 
   // ── Colour helpers ─────────────────────────────────────────────────
   heatmapCellColor(day: HeatmapDay): string {
-    if (day.overdueCount > 0) return `rgba(226,75,74,${Math.min(.92, .35 + day.overdueCount * .15)})`;
+    if (day.overdueCount > 0) return `rgba(220,38,38,${Math.min(.92, .35 + day.overdueCount * .15)})`;
     if (!day.completions)      return 'var(--wr-border)';
-    return `rgba(29,158,117,${Math.min(.95, .22 + day.completions * .1)})`;
+    return `rgba(16,185,129,${Math.min(.95, .22 + day.completions * .1)})`;
   }
 
   formatHeatmapTooltip(day: HeatmapDay): string {
@@ -1215,7 +1276,7 @@ export class WarRoomComponent implements OnInit, OnDestroy {
   }
 
   eventDotColor(type: string): string {
-    return ({ PROJECT_CREATED: '#7F77DD', MEMBER_JOINED: '#3B82F6', TASK_COMPLETED: '#1D9E75', TASK_OVERDUE: '#E24B4A', COMMENT: '#F59E0B' } as Record<string,string>)[type] ?? '#94a3b8';
+    return ({ PROJECT_CREATED: '#764ba2', MEMBER_JOINED: '#0ea5e9', TASK_COMPLETED: '#10b981', TASK_OVERDUE: '#dc2626', COMMENT: '#f59e0b' } as Record<string,string>)[type] ?? '#94a3b8';
   }
 
   formatTime(ts: string): string {
@@ -1224,15 +1285,15 @@ export class WarRoomComponent implements OnInit, OnDestroy {
   }
 
   workloadColor(pct: number): string {
-    if (pct >= 90) return '#E24B4A';
-    if (pct >= 70) return '#EF9F27';
-    return '#1D9E75';
+    if (pct >= 90) return '#dc2626';
+    if (pct >= 70) return '#f59e0b';
+    return '#10b981';
   }
 
   workloadAvatarBg(pct: number): string {
-    if (pct >= 90) return '#E24B4A';
-    if (pct >= 70) return '#EF9F27';
-    return '#1D9E75';
+    if (pct >= 90) return '#dc2626';
+    if (pct >= 70) return '#f59e0b';
+    return '#10b981';
   }
 
   memberInitials(name: string): string {
@@ -1245,4 +1306,40 @@ export class WarRoomComponent implements OnInit, OnDestroy {
   }
 
   dismissWarnings(): void { this.warningsVisible.set(false); }
+
+  // ── Time Machine ──────────────────────────────────────────────────
+  selectSnapshot(dateStr: string): void {
+    this.currentSnapshot.set(dateStr);
+    this.loading.set(true);
+    const id = this.workspaceId();
+    this.reloadWarRoomData(id, dateStr);
+  }
+
+  clearSnapshot(): void {
+    this.currentSnapshot.set(null);
+    this.loading.set(true);
+    const id = this.workspaceId();
+    this.reloadWarRoomData(id, undefined);
+    // Reopen SSE for live updates
+    this.openSse(id);
+  }
+
+  isSelectedDate(dateStr: string): boolean {
+    return this.currentSnapshot() === dateStr;
+  }
+
+  formatDate(isoStr: string): string {
+    try {
+      const date = new Date(isoStr);
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) +
+             ' ' + date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    } catch { return isoStr; }
+  }
+
+  formatDateShort(isoStr: string): string {
+    try {
+      const date = new Date(isoStr);
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } catch { return isoStr; }
+  }
 }

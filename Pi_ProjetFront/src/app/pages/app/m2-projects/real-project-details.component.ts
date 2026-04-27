@@ -1,7 +1,7 @@
 import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from "@angular/common/http";
 import { Component, OnInit, computed, inject, signal } from "@angular/core";
-import { FormsModule, NgForm } from "@angular/forms";
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl } from "@angular/forms";
 import { DomSanitizer, SafeResourceUrl } from "@angular/platform-browser";
 import { MatButtonModule } from "@angular/material/button";
 import { MatCardModule } from "@angular/material/card";
@@ -61,7 +61,7 @@ interface ProjectMilestoneSnapshot {
     imports: [
         CommonModule,
         RouterLink,
-        FormsModule,
+        ReactiveFormsModule,
         MatCardModule,
         MatIconModule,
         MatButtonModule,
@@ -72,37 +72,65 @@ interface ProjectMilestoneSnapshot {
         MatSnackBarModule,
         ProjectMemberCardComponent,
     ],
+    styles: [`
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                max-height: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                max-height: 2000px;
+                transform: translateY(0);
+            }
+        }
+    `],
     template: `
-        <div class="container-fluid fade-in mb-3 mb-lg-4">
-            <mat-card class="bg-light-theme shadow-none pt-3 pb-lg-3 px-3">
-                <div class="row gx-3 align-items-center">
-                    <div class="col-12 col-md mb-3 mb-xl-0 py-1 order-1 order-lg-1">
-                        <h3 class="mb-1">Real Project: {{ project()?.name || "Details" }}</h3>
-                        <p class="small mb-0">
-                            <span routerLink="/app/dashboard" class="me-2 text-theme style-none"><mat-icon class="material-icons-outlined align-middle text-sm">house</mat-icon> Home</span>
-                            <mat-icon class="material-icons-outlined align-middle text-sm me-2">chevron_right</mat-icon>
-                            <span [routerLink]="['/app/real-projects']" [queryParams]="workspaceId() ? { workspaceId: workspaceId(), ...historicalQueryParams() } : historicalQueryParams()" class="me-2 text-theme style-none">Real Projects</span>
-                            <mat-icon class="material-icons-outlined align-middle text-sm me-2">chevron_right</mat-icon>
-                            Project Details
-                        </p>
-                    </div>
+        <!-- Modern Header -->
+        <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:3rem 2rem;box-shadow:0 12px 40px rgba(102,126,234,0.2);position:relative;overflow:hidden;">
+            <div style="position:absolute;top:-50%;right:-10%;width:500px;height:500px;background:radial-gradient(circle,rgba(255,255,255,0.1),transparent 70%);pointer-events:none;"></div>
+            <div style="max-width:1420px;margin:0 auto;position:relative;z-index:2;">
+                <!-- Breadcrumb -->
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1.5rem;font-size:0.85rem;color:rgba(255,255,255,0.8);font-weight:500;">
+                    <span style="cursor:pointer;transition:all 0.2s;" routerLink="/app/dashboard">Dashboard</span>
+                    <mat-icon style="font-size:16px;width:16px;height:16px;">chevron_right</mat-icon>
+                    <span style="cursor:pointer;transition:all 0.2s;" [routerLink]="['/app/real-projects']" [queryParams]="workspaceId() ? { workspaceId: workspaceId(), ...historicalQueryParams() } : historicalQueryParams()">Projects</span>
+                    <mat-icon style="font-size:16px;width:16px;height:16px;">chevron_right</mat-icon>
+                    <span style="color:rgba(255,255,255,0.95);">{{ project()?.name || "Project Details" }}</span>
+                </div>
 
-                    <div class="col-auto order-2 order-lg-5 mb-3 mb-xl-0">
-                        <button matButton (click)="backToRealProjects()"><mat-icon class="material-icons-outlined">arrow_back</mat-icon> Back</button>
-                        <button matButton class="ms-1" (click)="refresh()"><mat-icon class="material-icons-outlined">refresh</mat-icon> Refresh</button>
-                        <button matButton class="ms-1" [disabled]="isLoading()" (click)="openReadmePreview()">
-                            <mat-icon class="material-icons-outlined">description</mat-icon>
+                <!-- Title and Actions -->
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:2rem;flex-wrap:wrap;">
+                    <div>
+                        <h1 style="margin:0;color:white;font-size:2.2rem;font-weight:700;letter-spacing:-0.5px;line-height:1.2;">{{ project()?.name || "Project" }}</h1>
+                        <p style="margin:0.8rem 0 0;color:rgba(255,255,255,0.85);font-size:0.95rem;">Workspace: <strong>{{ workspaceName() }}</strong></p>
+                    </div>
+                    <div style="display:flex;gap:0.8rem;flex-wrap:wrap;">
+                        <button matButton (click)="backToRealProjects()" style="background:rgba(255,255,255,0.15);color:white;border-radius:10px;transition:all 0.2s;">
+                            <mat-icon style="font-size:18px;width:18px;height:18px;margin-right:6px;">arrow_back</mat-icon>
+                            Back
+                        </button>
+                        <button matButton (click)="refresh()" style="background:rgba(255,255,255,0.15);color:white;border-radius:10px;transition:all 0.2s;">
+                            <mat-icon style="font-size:18px;width:18px;height:18px;margin-right:6px;">refresh</mat-icon>
+                            Refresh
+                        </button>
+                        <button matButton [disabled]="isLoading()" (click)="openReadmePreview()" style="background:rgba(255,255,255,0.15);color:white;border-radius:10px;transition:all 0.2s;">
+                            <mat-icon style="font-size:18px;width:18px;height:18px;margin-right:6px;">description</mat-icon>
                             README
                         </button>
-                        <button matButton="filled" class="ms-1" [disabled]="!canManageProjects()" (click)="startEdit()">
-                            <mat-icon class="material-icons-outlined">edit</mat-icon>
+                        <button matButton [disabled]="!canManageProjects()" (click)="startEdit()" style="background:white;color:#667eea;border-radius:10px;font-weight:700;transition:all 0.2s;">
+                            <mat-icon style="font-size:18px;width:18px;height:18px;margin-right:6px;">edit</mat-icon>
                             Edit Project
                         </button>
                     </div>
                 </div>
-            </mat-card>
+            </div>
         </div>
 
+        <!-- Content Area -->
+        <div style="background:#fafbfc;padding:2rem;min-height:100vh;">
+            <div style="max-width:1420px;margin:0 auto;">
         @if (historicalAt()) {
         <div class="container fade-in mb-3">
             <mat-card class="mb-3" style="background:#fff7ed;border-left:4px solid #f59e0b;">
@@ -143,204 +171,264 @@ interface ProjectMilestoneSnapshot {
             }
 
             @if (project()) {
-            <mat-card class="mb-3 mb-lg-4" style="overflow:hidden;border:1px solid rgba(15,23,42,0.08);">
-                <mat-card-content class="p-0">
-                    <div style="padding:18px 18px 14px;background:radial-gradient(circle at 8% 15%, rgba(16,185,129,0.18), transparent 48%), radial-gradient(circle at 92% 10%, rgba(59,130,246,0.2), transparent 44%), linear-gradient(120deg, #f8fafc 0%, #eff6ff 44%, #ecfeff 100%);">
-                        <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-2">
-                            <div>
-                                <p class="text-secondary small mb-1" style="letter-spacing:.05em;text-transform:uppercase;">Project command center</p>
-                                <h3 class="mb-1" style="color:#0f172a;">{{ project()?.name }}</h3>
-                                <p class="mb-0" style="color:#334155;">
-                                    {{ statusLabel(projectStatus()) }}
-                                    <span style="color:#94a3b8;">·</span>
-                                    {{ projectVisibility() }}
-                                    <span style="color:#94a3b8;">·</span>
-                                    {{ projectDurationLabel() }} running
-                                </p>
-                            </div>
-                            <div class="d-flex flex-wrap gap-1 justify-content-end">
-                                <span class="badge" [class]="statusClass(projectStatus())">{{ statusLabel(projectStatus()) }}</span>
-                                <span class="badge" [class]="visibilityClass(projectVisibility())">{{ projectVisibility() }}</span>
-                                @if (projectRepoLabel() && project()?.githubRepoUrl) {
-                                    <button matButton class="text-theme" style="padding:2px 8px;min-height:28px;line-height:1.2;background:rgba(255,255,255,0.8);" (click)="openProjectRepository()">
-                                        <mat-icon class="material-icons-outlined" style="font-size:14px;width:14px;height:14px;">source</mat-icon>
-                                        {{ projectRepoLabel() }}
-                                    </button>
-                                }
+            <!-- Enhanced Project Command Center -->
+            <div style="background:white;border-radius:16px;border:1px solid #e5e7eb;margin-bottom:1.5rem;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.06);transition:all 0.3s ease;">
+                <div style="padding:2rem;background:linear-gradient(135deg,rgba(102,126,234,0.05) 0%,rgba(118,75,162,0.05) 100%);border-bottom:1px solid #e5e7eb;">
+                    <!-- Header -->
+                    <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-1.5">
+                        <div style="flex:1;min-width:0;">
+                            <p style="margin:0 0 0.5rem;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;font-weight:700;">Project Command Center</p>
+                            <h2 style="margin:0 0 0.5rem;font-size:1.8rem;font-weight:700;color:#0f172a;letter-spacing:-0.5px;line-height:1.2;">{{ project()?.name }}</h2>
+                            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;font-size:0.95rem;">
+                                <span style="color:#334155;">
+                                    <strong style="color:#667eea;">{{ statusLabel(projectStatus()) }}</strong>
+                                </span>
+                                <span style="color:#cbd5e1;">·</span>
+                                <span style="color:#334155;">
+                                    <strong style="color:#667eea;">{{ projectVisibility() }}</strong>
+                                </span>
+                                <span style="color:#cbd5e1;">·</span>
+                                <span style="color:#334155;">{{ projectDurationLabel() }} running</span>
                             </div>
                         </div>
-                        <div style="height:7px;border-radius:999px;background:rgba(148,163,184,0.25);overflow:hidden;">
-                            <div style="height:100%;transition:width .25s ease;border-radius:999px;" [style.width.%]="timelineProgressPercent()" [style.background]="daysRemaining() !== null && daysRemaining()! < 0 ? 'linear-gradient(90deg,#ef4444,#fb7185)' : 'linear-gradient(90deg,#22c55e,#0ea5e9)'"></div>
-                        </div>
-                        <div class="d-flex flex-wrap gap-3 mt-2" style="font-size:12px;color:#475569;">
-                            <span><strong style="color:#0f172a;">{{ startDateLabel() }}</strong> start</span>
-                            <span><strong style="color:#0f172a;">{{ endDateLabel() }}</strong> deadline</span>
-                            <span><strong style="color:#0f172a;">{{ createdAtLabel() }}</strong> created</span>
-                            <span><strong style="color:#0f172a;">{{ daysRemainingLabel() }}</strong></span>
+                        <div style="display:flex;flex-wrap:wrap;gap:0.6rem;justify-content:flex-end;flex-shrink:0;">
+                            <span style="padding:0.5rem 1rem;border-radius:999px;font-size:0.8rem;font-weight:700;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;border:none;">{{ statusLabel(projectStatus()) }}</span>
+                            <span style="padding:0.5rem 1rem;border-radius:999px;font-size:0.8rem;font-weight:700;background:#f0f4ff;color:#667eea;border:1px solid #dbeafe;">{{ projectVisibility() }}</span>
+                            @if (projectRepoLabel() && project()?.githubRepoUrl) {
+                                <button matButton (click)="openProjectRepository()" style="padding:0.5rem 1rem;border-radius:999px;font-size:0.8rem;font-weight:700;background:#f8fafc;color:#667eea;border:1px solid #e2e8f0;transition:all 0.2s;">
+                                    <mat-icon style="font-size:14px;width:14px;height:14px;margin-right:4px;">source</mat-icon>
+                                    {{ projectRepoLabel() }}
+                                </button>
+                            }
                         </div>
                     </div>
 
-                    <div class="row g-2 p-3">
-                        <div class="col-6 col-lg-3">
-                            <div style="border:1px solid rgba(15,23,42,0.08);border-radius:12px;padding:10px 12px;background:#fff;min-height:88px;">
-                                <p class="text-secondary mb-1" style="font-size:11px;">Members</p>
-                                <p class="fw-semibold mb-0" style="font-size:24px;color:#0f172a;line-height:1;">{{ members().length }}</p>
-                                <p class="small mb-0 mt-1 text-secondary">{{ leadershipCount() }} leadership</p>
-                            </div>
+                    <!-- Progress Bar -->
+                    <div style="margin-top:1.5rem;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem;">
+                            <span style="font-size:0.85rem;color:#475569;font-weight:600;">Timeline Progress</span>
+                            <span style="font-size:1.25rem;font-weight:800;color:#667eea;">{{ timelineProgressPercent() }}%</span>
                         </div>
-                        <div class="col-6 col-lg-3">
-                            <div style="border:1px solid rgba(15,23,42,0.08);border-radius:12px;padding:10px 12px;background:#fff;min-height:88px;">
-                                <p class="text-secondary mb-1" style="font-size:11px;">Milestone Tasks</p>
-                                <p class="fw-semibold mb-0" style="font-size:24px;color:#0f172a;line-height:1;">{{ milestoneTaskTotal() }}</p>
-                                <p class="small mb-0 mt-1 text-secondary">{{ completedMilestoneTasks() }} completed</p>
-                            </div>
-                        </div>
-                        <div class="col-6 col-lg-3">
-                            <div style="border:1px solid rgba(15,23,42,0.08);border-radius:12px;padding:10px 12px;background:#fff;min-height:88px;">
-                                <p class="text-secondary mb-1" style="font-size:11px;">Timeline Progress</p>
-                                <p class="fw-semibold mb-0" style="font-size:24px;color:#0f172a;line-height:1;">{{ timelineProgressPercent() }}%</p>
-                                <p class="small mb-0 mt-1 text-secondary">elapsed</p>
-                            </div>
-                        </div>
-                        <div class="col-6 col-lg-3">
-                            <div style="border:1px solid rgba(15,23,42,0.08);border-radius:12px;padding:10px 12px;background:#fff;min-height:88px;">
-                                <p class="text-secondary mb-1" style="font-size:11px;">Repo Health</p>
-                                <p class="fw-semibold mb-0" style="font-size:24px;color:#0f172a;line-height:1;">{{ projectRepoInsights()?.providerStatus === 'live' ? 'Live' : 'Pending' }}</p>
-                                <p class="small mb-0 mt-1 text-secondary">GitHub intelligence</p>
-                            </div>
+                        <div style="height:8px;border-radius:999px;background:#e2e8f0;overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,0.05);">
+                            <div style="height:100%;transition:width 0.4s cubic-bezier(0.34,1.56,0.64,1);border-radius:999px;background:linear-gradient(90deg,#667eea 0%,#764ba2 100%);box-shadow:0 0 20px rgba(102,126,234,0.4);" [style.width.%]="timelineProgressPercent()" [style.background]="daysRemaining() !== null && daysRemaining()! < 0 ? 'linear-gradient(90deg,#ef4444,#f87171)' : 'linear-gradient(90deg,#667eea,#764ba2)'"></div>
                         </div>
                     </div>
-                </mat-card-content>
-            </mat-card>
+
+                    <!-- Timeline Info -->
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1.2rem;margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid rgba(15,23,42,0.06);">
+                        <div>
+                            <p style="margin:0 0 0.4rem;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;font-weight:700;">Start Date</p>
+                            <p style="margin:0;font-size:1.1rem;font-weight:700;color:#0f172a;">{{ startDateLabel() }}</p>
+                        </div>
+                        <div>
+                            <p style="margin:0 0 0.4rem;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;font-weight:700;">Deadline</p>
+                            <p style="margin:0;font-size:1.1rem;font-weight:700;color:#0f172a;">{{ endDateLabel() }}</p>
+                        </div>
+                        <div>
+                            <p style="margin:0 0 0.4rem;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;font-weight:700;">Created</p>
+                            <p style="margin:0;font-size:1.1rem;font-weight:700;color:#0f172a;">{{ createdAtLabel() }}</p>
+                        </div>
+                        <div>
+                            <p style="margin:0 0 0.4rem;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;font-weight:700;">Time Left</p>
+                            <p style="margin:0;font-size:1.1rem;font-weight:700;color:#0f172a;">{{ daysRemainingLabel() }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats Grid -->
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1.5rem;padding:2rem;background:#fafbfc;">
+                    <div style="padding:1.5rem;background:white;border-radius:12px;border:1px solid #e5e7eb;transition:all 0.3s ease;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.8rem;">
+                            <p style="margin:0;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;font-weight:700;">Team Members</p>
+                            <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">👥</div>
+                        </div>
+                        <p style="margin:0 0 0.5rem;font-size:2rem;font-weight:800;color:#0f172a;line-height:1;">{{ members().length }}</p>
+                        <p style="margin:0;font-size:0.85rem;color:#64748b;">{{ leadershipCount() }} leaders</p>
+                    </div>
+
+                    <div style="padding:1.5rem;background:white;border-radius:12px;border:1px solid #e5e7eb;transition:all 0.3s ease;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.8rem;">
+                            <p style="margin:0;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;font-weight:700;">Milestone Tasks</p>
+                            <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#10b981 0%,#059669 100%);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">✓</div>
+                        </div>
+                        <p style="margin:0 0 0.5rem;font-size:2rem;font-weight:800;color:#0f172a;line-height:1;">{{ milestoneTaskTotal() }}</p>
+                        <p style="margin:0;font-size:0.85rem;color:#64748b;">{{ completedMilestoneTasks() }} completed</p>
+                    </div>
+
+                    <div style="padding:1.5rem;background:white;border-radius:12px;border:1px solid #e5e7eb;transition:all 0.3s ease;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.8rem;">
+                            <p style="margin:0;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;font-weight:700;">Progress</p>
+                            <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#0ea5e9 0%,#0369a1 100%);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">📊</div>
+                        </div>
+                        <p style="margin:0 0 0.5rem;font-size:2rem;font-weight:800;color:#0f172a;line-height:1;">{{ timelineProgressPercent() }}%</p>
+                        <p style="margin:0;font-size:0.85rem;color:#64748b;">Timeline elapsed</p>
+                    </div>
+
+                    <div style="padding:1.5rem;background:white;border-radius:12px;border:1px solid #e5e7eb;transition:all 0.3s ease;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.8rem;">
+                            <p style="margin:0;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;font-weight:700;">Repo Health</p>
+                            <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">💻</div>
+                        </div>
+                        <p style="margin:0 0 0.5rem;font-size:2rem;font-weight:800;color:#0f172a;line-height:1;">{{ projectRepoInsights()?.providerStatus === 'live' ? 'Live' : 'Pending' }}</p>
+                        <p style="margin:0;font-size:0.85rem;color:#64748b;">GitHub status</p>
+                    </div>
+                </div>
+            </div>
 
             @if (canManageProjects()) {
-            <mat-card class="mb-3 mb-lg-4" style="border:1px solid rgba(15,23,42,0.1);overflow:hidden;">
-                <mat-card-content class="py-3">
+            <!-- Project Management Section -->
+            <div style="background:white;border-radius:16px;border:1px solid #e5e7eb;margin-bottom:1.5rem;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                <div style="padding:1.5rem;background:#fafbfc;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;gap:1rem;">
+                    <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">⚙️</div>
+                    <div style="flex:1;">
+                        <h5 style="margin:0 0 0.3rem;color:#0f172a;font-weight:700;font-size:1.1rem;">Project Management</h5>
+                        <p style="margin:0;font-size:0.85rem;color:#64748b;">Update details, lifecycle status, and governance actions.</p>
+                    </div>
+                </div>
+
+                <div style="padding:1.5rem;background:white;">
                     @if (!editMode()) {
-                    <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-2">
-                        <div>
-                            <p class="mb-0" style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Project Management</p>
-                            <p class="mb-0" style="font-size:12px;color:#334155;">Update details, lifecycle status, and governance actions.</p>
+                        <div style="margin-bottom:1rem;">
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button matButton (click)="startEdit()" style="background:rgba(102,126,234,0.08);color:#667eea;">
+                                    <mat-icon class="material-icons-outlined">edit</mat-icon>
+                                    Edit Project
+                                </button>
+                                <button matButton (click)="openArchiveDialog()" style="color:#f59e0b;background:rgba(245,124,0,0.08);">
+                                    <mat-icon class="material-icons-outlined">archive</mat-icon>
+                                    Archive
+                                </button>
+                                <button matButton style="background:rgba(239,68,68,0.08);color:#dc2626;" (click)="openHardDeleteDialog()">
+                                    <mat-icon class="material-icons-outlined">delete_forever</mat-icon>
+                                    Delete
+                                </button>
+                            </div>
                         </div>
-                        <button matButton="filled" (click)="startEdit()">
-                            <mat-icon class="material-icons-outlined">edit</mat-icon>
-                            Edit Project
-                        </button>
-                    </div>
 
-                    <div class="d-flex gap-2 flex-wrap mb-2">
-                        <button matButton (click)="openArchiveDialog()" style="color:#f57c00;background:rgba(245,124,0,0.08);">
-                            <mat-icon class="material-icons-outlined">archive</mat-icon>
-                            Archive
-                        </button>
-                        <button matButton class="theme-red" style="background:rgba(239,68,68,0.08);" (click)="openHardDeleteDialog()">
-                            <mat-icon class="material-icons-outlined">delete_forever</mat-icon>
-                            Delete
-                        </button>
-                    </div>
-
-                    @if (validStatusTransitions().length > 0) {
-                    <mat-form-field appearance="outline" class="w-100 inline-small mb-0">
-                        <mat-label>Change Status</mat-label>
-                        <mat-select [ngModel]="null" (ngModelChange)="changeStatus($event)">
-                            @for (opt of validStatusTransitions(); track opt.value) {
-                                <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
-                            }
-                        </mat-select>
-                    </mat-form-field>
-                    }
-                    }
-
-                    @if (editMode()) {
-                    <form #editForm="ngForm">
-                    <mat-form-field appearance="outline" class="w-100 mb-2">
-                        <mat-label>Project Name</mat-label>
-                        <input matInput name="editName" [(ngModel)]="editName" required minlength="3" maxlength="150" #nameCtrl="ngModel" />
-                        <mat-hint align="end">{{ editName.length }}/150</mat-hint>
-                        @if (nameCtrl.errors?.['required']) {
-                        <mat-error>Project name is required.</mat-error>
-                        }
-                        @if (nameCtrl.errors?.['minlength']) {
-                        <mat-error>Name must be at least 3 characters long.</mat-error>
-                        }
-                    </mat-form-field>
-                    <mat-form-field appearance="outline" class="w-100 mb-2">
-                        <mat-label>Description <span class="text-secondary">(optional)</span></mat-label>
-                        <textarea matInput rows="3" name="editDescription" [(ngModel)]="editDescription" maxlength="500"></textarea>
-                        <mat-hint align="end">{{ editDescription.length }}/500</mat-hint>
-                    </mat-form-field>
-                    <mat-form-field appearance="outline" class="w-100 mb-2">
-                        <mat-label>GitHub Repository URL <span class="text-secondary">(optional)</span></mat-label>
-                        <input matInput name="editGithubRepoUrl" [(ngModel)]="editGithubRepoUrl" placeholder="https://github.com/owner/repository" />
-                        <mat-hint>Accepted: github.com URL or owner/repository</mat-hint>
-                    </mat-form-field>
-                    <div class="row gx-2">
-                        <div class="col-12 col-md-3">
-                            <mat-form-field appearance="outline" class="w-100 mb-2">
-                                <mat-label>Visibility</mat-label>
-                                <mat-select name="editVisibility" [(ngModel)]="editVisibility">
-                                    <mat-option value="PRIVATE">Private</mat-option>
-                                    <mat-option value="PUBLIC">Public</mat-option>
+                        @if (validStatusTransitions().length > 0) {
+                            <mat-form-field appearance="outline" class="w-100 mb-0">
+                                <mat-label>Change Status</mat-label>
+                                <mat-select [ngModel]="null" (ngModelChange)="changeStatus($event)">
+                                    @for (opt of validStatusTransitions(); track opt.value) {
+                                        <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                                    }
                                 </mat-select>
                             </mat-form-field>
-                        </div>
-                        <div class="col-12 col-md-3">
+                        }
+                    }
+
+                    @if (editMode() && editForm()) {
+                        <form [formGroup]="editForm()!" (ngSubmit)="saveEdit()">
+                            <p style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;margin-bottom:1rem;">Edit Project Details</p>
+
                             <mat-form-field appearance="outline" class="w-100 mb-2">
-                                <mat-label>Start Date</mat-label>
-                                <input matInput type="date" name="editStartDate" [(ngModel)]="editStartDate" />
-                            </mat-form-field>
-                        </div>
-                        <div class="col-12 col-md-3">
-                            <mat-form-field appearance="outline" class="w-100 mb-2">
-                                <mat-label>End Date</mat-label>
-                                <input matInput type="date" name="editEndDate" [(ngModel)]="editEndDate" #endDateCtrl="ngModel" [min]="editStartDate || ''" />
-                                @if (editEndDate && editStartDate && editEndDate < editStartDate) {
-                                <mat-error>End date must be after the start date.</mat-error>
+                                <mat-label>Project Name</mat-label>
+                                <input matInput formControlName="name" maxlength="150" />
+                                <mat-hint align="end">{{ editForm()!.get('name')?.value?.length || 0 }}/150</mat-hint>
+                                @if (editForm()!.get('name')?.touched) {
+                                    @if (editForm()!.get('name')?.errors?.['required']) {
+                                        <mat-error>Project name is required.</mat-error>
+                                    }
+                                    @if (editForm()!.get('name')?.errors?.['minlength']) {
+                                        <mat-error>Name must be at least 3 characters.</mat-error>
+                                    }
                                 }
                             </mat-form-field>
-                        </div>
-                        <div class="col-12 col-md-3 d-flex align-items-start">
-                            <button matButton class="w-100" style="min-height:40px;background:rgba(37,99,235,0.08);" [disabled]="availableMembers().length === 0" type="button" (click)="openAddMemberDialog()">
-                                <mat-icon class="material-icons-outlined">person_add</mat-icon>
-                                Add Member
-                            </button>
-                        </div>
-                    </div>
-                    @if (editEndDate && editStartDate && editEndDate < editStartDate) {
-                    <div class="d-flex align-items-center gap-2 mb-3 px-2 py-2 rounded" style="background:rgba(220,53,69,0.08);border:1px solid rgba(220,53,69,0.3);">
-                        <mat-icon class="material-icons-outlined theme-red" style="font-size:18px;width:18px;height:18px;">error_outline</mat-icon>
-                        <span class="small" style="color:#dc3545">End date cannot be before the start date.</span>
-                    </div>
+
+                            <mat-form-field appearance="outline" class="w-100 mb-2">
+                                <mat-label>Description <span class="text-secondary">(optional)</span></mat-label>
+                                <textarea matInput rows="3" formControlName="description" maxlength="500"></textarea>
+                                <mat-hint align="end">{{ editForm()!.get('description')?.value?.length || 0 }}/500</mat-hint>
+                            </mat-form-field>
+
+                            <mat-form-field appearance="outline" class="w-100 mb-2">
+                                <mat-label>GitHub Repository URL <span class="text-secondary">(optional)</span></mat-label>
+                                <input matInput formControlName="githubRepoUrl" placeholder="https://github.com/owner/repository" />
+                                <mat-hint>Accepted: github.com URL or owner/repository</mat-hint>
+                            </mat-form-field>
+
+                            <div class="row gx-2">
+                                <div class="col-12 col-md-3">
+                                    <mat-form-field appearance="outline" class="w-100 mb-2">
+                                        <mat-label>Visibility</mat-label>
+                                        <mat-select formControlName="visibility">
+                                            <mat-option value="PRIVATE">Private</mat-option>
+                                            <mat-option value="PUBLIC">Public</mat-option>
+                                        </mat-select>
+                                    </mat-form-field>
+                                </div>
+                                <div class="col-12 col-md-3">
+                                    <mat-form-field appearance="outline" class="w-100 mb-2">
+                                        <mat-label>Start Date</mat-label>
+                                        <input matInput type="date" formControlName="startDate" />
+                                    </mat-form-field>
+                                </div>
+                                <div class="col-12 col-md-3">
+                                    <mat-form-field appearance="outline" class="w-100 mb-2">
+                                        <mat-label>End Date</mat-label>
+                                        <input matInput type="date" formControlName="endDate" />
+                                        @if (editForm()!.get('endDate')?.errors?.['dateRange']) {
+                                            <mat-error>End date must be after start date.</mat-error>
+                                        }
+                                    </mat-form-field>
+                                </div>
+                                <div class="col-12 col-md-3 d-flex align-items-start">
+                                    <button matButton class="w-100" style="min-height:40px;background:rgba(102,126,234,0.08);color:#667eea;" [disabled]="availableMembers().length === 0" type="button" (click)="openAddMemberDialog()">
+                                        <mat-icon class="material-icons-outlined">person_add</mat-icon>
+                                        Add Member
+                                    </button>
+                                </div>
+                            </div>
+
+                            @if (editForm()!.errors?.['dateRange'] || editForm()!.get('endDate')?.errors?.['dateRange']) {
+                                <div class="d-flex align-items-center gap-2 mb-3 px-2 py-2 rounded" style="background:rgba(220,53,69,0.08);border:1px solid rgba(220,53,69,0.3);">
+                                    <mat-icon class="material-icons-outlined" style="font-size:18px;width:18px;height:18px;color:#dc2626;">error_outline</mat-icon>
+                                    <span class="small" style="color:#dc3545">End date cannot be before the start date.</span>
+                                </div>
+                            }
+
+                            <div class="d-flex gap-2 mb-0 flex-wrap">
+                                <button matButton style="background:rgba(102,126,234,0.08);color:#667eea;" type="submit" [disabled]="editSaving()">
+                                    @if (editSaving()) {
+                                        <mat-icon class="material-icons-outlined" style="animation:spin 1s linear infinite;">cached</mat-icon>
+                                        Saving...
+                                    } @else {
+                                        <mat-icon class="material-icons-outlined">save</mat-icon>
+                                        Save Changes
+                                    }
+                                </button>
+                                <button matButton type="button" [disabled]="editSaving()" (click)="cancelEdit()">Cancel</button>
+                            </div>
+                        </form>
                     }
-                    <div class="d-flex gap-2 mb-0 flex-wrap">
-                        <button matButton="filled" type="button" (click)="saveEdit(editForm)">
-                            <mat-icon class="material-icons-outlined">save</mat-icon>
-                            Save Changes
-                        </button>
-                        <button matButton type="button" (click)="cancelEdit()">Cancel</button>
-                    </div>
-                    </form>
-                    }
-                </mat-card-content>
-            </mat-card>
+                </div>
+            </div>
             }
 
             @if (!historicalAt()) {
-            <mat-card class="mb-3 mb-lg-4">
-                <mat-card-content class="py-3">
-                    <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+            <!-- Project Health (Collapsible) -->
+            <div style="background:white;border-radius:16px;border:1px solid #e5e7eb;margin-bottom:1.5rem;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.04);transition:all 0.3s ease;">
+                <div style="padding:1.5rem;background:#fafbfc;border-bottom:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all 0.2s ease;" (click)="healthExpanded = !healthExpanded">
+                    <div style="flex:1;display:flex;align-items:center;gap:1rem;">
+                        <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#10b981 0%,#059669 100%);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">💚</div>
                         <div>
-                            <h4 class="mb-0">
-                                <mat-icon class="material-icons-outlined align-middle" style="font-size:18px;width:18px;height:18px;">monitor_heart</mat-icon>
+                            <h5 style="margin:0 0 0.3rem;color:#0f172a;font-weight:700;font-size:1.1rem;">
                                 Project Health
-                            </h4>
-                            <p class="text-secondary small mb-0">Composite risk signal from timeline, activity, collaboration, and status freshness.</p>
+                            </h5>
+                            <p style="margin:0;font-size:0.85rem;color:#64748b;">Composite risk signal from timeline, activity, collaboration, and status freshness.</p>
                         </div>
-                        <button matButton class="text-theme" (click)="loadProjectHealth()" [disabled]="projectHealthLoading()">
-                            <mat-icon class="material-icons-outlined">refresh</mat-icon>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:1rem;flex-shrink:0;">
+                        <button matButton class="text-theme" (click)="loadProjectHealth();$event.stopPropagation()" [disabled]="projectHealthLoading()" style="color:#667eea;">
+                            <mat-icon style="font-size:18px;width:18px;height:18px;margin-right:4px;">refresh</mat-icon>
                             Refresh
                         </button>
+                        <mat-icon style="font-size:24px;width:24px;height:24px;color:#667eea;transition:transform 0.3s ease;transform:rotateX({{ healthExpanded ? '180deg' : '0' }});">expand_more</mat-icon>
                     </div>
+                </div>
+
+                @if (healthExpanded) {
+                <div style="padding:1.5rem;animation:slideDown 0.3s cubic-bezier(0.34,1.56,0.64,1);">
 
                     @if (projectHealthLoading()) {
                         <div class="d-flex align-items-center gap-2 text-secondary small py-2">
@@ -420,24 +508,34 @@ interface ProjectMilestoneSnapshot {
                     } @else {
                         <p class="small text-secondary mb-0">Project health is not available for this project yet.</p>
                     }
-                </mat-card-content>
-            </mat-card>
+                </div>
+                }
+            </div>
+            }
 
-            <mat-card class="mb-3 mb-lg-4">
-                <mat-card-content class="py-3">
-                    <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+            <!-- GitHub Repository Intelligence (Collapsible) -->
+            <div style="background:white;border-radius:16px;border:1px solid #e5e7eb;margin-bottom:1.5rem;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.04);transition:all 0.3s ease;">
+                <div style="padding:1.5rem;background:#fafbfc;border-bottom:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all 0.2s ease;" (click)="repoExpanded = !repoExpanded">
+                    <div style="flex:1;display:flex;align-items:center;gap:1rem;">
+                        <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">💻</div>
                         <div>
-                            <h4 class="mb-0">
-                                <mat-icon class="material-icons-outlined align-middle" style="font-size:18px;width:18px;height:18px;">source</mat-icon>
+                            <h5 style="margin:0 0 0.3rem;color:#0f172a;font-weight:700;font-size:1.1rem;">
                                 GitHub Repository Intelligence
-                            </h4>
-                            <p class="text-secondary small mb-0">Connected to the repository URL saved in this project.</p>
+                            </h5>
+                            <p style="margin:0;font-size:0.85rem;color:#64748b;">Connected to the repository URL saved in this project.</p>
                         </div>
-                        <button matButton class="text-theme" (click)="refreshProjectRepoInsights()" [disabled]="projectRepoLoading()">
-                            <mat-icon class="material-icons-outlined">refresh</mat-icon>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:1rem;flex-shrink:0;">
+                        <button matButton class="text-theme" (click)="refreshProjectRepoInsights();$event.stopPropagation()" [disabled]="projectRepoLoading()" style="color:#667eea;">
+                            <mat-icon style="font-size:18px;width:18px;height:18px;margin-right:4px;">refresh</mat-icon>
                             Refresh
                         </button>
+                        <mat-icon style="font-size:24px;width:24px;height:24px;color:#667eea;transition:transform 0.3s ease;transform:rotateX({{ repoExpanded ? '180deg' : '0' }});">expand_more</mat-icon>
                     </div>
+                </div>
+
+                @if (repoExpanded) {
+                <div style="padding:1.5rem;animation:slideDown 0.3s cubic-bezier(0.34,1.56,0.64,1);">
 
                     @if (projectRepoLoading()) {
                         <div class="d-flex align-items-center gap-2 text-secondary small py-2">
@@ -599,68 +697,83 @@ interface ProjectMilestoneSnapshot {
                     } @else {
                         <p class="small text-secondary mb-0">Repository insights are not available yet.</p>
                     }
-                </mat-card-content>
-            </mat-card>
-            }
+                </div>
+                }
+            </div>
 
-            <!-- ── Project Timeline ── -->
+            <!-- Project Timeline Section -->
             @if (project()?.startDate || project()?.endDate) {
-            <mat-card class="mb-3 mb-lg-4">
-                <mat-card-content>
-                    <div class="d-flex align-items-center justify-content-between mb-3">
-                        <div>
-                            <h4 class="mb-0">Project Timeline</h4>
-                            <p class="text-secondary small mb-0">
-                                {{ startDateLabel() }} → {{ endDateLabel() }}
-                                @if (daysRemaining() !== null) {
-                                    &nbsp;·&nbsp;
-                                    @if (daysRemaining()! < 0) { <span style="color:#ef4444;">Overdue by {{ -daysRemaining()! }} day{{ -daysRemaining()! !== 1 ? 's' : '' }}</span> }
+            <div style="background:white;border-radius:16px;border:1px solid #e5e7eb;margin-bottom:1.5rem;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                <div style="padding:1.5rem;background:#fafbfc;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;gap:1rem;">
+                    <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#6366f1 0%,#818cf8 100%);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">⏱️</div>
+                    <div style="flex:1;">
+                        <h5 style="margin:0 0 0.3rem;color:#0f172a;font-weight:700;font-size:1.1rem;">Project Timeline</h5>
+                        <p style="margin:0;font-size:0.85rem;color:#64748b;">{{ startDateLabel() }} → {{ endDateLabel() }}</p>
+                    </div>
+                    <div class="text-end flex-shrink-0">
+                        <p class="mb-0 fw-semibold" style="font-size:22px;color:#6366f1;">{{ timelineProgressPercent() }}%</p>
+                        <p style="margin:0;font-size:0.75rem;color:#64748b;">elapsed</p>
+                    </div>
+                </div>
+
+                <div style="padding:1.5rem;background:white;">
+                    <div style="margin-bottom:1.5rem;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem;">
+                            <span style="font-size:0.85rem;color:#475569;font-weight:600;">Timeline Progress</span>
+                            @if (daysRemaining() !== null) {
+                                <span style="font-size:0.85rem;font-weight:600;">
+                                    @if (daysRemaining()! < 0) { <span style="color:#dc2626;">Overdue by {{ -daysRemaining()! }} day{{ -daysRemaining()! !== 1 ? 's' : '' }}</span> }
                                     @else if (daysRemaining()! === 0) { <span style="color:#f59e0b;">Ends today</span> }
-                                    @else { <span style="color:#22c55e;">{{ daysRemaining() }} day{{ daysRemaining() !== 1 ? 's' : '' }} remaining</span> }
-                                }
-                            </p>
+                                    @else { <span style="color:#16a34a;">{{ daysRemaining() }} day{{ daysRemaining() !== 1 ? 's' : '' }} remaining</span> }
+                                </span>
+                            }
                         </div>
-                        <div class="text-end flex-shrink-0">
-                            <p class="mb-0 fw-semibold" style="font-size:22px;color:#6366f1;">{{ timelineProgressPercent() }}%</p>
-                            <p class="text-secondary small mb-0">elapsed</p>
-                        </div>
-                    </div>
-                    <!-- Progress bar -->
-                    <div style="position:relative;height:10px;border-radius:6px;background:rgba(0,0,0,0.07);overflow:hidden;">
-                        <div style="height:100%;border-radius:6px;transition:width .4s ease;"
-                             [style.width]="timelineProgressPercent() + '%'"
-                             [style.background]="daysRemaining() !== null && daysRemaining()! < 0 ? 'linear-gradient(90deg,#ef4444,#f87171)' : daysRemaining() === 0 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : 'linear-gradient(90deg,#6366f1,#818cf8)'">
+                        <div style="height:8px;border-radius:999px;background:#e2e8f0;overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,0.05);">
+                            <div style="height:100%;transition:width 0.4s cubic-bezier(0.34,1.56,0.64,1);border-radius:999px;box-shadow:0 0 20px rgba(99,102,241,0.4);"
+                                 [style.width.%]="timelineProgressPercent()"
+                                 [style.background]="daysRemaining() !== null && daysRemaining()! < 0 ? 'linear-gradient(90deg,#dc2626,#ef4444)' : daysRemaining() === 0 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : 'linear-gradient(90deg,#6366f1,#818cf8)'">
+                            </div>
                         </div>
                     </div>
-                    <div class="d-flex justify-content-between mt-1">
+
+                    <div class="d-flex justify-content-between">
                         <span class="text-secondary" style="font-size:11px;">{{ startDateLabel() }}</span>
                         <span class="text-secondary" style="font-size:11px;">{{ endDateLabel() }}</span>
                     </div>
+
                     @if (!project()?.startDate || !project()?.endDate) {
-                    <p class="text-secondary small mb-0 mt-2">
-                        <mat-icon class="material-icons-outlined align-middle" style="font-size:14px;width:14px;height:14px;">info</mat-icon>
-                        Set both start and end dates to see the full timeline.
-                    </p>
+                        <div style="border:1.5px dashed rgba(0,0,0,0.1);border-radius:10px;padding:12px;margin-top:1rem;text-align:center;">
+                            <mat-icon class="material-icons-outlined" style="font-size:20px;width:20px;height:20px;color:#94a3b8;margin-bottom:4px;display:block;">info</mat-icon>
+                            <p style="margin:0;font-size:0.85rem;color:#64748b;">Set both start and end dates to see the full timeline.</p>
+                        </div>
                     }
-                </mat-card-content>
-            </mat-card>
+                </div>
+            </div>
             }
 
-            <mat-card class="mb-3 mb-lg-4">
-                <mat-card-content class="py-3">
-                    <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-2">
+            <!-- Holidays During Project Duration (Collapsible) -->
+            <div style="background:white;border-radius:16px;border:1px solid #e5e7eb;margin-bottom:1.5rem;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.04);transition:all 0.3s ease;">
+                <div style="padding:1.5rem;background:#fafbfc;border-bottom:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all 0.2s ease;" (click)="holidaysExpanded = !holidaysExpanded">
+                    <div style="flex:1;display:flex;align-items:center;gap:1rem;">
+                        <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">🏖️</div>
                         <div>
-                            <h4 class="mb-0">
-                                <mat-icon class="material-icons-outlined align-middle" style="font-size:18px;width:18px;height:18px;">event_upcoming</mat-icon>
+                            <h5 style="margin:0 0 0.3rem;color:#0f172a;font-weight:700;font-size:1.1rem;">
                                 Holidays During Project Duration
-                            </h4>
-                            <p class="text-secondary small mb-0">Only holidays between project start and end dates are included.</p>
+                            </h5>
+                            <p style="margin:0;font-size:0.85rem;color:#64748b;">Only holidays between project start and end dates are included.</p>
                         </div>
-                        <button matButton class="text-theme" (click)="refreshProjectDurationHolidays()" [disabled]="projectDurationHolidaysLoading()">
-                            <mat-icon class="material-icons-outlined">refresh</mat-icon>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:1rem;flex-shrink:0;">
+                        <button matButton class="text-theme" (click)="refreshProjectDurationHolidays();$event.stopPropagation()" [disabled]="projectDurationHolidaysLoading()" style="color:#667eea;">
+                            <mat-icon style="font-size:18px;width:18px;height:18px;margin-right:4px;">refresh</mat-icon>
                             Refresh
                         </button>
+                        <mat-icon style="font-size:24px;width:24px;height:24px;color:#667eea;transition:transform 0.3s ease;transform:rotateX({{ holidaysExpanded ? '180deg' : '0' }});">expand_more</mat-icon>
                     </div>
+                </div>
+
+                @if (holidaysExpanded) {
+                <div style="padding:1.5rem;animation:slideDown 0.3s cubic-bezier(0.34,1.56,0.64,1);">
 
                     <div class="row gx-2 mb-2">
                         <div class="col-8 col-md-4">
@@ -809,34 +922,34 @@ interface ProjectMilestoneSnapshot {
                             }
                         </div>
                     }
-                </mat-card-content>
-            </mat-card>
+                </div>
+                }
+            </div>
 
-            <!-- ── Phases ── -->
-            <mat-card class="mb-3 mb-lg-4">
-                <mat-card-content class="py-3">
-                    <div class="d-flex align-items-center gap-2 mb-3">
-                        <div style="width:36px;height:36px;border-radius:10px;background:rgba(99,102,241,0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                            <mat-icon class="material-icons-outlined" style="color:#6366f1;font-size:20px;width:20px;height:20px;">account_tree</mat-icon>
-                        </div>
-                        <div class="flex-grow-1">
-                            <h5 class="mb-0">
-                                Phases
-                                @if (parsedProjectPhases().length > 0) {
-                                    <span class="badge badge-light ms-1" style="font-size:11px;">{{ parsedProjectPhases().length }}</span>
-                                }
-                            </h5>
-                            @if (parsedProjectPhases().length === 0) {
-                                <p class="text-secondary small mb-0">No phase structure defined for this project.</p>
+            <!-- Phases Section -->
+            <div style="background:white;border-radius:16px;border:1px solid #e5e7eb;margin-bottom:1.5rem;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                <div style="padding:1.5rem;background:#fafbfc;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;gap:1rem;">
+                    <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">📊</div>
+                    <div style="flex:1;">
+                        <h5 style="margin:0 0 0.3rem;color:#0f172a;font-weight:700;font-size:1.1rem;">
+                            Phases
+                            @if (parsedProjectPhases().length > 0) {
+                                <span style="margin-left:0.8rem;padding:0.25rem 0.8rem;border-radius:999px;font-size:0.75rem;font-weight:700;background:#667eea;color:white;">{{ parsedProjectPhases().length }}</span>
                             }
-                        </div>
-                        @if (project()?.templateId) {
-                            <span class="badge badge-light flex-shrink-0" style="font-size:10px;">
-                                <mat-icon class="material-icons-outlined align-middle" style="font-size:11px;width:11px;height:11px;">layers</mat-icon>
-                                From template
-                            </span>
+                        </h5>
+                        @if (parsedProjectPhases().length === 0) {
+                            <p style="margin:0;font-size:0.85rem;color:#64748b;">No phase structure defined for this project.</p>
                         }
                     </div>
+                    @if (project()?.templateId) {
+                        <span style="padding:0.4rem 0.8rem;border-radius:8px;font-size:0.75rem;font-weight:700;background:#e0e7ff;color:#667eea;display:flex;align-items:center;gap:4px;flex-shrink:0;">
+                            <mat-icon class="material-icons-outlined" style="font-size:14px;width:14px;height:14px;">layers</mat-icon>
+                            From template
+                        </span>
+                    }
+                </div>
+
+                <div style="padding:1.5rem;background:white;">
 
                     @if (parsedProjectPhases().length > 0) {
                         <!-- Phase flow chips -->
@@ -876,26 +989,36 @@ interface ProjectMilestoneSnapshot {
                             <p class="text-secondary small mb-0" style="font-size:11px;">Projects created from templates will show the template's phase structure here.</p>
                         </div>
                     }
-                </mat-card-content>
-            </mat-card>
+                </div>
+            </div>
 
-            <mat-card class="mb-3 mb-lg-4">
-                <mat-card-content class="py-3">
-                    <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-2">
+            <!-- Milestones & Tasks Section (Collapsible) -->
+            <div style="background:white;border-radius:16px;border:1px solid #e5e7eb;margin-bottom:1.5rem;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.04);transition:all 0.3s ease;">
+                <div style="padding:1.5rem;background:#fafbfc;border-bottom:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all 0.2s ease;" (click)="milestonesExpanded = !milestonesExpanded">
+                    <div style="flex:1;display:flex;align-items:center;gap:1rem;">
+                        <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">🚩</div>
                         <div>
-                            <h5 class="mb-0">
+                            <h5 style="margin:0 0 0.3rem;color:#0f172a;font-weight:700;font-size:1.1rem;">
                                 Milestones &amp; Tasks
                                 @if (milestoneSnapshot().length > 0) {
-                                    <span class="badge badge-light ms-1" style="font-size:11px;">{{ milestoneSnapshot().length }} milestones</span>
+                                    <span style="margin-left:0.8rem;padding:0.25rem 0.8rem;border-radius:999px;font-size:0.75rem;font-weight:700;background:#667eea;color:white;">{{ milestoneSnapshot().length }}</span>
                                 }
                             </h5>
-                            <p class="text-secondary small mb-0">Compact execution view linked to Milestones and Task modules.</p>
+                            <p style="margin:0;font-size:0.85rem;color:#64748b;">Compact execution view linked to Milestones and Task modules.</p>
                         </div>
-                        <button matButton class="text-theme" (click)="openMilestonesBoard()">
-                            <mat-icon class="material-icons-outlined">flag</mat-icon>
-                            Open Milestones Board
-                        </button>
                     </div>
+                    <div style="display:flex;align-items:center;gap:1rem;flex-shrink:0;">
+                        <button matButton class="text-theme" (click)="openMilestonesBoard();$event.stopPropagation()" style="color:#667eea;">
+                            <mat-icon style="font-size:18px;width:18px;height:18px;margin-right:4px;">flag</mat-icon>
+                            Open Board
+                        </button>
+                        <mat-icon style="font-size:24px;width:24px;height:24px;color:#667eea;transition:transform 0.3s ease;transform:rotateX({{ milestonesExpanded ? '180deg' : '0' }});">expand_more</mat-icon>
+                    </div>
+                </div>
+
+                <!-- Collapsible Content -->
+                @if (milestonesExpanded) {
+                <div style="padding:1.5rem;animation:slideDown 0.3s cubic-bezier(0.34,1.56,0.64,1);">
 
                     <div class="row gx-2 mb-2">
                         <div class="col-6 col-md-3 mb-2">
@@ -991,72 +1114,87 @@ interface ProjectMilestoneSnapshot {
                             }
                         </div>
                     }
-                </mat-card-content>
-            </mat-card>
+                </div>
+                }
+            </div>
 
-            <div class="row gx-3 gx-lg-4">
-                <div class="col-12">
-                    <mat-card class="mb-3 mb-lg-4">
-                        <mat-card-content class="pb-0">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <div>
-                                    <h3 class="mb-1">Members</h3>
-                                    <p class="text-secondary small mb-0">Live project members with workspace-style management</p>
-                                </div>
+            <!-- Members Section -->
+            <div style="background:white;border-radius:16px;border:1px solid #e5e7eb;margin-bottom:1.5rem;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                <div style="padding:1.5rem;background:#fafbfc;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;gap:1rem;">
+                    <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">👥</div>
+                    <div style="flex:1;">
+                        <h5 style="margin:0 0 0.3rem;color:#0f172a;font-weight:700;font-size:1.1rem;">
+                            Members
+                            @if (members().length > 0) {
+                                <span style="margin-left:0.8rem;padding:0.25rem 0.8rem;border-radius:999px;font-size:0.75rem;font-weight:700;background:#667eea;color:white;">{{ members().length }}</span>
+                            }
+                        </h5>
+                        <p style="margin:0;font-size:0.85rem;color:#64748b;">Live project members with workspace-style management</p>
+                    </div>
+                    @if (canManageProjects()) {
+                        <button matButton (click)="openAddMemberDialog()" style="color:#667eea;flex-shrink:0;">
+                            <mat-icon style="font-size:18px;width:18px;height:18px;margin-right:4px;">person_add</mat-icon>
+                            Add Member
+                        </button>
+                    }
+                </div>
+
+                <div style="padding:1.5rem;background:white;">
+                    <div class="row gx-2 mb-3">
+                        <div class="col-6 col-md-3 mb-2">
+                            <div style="border:1px solid rgba(102,126,234,0.25);border-radius:10px;background:rgba(102,126,234,0.07);padding:8px 10px;">
+                                <p class="text-secondary mb-1" style="font-size:11px;">Leads</p>
+                                <p class="fw-semibold mb-0" style="font-size:18px;color:#667eea;">{{ leadershipCount() }}</p>
                             </div>
-
-                            <div class="row gx-2 mb-3">
-                                <div class="col-6 col-lg-3">
-                                    <mat-card class="bg-light-theme">
-                                        <mat-card-content class="py-2">
-                                            <p class="small text-secondary mb-1">Leads</p>
-                                            <h4 class="mb-0">{{ leadershipCount() }}</h4>
-                                        </mat-card-content>
-                                    </mat-card>
-                                </div>
-                                <div class="col-6 col-lg-3">
-                                    <mat-card class="bg-light-theme">
-                                        <mat-card-content class="py-2">
-                                            <p class="small text-secondary mb-1">Contributors</p>
-                                            <h4 class="mb-0">{{ contributorCount() }}</h4>
-                                        </mat-card-content>
-                                    </mat-card>
-                                </div>
-                                <div class="col-6 col-lg-3">
-                                    <mat-card class="bg-light-theme">
-                                        <mat-card-content class="py-2">
-                                            <p class="small text-secondary mb-1">Joined Last 7d</p>
-                                            <h4 class="mb-0">{{ joinedLast7DaysCount() }}</h4>
-                                        </mat-card-content>
-                                    </mat-card>
-                                </div>
-                                <div class="col-6 col-lg-3">
-                                    <mat-card class="bg-light-theme">
-                                        <mat-card-content class="py-2">
-                                            <p class="small text-secondary mb-1">Available to Add</p>
-                                            <h4 class="mb-0">{{ availableMembers().length }}</h4>
-                                        </mat-card-content>
-                                    </mat-card>
-                                </div>
+                        </div>
+                        <div class="col-6 col-md-3 mb-2">
+                            <div style="border:1px solid rgba(16,185,129,0.26);border-radius:10px;background:rgba(16,185,129,0.08);padding:8px 10px;">
+                                <p class="text-secondary mb-1" style="font-size:11px;">Contributors</p>
+                                <p class="fw-semibold mb-0" style="font-size:18px;color:#047857;">{{ contributorCount() }}</p>
                             </div>
+                        </div>
+                        <div class="col-6 col-md-3 mb-2">
+                            <div style="border:1px solid rgba(59,130,246,0.26);border-radius:10px;background:rgba(59,130,246,0.08);padding:8px 10px;">
+                                <p class="text-secondary mb-1" style="font-size:11px;">Joined Last 7d</p>
+                                <p class="fw-semibold mb-0" style="font-size:18px;color:#1e40af;">{{ joinedLast7DaysCount() }}</p>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3 mb-2">
+                            <div style="border:1px solid rgba(244,63,94,0.25);border-radius:10px;background:rgba(244,63,94,0.08);padding:8px 10px;">
+                                <p class="text-secondary mb-1" style="font-size:11px;">Available to Add</p>
+                                <p class="fw-semibold mb-0" style="font-size:18px;color:#be123c;">{{ availableMembers().length }}</p>
+                            </div>
+                        </div>
+                    </div>
 
-                            @if (members().length === 0) {
-                            <p class="text-secondary mb-3">No members assigned to this project yet.</p>
-                            } @else {
+                    @if (members().length === 0) {
+                        <div style="border:1.5px dashed rgba(0,0,0,0.1);border-radius:10px;padding:16px;text-align:center;">
+                            <mat-icon class="material-icons-outlined" style="font-size:28px;width:28px;height:28px;color:#94a3b8;margin-bottom:8px;">people</mat-icon>
+                            <p style="color:#64748b;font-size:0.85rem;margin-bottom:8px;">No members assigned to this project yet.</p>
+                            @if (canManageProjects()) {
+                                <button matButton (click)="openAddMemberDialog()" style="color:#667eea;">
+                                    <mat-icon class="material-icons-outlined">person_add</mat-icon>
+                                    Add first member
+                                </button>
+                            }
+                        </div>
+                    } @else {
+                        <div class="d-flex flex-column gap-2">
                             @for (member of members(); track member.userId) {
-                            <app-project-member-card
-                                [member]="member"
-                                [canEditRole]="canEditMemberRole(member)"
-                                [canRemoveMember]="canRemoveMember(member)"
-                                (editRole)="openRoleEditDialog($event)"
-                                (removeMember)="openRemoveMemberDialog($event)"></app-project-member-card>
+                                <app-project-member-card
+                                    [member]="member"
+                                    [canEditRole]="canEditMemberRole(member)"
+                                    [canRemoveMember]="canRemoveMember(member)"
+                                    (editRole)="openRoleEditDialog($event)"
+                                    (removeMember)="openRemoveMemberDialog($event)"></app-project-member-card>
                             }
-                            }
-                        </mat-card-content>
-                    </mat-card>
+                        </div>
+                    }
                 </div>
             </div>
             }
+            </div>
+        </div>
         </div>
     `,
 })
@@ -1072,23 +1210,22 @@ export class ProjectDetailsComponent implements OnInit {
     private readonly authService = inject(AuthService);
     private readonly milestoneService = inject(MilestoneService);
     private readonly taskService = inject(TaskService);
+    private readonly fb = inject(FormBuilder);
 
     readonly isLoading = signal(true);
     readonly error = signal<string | null>(null);
     readonly editMode = signal(false);
+    readonly editForm = signal<FormGroup | null>(null);
+    readonly editSaving = signal(false);
+    milestonesExpanded = false;
+    repoExpanded = false;
+    holidaysExpanded = false;
+    healthExpanded = false;
 
     readonly workspaceId = signal("");
     readonly projectId = signal("");
     readonly historicalAt = signal<string | null>(null);
     readonly historicalDisplay = computed(() => this.historicalAt() ? new Date(this.historicalAt()!).toLocaleString() : "");
-
-    // edit form fields (two-way bound via ngModel)
-    editName = "";
-    editDescription = "";
-    editGithubRepoUrl = "";
-    editVisibility: "PUBLIC" | "PRIVATE" = "PRIVATE";
-    editStartDate = "";
-    editEndDate = "";
 
     readonly project = signal<M2ProjectSummary | null>(null);
     readonly workspaceName = signal("-");
@@ -1853,52 +1990,62 @@ export class ProjectDetailsComponent implements OnInit {
     startEdit(): void {
         const p = this.project();
         if (!p) return;
-        this.editName = p.name || "";
-        this.editDescription = p.description || "";
-        this.editGithubRepoUrl = p.githubRepoUrl || "";
-        this.editVisibility = (p.visibility as "PUBLIC" | "PRIVATE") || "PRIVATE";
-this.editStartDate = p.startDate || "";
-        this.editEndDate = p.endDate || "";
+        const group = this.fb.group({
+            name: [p.name || '', [Validators.required, Validators.minLength(3), Validators.maxLength(150)]],
+            description: [p.description || '', [Validators.maxLength(500)]],
+            githubRepoUrl: [p.githubRepoUrl || ''],
+            visibility: [(p.visibility as 'PUBLIC' | 'PRIVATE') || 'PRIVATE', Validators.required],
+            startDate: [p.startDate || ''],
+            endDate: [p.endDate || ''],
+        }, { validators: this.dateRangeValidator });
+        this.editForm.set(group);
         this.editMode.set(true);
     }
 
-    cancelEdit(): void {
-        const p = this.project();
-        if (p) {
-            this.editName = p.name || "";
-            this.editDescription = p.description || "";
-            this.editGithubRepoUrl = p.githubRepoUrl || "";
-            this.editVisibility = (p.visibility as "PUBLIC" | "PRIVATE") || "PRIVATE";
-            this.editStartDate = p.startDate || "";
-            this.editEndDate = p.endDate || "";
+    private dateRangeValidator(group: AbstractControl) {
+        const start = group.get('startDate')?.value;
+        const end = group.get('endDate')?.value;
+        if (start && end && end < start) {
+            group.get('endDate')?.setErrors({ dateRange: true });
+            return { dateRange: true };
         }
+        group.get('endDate')?.setErrors(null);
+        return null;
+    }
+
+    cancelEdit(): void {
+        this.editForm.set(null);
         this.editMode.set(false);
     }
 
-    saveEdit(form: NgForm): void {
-        form.form.markAllAsTouched();
+    saveEdit(): void {
+        const form = this.editForm();
+        if (!form) return;
+        form.markAllAsTouched();
         if (form.invalid) return;
-        if (this.editStartDate && this.editEndDate && this.editEndDate < this.editStartDate) return;
-
+        const val = form.value;
+        this.editSaving.set(true);
         const body: Record<string, unknown> = {
-            name: this.editName.trim(),
-            description: this.editDescription.trim() || null,
-            githubRepoUrl: this.editGithubRepoUrl.trim() || null,
-            visibility: this.editVisibility,
+            name: val.name.trim(),
+            description: val.description?.trim() || null,
+            githubRepoUrl: val.githubRepoUrl?.trim() || null,
+            visibility: val.visibility,
         };
-        if (this.editStartDate) body["startDate"] = this.editStartDate;
-        if (this.editEndDate) body["endDate"] = this.editEndDate;
-
+        if (val.startDate) body['startDate'] = val.startDate;
+        if (val.endDate) body['endDate'] = val.endDate;
         this.projectService.updateProject(this.workspaceId(), this.projectId(), body).subscribe({
             next: (updated) => {
                 this.project.set(updated);
                 this.loadProjectDurationHolidays(this.workspaceId(), updated);
                 this.loadProjectRepoInsights(this.workspaceId(), this.projectId());
+                this.editForm.set(null);
                 this.editMode.set(false);
-                this.snackBar.open("Project updated.", "Close", { duration: 3000 });
+                this.editSaving.set(false);
+                this.snackBar.open('Project updated.', 'Close', { duration: 3000 });
             },
             error: (error: HttpErrorResponse) => {
-                this.snackBar.open(`Failed to update project: ${this.errorMessage(error)}`, "Close", { duration: 4200 });
+                this.editSaving.set(false);
+                this.snackBar.open(`Failed to update project: ${this.errorMessage(error)}`, 'Close', { duration: 4200 });
             },
         });
     }

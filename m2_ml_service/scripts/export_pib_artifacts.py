@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import os
@@ -67,7 +68,7 @@ def _fetch_templates(cur: DictCursor) -> pd.DataFrame:
     cur.execute(
         """
         SELECT
-            CASE WHEN OCTET_LENGTH(id)=16 THEN BIN_TO_UUID(id) ELSE CAST(id AS CHAR) END AS template_id,
+            CASE WHEN OCTET_LENGTH(id)=16 THEN LOWER(CONCAT(HEX(SUBSTR(id,1,4)),'-',HEX(SUBSTR(id,5,2)),'-',HEX(SUBSTR(id,7,2)),'-',HEX(SUBSTR(id,9,2)),'-',HEX(SUBSTR(id,11)))) ELSE CAST(id AS CHAR) END AS template_id,
             name,
             template_type,
             use_case_description,
@@ -108,7 +109,7 @@ def _fetch_member_profiles(cur: DictCursor) -> pd.DataFrame:
     cur.execute(
         """
         SELECT
-            CASE WHEN OCTET_LENGTH(wm.workspace_id)=16 THEN BIN_TO_UUID(wm.workspace_id) ELSE CAST(wm.workspace_id AS CHAR) END AS workspace_id,
+            CASE WHEN OCTET_LENGTH(wm.workspace_id)=16 THEN LOWER(CONCAT(HEX(SUBSTR(wm.workspace_id,1,4)),'-',HEX(SUBSTR(wm.workspace_id,5,2)),'-',HEX(SUBSTR(wm.workspace_id,7,2)),'-',HEX(SUBSTR(wm.workspace_id,9,2)),'-',HEX(SUBSTR(wm.workspace_id,11)))) ELSE CAST(wm.workspace_id AS CHAR) END AS workspace_id,
             CAST(wm.user_id AS UNSIGNED) AS user_id,
             COALESCE(wm.ml_role_history_score, 0.5) AS roleHistoryScore,
             COALESCE(wm.ml_skill_match_score, 0.5) AS skillMatchScore,
@@ -227,8 +228,20 @@ def _build_role_classifier() -> Tuple[Dict[str, Any], Dict[str, float]]:
 
 
 def main() -> None:
-    root = Path(__file__).resolve().parents[1]
-    models_dir = root / "models"
+    parser = argparse.ArgumentParser(description="Export PIB ML artifacts")
+    parser.add_argument(
+        "--out-dir",
+        type=str,
+        default=None,
+        help="Output directory (default: <repo_root>/m2_ml_service/models/)",
+    )
+    args = parser.parse_args()
+
+    if args.out_dir:
+        models_dir = Path(args.out_dir).expanduser().resolve()
+    else:
+        root = Path(__file__).resolve().parents[1]
+        models_dir = root / "models"
     models_dir.mkdir(parents=True, exist_ok=True)
 
     conn = _db_connection()

@@ -729,17 +729,14 @@ public class ProjectService {
     }
 
     private double scoreForStatus(ProjectStatus status) {
-        if (status == null) {
-            return 55.0;
-        }
-        return switch (status) {
-            case COMPLETED -> 100.0;
-            case ARCHIVED -> 90.0;
-            case ACTIVE -> 82.0;
-            case PLANNING -> 68.0;
-            case ON_HOLD -> 40.0;
-            case CANCELLED -> 30.0;
-        };
+        if (status == null) return 55.0;
+        if (status == ProjectStatus.COMPLETED) return 100.0;
+        if (status == ProjectStatus.ARCHIVED)  return 90.0;
+        if (status == ProjectStatus.ACTIVE)    return 82.0;
+        if (status == ProjectStatus.PLANNING)  return 68.0;
+        if (status == ProjectStatus.ON_HOLD)   return 40.0;
+        if (status == ProjectStatus.CANCELLED) return 30.0;
+        return 55.0;
     }
 
     private double round1(double value) {

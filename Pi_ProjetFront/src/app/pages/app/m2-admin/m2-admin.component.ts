@@ -73,7 +73,13 @@ import {
             </div>
             <div class="col">
                 <h4 class="mb-0 fw-bold">Admin Dashboard</h4>
-                <p class="small text-secondary mb-0">Platform-wide visibility — all organizations, workspaces, projects &amp; templates</p>
+                <p class="small text-secondary mb-0">
+                    @if (isSuperAdmin()) {
+                        Platform-wide visibility — all organizations, workspaces &amp; projects
+                    } @else {
+                        Organization-scoped — workspaces &amp; projects in your organization only
+                    }
+                </p>
             </div>
             <div class="col-auto">
                 <button matButton (click)="reload()" [disabled]="loading()">
@@ -724,6 +730,9 @@ export class M2AdminComponent implements OnInit {
     private readonly templateService = inject(M2TemplateService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly dialog = inject(MatDialog);
+    private readonly authService = inject(AuthService);
+
+    readonly isSuperAdmin = computed(() => this.authService.currentUser()?.role === 'SUPER_ADMIN');
 
     // ── Data signals ───────────────────────────────────────────
 

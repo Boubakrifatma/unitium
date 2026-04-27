@@ -183,8 +183,19 @@ interface M2CreateWorkspaceDialogData {
     `,
     styles: [
         `
+            @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+            :host {
+                --ws-teal: #0d9488;
+                --ws-teal-dark: #0f766e;
+                --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                --transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+
             .create-shell {
-                background: radial-gradient(circle at top right, rgba(0, 136, 255, 0.08), transparent 55%);
+                background: linear-gradient(135deg, #fafafa, #f5f5f5);
+                border-radius: 16px;
+                transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
             }
 
             .workspace-stepper {
@@ -192,41 +203,78 @@ interface M2CreateWorkspaceDialogData {
             }
 
             .step-card {
-                border: 1px solid rgba(0, 0, 0, 0.08);
+                border: 1px solid color-mix(in srgb, #6750a4 10%, #ccc7d0);
                 border-radius: 14px;
-                padding: 14px;
-                background: #fff;
+                padding: 1.2rem;
+                background: color-mix(in srgb, #6750a4 3%, #fffbfe);
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+                box-shadow: 0 1px 4px color-mix(in srgb, #6750a4 10%, transparent);
+                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+
+            .step-card:hover {
+                border-color: color-mix(in srgb, #6750a4 30%, #ccc7d0);
+                box-shadow: 0 4px 16px color-mix(in srgb, #6750a4 16%, transparent);
+                background: color-mix(in srgb, #6750a4 4%, #fffbfe);
             }
 
             .preview-pill {
-                border: 1px dashed rgba(0, 136, 255, 0.4);
+                border: 1px dashed rgba(13, 148, 136, 0.4);
                 border-radius: 12px;
-                background: rgba(0, 136, 255, 0.06);
-                padding: 10px 12px;
+                background: rgba(13, 148, 136, 0.06);
+                padding: 0.85rem 1rem;
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                gap: 10px;
+                gap: 0.75rem;
+                transition: var(--transition-fast);
+            }
+
+            .preview-pill:hover {
+                border-color: rgba(13, 148, 136, 0.6);
+                background: rgba(13, 148, 136, 0.08);
             }
 
             .org-shell {
-                border: 1px solid rgba(0, 0, 0, 0.08);
+                border: 1px solid rgba(15, 54, 74, 0.12);
                 border-radius: 12px;
-                padding: 12px;
-                background: #fff;
+                padding: 1rem;
+                background: rgba(255, 255, 255, 0.9);
+                backdrop-filter: blur(6px);
+                -webkit-backdrop-filter: blur(6px);
+                transition: var(--transition-fast);
+            }
+
+            .org-shell:hover {
+                border-color: rgba(13, 148, 136, 0.18);
+                background: rgba(255, 255, 255, 0.95);
             }
 
             .summary-row {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                gap: 10px;
-                padding: 10px 0;
-                border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
+                gap: 0.75rem;
+                padding: 0.75rem 0;
+                border-bottom: 1px dashed rgba(15, 54, 74, 0.12);
+                transition: var(--transition-fast);
+            }
+
+            .summary-row:hover {
+                background: rgba(13, 148, 136, 0.02);
             }
 
             .summary-row:last-child {
                 border-bottom: 0;
+            }
+
+            ::ng-deep mat-form-field {
+                width: 100%;
+            }
+
+            ::ng-deep mat-form-field .mat-mdc-text-field-wrapper {
+                padding-bottom: 0.5rem;
             }
         `,
     ],
@@ -353,54 +401,49 @@ export class M2CreateWorkspaceDialogComponent {
         MatMenuModule,
     ],
     template: `
-        <div class="container-fluid fade-in mb-3 mb-lg-4">
-            <mat-card class="bg-light-theme shadow-none pt-3 pb-lg-3 px-3">
-                <div class="row gx-3 align-items-center">
-                    <div class="col-12 col-md mb-3 mb-xl-0 py-1 order-1 order-lg-1">
-                        <h3 class="mb-1">My Workspaces</h3>
-                        <p class="small mb-1">
-                            <span routerLink="/app/dashboard" class="me-2 text-theme style-none"><mat-icon class="material-icons-outlined align-middle text-sm">house</mat-icon> Home</span>
-                            <mat-icon class="material-icons-outlined align-middle text-sm me-2">chevron_right</mat-icon>
-                            Workspaces
-                        </p>
-                        @if (!isLoading() && workspaces().length > 0) {
-                        <div class="d-flex flex-wrap gap-2 mt-2">
-                            <span class="badge badge-light">{{ workspaces().length }} total</span>
-                            @if (enterpriseCount() > 0) {
-                            <span class="badge theme-blue">{{ enterpriseCount() }} Enterprise</span>
-                            }
-                            @if (academicCount() > 0) {
-                            <span class="badge theme-violet">{{ academicCount() }} Academic</span>
-                            }
-                            @if (overview()?.workspaces?.remaining !== null && overview()?.workspaces?.remaining !== undefined) {
-                            <span class="badge theme-green">{{ overview()?.workspaces?.remaining }} workspace slots left</span>
-                            }
-                            @if (overview()?.projects?.remainingActiveOrg !== null && overview()?.projects?.remainingActiveOrg !== undefined) {
-                            <span class="badge badge-light">{{ overview()?.projects?.remainingActiveOrg }} active project slots left</span>
-                            }
-                        </div>
+        <section class="ws-shell">
+
+            <!-- ── Hero Panel ── -->
+            <header class="ws-hero reveal">
+                <div class="ws-hero__left">
+                    <p class="ws-eyebrow">CMP Workspace Manager</p>
+                    <h1 class="ws-page-title">My Workspaces</h1>
+                    <div class="ws-breadcrumb">
+                        <span class="ws-bc-link" routerLink="/app/dashboard">Home</span>
+                        <mat-icon class="material-icons-outlined">chevron_right</mat-icon>
+                        <span>Workspaces</span>
+                    </div>
+                    @if (!isLoading() && workspaces().length > 0) {
+                    <div class="ws-chips-row">
+                        <span class="ws-chip ws-chip--neutral">{{ workspaces().length }} total</span>
+                        @if (enterpriseCount() > 0) {
+                        <span class="ws-chip ws-chip--teal">{{ enterpriseCount() }} Enterprise</span>
+                        }
+                        @if (academicCount() > 0) {
+                        <span class="ws-chip ws-chip--purple">{{ academicCount() }} Academic</span>
+                        }
+                        @if (overview()?.workspaces?.remaining !== null && overview()?.workspaces?.remaining !== undefined) {
+                        <span class="ws-chip ws-chip--green">{{ overview()?.workspaces?.remaining }} slots free</span>
                         }
                     </div>
-
-                    <div class="col-12 col-lg-4 mb-3 mb-xl-0 order-3 order-lg-2">
-                        <mat-form-field appearance="outline" class="w-100 inline-small">
-                            <mat-label>Search workspace</mat-label>
-                            <mat-icon matPrefix>search</mat-icon>
-                            <input matInput [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)" placeholder="Name, slug or org…" />
-                        </mat-form-field>
-                    </div>
-
-                    <div class="col-auto order-2 order-lg-3 mb-3 mb-xl-0">
-                        <button matButton (click)="loadWorkspaces()"><mat-icon class="material-icons-outlined">refresh</mat-icon> Refresh</button>
-                        <button matButton="filled" class="ms-1" [disabled]="!permissionService.canCreateWorkspace()" (click)="openCreateWorkspaceDialog()">
-                            <mat-icon class="material-icons-outlined">add</mat-icon> New Workspace
-                        </button>
-                    </div>
+                    }
                 </div>
-            </mat-card>
-        </div>
+                <div class="ws-hero__actions">
+                    <mat-form-field appearance="outline" style="width:240px;margin:0;">
+                        <mat-label>Search workspace</mat-label>
+                        <mat-icon matPrefix>search</mat-icon>
+                        <input matInput [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)" placeholder="Name, slug or org…" />
+                    </mat-form-field>
+                    <button matIconButton matTooltip="Refresh" (click)="loadWorkspaces()" class="ws-action-btn">
+                        <mat-icon class="material-icons-outlined">refresh</mat-icon>
+                    </button>
+                    <button mat-flat-button type="button" class="ws-primary-btn" [disabled]="!permissionService.canCreateWorkspace()" (click)="openCreateWorkspaceDialog()">
+                        <mat-icon class="material-icons-outlined">add</mat-icon> New Workspace
+                    </button>
+                </div>
+            </header>
 
-        <div class="container fade-in">
+            <div class="ws-content">
             @if (!isLoading() && overview()) {
             <div class="row gx-3 gx-lg-4 mb-3 mb-lg-4">
                 <div class="col-12 col-md-6 col-xl-3 mb-3 mb-xl-0">
@@ -601,183 +644,401 @@ export class M2CreateWorkspaceDialogComponent {
                 }
             </div>
             }
-        </div>
+            </div>
+        </section>
     `,
     styles: [`
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+        :host {
+            --primary-indigo: #667eea;
+            --primary-purple: #764ba2;
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --success-teal: #10b981;
+            --success-dark: #059669;
+            --warning-amber: #f59e0b;
+            --warning-dark: #d97706;
+            --error-red: #dc2626;
+            --error-dark: #ef4444;
+            --info-cyan: #0ea5e9;
+            --info-dark: #0369a1;
+            --bg-light: #fafbfc;
+            --bg-white: white;
+            --border-color: #e5e7eb;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+
+            display: block;
+            font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+            color: var(--text-primary);
+            background: linear-gradient(135deg, var(--bg-light), #f3f4f6);
+        }
+
+        /* ── Page Shell ── */
+        .ws-shell {
+            position: relative;
+            padding: 2rem;
+            background: var(--bg-light);
+            border-radius: 0;
+            overflow: hidden;
+            min-height: 100%;
+        }
+        .ws-shell::before {
+            content: ""; position: absolute;
+            inset: -40% -20% auto auto;
+            width: 500px; height: 500px;
+            background: radial-gradient(circle, rgba(102, 126, 234, 0.08), transparent 68%);
+            pointer-events: none;
+        }
+        .ws-shell::after {
+            content: ""; position: absolute;
+            inset: auto auto -160px -100px;
+            width: 400px; height: 400px;
+            background: radial-gradient(circle, rgba(245, 158, 11, 0.06), transparent 70%);
+            pointer-events: none;
+        }
+
+        /* ── Hero Panel ── */
+        .ws-hero {
+            position: relative; z-index: 1;
+            border: none;
+            border-radius: 16px;
+            padding: 3rem 2rem;
+            background: var(--primary-gradient);
+            box-shadow: 0 12px 40px rgba(102, 126, 234, 0.2);
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 2rem;
+            flex-wrap: wrap;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            overflow: hidden;
+        }
+        .ws-hero::before {
+            content: "";
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1), transparent 70%);
+            pointer-events: none;
+        }
+        .ws-eyebrow {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: rgba(255, 255, 255, 0.8);
+            margin: 0 0 0.4rem;
+            font-weight: 700;
+            position: relative;
+            z-index: 2;
+        }
+        .ws-page-title {
+            font-family: "Space Grotesk", "Segoe UI", sans-serif;
+            font-size: 2.2rem;
+            margin: 0;
+            color: white;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            line-height: 1.2;
+            position: relative;
+            z-index: 2;
+        }
+        .ws-breadcrumb {
+            display: flex; align-items: center; gap: 0.3rem;
+            margin: 0.5rem 0 0; font-size: 0.85rem; color: rgba(255, 255, 255, 0.7);
+            position: relative;
+            z-index: 2;
+        }
+        .ws-bc-link { color: rgba(255, 255, 255, 0.95); cursor: pointer; text-decoration: none; }
+        .ws-breadcrumb mat-icon { font-size: 16px; width: 16px; height: 16px; }
+        .ws-chips-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.8rem; position: relative; z-index: 2; }
+        .ws-chip {
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 0.3rem 0.8rem;
+            border-radius: 999px;
+            border: 1px solid transparent;
+        }
+        .ws-chip--neutral { background: rgba(255,255,255,0.15); color: white; border-color: rgba(255,255,255,0.3); }
+        .ws-chip--teal { background: rgba(16, 185, 129, 0.2); color: white; border-color: rgba(16, 185, 129, 0.4); }
+        .ws-chip--purple { background: rgba(168, 85, 247, 0.2); color: white; border-color: rgba(168, 85, 247, 0.4); }
+        .ws-chip--green { background: rgba(16, 185, 129, 0.2); color: white; border-color: rgba(16, 185, 129, 0.4); }
+        .ws-hero__actions { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; position: relative; z-index: 2; }
+        .ws-action-btn {
+            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border-radius: 999px !important;
+            background: rgba(255,255,255,0.15) !important;
+            color: white !important;
+        }
+        .ws-action-btn:hover {
+            background: rgba(255,255,255,0.25) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+        }
+        .ws-primary-btn {
+            background: white !important;
+            color: var(--primary-indigo) !important;
+            border-radius: 999px !important;
+            font-weight: 700 !important;
+            font-size: 0.85rem !important;
+            padding: 0.6rem 1.4rem !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+        }
+        .ws-primary-btn:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15) !important;
+        }
+        .ws-primary-btn:active {
+            transform: translateY(0) !important;
+        }
+
+        /* ── Content ── */
+        .ws-content { position: relative; z-index: 1; }
+
+        /* ── Metric Cards ── */
             .metric-card {
                 border-radius: 16px;
-                border: 1px solid rgba(15, 23, 42, 0.08);
+                border: 1px solid var(--border-color);
                 overflow: hidden;
-                background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+                background: var(--bg-white);
+                transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            }
+            .metric-card:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 12px 32px rgba(102, 126, 234, 0.15);
+                border-color: var(--primary-indigo);
+                background: var(--bg-white);
             }
             .metric-card mat-card-content {
-                padding: 14px 14px 12px;
+                padding: 1.5rem;
             }
             .metric-head {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                margin-bottom: 8px;
+                margin-bottom: 0.8rem;
             }
             .metric-label {
-                font-size: 11px;
+                font-size: 0.75rem;
                 text-transform: uppercase;
-                letter-spacing: .4px;
-                color: #64748b;
+                letter-spacing: 0.15em;
+                color: var(--text-muted);
                 font-weight: 700;
             }
             .metric-head mat-icon {
-                font-size: 18px;
-                width: 18px;
-                height: 18px;
-                color: #334155;
+                font-size: 24px;
+                width: 24px;
+                height: 24px;
+                color: var(--primary-indigo);
+                opacity: 0.7;
             }
             .metric-main {
                 display: flex;
                 align-items: baseline;
-                gap: 4px;
+                gap: 0.5rem;
                 line-height: 1;
-                margin-bottom: 7px;
+                margin-bottom: 0.8rem;
             }
             .metric-value {
-                font-size: 28px;
-                font-weight: 700;
-                color: #0f172a;
+                font-size: 2rem;
+                font-weight: 800;
+                color: var(--text-primary);
+                font-family: "Space Grotesk", sans-serif;
             }
             .metric-den {
-                font-size: 14px;
-                color: #64748b;
+                font-size: 1rem;
+                color: var(--text-secondary);
                 font-weight: 600;
             }
             .metric-note {
-                margin: 0 0 8px;
-                font-size: 12px;
-                color: #475569;
-                min-height: 32px;
+                margin: 0 0 0.8rem;
+                font-size: 0.85rem;
+                color: var(--text-secondary);
+                min-height: 2rem;
+                line-height: 1.4;
             }
             .metric-bar {
-                height: 8px;
+                height: 6px;
                 border-radius: 999px;
-                background: #e2e8f0;
+                background: var(--border-color);
                 overflow: hidden;
                 display: flex;
             }
-            .metric-bar--stacked {
-                gap: 1px;
-                background: #d9e2ec;
-            }
+            .metric-bar--stacked { gap: 1px; }
             .metric-bar__fill {
                 height: 100%;
-                background: linear-gradient(90deg, #2563eb, #0ea5e9);
+                background: var(--primary-gradient);
                 min-width: 0;
-                transition: width 240ms ease;
+                transition: width 280ms ease;
             }
-            .metric-bar__fill--project { background: linear-gradient(90deg, #0f766e, #14b8a6); }
-            .metric-bar__fill--member  { background: linear-gradient(90deg, #7c3aed, #a855f7); }
-            .metric-bar__fill--done    { background: linear-gradient(90deg, #1d9e75, #22c55e); }
-            .metric-bar__fill--hold    { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
-            .metric-bar__fill--other   { background: linear-gradient(90deg, #94a3b8, #cbd5e1); }
+            .metric-bar__fill--project { background: linear-gradient(90deg, var(--success-teal), var(--success-dark)); }
+            .metric-bar__fill--member  { background: linear-gradient(90deg, var(--primary-indigo), var(--primary-purple)); }
+            .metric-bar__fill--done    { background: linear-gradient(90deg, var(--success-teal), var(--success-dark)); }
+            .metric-bar__fill--hold    { background: linear-gradient(90deg, var(--warning-amber), var(--warning-dark)); }
+            .metric-bar__fill--other   { background: linear-gradient(90deg, var(--text-secondary), var(--text-muted)); }
             .metric-foot {
-                margin: 8px 0 0;
-                font-size: 11px;
-                color: #64748b;
+                margin: 0.5rem 0 0;
+                font-size: 0.8rem;
+                color: var(--text-secondary);
+                font-weight: 500;
             }
 
             .ws-card {
-                border: 1.5px solid rgba(0, 0, 0, 0.07);
-                border-radius: 16px;
-                transition: all 0.22s ease;
+                border: 1px solid var(--border-color);
+                border-radius: 12px;
+                transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
                 cursor: pointer;
                 overflow: hidden;
                 position: relative;
+                background: var(--bg-white);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
             }
             .ws-card:hover {
-                border-color: rgba(0, 136, 255, 0.3);
-                box-shadow: 0 6px 24px rgba(0, 0, 0, 0.09);
-                transform: translateY(-2px);
+                border-color: var(--primary-indigo);
+                box-shadow: 0 12px 32px rgba(102, 126, 234, 0.15);
+                transform: translateY(-3px);
+                background: var(--bg-white);
             }
-            .ws-card:hover .ws-open-arrow { opacity: 1; color: #0088ff; }
+            .ws-card:hover .ws-open-arrow {
+                opacity: 1;
+                color: var(--primary-indigo);
+                transform: translateX(2px);
+                transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            }
             .ws-card--disabled { opacity: 0.5; cursor: not-allowed; }
-            .ws-card--disabled:hover { transform: none; box-shadow: none; border-color: rgba(0,0,0,0.07); }
+            .ws-card--disabled:hover {
+                transform: none;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+                border-color: var(--border-color);
+                background: var(--bg-white);
+            }
             .ws-card__accent {
-                height: 4px;
-                background: linear-gradient(90deg, #0088ff, #00ccff);
+                height: 3px;
+                background: linear-gradient(90deg, var(--success-teal), var(--success-dark));
             }
             .ws-card__accent--academic {
-                background: linear-gradient(90deg, #7c3aed, #a78bfa);
+                background: linear-gradient(90deg, var(--primary-indigo), var(--primary-purple));
             }
             .ws-card__footer {
-                border-top: 1px solid rgba(0, 0, 0, 0.06);
-                padding-top: 10px;
-                margin-top: 4px;
+                border-top: 1px solid var(--border-color);
+                padding-top: 0.8rem;
+                margin-top: 0.8rem;
             }
             .ws-stats-grid {
                 display: grid;
                 grid-template-columns: repeat(2, minmax(0, 1fr));
-                gap: 8px;
+                gap: 0.8rem;
             }
             .ws-stat-box {
-                border: 1px solid rgba(15, 23, 42, 0.1);
-                border-radius: 10px;
-                background: rgba(248, 250, 252, 0.9);
-                padding: 8px 9px;
+                border: 1px solid var(--border-color);
+                border-radius: 12px;
+                background: #fafbfc;
+                padding: 0.8rem;
                 display: flex;
-                align-items: center;
+                flex-direction: column;
+                align-items: flex-start;
                 justify-content: space-between;
-                gap: 8px;
+                gap: 0.4rem;
+                transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+            }
+            .ws-stat-box:hover {
+                border-color: var(--primary-indigo);
+                background: var(--bg-white);
+                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.08);
             }
             .ws-stat-label {
-                font-size: 11px;
-                color: #64748b;
+                font-size: 0.75rem;
+                color: var(--text-secondary);
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
             }
             .ws-stat-value {
-                font-size: 13px;
-                color: #0f172a;
+                font-size: 1.25rem;
+                color: var(--text-primary);
+                font-weight: 700;
+                font-family: "Space Grotesk", sans-serif;
             }
             .ws-health__label {
-                font-size: 11px;
-                color: #64748b;
+                font-size: 0.75rem;
+                color: var(--text-secondary);
                 text-transform: uppercase;
-                letter-spacing: .35px;
+                letter-spacing: 0.15em;
+                font-weight: 600;
             }
             .ws-health__pct {
-                font-size: 11px;
-                color: #0f766e;
+                font-size: 0.85rem;
+                color: var(--primary-indigo);
                 font-weight: 700;
             }
             .ws-health__bar {
-                height: 7px;
+                height: 6px;
                 border-radius: 999px;
-                background: #e2e8f0;
+                background: var(--border-color);
                 overflow: hidden;
             }
             .ws-health__fill {
                 height: 100%;
-                background: linear-gradient(90deg, #1d9e75, #22c55e);
-                transition: width 240ms ease;
+                background: linear-gradient(90deg, var(--success-teal), var(--success-dark));
+                transition: width 280ms ease;
             }
             .ws-open-pill {
-                border: 1px solid rgba(14, 165, 233, 0.35);
-                color: #0369a1;
-                background: rgba(14, 165, 233, 0.09);
+                border: 1px solid rgba(102, 126, 234, 0.3);
+                color: var(--primary-indigo);
+                background: rgba(102, 126, 234, 0.1);
                 border-radius: 999px;
-                font-size: 11px;
+                font-size: 0.7rem;
                 font-weight: 600;
-                padding: 2px 8px;
+                padding: 0.25rem 0.6rem;
+                transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            }
+            .ws-card:hover .ws-open-pill {
+                background: rgba(102, 126, 234, 0.15);
+                border-color: var(--primary-indigo);
             }
             .ws-avatar {
-                width: 46px; height: 46px; border-radius: 12px;
-                background: rgba(0, 136, 255, 0.1); color: #0088ff;
+                width: 40px; height: 40px; border-radius: 10px;
+                background: var(--primary-gradient); color: white;
                 display: flex; align-items: center; justify-content: center;
-                font-size: 18px; font-weight: 700; flex-shrink: 0;
+                font-size: 16px; font-weight: 700; flex-shrink: 0;
             }
-            .ws-avatar--academic { background: rgba(124, 58, 237, 0.1); color: #7c3aed; }
+            .ws-avatar--academic { background: linear-gradient(135deg, var(--primary-indigo), var(--primary-purple)); color: white; }
             .ws-open-arrow {
                 font-size: 18px; width: 18px; height: 18px;
-                opacity: 0.25; transition: all 0.2s; flex-shrink: 0;
+                opacity: 0.22; transition: all 0.22s; flex-shrink: 0;
             }
-            .ws-skeleton { border-radius: 16px; animation: pulse 1.5s ease-in-out infinite; }
+            .ws-skeleton {
+                border-radius: 12px;
+                animation: pulse 1.5s ease-in-out infinite;
+                background: linear-gradient(90deg, var(--bg-light), #f0f1f3, var(--bg-light));
+                background-size: 200% 100%;
+            }
             @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        /* ── Animations ── */
+        .reveal { animation: rise-in 450ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+        @keyframes rise-in {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fade-in {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+        @media (prefers-reduced-motion: reduce) { .reveal { animation: none; } }
+        @media (max-width: 768px) {
+            .ws-hero { flex-direction: column; align-items: stretch; gap: 1.5rem; }
+            .ws-hero__actions { width: 100%; flex-direction: column; }
+            .ws-shell::before { width: 300px; height: 300px; }
+            .ws-shell::after { width: 250px; height: 250px; }
+        }
     `],
 })
 export class M2WorkspacesComponent implements OnInit {

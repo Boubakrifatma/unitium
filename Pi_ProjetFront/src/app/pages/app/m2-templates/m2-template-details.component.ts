@@ -2,7 +2,7 @@ import { CommonModule } from "@angular/common";
 import { HttpErrorResponse } from "@angular/common/http";
 import { Component, OnInit, computed, inject, signal } from "@angular/core";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
-import { FormsModule } from "@angular/forms";
+import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from "@angular/forms";
 import { MatButtonModule } from "@angular/material/button";
 import { MatCardModule } from "@angular/material/card";
 import { MatIconModule } from "@angular/material/icon";
@@ -94,7 +94,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
 @DlgComp({
     selector: "app-use-template-dialog",
     standalone: true,
-    imports: [CommonModule, FormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatSelectModule, MatInputModule, MatIconModule],
+    imports: [CommonModule, FormsModule, ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatSelectModule, MatInputModule, MatIconModule],
     template: `
         <h3 mat-dialog-title class="d-flex align-items-center mb-0">
             <mat-icon class="material-icons-outlined me-2 text-theme">rocket_launch</mat-icon>
@@ -208,36 +208,63 @@ export class RejectTemplateDialogComponent {
         TemplateDnaViewerComponent,
     ],
     template: `
-        <div class="container-fluid fade-in mb-3 mb-lg-4">
-            <!-- Loading -->
-            @if (loading()) {
-                <mat-card class="mt-3">
-                    <mat-card-content class="text-center py-5">
-                        <mat-icon class="material-icons-outlined text-secondary" style="font-size:40px;width:40px;height:40px;animation:spin 1s linear infinite;">cached</mat-icon>
-                        <p class="text-secondary mt-2">Loading template...</p>
-                    </mat-card-content>
-                </mat-card>
-            }
+        <!-- Modern Header -->
+        <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:3rem 2rem;box-shadow:0 12px 40px rgba(102,126,234,0.2);position:relative;overflow:hidden;">
+            <div style="position:absolute;top:-50%;right:-10%;width:500px;height:500px;background:radial-gradient(circle,rgba(255,255,255,0.1),transparent 70%);pointer-events:none;"></div>
+            <div style="max-width:1420px;margin:0 auto;position:relative;z-index:2;">
+                <!-- Breadcrumb -->
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1.5rem;font-size:0.85rem;color:rgba(255,255,255,0.8);font-weight:500;">
+                    <span style="cursor:pointer;transition:all 0.2s;" routerLink="/app/dashboard">Dashboard</span>
+                    <mat-icon style="font-size:16px;width:16px;height:16px;">chevron_right</mat-icon>
+                    <span style="cursor:pointer;transition:all 0.2s;" routerLink="/app/templates">Templates</span>
+                    <mat-icon style="font-size:16px;width:16px;height:16px;">chevron_right</mat-icon>
+                    <span style="color:rgba(255,255,255,0.95);">{{ template()?.name || "Template Details" }}</span>
+                </div>
 
-            <!-- Error -->
-            @if (error() && !loading()) {
-                <mat-card class="mt-3">
-                    <mat-card-content class="d-flex align-items-center gap-3 py-3">
-                        <mat-icon class="material-icons-outlined theme-red">error_outline</mat-icon>
-                        <div>
-                            <p class="fw-medium mb-0">Failed to load template</p>
-                            <p class="text-secondary small mb-0">{{ error() }}</p>
-                        </div>
-                        <button matButton class="ms-auto" (click)="backToTemplates()">Back to Templates</button>
-                    </mat-card-content>
-                </mat-card>
-            }
+                <!-- Title and Actions -->
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:2rem;flex-wrap:wrap;">
+                    <div>
+                        <h1 style="margin:0;color:white;font-size:2.2rem;font-weight:700;letter-spacing:-0.5px;line-height:1.2;">{{ template()?.name || "Template" }}</h1>
+                        <p style="margin:0.8rem 0 0;color:rgba(255,255,255,0.85);font-size:0.95rem;">Status: <strong>{{ statusLabel(template()!.status) }}</strong></p>
+                    </div>
+                    <div style="display:flex;gap:0.8rem;flex-wrap:wrap;">
+                        <button matButton (click)="backToTemplates()" style="background:rgba(255,255,255,0.15);color:white;border-radius:10px;transition:all 0.2s;">
+                            <mat-icon style="font-size:18px;width:18px;height:18px;margin-right:6px;">arrow_back</mat-icon>
+                            Back
+                        </button>
+                        <button matButton (click)="loadTemplateAnalytics(templateId())" style="background:rgba(255,255,255,0.15);color:white;border-radius:10px;transition:all 0.2s;">
+                            <mat-icon style="font-size:18px;width:18px;height:18px;margin-right:6px;">refresh</mat-icon>
+                            Refresh
+                        </button>
+                        @if (template()!.status === 'APPROVED' || isOwner()) {
+                            <button matButton (click)="forkTemplate()" style="background:rgba(255,255,255,0.15);color:white;border-radius:10px;transition:all 0.2s;">
+                                <mat-icon style="font-size:18px;width:18px;height:18px;margin-right:6px;">fork_right</mat-icon>
+                                Fork
+                            </button>
+                        }
+                        @if (template()!.status === 'APPROVED' || (isOwner() && template()!.status === 'DRAFT')) {
+                            <button matButton (click)="openUseTemplateDialog()" style="background:rgba(255,255,255,0.15);color:white;border-radius:10px;transition:all 0.2s;">
+                                <mat-icon style="font-size:18px;width:18px;height:18px;margin-right:6px;">rocket_launch</mat-icon>
+                                Use Template
+                            </button>
+                        }
+                        @if (canEdit()) {
+                            <button matButton (click)="startEdit()" style="background:white;color:#667eea;border-radius:10px;font-weight:700;transition:all 0.2s;">
+                                <mat-icon style="font-size:18px;width:18px;height:18px;margin-right:6px;">edit</mat-icon>
+                                Edit Template
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
 
-            @if (!loading() && !error() && template()) {
-
-                <!-- ── ADMIN REVIEW BANNER ── -->
+        <!-- Content Area -->
+        <div style="background:#fafbfc;padding:2rem;min-height:100vh;">
+            <div style="max-width:1420px;margin:0 auto;">
+                <!-- Admin Review Banner -->
                 @if (isAdmin() && template()!.status === 'PENDING_APPROVAL') {
-                    <div class="mb-3" style="background:linear-gradient(135deg,rgba(245,158,11,0.09),rgba(245,158,11,0.04));border:2px solid #f59e0b;border-radius:16px;padding:20px 24px;">
+                    <div style="background:linear-gradient(135deg,rgba(245,158,11,0.09),rgba(245,158,11,0.04));border:2px solid #f59e0b;border-radius:16px;padding:20px 24px;margin-bottom:1.5rem;">
                         <div class="row gx-3 align-items-center">
                             <div class="col-auto">
                                 <div style="width:52px;height:52px;border-radius:14px;background:rgba(245,158,11,0.15);display:flex;align-items:center;justify-content:center;">
@@ -245,15 +272,15 @@ export class RejectTemplateDialogComponent {
                                 </div>
                             </div>
                             <div class="col">
-                                <h5 class="mb-1" style="color:#b45309;">Awaiting Your Review</h5>
+                                <h5 class="mb-1" style="color:#d97706;">Awaiting Your Review</h5>
                                 <p class="small text-secondary mb-0">This template has been submitted for approval and needs admin review before it's published to the Template Hub.</p>
                             </div>
                             <div class="col-12 col-md-auto mt-3 mt-md-0 d-flex gap-2">
-                                <button matButton="elevated" style="background:#16a34a;color:white;" (click)="approveTemplate()">
+                                <button matButton="elevated" style="background:#10b981;color:white;" (click)="approveTemplate()">
                                     <mat-icon class="material-icons-outlined">check_circle</mat-icon>
                                     Approve &amp; Publish
                                 </button>
-                                <button matButton style="color:#dc3545;border:1px solid #dc3545;border-radius:4px;" (click)="rejectTemplate()">
+                                <button matButton style="color:#dc2626;border:1px solid #dc2626;border-radius:4px;" (click)="rejectTemplate()">
                                     <mat-icon class="material-icons-outlined">cancel</mat-icon>
                                     Reject
                                 </button>
@@ -262,118 +289,110 @@ export class RejectTemplateDialogComponent {
                     </div>
                 }
 
-                <!-- Header card -->
-                <mat-card class="bg-light-theme shadow-none pt-3 pb-lg-3 px-3 mb-3">
-                    <div class="row gx-3 align-items-center">
-                        <div class="col-auto">
-                            <button matIconButton (click)="backToTemplates()" matTooltip="Back to Templates Hub">
-                                <mat-icon class="material-icons-outlined">arrow_back</mat-icon>
-                            </button>
-                        </div>
-                        <div class="col">
-                            <h3 class="mb-0">{{ template()!.name }}</h3>
-                            <p class="small mb-0">
-                                <span routerLink="/app/dashboard" class="me-1 text-theme style-none"><mat-icon class="material-icons-outlined align-middle text-sm">house</mat-icon></span>
-                                <mat-icon class="material-icons-outlined align-middle text-sm me-1">chevron_right</mat-icon>
-                                <span routerLink="/app/templates" class="me-1 text-theme style-none">Templates Hub</span>
-                                <mat-icon class="material-icons-outlined align-middle text-sm me-1">chevron_right</mat-icon>
-                                {{ template()!.name }}
-                            </p>
-                        </div>
-                        <div class="col-12 col-md-auto mt-2 mt-md-0">
-                            <!-- status badge -->
-                            <span class="badge me-2"
-                                [ngClass]="{
-                                    'theme-green': template()!.status === 'APPROVED',
-                                    'theme-orange': template()!.status === 'PENDING_APPROVAL',
-                                    'theme-red': template()!.status === 'REJECTED'
-                                }">
-                                {{ statusLabel(template()!.status) }}
-                            </span>
-                            <!-- Action buttons -->
-                            @if (template()!.status === 'APPROVED' || (isOwner() && template()!.status === 'DRAFT')) {
-                                <button matButton="elevated" class="text-theme me-1" (click)="openUseTemplateDialog()">
-                                    <mat-icon class="material-icons-outlined">rocket_launch</mat-icon> Use Template
-                                </button>
-                            }
-                            @if (template()!.status === 'APPROVED') {
-                                <button matButton class="me-1" (click)="forkTemplate()">
-                                    <mat-icon class="material-icons-outlined">fork_right</mat-icon> Fork
-                                </button>
-                            }
-                            @if (isOwner() && template()!.status === 'DRAFT') {
-                                <button matButton class="me-1" (click)="publishTemplate()" style="color:#f57c00;">
-                                    <mat-icon class="material-icons-outlined">publish</mat-icon> Publish
-                                </button>
-                            }
-                            @if (isAdmin() && template()!.status === 'PENDING_APPROVAL') {
-                                <button matButton class="me-1 theme-green" (click)="approveTemplate()">
-                                    <mat-icon class="material-icons-outlined">check_circle</mat-icon> Approve
-                                </button>
-                                <button matButton class="me-1 theme-red" (click)="rejectTemplate()">
-                                    <mat-icon class="material-icons-outlined">cancel</mat-icon> Reject
-                                </button>
-                            }
-                            @if (canEdit()) {
-                                @if (!editMode()) {
-                                    <button matButton class="me-1" (click)="startEdit()">
-                                        <mat-icon class="material-icons-outlined">edit</mat-icon> Edit
-                                    </button>
-                                } @else {
-                                    <button matButton="filled" class="me-1 text-theme" (click)="saveEdit()" [disabled]="saving()">
-                                        {{ saving() ? 'Saving...' : 'Save' }}
-                                    </button>
-                                    <button matButton class="me-1" (click)="cancelEdit()">Cancel</button>
-                                }
-                            }
-                            @if (canEdit()) {
-                                <button matButton class="theme-red" (click)="openDeleteDialog()">
-                                    <mat-icon class="material-icons-outlined">archive</mat-icon> Archive
-                                </button>
-                            }
-                        </div>
+                <!-- Loading State -->
+                @if (loading()) {
+                    <div style="background:white;border-radius:16px;border:1px solid #e5e7eb;padding:2rem;text-align:center;">
+                        <mat-icon style="font-size:40px;width:40px;height:40px;animation:spin 1s linear infinite;color:#667eea;">cached</mat-icon>
+                        <p style="margin-top:1rem;color:#64748b;">Loading template details...</p>
                     </div>
-                </mat-card>
+                }
 
-                <!-- Info metric cards -->
-                <div class="row gx-3 mb-3">
-                    <div class="col-6 col-lg-3 mb-3">
-                        <mat-card class="h-100">
-                            <mat-card-content class="py-3 text-center">
-                                <mat-icon class="material-icons-outlined text-theme mb-1" style="font-size:28px;width:28px;height:28px;">category</mat-icon>
-                                <p class="small text-secondary mb-1">Type</p>
-                                <p class="fw-bold mb-0">{{ template()!.templateType }}</p>
-                            </mat-card-content>
-                        </mat-card>
+                <!-- Error State -->
+                @if (error() && !loading()) {
+                    <div style="background:white;border-radius:16px;border:1px solid #e5e7eb;border-left:4px solid #ef4444;padding:1.5rem;margin-bottom:1.5rem;">
+                        <div style="display:flex;gap:1rem;">
+                            <mat-icon style="color:#ef4444;flex-shrink:0;">error</mat-icon>
+                            <div style="flex:1;">
+                                <p style="margin:0 0 0.5rem;font-weight:600;color:#0f172a;">Template details error</p>
+                                <p style="margin:0;color:#64748b;font-size:0.9rem;">{{ error() }}</p>
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-6 col-lg-3 mb-3">
-                        <mat-card class="h-100">
-                            <mat-card-content class="py-3 text-center">
-                                <mat-icon class="material-icons-outlined text-theme mb-1" style="font-size:28px;width:28px;height:28px;">bar_chart</mat-icon>
-                                <p class="small text-secondary mb-1">Difficulty</p>
-                                <p class="fw-bold mb-0">{{ template()!.difficultyLevel || '—' }}</p>
-                            </mat-card-content>
-                        </mat-card>
+                }
+
+                @if (!loading() && !error() && template()) {
+                    <!-- Template Command Center -->
+                    <div style="background:white;border-radius:16px;border:1px solid #e5e7eb;margin-bottom:1.5rem;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.06);transition:all 0.3s ease;">
+                        <div style="padding:2rem;background:linear-gradient(135deg,rgba(102,126,234,0.05) 0%,rgba(118,75,162,0.05) 100%);border-bottom:1px solid #e5e7eb;">
+                            <!-- Header -->
+                            <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-1.5">
+                                <div style="flex:1;min-width:0;">
+                                    <p style="margin:0 0 0.5rem;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;font-weight:700;">Template Command Center</p>
+                                    <h2 style="margin:0 0 0.5rem;font-size:1.8rem;font-weight:700;color:#0f172a;letter-spacing:-0.5px;line-height:1.2;">{{ template()?.name }}</h2>
+                                    <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;font-size:0.95rem;">
+                                        <span style="color:#334155;">
+                                            <strong style="color:#667eea;">{{ statusLabel(template()!.status) }}</strong>
+                                        </span>
+                                        <span style="color:#cbd5e1;">·</span>
+                                        <span style="color:#334155;">Type: <strong style="color:#667eea;">{{ template()!.templateType }}</strong></span>
+                                    </div>
+                                </div>
+                                <div style="display:flex;flex-wrap:wrap;gap:0.6rem;justify-content:flex-end;flex-shrink:0;">
+                                    <span style="padding:0.5rem 1rem;border-radius:999px;font-size:0.8rem;font-weight:700;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;border:none;">{{ statusLabel(template()!.status) }}</span>
+                                    <span style="padding:0.5rem 1rem;border-radius:999px;font-size:0.8rem;font-weight:700;background:#f0f4ff;color:#667eea;border:1px solid #dbeafe;">{{ template()!.templateType }}</span>
+                                </div>
+                            </div>
+
+                            <!-- Info Grid -->
+                            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1.2rem;margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid rgba(15,23,42,0.06);">
+                                <div>
+                                    <p style="margin:0 0 0.4rem;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;font-weight:700;">Type</p>
+                                    <p style="margin:0;font-size:1.1rem;font-weight:700;color:#0f172a;">{{ template()!.templateType }}</p>
+                                </div>
+                                <div>
+                                    <p style="margin:0 0 0.4rem;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;font-weight:700;">Difficulty</p>
+                                    <p style="margin:0;font-size:1.1rem;font-weight:700;color:#0f172a;">{{ template()!.difficultyLevel || '—' }}</p>
+                                </div>
+                                <div>
+                                    <p style="margin:0 0 0.4rem;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;font-weight:700;">Effort</p>
+                                    <p style="margin:0;font-size:1.1rem;font-weight:700;color:#0f172a;">{{ template()!.estimatedEffort || '—' }}</p>
+                                </div>
+                                <div>
+                                    <p style="margin:0 0 0.4rem;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;font-weight:700;">Duration</p>
+                                    <p style="margin:0;font-size:1.1rem;font-weight:700;color:#0f172a;">{{ template()!.estimatedDurationDays ? template()!.estimatedDurationDays + 'd' : '—' }}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Stats Grid -->
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1.5rem;padding:2rem;background:#fafbfc;">
+                            <div style="padding:1.5rem;background:white;border-radius:12px;border:1px solid #e5e7eb;transition:all 0.3s ease;">
+                                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.8rem;">
+                                    <p style="margin:0;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;font-weight:700;">Phases</p>
+                                    <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">📋</div>
+                                </div>
+                                <p style="margin:0 0 0.5rem;font-size:2rem;font-weight:800;color:#0f172a;line-height:1;">{{ parsedPhases().length }}</p>
+                                <p style="margin:0;font-size:0.85rem;color:#64748b;">phases configured</p>
+                            </div>
+
+                            <div style="padding:1.5rem;background:white;border-radius:12px;border:1px solid #e5e7eb;transition:all 0.3s ease;">
+                                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.8rem;">
+                                    <p style="margin:0;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;font-weight:700;">Milestones</p>
+                                    <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#10b981 0%,#059669 100%);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">🎯</div>
+                                </div>
+                                <p style="margin:0 0 0.5rem;font-size:2rem;font-weight:800;color:#0f172a;line-height:1;">{{ parsedMilestones().length }}</p>
+                                <p style="margin:0;font-size:0.85rem;color:#64748b;">milestones total</p>
+                            </div>
+
+                            <div style="padding:1.5rem;background:white;border-radius:12px;border:1px solid #e5e7eb;transition:all 0.3s ease;">
+                                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.8rem;">
+                                    <p style="margin:0;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;font-weight:700;">Tasks</p>
+                                    <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#0ea5e9 0%,#0369a1 100%);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">✓</div>
+                                </div>
+                                <p style="margin:0 0 0.5rem;font-size:2rem;font-weight:800;color:#0f172a;line-height:1;">{{ parsedTasks().length }}</p>
+                                <p style="margin:0;font-size:0.85rem;color:#64748b;">tasks defined</p>
+                            </div>
+
+                            <div style="padding:1.5rem;background:white;border-radius:12px;border:1px solid #e5e7eb;transition:all 0.3s ease;">
+                                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.8rem;">
+                                    <p style="margin:0;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;font-weight:700;">Usage</p>
+                                    <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">🚀</div>
+                                </div>
+                                <p style="margin:0 0 0.5rem;font-size:2rem;font-weight:800;color:#0f172a;line-height:1;">{{ template()!.usageCount }}</p>
+                                <p style="margin:0;font-size:0.85rem;color:#64748b;">projects created</p>
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-6 col-lg-3 mb-3">
-                        <mat-card class="h-100">
-                            <mat-card-content class="py-3 text-center">
-                                <mat-icon class="material-icons-outlined text-theme mb-1" style="font-size:28px;width:28px;height:28px;">bolt</mat-icon>
-                                <p class="small text-secondary mb-1">Effort</p>
-                                <p class="fw-bold mb-0">{{ template()!.estimatedEffort || '—' }}</p>
-                            </mat-card-content>
-                        </mat-card>
-                    </div>
-                    <div class="col-6 col-lg-3 mb-3">
-                        <mat-card class="h-100">
-                            <mat-card-content class="py-3 text-center">
-                                <mat-icon class="material-icons-outlined text-theme mb-1" style="font-size:28px;width:28px;height:28px;">timer</mat-icon>
-                                <p class="small text-secondary mb-1">Duration</p>
-                                <p class="fw-bold mb-0">{{ template()!.estimatedDurationDays ? template()!.estimatedDurationDays + ' days' : '—' }}</p>
-                            </mat-card-content>
-                        </mat-card>
-                    </div>
-                </div>
 
                 <!-- Analytics and linked projects -->
                 <div class="row gx-3 mb-1">
@@ -402,32 +421,32 @@ export class RejectTemplateDialogComponent {
                                 } @else if (analyticsError()) {
                                     <div class="d-flex align-items-start gap-2 p-2 rounded" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);">
                                         <mat-icon class="material-icons-outlined" style="font-size:16px;width:16px;height:16px;color:#dc2626;">error_outline</mat-icon>
-                                        <p class="small mb-0" style="color:#991b1b;">{{ analyticsError() }}</p>
+                                        <p class="small mb-0" style="color:#7f1d1d;">{{ analyticsError() }}</p>
                                     </div>
                                 } @else if (templateAnalytics(); as analytics) {
                                     <div class="row gx-2 mb-2">
                                         <div class="col-6 col-md-3 mb-2">
                                             <div style="border:1px solid rgba(34,197,94,0.24);border-radius:10px;background:rgba(34,197,94,0.08);padding:8px 10px;">
                                                 <p class="text-secondary mb-1" style="font-size:11px;">Quality</p>
-                                                <p class="fw-semibold mb-0" style="font-size:18px;color:#15803d;">{{ analytics.scores.qualityScore | number:'1.0-0' }}</p>
+                                                <p class="fw-semibold mb-0" style="font-size:18px;color:#059669;">{{ analytics.scores.qualityScore | number:'1.0-0' }}</p>
                                             </div>
                                         </div>
                                         <div class="col-6 col-md-3 mb-2">
                                             <div style="border:1px solid rgba(14,165,233,0.25);border-radius:10px;background:rgba(14,165,233,0.08);padding:8px 10px;">
                                                 <p class="text-secondary mb-1" style="font-size:11px;">Growth</p>
-                                                <p class="fw-semibold mb-0" style="font-size:18px;color:#0369a1;">{{ analytics.scores.growthScore | number:'1.0-0' }}</p>
+                                                <p class="fw-semibold mb-0" style="font-size:18px;color:#0284c7;">{{ analytics.scores.growthScore | number:'1.0-0' }}</p>
                                             </div>
                                         </div>
                                         <div class="col-6 col-md-3 mb-2">
-                                            <div style="border:1px solid rgba(99,102,241,0.26);border-radius:10px;background:rgba(99,102,241,0.08);padding:8px 10px;">
+                                            <div style="border:1px solid rgba(102,126,234,0.26);border-radius:10px;background:rgba(102,126,234,0.08);padding:8px 10px;">
                                                 <p class="text-secondary mb-1" style="font-size:11px;">Velocity / week</p>
-                                                <p class="fw-semibold mb-0" style="font-size:18px;color:#4f46e5;">{{ analytics.scores.usageVelocityPerWeek | number:'1.1-1' }}</p>
+                                                <p class="fw-semibold mb-0" style="font-size:18px;color:#667eea;">{{ analytics.scores.usageVelocityPerWeek | number:'1.1-1' }}</p>
                                             </div>
                                         </div>
                                         <div class="col-6 col-md-3 mb-2">
                                             <div style="border:1px solid rgba(245,158,11,0.28);border-radius:10px;background:rgba(245,158,11,0.09);padding:8px 10px;">
                                                 <p class="text-secondary mb-1" style="font-size:11px;">Total Favorites</p>
-                                                <p class="fw-semibold mb-0" style="font-size:18px;color:#b45309;">{{ analytics.totals.favoriteCount }}</p>
+                                                <p class="fw-semibold mb-0" style="font-size:18px;color:#92400e;">{{ analytics.totals.favoriteCount }}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -483,7 +502,7 @@ export class RejectTemplateDialogComponent {
                                 }
 
                                 @if (templateUsageError()) {
-                                    <div class="small" style="color:#991b1b;">{{ templateUsageError() }}</div>
+                                    <div class="small" style="color:#7f1d1d;">{{ templateUsageError() }}</div>
                                 } @else if (templateUsageProjects().length === 0 && !templateUsageLoading()) {
                                     <p class="small text-secondary mb-0">No linked projects found yet for this template.</p>
                                 } @else {
@@ -589,53 +608,64 @@ export class RejectTemplateDialogComponent {
                                         </div>
                                     }
                                 } @else {
-                                    <h5 class="mb-2">Edit Template</h5>
-                                    <mat-form-field appearance="outline" class="w-100 mb-2">
-                                        <mat-label>Name *</mat-label>
-                                        <input matInput [(ngModel)]="editName" required minlength="3" maxlength="150" (ngModelChange)="editNameError=''" />
-                                        @if (editNameError) { <mat-error>{{ editNameError }}</mat-error> }
-                                        <mat-hint align="end">{{ editName.length }}/150</mat-hint>
-                                    </mat-form-field>
-                                    <mat-form-field appearance="outline" class="w-100 mb-2">
-                                        <mat-label>Type</mat-label>
-                                        <mat-select [(ngModel)]="editType">
-                                            <mat-option value="SCRUM">Scrum</mat-option>
-                                            <mat-option value="KANBAN">Kanban</mat-option>
-                                            <mat-option value="WATERFALL">Waterfall</mat-option>
-                                            <mat-option value="CUSTOM">Custom</mat-option>
-                                        </mat-select>
-                                    </mat-form-field>
-                                    <mat-form-field appearance="outline" class="w-100 mb-2">
-                                        <mat-label>Tags</mat-label>
-                                        <input matInput [(ngModel)]="editTags" placeholder="agile, sprint" />
-                                    </mat-form-field>
-                                    <mat-form-field appearance="outline" class="w-100 mb-2">
-                                        <mat-label>Use Case Description</mat-label>
-                                        <textarea matInput [(ngModel)]="editDescription" rows="3"></textarea>
-                                    </mat-form-field>
-                                    <mat-form-field appearance="outline" class="w-100 mb-2">
-                                        <mat-label>Effort</mat-label>
-                                        <mat-select [(ngModel)]="editEffort">
-                                            <mat-option value="">—</mat-option>
-                                            <mat-option value="LOW">Low</mat-option>
-                                            <mat-option value="MEDIUM">Medium</mat-option>
-                                            <mat-option value="HIGH">High</mat-option>
-                                        </mat-select>
-                                    </mat-form-field>
-                                    <mat-form-field appearance="outline" class="w-100 mb-2">
-                                        <mat-label>Difficulty</mat-label>
-                                        <mat-select [(ngModel)]="editDifficulty">
-                                            <mat-option value="">—</mat-option>
-                                            <mat-option value="BEGINNER">Beginner</mat-option>
-                                            <mat-option value="INTERMEDIATE">Intermediate</mat-option>
-                                            <mat-option value="ADVANCED">Advanced</mat-option>
-                                        </mat-select>
-                                    </mat-form-field>
-                                    <mat-form-field appearance="outline" class="w-100 mb-2">
-                                        <mat-label>Est. Duration (days)</mat-label>
-                                        <input matInput type="number" [(ngModel)]="editDuration" min="1" />
-                                        <mat-hint>Minimum 1 day</mat-hint>
-                                    </mat-form-field>
+                                    @if (editTemplateForm()) {
+                                        <form [formGroup]="editTemplateForm()!">
+                                            <h5 class="mb-2">Edit Template</h5>
+                                            <mat-form-field appearance="outline" class="w-100 mb-2">
+                                                <mat-label>Name *</mat-label>
+                                                <input matInput formControlName="name" maxlength="150" />
+                                                <mat-hint align="end">{{ editTemplateForm()!.get('name')?.value?.length || 0 }}/150</mat-hint>
+                                                @if (editTemplateForm()!.get('name')?.touched) {
+                                                    @if (editTemplateForm()!.get('name')?.errors?.['required']) {
+                                                        <mat-error>Name is required.</mat-error>
+                                                    }
+                                                    @if (editTemplateForm()!.get('name')?.errors?.['minlength']) {
+                                                        <mat-error>Name must be at least 3 characters.</mat-error>
+                                                    }
+                                                }
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-100 mb-2">
+                                                <mat-label>Type</mat-label>
+                                                <mat-select formControlName="type">
+                                                    <mat-option value="SCRUM">Scrum</mat-option>
+                                                    <mat-option value="KANBAN">Kanban</mat-option>
+                                                    <mat-option value="WATERFALL">Waterfall</mat-option>
+                                                    <mat-option value="CUSTOM">Custom</mat-option>
+                                                </mat-select>
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-100 mb-2">
+                                                <mat-label>Tags</mat-label>
+                                                <input matInput formControlName="tags" placeholder="agile, sprint" />
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-100 mb-2">
+                                                <mat-label>Use Case Description</mat-label>
+                                                <textarea matInput formControlName="description" rows="3"></textarea>
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-100 mb-2">
+                                                <mat-label>Effort</mat-label>
+                                                <mat-select formControlName="effort">
+                                                    <mat-option value="">—</mat-option>
+                                                    <mat-option value="LOW">Low</mat-option>
+                                                    <mat-option value="MEDIUM">Medium</mat-option>
+                                                    <mat-option value="HIGH">High</mat-option>
+                                                </mat-select>
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-100 mb-2">
+                                                <mat-label>Difficulty</mat-label>
+                                                <mat-select formControlName="difficulty">
+                                                    <mat-option value="">—</mat-option>
+                                                    <mat-option value="BEGINNER">Beginner</mat-option>
+                                                    <mat-option value="INTERMEDIATE">Intermediate</mat-option>
+                                                    <mat-option value="ADVANCED">Advanced</mat-option>
+                                                </mat-select>
+                                            </mat-form-field>
+                                            <mat-form-field appearance="outline" class="w-100 mb-2">
+                                                <mat-label>Est. Duration (days)</mat-label>
+                                                <input matInput type="number" formControlName="duration" min="1" />
+                                                <mat-hint>Minimum 1 day</mat-hint>
+                                            </mat-form-field>
+                                        </form>
+                                    }
                                 }
                             </mat-card-content>
                         </mat-card>
@@ -682,8 +712,8 @@ export class RejectTemplateDialogComponent {
                                                 </mat-icon>
                                             }
                                         </div>
-                                        <span class="small fw-medium" style="color:#b45309;">Your rating: {{ userRating() }}/5</span>
-                                        <mat-icon class="material-icons-outlined ms-auto" style="font-size:14px;width:14px;height:14px;color:#b45309;">check_circle</mat-icon>
+                                        <span class="small fw-medium" style="color:#92400e;">Your rating: {{ userRating() }}/5</span>
+                                        <mat-icon class="material-icons-outlined ms-auto" style="font-size:14px;width:14px;height:14px;color:#92400e;">check_circle</mat-icon>
                                     </div>
                                 }
 
@@ -751,27 +781,27 @@ export class RejectTemplateDialogComponent {
                                 } @else {
                                     <div class="row gx-2 mb-3">
                                         <div class="col-6 col-lg-3 mb-2">
-                                            <div style="border:1px solid rgba(99,102,241,0.2);border-radius:12px;padding:10px 12px;background:rgba(99,102,241,0.06);">
+                                            <div style="border:1px solid rgba(102,126,234,0.2);border-radius:12px;padding:10px 12px;background:rgba(102,126,234,0.06);">
                                                 <p class="text-secondary mb-1" style="font-size:11px;">Phases</p>
-                                                <p class="fw-semibold mb-0" style="font-size:18px;color:#4f46e5;">{{ parsedPhases().length }}</p>
+                                                <p class="fw-semibold mb-0" style="font-size:18px;color:#667eea;">{{ parsedPhases().length }}</p>
                                             </div>
                                         </div>
                                         <div class="col-6 col-lg-3 mb-2">
                                             <div style="border:1px solid rgba(14,165,233,0.25);border-radius:12px;padding:10px 12px;background:rgba(14,165,233,0.07);">
                                                 <p class="text-secondary mb-1" style="font-size:11px;">Milestones</p>
-                                                <p class="fw-semibold mb-0" style="font-size:18px;color:#0369a1;">{{ parsedMilestones().length }}</p>
+                                                <p class="fw-semibold mb-0" style="font-size:18px;color:#0284c7;">{{ parsedMilestones().length }}</p>
                                             </div>
                                         </div>
                                         <div class="col-6 col-lg-3 mb-2">
                                             <div style="border:1px solid rgba(245,158,11,0.28);border-radius:12px;padding:10px 12px;background:rgba(245,158,11,0.09);">
                                                 <p class="text-secondary mb-1" style="font-size:11px;">Tasks</p>
-                                                <p class="fw-semibold mb-0" style="font-size:18px;color:#b45309;">{{ parsedTasks().length }}</p>
+                                                <p class="fw-semibold mb-0" style="font-size:18px;color:#92400e;">{{ parsedTasks().length }}</p>
                                             </div>
                                         </div>
                                         <div class="col-6 col-lg-3 mb-2">
                                             <div style="border:1px solid rgba(34,197,94,0.24);border-radius:12px;padding:10px 12px;background:rgba(34,197,94,0.08);">
                                                 <p class="text-secondary mb-1" style="font-size:11px;">Estimated Hours</p>
-                                                <p class="fw-semibold mb-0" style="font-size:18px;color:#15803d;">{{ estimatedTaskHours() | number:'1.0-0' }}h</p>
+                                                <p class="fw-semibold mb-0" style="font-size:18px;color:#059669;">{{ estimatedTaskHours() | number:'1.0-0' }}h</p>
                                             </div>
                                         </div>
                                     </div>
@@ -808,9 +838,9 @@ export class RejectTemplateDialogComponent {
                                                 @for (phase of parsedPhases(); track phase.key; let i = $index) {
                                                     <div class="d-flex align-items-center">
                                                         <span style="padding:5px 10px;border-radius:20px;font-size:11px;white-space:nowrap;font-weight:600;border:1px solid;"
-                                                            [style.background]="phase.enabled ? 'rgba(99,102,241,0.12)' : 'rgba(148,163,184,0.14)'"
-                                                            [style.color]="phase.enabled ? '#4f46e5' : '#475569'"
-                                                            [style.borderColor]="phase.enabled ? 'rgba(99,102,241,0.3)' : 'rgba(148,163,184,0.4)'">
+                                                            [style.background]="phase.enabled ? 'rgba(102,126,234,0.12)' : 'rgba(148,163,184,0.14)'"
+                                                            [style.color]="phase.enabled ? '#667eea' : '#475569'"
+                                                            [style.borderColor]="phase.enabled ? 'rgba(102,126,234,0.3)' : 'rgba(148,163,184,0.4)'">
                                                             {{ i + 1 }}. {{ phase.name }}
                                                             @if (phase.durationDays > 0) {
                                                                 <span style="opacity:0.75;"> · {{ phase.durationDays }}d</span>
@@ -979,7 +1009,7 @@ export class RejectTemplateDialogComponent {
                                                 <div class="d-flex flex-column gap-1">
                                                     @for (item of parsedChecklistItems(); track $index) {
                                                         <div style="display:flex;align-items:flex-start;gap:6px;font-size:11px;color:#334155;">
-                                                            <mat-icon style="font-size:14px;width:14px;height:14px;color:#16a34a;flex-shrink:0;">task_alt</mat-icon>
+                                                            <mat-icon style="font-size:14px;width:14px;height:14px;color:#10b981;flex-shrink:0;">task_alt</mat-icon>
                                                             <span>{{ item }}</span>
                                                         </div>
                                                     }
@@ -1049,6 +1079,7 @@ export class M2TemplateDetailsComponent implements OnInit {
     private readonly router = inject(Router);
     private readonly snackBar = inject(MatSnackBar);
     private readonly dialog = inject(MatDialog);
+    private readonly fb = inject(FormBuilder);
 
     readonly templateId = signal("");
     readonly template = signal<M2TemplateSummary | null>(null);
@@ -1058,6 +1089,7 @@ export class M2TemplateDetailsComponent implements OnInit {
     readonly lineageLoading = signal(false);
     readonly lineageError = signal("");
     readonly editMode = signal(false);
+    readonly editTemplateForm = signal<FormGroup | null>(null);
     readonly saving = signal(false);
     readonly templateAnalytics = signal<M2TemplateAnalyticsResponse | null>(null);
     readonly analyticsLoading = signal(false);
@@ -1312,8 +1344,8 @@ export class M2TemplateDetailsComponent implements OnInit {
 
     milestoneStatusColor(status: string): string {
         const normalized = (status || "").toLowerCase();
-        if (normalized === "done" || normalized === "completed") return "#16a34a";
-        if (normalized === "in_progress") return "#2563eb";
+        if (normalized === "done" || normalized === "completed") return "#10b981";
+        if (normalized === "in_progress") return "#0ea5e9";
         if (normalized === "on_hold") return "#f59e0b";
         if (normalized === "cancelled") return "#dc2626";
         return "#64748b";
@@ -1322,8 +1354,8 @@ export class M2TemplateDetailsComponent implements OnInit {
     taskPriorityColor(priority: string): string {
         const normalized = (priority || "").toLowerCase();
         if (normalized === "high" || normalized === "urgent") return "#dc2626";
-        if (normalized === "low") return "#2563eb";
-        return "#b45309";
+        if (normalized === "low") return "#0ea5e9";
+        return "#92400e";
     }
 
     taskStatusLabel(status: string): string {
@@ -1602,11 +1634,11 @@ export class M2TemplateDetailsComponent implements OnInit {
 
     templateUsageStatusColor(status?: string): string {
         const normalized = this.normalizeProjectStatus(status);
-        if (normalized === "completed") return "#16a34a";
+        if (normalized === "completed") return "#10b981";
         if (normalized === "on_hold") return "#f59e0b";
         if (normalized === "archived") return "#64748b";
-        if (normalized === "planning") return "#0ea5e9";
-        return "#2563eb";
+        if (normalized === "planning") return "#667eea";
+        return "#0ea5e9";
     }
 
     openTemplateUsageProject(project: Pick<TemplateUsageProjectView, "workspaceId" | "projectId">): void {
@@ -1685,15 +1717,45 @@ export class M2TemplateDetailsComponent implements OnInit {
         this.editRoles = t.defaultRolesJson || "";
         this.editMilestones = t.defaultMilestonesJson || "";
         this.editTasks = t.defaultTasksJson || "";
+
+        // Build reactive form for basic fields
+        const group = this.fb.group({
+            name: [t.name, [Validators.required, Validators.minLength(3), Validators.maxLength(150)]],
+            type: [t.templateType, Validators.required],
+            effort: [t.estimatedEffort || ''],
+            difficulty: [t.difficultyLevel || ''],
+            duration: [t.estimatedDurationDays || null],
+            tags: [t.tags || ''],
+            description: [t.useCaseDescription || ''],
+        });
+        this.editTemplateForm.set(group);
         this.editMode.set(true);
     }
 
     cancelEdit(): void {
+        this.editTemplateForm.set(null);
         this.editMode.set(false);
     }
 
     saveEdit(): void {
         if (this.saving()) return;
+
+        const form = this.editTemplateForm();
+        if (!form) return;
+
+        // Mark all touched and validate basic form
+        form.markAllAsTouched();
+        if (form.invalid) return;
+
+        // Read values from form
+        const val = form.value;
+        this.editName = val.name || '';
+        this.editType = val.type || 'CUSTOM';
+        this.editEffort = val.effort || '';
+        this.editDifficulty = val.difficulty || '';
+        this.editDuration = val.duration || null;
+        this.editTags = val.tags || '';
+        this.editDescription = val.description || '';
 
         // Reset errors
         this.editNameError = "";
@@ -1764,6 +1826,7 @@ export class M2TemplateDetailsComponent implements OnInit {
         this.templateService.update(this.templateId(), body).subscribe({
             next: (updated) => {
                 this.template.set({ ...this.template()!, ...updated });
+                this.editTemplateForm.set(null);
                 this.editMode.set(false);
                 this.saving.set(false);
                 this.snackBar.open("Template updated.", "Close", { duration: 3000 });
