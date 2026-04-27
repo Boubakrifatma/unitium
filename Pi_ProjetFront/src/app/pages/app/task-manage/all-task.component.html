@@ -16,11 +16,11 @@
       <div class="col-auto d-flex gap-2">
         <button mat-stroked-button color="accent" (click)="openSuggestTasks()" [disabled]="!milestoneId() || !milestoneName()">
           <mat-icon>auto_awesome</mat-icon>
-          Suggérer (IA)
+          Suggest (AI)
         </button>
         <button mat-raised-button color="primary" (click)="openCreate()" [disabled]="!milestoneId()">
           <mat-icon>add</mat-icon>
-          Ajouter Task
+          Add Task
         </button>
       </div>
     </div>
@@ -62,14 +62,14 @@
       <mat-icon matPrefix>search</mat-icon>
       <input matInput
              (keyup)="applyFilter($event)"
-             placeholder="Rechercher par titre ou statut..." />
+             placeholder="Search by title or status..." />
     </mat-form-field>
   </div>
 
   <!-- ===== LOADING ===== -->
   <div *ngIf="loading()" class="text-center py-5">
     <mat-spinner diameter="48"></mat-spinner>
-    <p class="text-secondary mt-3">Chargement des tâches...</p>
+    <p class="text-secondary mt-3">Loading tasks...</p>
   </div>
 
   <div *ngIf="!loading()">
@@ -78,7 +78,7 @@
     <div class="tabs mb-4">
       <button class="tab" [class.active]="selectedPanel() === 'tasks'" (click)="switchPanel('tasks')">
         <mat-icon class="tab-icon">assignment</mat-icon>
-        Tâches
+        Tasks
       </button>
       <button class="tab" [class.active]="selectedPanel() === 'gantt'" (click)="switchPanel('gantt')">
         <mat-icon class="tab-icon">bar_chart</mat-icon>
@@ -90,7 +90,7 @@
       </button>
       <button class="tab" [class.active]="selectedPanel() === 'critical'" (click)="switchPanel('critical')">
         <mat-icon class="tab-icon">bolt</mat-icon>
-        Critique
+        Critical
       </button>
       <button class="tab" [class.active]="selectedPanel() === 'impact'" (click)="switchPanel('impact')">
         <mat-icon class="tab-icon">hub</mat-icon>
@@ -100,19 +100,19 @@
 
     <div class="content">
 
-      <!-- ====================== PANEL TÂCHES GROUPÉES ====================== -->
+      <!-- ====================== TASKS PANEL (GROUPED) ====================== -->
       <div class="panel" [class.active]="selectedPanel() === 'tasks'">
 
         <!-- ===== VISUAL STATS ROW ===== -->
         <div class="vstats-card mb-4">
           <div class="vstats-total">
             <span class="vstats-total-num">{{ taskStats().total }}</span>
-            <span class="vstats-total-label">Total tâches</span>
+            <span class="vstats-total-label">Total tasks</span>
           </div>
           <div class="vstats-bars">
             <!-- Done -->
             <div class="vstat-row">
-              <span class="vstat-name done-color">Terminées</span>
+              <span class="vstat-name done-color">Done</span>
               <div class="vstat-bar-track">
                 <div class="vstat-bar done-bar"
                   [style.width.%]="taskStats().total > 0 ? (taskStats().done / taskStats().total * 100) : 0">
@@ -125,7 +125,7 @@
             </div>
             <!-- In Progress -->
             <div class="vstat-row">
-              <span class="vstat-name ip-color">En cours</span>
+              <span class="vstat-name ip-color">In Progress</span>
               <div class="vstat-bar-track">
                 <div class="vstat-bar ip-bar"
                   [style.width.%]="taskStats().total > 0 ? (taskStats().inProgress / taskStats().total * 100) : 0">
@@ -138,7 +138,7 @@
             </div>
             <!-- Todo -->
             <div class="vstat-row">
-              <span class="vstat-name todo-color">À faire</span>
+              <span class="vstat-name todo-color">To Do</span>
               <div class="vstat-bar-track">
                 <div class="vstat-bar todo-bar"
                   [style.width.%]="taskStats().total > 0 ? (taskStats().todo / taskStats().total * 100) : 0">
@@ -151,7 +151,7 @@
             </div>
             <!-- Blocked -->
             <div class="vstat-row">
-              <span class="vstat-name blocked-color">Bloquées</span>
+              <span class="vstat-name blocked-color">Blocked</span>
               <div class="vstat-bar-track">
                 <div class="vstat-bar blocked-bar"
                   [style.width.%]="taskStats().total > 0 ? (taskStats().blocked / taskStats().total * 100) : 0">
@@ -180,7 +180,7 @@
               <span class="parent-badge">#{{ group.parent.taskId }}</span>
               <span class="parent-title">{{ group.parent.title }}</span>
               <!-- Assignee avatar -->
-              <span class="assignee-avatar" *ngIf="group.parent.assignedTo && group.parent.assignedTo !== 'Non assigné'"
+              <span class="assignee-avatar" *ngIf="group.parent.assignedTo && group.parent.assignedTo !== 'Unassigned'"
                 [title]="group.parent.assignedTo">
                 {{ group.parent.assignedTo.substring(0, 2).toUpperCase() }}
               </span>
@@ -202,19 +202,19 @@
                   </span>
                 </span>
               </span>
-              <span class="child-count">{{ group.children.length }} sous-tâche{{ group.children.length !== 1 ? 's' : '' }}</span>
+              <span class="child-count">{{ group.children.length }} subtask{{ group.children.length !== 1 ? 's' : '' }}</span>
               <span class="status-pill" [ngClass]="'s-' + group.parent.status">
                 {{ getStatusLabel(group.parent.status) }}
               </span>
               <mat-icon class="chevron" [class.open]="expandedGroupIds().has(group.parent.taskId)">expand_more</mat-icon>
               <div class="task-actions" (click)="$event.stopImmediatePropagation()">
                 <button mat-icon-button color="primary"
-                        matTooltip="Modifier"
+                        matTooltip="Edit"
                         (click)="openEdit(group.parent)">
                   <mat-icon>edit</mat-icon>
                 </button>
                 <button mat-icon-button color="warn"
-                        matTooltip="Supprimer (les sous-tâches seront détachées)"
+                        matTooltip="Delete (subtasks will be detached)"
                         (click)="confirmDeleteParent(group.parent, group.children.length)">
                   <mat-icon>delete</mat-icon>
                 </button>
@@ -222,7 +222,7 @@
             </div>
 
             <!-- Orphan Label -->
-            <div class="orphan-label" *ngIf="!group.parent">Tâches sans parent connu</div>
+            <div class="orphan-label" *ngIf="!group.parent">Tasks with no known parent</div>
 
             <!-- Children List -->
             <div class="children-list"
@@ -240,7 +240,7 @@
                 <span class="child-type">{{ task.type | titlecase }}</span>
                 <!-- Assignee avatar -->
                 <span class="assignee-avatar small-avatar"
-                  *ngIf="task.assignedTo && task.assignedTo !== 'Non assigné'"
+                  *ngIf="task.assignedTo && task.assignedTo !== 'Unassigned'"
                   [title]="task.assignedTo">
                   {{ task.assignedTo.substring(0, 2).toUpperCase() }}
                 </span>
@@ -266,15 +266,15 @@
                   {{ getStatusLabel(task.status) }}
                 </span>
 
-                <!-- Boutons d'action -->
+                <!-- Action Buttons -->
                 <div class="task-actions">
                   <button mat-icon-button color="primary"
-                          matTooltip="Modifier"
+                          matTooltip="Edit"
                           (click)="openEdit(task); $event.stopImmediatePropagation()">
                     <mat-icon>edit</mat-icon>
                   </button>
                   <button mat-icon-button color="warn"
-                          matTooltip="Supprimer"
+                          matTooltip="Delete"
                           (click)="confirmDelete(task); $event.stopImmediatePropagation()">
                     <mat-icon>delete</mat-icon>
                   </button>
@@ -286,13 +286,13 @@
 
         <div *ngIf="taskGroups().length === 0" class="empty-state py-5 text-center">
           <mat-icon style="font-size: 56px; color: #94a3b8;">assignment</mat-icon>
-          <h3>Aucune tâche trouvée</h3>
-          <p>Cliquez sur "Ajouter Task" pour commencer.</p>
+          <h3>No tasks found</h3>
+          <p>Click "Add Task" to get started.</p>
         </div>
       </div>
 
 
-      <!-- ====================== PANEL CHEMIN CRITIQUE ====================== -->
+      <!-- ====================== CRITICAL PATH PANEL ====================== -->
       <div class="panel" [class.active]="selectedPanel() === 'critical'">
         <app-critical-path
           [tasks]="filteredTasks()"
@@ -300,23 +300,23 @@
         </app-critical-path>
       </div>
 
-      <!-- ====================== PANEL GANTT ====================== -->
+      <!-- ====================== GANTT PANEL ====================== -->
       <div class="panel" [class.active]="selectedPanel() === 'gantt'">
         <app-gantt-view
           [tasks]="filteredTasks()"
-          [milestoneName]="'Milestone #' + (milestoneId() ?? 'Inconnu')">
+          [milestoneName]="'Milestone #' + (milestoneId() ?? 'Unknown')">
         </app-gantt-view>
       </div>
 
-      <!-- ====================== PANEL WBS ====================== -->
+      <!-- ====================== WBS PANEL ====================== -->
       <div class="panel" [class.active]="selectedPanel() === 'wbs'">
         <app-wbs-view
           [tasks]="filteredTasks()"
-          [milestoneName]="'Milestone #' + (milestoneId() ?? 'Inconnu')">
+          [milestoneName]="'Milestone #' + (milestoneId() ?? 'Unknown')">
         </app-wbs-view>
       </div>
 
-      <!-- ====================== PANEL IMPACT ====================== -->
+      <!-- ====================== IMPACT PANEL ====================== -->
       <div class="panel" [class.active]="selectedPanel() === 'impact'">
         <app-dependency-impact
           [tasks]="filteredTasks()"

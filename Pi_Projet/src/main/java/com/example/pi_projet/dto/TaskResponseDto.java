@@ -40,5 +40,12 @@ public class TaskResponseDto {
     private LocalDateTime completedAt;
 
     private boolean isVisibleToAssignees;
-    private String difficulty; // easy | medium | hard
+    private String difficulty;
+
+    // ── Risk prediction (filled at creation time) ──────────────────────────
+    private Double  riskScore;
+    private Boolean highRisk;
+    private String  riskLevel;
+    private String  riskMethod;
+    private String  riskReasoning;
 }

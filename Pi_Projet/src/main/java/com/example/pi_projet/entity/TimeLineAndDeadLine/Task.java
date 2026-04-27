@@ -82,6 +82,21 @@ public class Task {
     @Column(name = "is_visible_to_assignees", nullable = false)
     private boolean isVisibleToAssignees = true;
 
+    @Column(name = "risk_score")
+    private Double riskScore;
+
+    @Column(name = "high_risk")
+    private Boolean highRisk;
+
+    @Column(name = "risk_level", length = 10)
+    private String riskLevel;
+
+    @Column(name = "risk_method", length = 60)
+    private String riskMethod;
+
+    @Column(name = "risk_reasoning", columnDefinition = "TEXT")
+    private String riskReasoning;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

@@ -97,7 +97,15 @@ public class TaskController {
             parentTask = taskService.getById(dto.getParentTaskId());
         }
 
-        Task task = Task.builder()
+        // ── Évaluation du risque ML (non-bloquante) ───────────────────────────
+        TaskRiskResultDto risk = null;
+        try {
+            risk = riskPredictionService.assess(dto);
+        } catch (Exception ex) {
+            // Ne jamais bloquer la création si le service ML est KO
+        }
+
+        Task.TaskBuilder builder = Task.builder()
                 .title(dto.getTitle())
                 .description(dto.getDescription())
                 .taskType(Task.TaskType.valueOf(dto.getTaskType()))
@@ -117,10 +125,17 @@ public class TaskController {
                 .milestone(milestone)
                 .parentTask(parentTask)
                 .createdBy(currentUser)
-                .isVisibleToAssignees(dto.getIsVisibleToAssignees() == null || dto.getIsVisibleToAssignees())
-                .build();
+                .isVisibleToAssignees(dto.getIsVisibleToAssignees() == null || dto.getIsVisibleToAssignees());
 
-        Task saved = taskService.create(task);
+        if (risk != null && !risk.isFallback()) {
+            builder.riskScore(risk.getRiskScore())
+                   .highRisk(risk.isHighRisk())
+                   .riskLevel(risk.getRiskLevel())
+                   .riskMethod(risk.getMethod())
+                   .riskReasoning(risk.getReasoning());
+        }
+
+        Task saved = taskService.create(builder.build());
         return ResponseEntity.ok(toDto(saved));
     }
     @GetMapping("/{id}")
@@ -305,6 +320,11 @@ public class TaskController {
                 .milestoneName(t.getMilestone() != null ? t.getMilestone().getName() : null)
                 .isVisibleToAssignees(t.isVisibleToAssignees())
                 .difficulty(t.getDifficulty() != null ? t.getDifficulty().name() : null)
+                .riskScore(t.getRiskScore())
+                .highRisk(t.getHighRisk())
+                .riskLevel(t.getRiskLevel())
+                .riskMethod(t.getRiskMethod())
+                .riskReasoning(t.getRiskReasoning())
                 .build();
     }
 
