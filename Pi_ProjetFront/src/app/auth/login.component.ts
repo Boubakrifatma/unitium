@@ -56,15 +56,30 @@ export class LoginComponent {
           return;
         }
 
-        // Connexion normale (sans 2FA)
-        this.cdr.detectChanges();
-        const user = this.authService.currentUser();
-        if (user?.mustChangePassword) {
-          this.router.navigate(['/auth/change-password']);
-        } else {
-          const returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/app/dashboard';
-          this.router.navigate([returnUrl]);
-        }
+        // Fetch complete user data including avatarUrl
+        this.authService.fetchMe().subscribe({
+          next: () => {
+            this.cdr.detectChanges();
+            const user = this.authService.currentUser();
+            if (user?.mustChangePassword) {
+              this.router.navigate(['/auth/change-password']);
+            } else {
+              const returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/app/dashboard';
+              this.router.navigate([returnUrl]);
+            }
+          },
+          error: () => {
+            // If fetchMe fails, proceed anyway
+            this.cdr.detectChanges();
+            const user = this.authService.currentUser();
+            if (user?.mustChangePassword) {
+              this.router.navigate(['/auth/change-password']);
+            } else {
+              const returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/app/dashboard';
+              this.router.navigate([returnUrl]);
+            }
+          }
+        });
       },
       error: (err) => {
         this.loading = false;
@@ -85,14 +100,30 @@ export class LoginComponent {
     this.authService.verify2FA(this.pendingUserId, this.mfaCode).subscribe({
       next: () => {
         this.loading = false;
-        this.cdr.detectChanges();
-        const user = this.authService.currentUser();
-        if (user?.mustChangePassword) {
-          this.router.navigate(['/auth/change-password']);
-        } else {
-          const returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/app/dashboard';
-          this.router.navigate([returnUrl]);
-        }
+        // Fetch complete user data including avatarUrl
+        this.authService.fetchMe().subscribe({
+          next: () => {
+            this.cdr.detectChanges();
+            const user = this.authService.currentUser();
+            if (user?.mustChangePassword) {
+              this.router.navigate(['/auth/change-password']);
+            } else {
+              const returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/app/dashboard';
+              this.router.navigate([returnUrl]);
+            }
+          },
+          error: () => {
+            // If fetchMe fails, proceed anyway
+            this.cdr.detectChanges();
+            const user = this.authService.currentUser();
+            if (user?.mustChangePassword) {
+              this.router.navigate(['/auth/change-password']);
+            } else {
+              const returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/app/dashboard';
+              this.router.navigate([returnUrl]);
+            }
+          }
+        });
       },
       error: (err) => {
         this.loading = false;
