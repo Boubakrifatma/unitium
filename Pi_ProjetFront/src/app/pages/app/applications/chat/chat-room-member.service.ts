@@ -34,8 +34,8 @@ export class ChatRoomMemberService {
   }
 
   /** GET /api/users/by-role/{role} — returns all users of the given role (EMPLOYEE, STUDENT, MANAGER, TUTOR). */
-  getUsersByRole(role: string): Observable<{id: number, fullName: string, role: string}[]> {
-    return this.http.get<{id: number, fullName: string, role: string}[]>(
+  getUsersByRole(role: string): Observable<{id: number, fullName: string, email: string, role: string, avatarUrl: string | null, isActive: boolean}[]> {
+    return this.http.get<{id: number, fullName: string, email: string, role: string, avatarUrl: string | null, isActive: boolean}[]>(
       `http://localhost:8084/api/users/by-role/${role}`
     );
   }

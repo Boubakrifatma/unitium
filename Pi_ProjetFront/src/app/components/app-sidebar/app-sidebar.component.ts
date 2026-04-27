@@ -226,7 +226,7 @@ export class AppSidebarComponent {
             // EMPLOYEE: Task Kanban, Chat
             const applicationsChildren: NavItem[] = [
                 { name: "Task Kanban", route: "/app/kanban", icon: "view_kanban" },
-                { name: "Deliverables", route: "/app/deliverables", icon: "upload_file" },
+                { name: "Deliverables", route: "/app/student-deliverables", icon: "upload_file" },
                 { name: "Chat", route: "/app/chat", icon: "chat" },
             ];
             all.push({

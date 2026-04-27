@@ -22213,11 +22213,11 @@ readonly roomTypes: { value: RoomType; label: string }[] = [
         this.filteredUsers = [];
         this.addMemberUsersLoading.set(true);
         this.showAddMemberForm.set(true);
-        this.userService.getAll().subscribe({
+        const target = this.allowedTargetRole;
+        this.memberService.getUsersByRole(target).subscribe({
             next: (users) => {
-                const target = this.allowedTargetRole;
-                this.allUsers = users;
-                this.filteredUsers = users.filter(u => u.role === target);
+                this.allUsers = users as any[];
+                this.filteredUsers = users as any[];
                 this.addMemberUsersLoading.set(false);
             },
             error: () => {

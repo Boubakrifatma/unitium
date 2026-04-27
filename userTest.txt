@@ -1,0 +1,28 @@
+log.info("\n");
+        log.info("[AcademicSeedService] ╔═══════════════════════════════════╦═════════════════════════════════╦══════════════╗");
+        log.info("[AcademicSeedService] ║ Role                              ║ Email                           ║ Password     ║");
+        log.info("[AcademicSeedService] ╠═══════════════════════════════════╬═════════════════════════════════╬══════════════╣");
+        log.info("[AcademicSeedService] ║ Organization Admin                ║ admin@academy.edu               ║ Password123! ║");
+        log.info("[AcademicSeedService] ║ Tutor 1 (Prof. Sarah Johnson)     ║ tutor1@academy.edu              ║ Password123! ║");
+        log.info("[AcademicSeedService] ║ Tutor 2 (Dr. Michael Chen)        ║ tutor2@academy.edu              ║ Password123! ║");
+        log.info("[AcademicSeedService] ║ Tutor 3 (Ms. Olivia Carter)       ║ tutor3@academy.edu              ║ Password123! ║");
+        log.info("[AcademicSeedService] ║ Student 1 (Emma Williams)         ║ student1@academy.edu            ║ Password123! ║");
+        log.info("[AcademicSeedService] ║ Student 2 (James Brown)           ║ student2@academy.edu            ║ Password123! ║");
+        log.info("[AcademicSeedService] ║ Student 3 (Sophia Martinez)       ║ student3@academy.edu            ║ Password123! ║");
+        log.info("[AcademicSeedService] ║ Student 4 (Lucas Anderson)        ║ student4@academy.edu            ║ Password123! ║");
+        -----------------------------------------------------------------------------------------------------------------------------------
+        private void printCredentialsTable() {
+                log.info("\n");
+                log.info("[UnitiumSeedService] ╔═══════════════════════════════════╦═════════════════════════════════╦══════════════╗");
+                log.info("[UnitiumSeedService] ║ Role                              ║ Email                           ║ Password     ║");
+                log.info("[UnitiumSeedService] ╠═══════════════════════════════════╬═════════════════════════════════╬══════════════╣");
+                log.info("[UnitiumSeedService] ║ Organization Owner (Admin)        ║ hemdenminiar@gmail.com          ║ Password123! ║");
+                log.info("[UnitiumSeedService] ║ Employee 1                        ║ alice.dupont@unitium.io         ║ Password123! ║");
+                log.info("[UnitiumSeedService] ║ Employee 2                        ║ marc.leroy@unitium.io           ║ Password123! ║");
+                log.info("[UnitiumSeedService] ║ PO User (Product Owner)           ║ pooja.sharma@unitium.io         ║ Password123! ║");
+                log.info("[UnitiumSeedService] ║ Manager                           ║ manager@unitium.io              ║ Password123! ║");
+                log.info("[UnitiumSeedService] ║ Admin (Org Owner)                 ║ admin@unitium.io                ║ Password123! ║");
+                log.info("[UnitiumSeedService] ╚═══════════════════════════════════╩═════════════════════════════════╩══════════════╝");
+                log.info("\n");
+            }
+        }
