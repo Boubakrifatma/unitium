@@ -24,6 +24,9 @@ public class TaskRiskResultDto {
     /** "hybrid (ML 70% + Text 30%)" or "ml_only". */
     private String method;
 
+    /** "low" | "medium" | "high" — calculé sur le score combiné final. */
+    private String riskLevel;
+
     /** LLM reasoning text when available (may be null). */
     private String reasoning;
 

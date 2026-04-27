@@ -43,12 +43,12 @@ interface CPMNode {
       <!-- Legend -->
       <div class="cp-legend">
         <div class="legend-items">
-          <span class="legend-item critical"><span class="dot"></span>Chemin critique</span>
-          <span class="legend-item normal"><span class="dot"></span>Tâche normale</span>
-          <span class="legend-item done"><span class="dot"></span>Terminée</span>
-          <span class="legend-item done-critical"><span class="dot"></span>Critique & Terminée</span>
+          <span class="legend-item critical"><span class="dot"></span>Critical path</span>
+          <span class="legend-item normal"><span class="dot"></span>Normal task</span>
+          <span class="legend-item done"><span class="dot"></span>Completed</span>
+          <span class="legend-item done-critical"><span class="dot"></span>Critical & Completed</span>
         </div>
-        <span class="legend-note">* Nœuds sans dépendances affichés en isolation</span>
+        <span class="legend-note">* Nodes without dependencies shown in isolation</span>
       </div>
 
       <!-- Stats -->
@@ -57,35 +57,35 @@ interface CPMNode {
           <div class="cp-stat-icon">🔴</div>
           <div class="cp-stat-body">
             <span class="cp-stat-value">{{ totalCriticalDuration }}h</span>
-            <span class="cp-stat-label">Durée critique totale</span>
+            <span class="cp-stat-label">Total critical duration</span>
           </div>
         </div>
         <div class="cp-stat">
           <div class="cp-stat-icon">📊</div>
           <div class="cp-stat-body">
             <span class="cp-stat-value critical-color">{{ criticalNodes.length }}</span>
-            <span class="cp-stat-label">Tâches critiques</span>
+            <span class="cp-stat-label">Critical tasks</span>
           </div>
         </div>
         <div class="cp-stat">
           <div class="cp-stat-icon">🟢</div>
           <div class="cp-stat-body">
             <span class="cp-stat-value normal-color">{{ normalNodes.length }}</span>
-            <span class="cp-stat-label">Tâches non critiques</span>
+            <span class="cp-stat-label">Non-critical tasks</span>
           </div>
         </div>
         <div class="cp-stat">
           <div class="cp-stat-icon">⏱️</div>
           <div class="cp-stat-body">
             <span class="cp-stat-value">{{ projectFinish }}h</span>
-            <span class="cp-stat-label">Durée projet</span>
+            <span class="cp-stat-label">Project duration</span>
           </div>
         </div>
         <div class="cp-stat">
           <div class="cp-stat-icon">🎯</div>
           <div class="cp-stat-body">
             <span class="cp-stat-value slack-color">{{ avgSlack }}h</span>
-            <span class="cp-stat-label">Marge moyenne</span>
+            <span class="cp-stat-label">Average slack</span>
           </div>
         </div>
       </div>
@@ -93,8 +93,8 @@ interface CPMNode {
       <!-- Empty state -->
       <div *ngIf="isEmpty" class="cp-empty">
         <div class="empty-icon">🗂️</div>
-        <h4>Aucune tâche disponible</h4>
-        <p>Créez des tâches avec des durées estimées pour calculer le chemin critique.</p>
+        <h4>No tasks available</h4>
+        <p>Create tasks with estimated durations to calculate the critical path.</p>
       </div>
 
       <!-- Cytoscape graph -->
@@ -108,23 +108,23 @@ interface CPMNode {
           {{ tooltip.title }}
         </div>
         <div class="tooltip-grid">
-          <span class="tl">Durée estimée</span>   <strong>{{ tooltip.duration }}h</strong>
-          <span class="tl">Début au plus tôt</span> <strong>{{ tooltip.ES }}h</strong>
-          <span class="tl">Fin au plus tôt</span>   <strong>{{ tooltip.EF }}h</strong>
-          <span class="tl">Début au plus tard</span><strong>{{ tooltip.LS }}h</strong>
-          <span class="tl">Fin au plus tard</span>  <strong>{{ tooltip.LF }}h</strong>
-          <span class="tl">Marge totale</span>
+          <span class="tl">Estimated duration</span>   <strong>{{ tooltip.duration }}h</strong>
+          <span class="tl">Earliest start</span> <strong>{{ tooltip.ES }}h</strong>
+          <span class="tl">Earliest finish</span>   <strong>{{ tooltip.EF }}h</strong>
+          <span class="tl">Latest start</span><strong>{{ tooltip.LS }}h</strong>
+          <span class="tl">Latest finish</span>  <strong>{{ tooltip.LF }}h</strong>
+          <span class="tl">Total slack</span>
           <strong [class.zero-slack]="tooltip.slack === 0">{{ tooltip.slack }}h</strong>
         </div>
         <div class="tooltip-badge" [class.critical]="tooltip.slack === 0">
-          {{ tooltip.slack === 0 ? '🔴 Chemin critique — Marge nulle' : '🟢 Tâche normale' }}
+          {{ tooltip.slack === 0 ? '🔴 Critical path — Zero slack' : '🟢 Normal task' }}
         </div>
       </div>
 
       <!-- CPM table toggle -->
       <div class="cpm-toggle-row" *ngIf="!isEmpty">
         <button class="cpm-toggle-btn" (click)="showTable = !showTable">
-          <span>{{ showTable ? '▲ Masquer le tableau CPM' : '▼ Afficher le tableau CPM' }}</span>
+          <span>{{ showTable ? '▲ Hide CPM table' : '▼ Show CPM table' }}</span>
         </button>
       </div>
 
@@ -134,14 +134,14 @@ interface CPMNode {
           <thead>
             <tr>
               <th>#</th>
-              <th>Tâche</th>
-              <th>Durée (h)</th>
+              <th>Task</th>
+              <th>Duration (h)</th>
               <th title="Earliest Start">ES</th>
               <th title="Earliest Finish">EF</th>
               <th title="Latest Start">LS</th>
               <th title="Latest Finish">LF</th>
-              <th>Marge</th>
-              <th>Critique ?</th>
+              <th>Slack</th>
+              <th>Critical?</th>
             </tr>
           </thead>
           <tbody>
@@ -159,7 +159,7 @@ interface CPMNode {
               <td class="col-center">
                 <span class="badge" [class.badge-critical]="node.onCriticalPath"
                                     [class.badge-normal]="!node.onCriticalPath">
-                  {{ node.onCriticalPath ? 'Oui' : 'Non' }}
+                  {{ node.onCriticalPath ? 'Yes' : 'No' }}
                 </span>
               </td>
             </tr>

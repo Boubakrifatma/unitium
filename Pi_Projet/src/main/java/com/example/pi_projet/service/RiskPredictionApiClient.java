@@ -10,11 +10,6 @@ import org.springframework.web.client.RestTemplate;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Low-level HTTP client that talks to the Flask ML API (RiskPredv2).
- * All ML-API concerns are isolated here so the rest of the app
- * never imports RestTemplate directly for this feature.
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -22,26 +17,23 @@ public class RiskPredictionApiClient {
 
     private final RestTemplate restTemplate;
 
-    /** Base URL of the Flask ML service, e.g. http://localhost:5000 */
     @Value("${ml.risk.api.url:http://localhost:5000}")
     private String mlApiUrl;
 
     /**
-     * Calls POST /predict on the ML service.
-     *
-     * @param estimatedHours  estimated task duration (hours)
-     * @param priority        "low" | "medium" | "high" | "critical"
-     * @param dueInDays       days until the due date (0 = today, negative = overdue)
-     * @param userWorkload    sum of active estimated_hours already assigned to the user
-     * @param taskTitle       optional – enables LLM text analysis
-     * @param taskDescription optional – enables LLM text analysis
-     * @return raw response map from the ML API, or null on error
+     * Appelle POST /predict sur le service Flask ML.
+     * Tous les paramètres après userCompletionRate sont optionnels (null = défaut Python).
      */
     @SuppressWarnings("unchecked")
-    public Map<String, Object> predict(float estimatedHours,
+    public Map<String, Object> predict(float  estimatedHours,
                                        String priority,
                                        long   dueInDays,
                                        float  userWorkload,
+                                       Float  userCompletionRate,
+                                       Float  userExperienceMonths,
+                                       Float  storyPoints,
+                                       Float  numComments,
+                                       Float  daysTotal,
                                        String taskTitle,
                                        String taskDescription) {
         try {
@@ -51,13 +43,16 @@ public class RiskPredictionApiClient {
             body.put("due_in_days",     dueInDays);
             body.put("user_workload",   userWorkload);
 
-            // Optional fields — only sent when available so the LLM layer is activated
-            if (taskTitle != null && !taskTitle.isBlank()) {
+            if (userCompletionRate != null)   body.put("user_completion_rate",    userCompletionRate);
+            if (userExperienceMonths != null) body.put("user_experience_months",  userExperienceMonths);
+            if (storyPoints != null)          body.put("story_points",            storyPoints);
+            if (numComments != null)          body.put("num_comments",            numComments);
+            if (daysTotal != null)            body.put("days_total",              daysTotal);
+
+            if (taskTitle != null && !taskTitle.isBlank())
                 body.put("task_title", taskTitle);
-            }
-            if (taskDescription != null && !taskDescription.isBlank()) {
+            if (taskDescription != null && !taskDescription.isBlank())
                 body.put("task_description", taskDescription);
-            }
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -70,11 +65,11 @@ public class RiskPredictionApiClient {
                 return response.getBody();
             }
 
-            log.warn("ML API returned non-2xx status: {}", response.getStatusCode());
+            log.warn("ML API a retourné un statut non-2xx : {}", response.getStatusCode());
             return null;
 
         } catch (Exception ex) {
-            log.warn("ML API call failed (will use fallback): {}", ex.getMessage());
+            log.warn("Appel ML API échoué (fallback) : {}", ex.getMessage());
             return null;
         }
     }

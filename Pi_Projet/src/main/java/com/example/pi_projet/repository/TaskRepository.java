@@ -39,6 +39,15 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     Float sumActiveEstimatedHoursByUser(@Param("userId") Long userId,
                                         @Param("todoStatus") Task.TaskStatus todoStatus);
 
+    /** Count of completed tasks assigned to a user. */
+    @Query("SELECT COUNT(t) FROM Task t WHERE t.assignedTo.id = :userId AND t.status = :doneStatus")
+    Long countCompletedByUser(@Param("userId") Long userId,
+                              @Param("doneStatus") Task.TaskStatus doneStatus);
+
+    /** Count of all tasks ever assigned to a user. */
+    @Query("SELECT COUNT(t) FROM Task t WHERE t.assignedTo.id = :userId")
+    Long countAllByUser(@Param("userId") Long userId);
+
     @Query("""
         SELECT t.project.id, t.status, COUNT(t)
         FROM Task t

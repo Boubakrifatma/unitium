@@ -36,20 +36,30 @@ print(f"\n🎯 Score final: {result.get('risk_score')}")
 print(f"⚠️  Haut risque: {result.get('high_risk')}")
 print(f"📏 Seuil: {result.get('threshold')}")
 
+ml_score   = result.get('score_ml')
+text_score = result.get('score_text')
+
 print(f"\n📊 Détails des scores:")
-print(f"   🤖 Score ML (pondéré à 70%):   {result.get('score_ml')} × 0.7 = {result.get('score_ml') * 0.7:.4f}")
-print(f"   📝 Score Texte (pondéré à 30%): {result.get('score_text')} × 0.3 = {result.get('score_text') * 0.3:.4f}")
-print(f"   ➕ Somme pondérée:              {result.get('risk_score')}")
+print(f"   🤖 Score ML (pondéré à 70%):   {ml_score} × 0.7 = {ml_score * 0.7:.4f}")
+if text_score is not None:
+    print(f"   📝 Score Texte (pondéré à 30%): {text_score} × 0.3 = {text_score * 0.3:.4f}")
+else:
+    print(f"   📝 Score Texte: N/A (API HuggingFace indisponible — mode ml_only)")
+print(f"   ➕ Score final:                 {result.get('risk_score')}")
 
 print(f"\n🔧 Méthode: {result.get('method')}")
-print(f"⚙️  Poids utilisés: ML={result.get('weights', {}).get('ml')}, Texte={result.get('weights', {}).get('text')}")
+weights = result.get('weights') or {}
+print(f"⚙️  Poids utilisés: ML={weights.get('ml', 1.0)}, Texte={weights.get('text', 0)}")
 print(f"💭 Raisonnement: {result.get('reasoning')}")
+if result.get('groq_warning'):
+    print(f"⚠️  Avertissement API: {result.get('groq_warning')}")
 
 # Vérification du calcul
-ml_score = result.get('score_ml')
-text_score = result.get('score_text')
-expected_score = round((ml_score * 0.7) + (text_score * 0.3), 4)
-print(f"\n✅ Vérification du calcul: ({ml_score} × 0.7) + ({text_score} × 0.3) = {expected_score}")
+if text_score is not None:
+    expected_score = round((ml_score * 0.7) + (text_score * 0.3), 4)
+    print(f"\n✅ Vérification du calcul: ({ml_score} × 0.7) + ({text_score} × 0.3) = {expected_score}")
+else:
+    print(f"\n✅ Vérification du calcul (ml_only): {ml_score} → {result.get('risk_score')}")
 
 print("\n" + "=" * 70)
 print("💡 INTERPRÉTATION")
