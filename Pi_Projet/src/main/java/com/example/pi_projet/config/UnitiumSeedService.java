@@ -71,7 +71,7 @@ public class UnitiumSeedService implements CommandLineRunner {
     private static final String PLAINTEXT_PASSWORD = "Password123!";
 
     // ── Data holders populated during seed ──────────────────────────────────
-    private User userJames, userAlice, userMarc, userPooja, userManager, userManager2, userAnalyst, userEmployee, userViewer;
+    private User userJames, userAlice, userMarc, userPooja, userManager, userManager2, userAnalyst, userEmployee, userViewer, userAdmin2;
     private Organization unitiumOrg;
     private Workspace unitiumWorkspace;
     private Project unitiumProject;
@@ -129,7 +129,7 @@ public class UnitiumSeedService implements CommandLineRunner {
         String hashedPwd = passwordEncoder.encode(PLAINTEXT_PASSWORD);
 
         userJames = userRepository.save(User.builder()
-            .email("james.morgan@unitium.io")
+            .email("hemdenminiar@gmail.com")
             .fullName("James Morgan")
             .passwordHash(hashedPwd)
             .role(User.RoleName.ADMIN)
@@ -209,6 +209,15 @@ public class UnitiumSeedService implements CommandLineRunner {
             .isVerified(true)
             .build());
 
+        userAdmin2 = userRepository.save(User.builder()
+            .email("admin@unitium.io")
+            .fullName("Unitium Admin")
+            .passwordHash(hashedPwd)
+            .role(User.RoleName.ADMIN)
+            .isActive(true)
+            .isVerified(true)
+            .build());
+
         // Set last login times via JdbcTemplate
         jdbcTemplate.update("UPDATE users SET last_login_at = ? WHERE id = ?",
             Timestamp.valueOf(LocalDateTime.of(2026, 4, 25, 14, 0)), userJames.getId());
@@ -234,7 +243,7 @@ public class UnitiumSeedService implements CommandLineRunner {
             .slug(SEED_ORG_SLUG)
             .ownerId(userJames.getId())
             .orgType(Organization.OrgType.ENTERPRISE)
-            .billingEmail("billing@unitium.io")
+            .billingEmail("hemdenminiar@gmail.com")
             .build());
 
         // Create org members
@@ -268,7 +277,13 @@ public class UnitiumSeedService implements CommandLineRunner {
             .role(OrganizationMember.OrganizationRole.MEMBER)
             .build());
 
-        log.info("[UnitiumSeedService]   ✓ Organization created with 6 members");
+        organizationMemberRepository.save(OrganizationMember.builder()
+            .organization(unitiumOrg)
+            .userId(userAdmin2.getId())
+            .role(OrganizationMember.OrganizationRole.OWNER)
+            .build());
+
+        log.info("[UnitiumSeedService]   ✓ Organization created with 7 members");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1180,11 +1195,12 @@ public class UnitiumSeedService implements CommandLineRunner {
         log.info("[UnitiumSeedService] ╔═══════════════════════════════════╦═════════════════════════════════╦══════════════╗");
         log.info("[UnitiumSeedService] ║ Role                              ║ Email                           ║ Password     ║");
         log.info("[UnitiumSeedService] ╠═══════════════════════════════════╬═════════════════════════════════╬══════════════╣");
-        log.info("[UnitiumSeedService] ║ Organization Owner (Admin)        ║ james.morgan@unitium.io         ║ Password123! ║");
+        log.info("[UnitiumSeedService] ║ Organization Owner (Admin)        ║ hemdenminiar@gmail.com          ║ Password123! ║");
         log.info("[UnitiumSeedService] ║ Employee 1                        ║ alice.dupont@unitium.io         ║ Password123! ║");
         log.info("[UnitiumSeedService] ║ Employee 2                        ║ marc.leroy@unitium.io           ║ Password123! ║");
         log.info("[UnitiumSeedService] ║ PO User (Product Owner)           ║ pooja.sharma@unitium.io         ║ Password123! ║");
         log.info("[UnitiumSeedService] ║ Manager                           ║ manager@unitium.io              ║ Password123! ║");
+        log.info("[UnitiumSeedService] ║ Admin (Org Owner)                 ║ admin@unitium.io                ║ Password123! ║");
         log.info("[UnitiumSeedService] ╚═══════════════════════════════════╩═════════════════════════════════╩══════════════╝");
         log.info("\n");
     }

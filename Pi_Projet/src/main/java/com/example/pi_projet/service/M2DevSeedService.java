@@ -64,6 +64,7 @@ public class M2DevSeedService {
     // ── Repositories ────────────────────────────────────────────────────────
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
     private final UserRepository userRepository;
+    private final org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder passwordEncoder;
     private final OrganizationMemberRepository organizationMemberRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final WorkspaceRepository workspaceRepository;
@@ -92,7 +93,7 @@ public class M2DevSeedService {
 
         // ── 1. Load all required users (from UnitiumSeedService + AcademicSeedService) ─
         User admin     = requireUser("admin@academy.edu");
-        User manager   = requireUser("james.morgan@unitium.io");
+        User manager   = ensureUser("manager@test.com", "NexusCorp Manager", User.RoleName.MANAGER);
         User manager2  = requireUser("manager2@unitium.io");
         User tutor     = requireUser("tutor1@academy.edu");
         User tutor2    = requireUser("tutor2@academy.edu");
@@ -127,26 +128,26 @@ public class M2DevSeedService {
 
         // ── 4. Organization members (one org per user — enforced by uk_org_member_single_org_per_user) ─
         // NexusCorp: manager + dev team + analyst  (5 users)
-        ensureOrgMember(nexusCorp, manager,  OrganizationMember.OrganizationRole.ADMIN,  manager);
+        ensureOrgMember(nexusCorp, manager,  OrganizationMember.OrganizationRole.OWNER,  manager);
         ensureOrgMember(nexusCorp, dev1,     OrganizationMember.OrganizationRole.MEMBER, manager);
         ensureOrgMember(nexusCorp, dev2,     OrganizationMember.OrganizationRole.MEMBER, manager);
         ensureOrgMember(nexusCorp, dev3,     OrganizationMember.OrganizationRole.MEMBER, manager);
         ensureOrgMember(nexusCorp, analyst,  OrganizationMember.OrganizationRole.MEMBER, manager);
 
         // StartupX: manager2 + employee + viewer  (3 users = workspace will be MAXED)
-        ensureOrgMember(startupX, manager2, OrganizationMember.OrganizationRole.ADMIN,  manager2);
+        ensureOrgMember(startupX, manager2, OrganizationMember.OrganizationRole.OWNER,  manager2);
         ensureOrgMember(startupX, employee, OrganizationMember.OrganizationRole.MEMBER, manager2);
         ensureOrgMember(startupX, viewer,   OrganizationMember.OrganizationRole.MEMBER, manager2);
 
         // OpenEDU: tutor + ta + students 1-3  (5 users)
-        ensureOrgMember(openEdu, tutor,    OrganizationMember.OrganizationRole.ADMIN,  tutor);
+        ensureOrgMember(openEdu, tutor,    OrganizationMember.OrganizationRole.OWNER,  tutor);
         ensureOrgMember(openEdu, ta,       OrganizationMember.OrganizationRole.MEMBER, tutor);
         ensureOrgMember(openEdu, student,  OrganizationMember.OrganizationRole.MEMBER, tutor);
         ensureOrgMember(openEdu, student1, OrganizationMember.OrganizationRole.MEMBER, tutor);
         ensureOrgMember(openEdu, student2, OrganizationMember.OrganizationRole.MEMBER, tutor);
 
         // MiniCampus: tutor2 + student3 + po  (3 users = workspace will be MAXED)
-        ensureOrgMember(miniCampus, tutor2,   OrganizationMember.OrganizationRole.ADMIN,  tutor2);
+        ensureOrgMember(miniCampus, tutor2,   OrganizationMember.OrganizationRole.OWNER,  tutor2);
         ensureOrgMember(miniCampus, student3, OrganizationMember.OrganizationRole.MEMBER, tutor2);
         ensureOrgMember(miniCampus, po,       OrganizationMember.OrganizationRole.MEMBER, tutor2);
 
@@ -983,10 +984,13 @@ public class M2DevSeedService {
             organizationMemberRepository.findByOrganization_IdAndUserIdAndDeletedAtIsNull(org.getId(), user.getId());
 
         if (existing.isEmpty()) {
-            // Hard-delete any stale membership in a different org (soft-delete leaves rows that
-            // still violate the uk_org_member_single_org_per_user unique constraint on user_id).
-            jdbcTemplate.update("DELETE FROM org_members WHERE user_id = ? AND organization_id != ?",
-                user.getId(), org.getId().toString());
+            // If the user already belongs to a different org (e.g. unitium or academy-hub seeded
+            // earlier), preserve that membership instead of evicting them.
+            boolean alreadyElsewhere = !organizationMemberRepository
+                    .findAllByUserIdAndDeletedAtIsNull(user.getId()).isEmpty();
+            if (alreadyElsewhere) {
+                return;
+            }
 
             organizationMemberRepository.save(OrganizationMember.builder()
                 .organization(org)
@@ -2657,5 +2661,17 @@ public class M2DevSeedService {
     private User requireUser(String email) {
         return userRepository.findByEmail(email)
             .orElseThrow(() -> new IllegalStateException("[M2DevSeedService] Missing required user: " + email));
+    }
+
+    private User ensureUser(String email, String fullName, User.RoleName role) {
+        return userRepository.findByEmail(email).orElseGet(() ->
+            userRepository.save(User.builder()
+                .email(email)
+                .fullName(fullName)
+                .passwordHash(passwordEncoder.encode("Password123!"))
+                .role(role)
+                .isActive(true)
+                .isVerified(true)
+                .build()));
     }
 }

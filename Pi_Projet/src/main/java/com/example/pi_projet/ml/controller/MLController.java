@@ -86,10 +86,10 @@ public class MLController {
     }
 
     @PostMapping("/retention/resend/{orgId}")
-    @Operation(summary = "Resend retention email for the latest prediction of an org")
+    @Operation(summary = "Resend retention email for the highest-risk prediction of an org")
     public ResponseEntity<Map<String, String>> resendRetentionEmail(@PathVariable UUID orgId) {
         return organizationRepository.findById(orgId)
-                .flatMap(churnPredictionRepository::findFirstByOrganizationOrderByPredictionDateDesc)
+                .flatMap(churnPredictionRepository::findFirstByOrganizationOrderByChurnProbabilityDesc)
                 .map(p -> {
                     mlService.resendRetentionAction(orgId, p);
                     return ResponseEntity.ok(Map.of(

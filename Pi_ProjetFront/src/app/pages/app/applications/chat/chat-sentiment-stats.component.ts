@@ -1,6 +1,6 @@
 import {
     Component, OnInit, OnDestroy,
-    signal, computed,
+    signal, computed, ChangeDetectionStrategy, ElementRef, ViewChild, AfterViewInit, Renderer2
 } from '@angular/core';
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -17,14 +17,12 @@ import { MatTableModule } from '@angular/material/table';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { trigger, style, animate, transition, state, query, stagger } from '@angular/animations';
 import { Subscription } from 'rxjs';
 import { ChatMessageService, SentimentStats } from './chat-message.service';
 import { PageRightComponent } from '../../../../components/page-right/pageright.component';
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   Chat Sentiment Stats Page (Manager / Tutor)
-   Route: /app/chat/sentiment-stats
-   ═══════════════════════════════════════════════════════════════════════════ */
 @Component({
     selector: 'app-chat-sentiment-stats',
     standalone: true,
@@ -34,239 +32,366 @@ import { PageRightComponent } from '../../../../components/page-right/pageright.
         MatProgressBarModule, MatProgressSpinnerModule,
         MatTooltipModule, MatChipsModule, MatDividerModule,
         MatTableModule, MatTabsModule, MatBadgeModule, MatSelectModule,
+        MatSlideToggleModule,
         PageRightComponent,
     ],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    animations: [
+        trigger('fadeIn', [
+            transition(':enter', [
+                style({ opacity: 0, transform: 'translateY(-8px)' }),
+                animate('500ms cubic-bezier(0.4, 0, 0.2, 1)', style({ opacity: 1, transform: 'translateY(0)' })),
+            ]),
+        ]),
+        trigger('slideInUp', [
+            transition(':enter', [
+                style({ opacity: 0, transform: 'translateY(20px)' }),
+                animate('600ms cubic-bezier(0.34, 1.56, 0.64, 1)', style({ opacity: 1, transform: 'translateY(0)' })),
+            ]),
+        ]),
+        trigger('staggerAnimation', [
+            transition(':enter', [
+                query(':enter', [
+                    style({ opacity: 0, transform: 'translateY(12px)' }),
+                    stagger(80, [
+                        animate('500ms cubic-bezier(0.4, 0, 0.2, 1)', style({ opacity: 1, transform: 'translateY(0)' })),
+                    ]),
+                ], { optional: true }),
+            ]),
+        ]),
+        trigger('pulseAnimation', [
+            state('active', style({ opacity: 1 })),
+            transition('* => active', [
+                animate('1.2s ease-in-out', style({ opacity: 0.7 })),
+                animate('1.2s ease-in-out', style({ opacity: 1 })),
+            ]),
+        ]),
+    ],
     template: `
-<!-- ══ HEADER ══════════════════════════════════════════════════════════ -->
-<div class="container-fluid fade-in mb-3 mb-lg-4">
-    <mat-card class="css-header-card shadow-none">
-        <div class="css-header-inner">
+<!-- ══ ANIMATED BACKGROUND ════════════════════════════════════════════ -->
+<div class="css-bg-blur"></div>
+
+<!-- ══ HEADER ═════════════════════════════════════════════════════════ -->
+<div class="container-fluid" @fadeIn>
+    <div class="css-header-glass">
+        <div class="css-header-content">
             <div class="css-header-left">
                 <div class="css-header-icon-wrap">
-                    <mat-icon>sentiment_very_dissatisfied</mat-icon>
+                    <div class="css-icon-glow"></div>
+                    <mat-icon>analytics</mat-icon>
                 </div>
-                <div>
-                    <h3 class="css-header-title">Message Sentiment Analytics</h3>
-                    <p class="css-header-sub">AI-powered mood analysis of all chat messages</p>
+                <div class="css-header-text">
+                    <h1 class="css-header-title">Conversation Intelligence Hub</h1>
+                    <p class="css-header-subtitle">Global sentiment analysis across all chatrooms</p>
                 </div>
             </div>
-            <div class="css-header-right">
-                <button mat-icon-button (click)="load()" [disabled]="loading()" matTooltip="Refresh">
+            <div class="css-header-actions">
+                <button mat-icon-button (click)="load()" [disabled]="loading()" matTooltip="Refresh Dashboard" class="css-refresh-btn">
                     <mat-icon [class.css-spin]="loading()">refresh</mat-icon>
                 </button>
                 <button mat-stroked-button class="css-back-btn" (click)="goBack()">
                     <mat-icon style="font-size:16px;width:16px;height:16px">arrow_back</mat-icon>
-                    Back to Chat
+                    Back
                 </button>
                 <app-page-right></app-page-right>
             </div>
         </div>
-    </mat-card>
+    </div>
 </div>
 
 @if (loading()) {
-    <div class="css-center-spin">
-        <mat-spinner diameter="48"></mat-spinner>
-        <p class="css-loading-txt">Loading sentiment data…</p>
+    <div class="css-loading-container" @fadeIn>
+        <div class="css-loader-pulse">
+            <mat-spinner diameter="56"></mat-spinner>
+        </div>
+        <p class="css-loading-text">Analyzing conversation sentiments…</p>
+        <p class="css-loading-subtext">Building your intelligence dashboard</p>
     </div>
 } @else if (error()) {
-    <div class="css-error-card container-fluid">
-        <mat-icon>error_outline</mat-icon>
-        <p>{{ error() }}</p>
-        <button mat-flat-button color="primary" (click)="load()">Retry</button>
+    <div class="container-fluid" @fadeIn>
+        <div class="css-error-container">
+            <div class="css-error-icon">
+                <mat-icon>warning_amber</mat-icon>
+            </div>
+            <h3 class="css-error-title">Unable to Load Dashboard</h3>
+            <p class="css-error-message">{{ error() }}</p>
+            <button mat-raised-button color="primary" (click)="load()" class="css-retry-btn">
+                <mat-icon>refresh</mat-icon> Retry
+            </button>
+        </div>
     </div>
 } @else if (stats()) {
-    <div class="container-fluid css-body">
+    <div class="container-fluid css-dashboard-body">
 
-        <!-- ── KPI strip ─────────────────────────────────────────────── -->
-        <div class="css-kpi-row">
-            <mat-card class="css-kpi-card css-kpi-positive">
-                <mat-icon>sentiment_very_satisfied</mat-icon>
-                <div class="css-kpi-num">{{ stats()!.distribution.POSITIVE | number }}</div>
-                <div class="css-kpi-lbl">Positive</div>
-                <div class="css-kpi-pct">{{ positivePercent() | number:'1.1-1' }}%</div>
+        <!-- ── PREMIUM KPI CARDS ──────────────────────────────────── -->
+        <div class="css-kpi-section" @staggerAnimation>
+            <div class="css-kpi-card css-kpi-positive" @slideInUp>
+                <div class="css-kpi-header">
+                    <div class="css-kpi-icon-wrap css-icon-positive">
+                        <mat-icon>sentiment_very_satisfied</mat-icon>
+                    </div>
+                    <span class="css-kpi-badge">POSITIVE</span>
+                </div>
+                <div class="css-kpi-value">{{ stats()!.distribution.POSITIVE | number }}</div>
+                <div class="css-kpi-percentage" [style.color]="'#4CAF50'">{{ positivePercent() | number:'1.1-1' }}%</div>
+                <div class="css-kpi-bar">
+                    <div class="css-kpi-bar-fill" [style.width.%]="positivePercent()" style="background: linear-gradient(90deg, #4CAF50, #66BB6A);"></div>
+                </div>
+            </div>
+            <div class="css-kpi-card css-kpi-neutral" @slideInUp style="animation-delay: 80ms;">
+                <div class="css-kpi-header">
+                    <div class="css-kpi-icon-wrap css-icon-neutral">
+                        <mat-icon>sentiment_neutral</mat-icon>
+                    </div>
+                    <span class="css-kpi-badge">NEUTRAL</span>
+                </div>
+                <div class="css-kpi-value">{{ stats()!.distribution.NEUTRAL | number }}</div>
+                <div class="css-kpi-percentage" [style.color]="'#2196F3'">{{ neutralPercent() | number:'1.1-1' }}%</div>
+                <div class="css-kpi-bar">
+                    <div class="css-kpi-bar-fill" [style.width.%]="neutralPercent()" style="background: linear-gradient(90deg, #2196F3, #64B5F6);"></div>
+                </div>
+            </div>
+            <div class="css-kpi-card css-kpi-negative" @slideInUp style="animation-delay: 160ms;">
+                <div class="css-kpi-header">
+                    <div class="css-kpi-icon-wrap css-icon-negative">
+                        <mat-icon>sentiment_very_dissatisfied</mat-icon>
+                    </div>
+                    <span class="css-kpi-badge">NEGATIVE</span>
+                </div>
+                <div class="css-kpi-value">{{ stats()!.distribution.NEGATIVE | number }}</div>
+                <div class="css-kpi-percentage" [style.color]="'#FF6B6B'">{{ negativePercent() | number:'1.1-1' }}%</div>
+                <div class="css-kpi-bar">
+                    <div class="css-kpi-bar-fill" [style.width.%]="negativePercent()" style="background: linear-gradient(90deg, #FF6B6B, #FF8787);"></div>
+                </div>
+            </div>
+            <div class="css-kpi-card css-kpi-total" @slideInUp style="animation-delay: 240ms;">
+                <div class="css-kpi-header">
+                    <div class="css-kpi-icon-wrap css-icon-total">
+                        <mat-icon>chat_bubble</mat-icon>
+                    </div>
+                    <span class="css-kpi-badge">TOTAL</span>
+                </div>
+                <div class="css-kpi-value">{{ stats()!.total | number }}</div>
+                <div class="css-kpi-subtitle">messages analyzed</div>
+                <div class="css-kpi-health">{{ getHealthStatus() }}</div>
+            </div>
+        </div>
+
+        <!-- ── DISTRIBUTION VISUALIZATION ─────────────────────────── -->
+        <div class="css-grid-2col" @slideInUp>
+            <mat-card class="css-premium-card css-distribution-card">
+                <div class="css-card-header">
+                    <div class="css-card-icon">
+                        <mat-icon>donut_large</mat-icon>
+                    </div>
+                    <h3 class="css-card-title">Sentiment Composition</h3>
+                </div>
+                <div class="css-dist-bar-container">
+                    <div class="css-dist-bar-animated">
+                        @if (positivePercent() > 0) {
+                            <div class="css-dist-segment css-seg-positive-gradient"
+                                 [style.flex]="positivePercent()"
+                                 [matTooltip]="positivePercent() | number:'1.1-1' + '% Positive Messages'"
+                                 class="css-hover-lift">
+                                <span class="css-segment-label">{{ positivePercent() | number:'1.0-0' }}%</span>
+                            </div>
+                        }
+                        @if (neutralPercent() > 0) {
+                            <div class="css-dist-segment css-seg-neutral-gradient"
+                                 [style.flex]="neutralPercent()"
+                                 [matTooltip]="neutralPercent() | number:'1.1-1' + '% Neutral Messages'"
+                                 class="css-hover-lift">
+                                <span class="css-segment-label">{{ neutralPercent() | number:'1.0-0' }}%</span>
+                            </div>
+                        }
+                        @if (negativePercent() > 0) {
+                            <div class="css-dist-segment css-seg-negative-gradient"
+                                 [style.flex]="negativePercent()"
+                                 [matTooltip]="negativePercent() | number:'1.1-1' + '% Negative Messages'"
+                                 class="css-hover-lift">
+                                <span class="css-segment-label">{{ negativePercent() | number:'1.0-0' }}%</span>
+                            </div>
+                        }
+                    </div>
+                    <div class="css-legend-enhanced">
+                        <div class="css-legend-item">
+                            <span class="css-legend-indicator css-positive"></span>
+                            <span class="css-legend-text">Positive</span>
+                            <span class="css-legend-count">{{ stats()!.distribution.POSITIVE }}</span>
+                        </div>
+                        <div class="css-legend-item">
+                            <span class="css-legend-indicator css-neutral"></span>
+                            <span class="css-legend-text">Neutral</span>
+                            <span class="css-legend-count">{{ stats()!.distribution.NEUTRAL }}</span>
+                        </div>
+                        <div class="css-legend-item">
+                            <span class="css-legend-indicator css-negative"></span>
+                            <span class="css-legend-text">Negative</span>
+                            <span class="css-legend-count">{{ stats()!.distribution.NEGATIVE }}</span>
+                        </div>
+                    </div>
+                </div>
             </mat-card>
-            <mat-card class="css-kpi-card css-kpi-neutral">
-                <mat-icon>sentiment_neutral</mat-icon>
-                <div class="css-kpi-num">{{ stats()!.distribution.NEUTRAL | number }}</div>
-                <div class="css-kpi-lbl">Neutral</div>
-                <div class="css-kpi-pct">{{ neutralPercent() | number:'1.1-1' }}%</div>
-            </mat-card>
-            <mat-card class="css-kpi-card css-kpi-negative">
-                <mat-icon>sentiment_very_dissatisfied</mat-icon>
-                <div class="css-kpi-num">{{ stats()!.distribution.NEGATIVE | number }}</div>
-                <div class="css-kpi-lbl">Negative</div>
-                <div class="css-kpi-pct">{{ negativePercent() | number:'1.1-1' }}%</div>
-            </mat-card>
-            <mat-card class="css-kpi-card css-kpi-total">
-                <mat-icon>chat_bubble_outline</mat-icon>
-                <div class="css-kpi-num">{{ stats()!.total | number }}</div>
-                <div class="css-kpi-lbl">Total analysed</div>
-                <div class="css-kpi-pct">&nbsp;</div>
+
+            <!-- ── HEALTH INDICATOR ────────────────────────────────── -->
+            <mat-card class="css-premium-card css-health-card">
+                <div class="css-card-header">
+                    <div class="css-card-icon">
+                        <mat-icon>favorite</mat-icon>
+                    </div>
+                    <h3 class="css-card-title">Sentiment Health</h3>
+                </div>
+                <div class="css-health-gauge">
+                    <div class="css-gauge-circle" [style.--health-value]="getHealthScore() + '%'">
+                        <div class="css-gauge-content">
+                            <div class="css-gauge-value">{{ getHealthScore() | number:'1.0-0' }}%</div>
+                            <div class="css-gauge-label">{{ getHealthStatus() }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="css-health-insights">
+                    <div class="css-insight-item" [class.insight-positive]="getHealthScore() > 70">
+                        <mat-icon>{{ getHealthScore() > 70 ? 'check_circle' : 'info' }}</mat-icon>
+                        <span>{{ getHealthInsight() }}</span>
+                    </div>
+                </div>
             </mat-card>
         </div>
 
-        <!-- ── Overall distribution bar ──────────────────────────────── -->
-        <mat-card class="css-section-card">
-            <div class="css-section-title">
-                <mat-icon>donut_small</mat-icon> Overall Distribution
-            </div>
-            <div class="css-dist-bar-wrap">
-                <div class="css-dist-bar">
-                    @if (positivePercent() > 0) {
-                        <div class="css-dist-seg css-seg-positive"
-                             [style.width.%]="positivePercent()"
-                             [matTooltip]="'Positive: ' + (positivePercent() | number:'1.1-1') + '%'">
-                            {{ positivePercent() | number:'1.0-0' }}%
-                        </div>
-                    }
-                    @if (neutralPercent() > 0) {
-                        <div class="css-dist-seg css-seg-neutral"
-                             [style.width.%]="neutralPercent()"
-                             [matTooltip]="'Neutral: ' + (neutralPercent() | number:'1.1-1') + '%'">
-                            {{ neutralPercent() | number:'1.0-0' }}%
-                        </div>
-                    }
-                    @if (negativePercent() > 0) {
-                        <div class="css-dist-seg css-seg-negative"
-                             [style.width.%]="negativePercent()"
-                             [matTooltip]="'Negative: ' + (negativePercent() | number:'1.1-1') + '%'">
-                            {{ negativePercent() | number:'1.0-0' }}%
-                        </div>
-                    }
-                </div>
-                <div class="css-dist-legend">
-                    <span class="css-legend-dot css-dot-positive"></span> Positive
-                    <span class="css-legend-dot css-dot-neutral"></span> Neutral
-                    <span class="css-legend-dot css-dot-negative"></span> Negative
-                </div>
-            </div>
-        </mat-card>
-
-        <!-- ── Daily trend ────────────────────────────────────────────── -->
+        <!-- ── DAILY TREND TIMELINE ──────────────────────────────── -->
         @if (stats()!.dailyTrend.length > 0) {
-            <mat-card class="css-section-card">
-                <div class="css-section-title">
-                    <mat-icon>show_chart</mat-icon> Daily Sentiment Trend (Last 30 Days)
+            <mat-card class="css-premium-card css-trend-card" @slideInUp>
+                <div class="css-card-header">
+                    <div class="css-card-icon">
+                        <mat-icon>trending_up</mat-icon>
+                    </div>
+                    <h3 class="css-card-title">Sentiment Trend Timeline</h3>
+                    <span class="css-card-subtitle">Last 30 Days</span>
                 </div>
-                <div class="css-trend-table-wrap">
-                    <table class="css-trend-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th class="css-col-pos">Positive</th>
-                                <th class="css-col-neu">Neutral</th>
-                                <th class="css-col-neg">Negative</th>
-                                <th>Breakdown</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @for (day of stats()!.dailyTrend; track day.date) {
-                                <tr>
-                                    <td class="css-date-cell">{{ day.date }}</td>
-                                    <td class="css-col-pos">{{ day.positive }}</td>
-                                    <td class="css-col-neu">{{ day.neutral }}</td>
-                                    <td class="css-col-neg">{{ day.negative }}</td>
-                                    <td class="css-bar-cell">
-                                        @if ((day.positive + day.neutral + day.negative) > 0) {
-                                            <div class="css-mini-bar">
-                                                @if (day.positive > 0) {
-                                                    <div class="css-mini-seg css-seg-positive"
-                                                         [style.flex]="day.positive"
-                                                         [matTooltip]="'Positive: ' + day.positive"></div>
-                                                }
-                                                @if (day.neutral > 0) {
-                                                    <div class="css-mini-seg css-seg-neutral"
-                                                         [style.flex]="day.neutral"
-                                                         [matTooltip]="'Neutral: ' + day.neutral"></div>
-                                                }
-                                                @if (day.negative > 0) {
-                                                    <div class="css-mini-seg css-seg-negative"
-                                                         [style.flex]="day.negative"
-                                                         [matTooltip]="'Negative: ' + day.negative"></div>
-                                                }
-                                            </div>
+                <div class="css-trend-grid">
+                    @for (day of stats()!.dailyTrend; track day.date; let i = $index) {
+                        <div class="css-trend-item" [style.animation-delay]="(i * 30) + 'ms'">
+                            <div class="css-trend-date">{{ formatDate(day.date) }}</div>
+                            <div class="css-trend-bars">
+                                @if ((day.positive + day.neutral + day.negative) > 0) {
+                                    <div class="css-trend-bar-container">
+                                        @if (day.positive > 0) {
+                                            <div class="css-trend-bar css-bar-positive"
+                                                 [style.height.%]="(day.positive / getTrendMax()) * 100"
+                                                 [matTooltip]="day.positive + ' Positive'"></div>
                                         }
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
+                                        @if (day.neutral > 0) {
+                                            <div class="css-trend-bar css-bar-neutral"
+                                                 [style.height.%]="(day.neutral / getTrendMax()) * 100"
+                                                 [matTooltip]="day.neutral + ' Neutral'"></div>
+                                        }
+                                        @if (day.negative > 0) {
+                                            <div class="css-trend-bar css-bar-negative"
+                                                 [style.height.%]="(day.negative / getTrendMax()) * 100"
+                                                 [matTooltip]="day.negative + ' Negative'"></div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                            <div class="css-trend-total">{{ day.positive + day.neutral + day.negative }}</div>
+                        </div>
+                    }
                 </div>
             </mat-card>
         }
 
-        <!-- ── Room breakdown ─────────────────────────────────────────── -->
+        <!-- ── CHANNEL ANALYTICS ─────────────────────────────────── -->
         @if (stats()!.roomBreakdown.length > 0) {
-            <mat-card class="css-section-card">
-                <div class="css-section-title">
-                    <mat-icon>forum</mat-icon> Per-Room Breakdown
+            <mat-card class="css-premium-card css-rooms-card" @slideInUp>
+                <div class="css-card-header">
+                    <div class="css-card-icon">
+                        <mat-icon>forum</mat-icon>
+                    </div>
+                    <h3 class="css-card-title">Channel Sentiment Breakdown</h3>
                 </div>
-                <div class="css-room-list">
-                    @for (room of stats()!.roomBreakdown; track room.roomId) {
-                        <div class="css-room-row">
-                            <div class="css-room-name">
-                                <mat-icon class="css-room-icon">tag</mat-icon>
-                                {{ room.roomName }}
+                <div class="css-rooms-list">
+                    @for (room of stats()!.roomBreakdown; track room.roomId; let i = $index) {
+                        <div class="css-room-card" [style.animation-delay]="(i * 50) + 'ms'">
+                            <div class="css-room-header">
+                                <div class="css-room-name-icon">
+                                    <mat-icon class="css-room-icon-badge">forum</mat-icon>
+                                    <span class="css-room-name">{{ room.roomName }}</span>
+                                </div>
+                                <div class="css-room-meta">
+                                    <span class="css-room-count">{{ room.total }} messages</span>
+                                </div>
                             </div>
-                            <div class="css-room-chips">
-                                <span class="css-chip css-chip-pos" matTooltip="Positive">
-                                    <mat-icon>sentiment_satisfied</mat-icon> {{ room.positive }}
-                                </span>
-                                <span class="css-chip css-chip-neu" matTooltip="Neutral">
-                                    <mat-icon>sentiment_neutral</mat-icon> {{ room.neutral }}
-                                </span>
-                                <span class="css-chip css-chip-neg" matTooltip="Negative">
-                                    <mat-icon>sentiment_dissatisfied</mat-icon> {{ room.negative }}
-                                </span>
-                            </div>
-                            <div class="css-room-bar-wrap">
-                                <div class="css-mini-bar">
+                            <div class="css-room-content">
+                                <div class="css-room-stats">
+                                    <div class="css-room-stat css-stat-positive">
+                                        <span class="css-stat-icon">😊</span>
+                                        <span class="css-stat-number">{{ room.positive }}</span>
+                                        <span class="css-stat-label">Positive</span>
+                                    </div>
+                                    <div class="css-room-stat css-stat-neutral">
+                                        <span class="css-stat-icon">😐</span>
+                                        <span class="css-stat-number">{{ room.neutral }}</span>
+                                        <span class="css-stat-label">Neutral</span>
+                                    </div>
+                                    <div class="css-room-stat css-stat-negative">
+                                        <span class="css-stat-icon">😞</span>
+                                        <span class="css-stat-number">{{ room.negative }}</span>
+                                        <span class="css-stat-label">Negative</span>
+                                    </div>
+                                </div>
+                                <div class="css-room-bar-animated">
                                     @if (room.positive > 0) {
-                                        <div class="css-mini-seg css-seg-positive"
-                                             [style.flex]="room.positive"
-                                             [matTooltip]="'Positive: ' + room.positive"></div>
+                                        <div class="css-bar-segment css-seg-positive-gradient" [style.flex]="room.positive" [matTooltip]="room.positive + ' Positive'"></div>
                                     }
                                     @if (room.neutral > 0) {
-                                        <div class="css-mini-seg css-seg-neutral"
-                                             [style.flex]="room.neutral"
-                                             [matTooltip]="'Neutral: ' + room.neutral"></div>
+                                        <div class="css-bar-segment css-seg-neutral-gradient" [style.flex]="room.neutral" [matTooltip]="room.neutral + ' Neutral'"></div>
                                     }
                                     @if (room.negative > 0) {
-                                        <div class="css-mini-seg css-seg-negative"
-                                             [style.flex]="room.negative"
-                                             [matTooltip]="'Negative: ' + room.negative"></div>
+                                        <div class="css-bar-segment css-seg-negative-gradient" [style.flex]="room.negative" [matTooltip]="room.negative + ' Negative'"></div>
                                     }
                                 </div>
                             </div>
-                            <div class="css-room-total">{{ room.total }} msg</div>
                         </div>
                     }
                 </div>
             </mat-card>
         }
 
-        <!-- ── Top flagged users ──────────────────────────────────────── -->
+        <!-- ── SENTIMENT INSIGHTS ────────────────────────────────── -->
         @if (stats()!.topFlaggedUsers.length > 0) {
-            <mat-card class="css-section-card">
-                <div class="css-section-title">
-                    <mat-icon>flag</mat-icon> Most Negative Messages — Top Users
+            <mat-card class="css-premium-card css-insights-card" @slideInUp>
+                <div class="css-card-header">
+                    <div class="css-card-icon">
+                        <mat-icon>insights</mat-icon>
+                    </div>
+                    <h3 class="css-card-title">Conversation Insights</h3>
+                    <span class="css-card-subtitle">Monitor & Support Recommendations</span>
                 </div>
-                <p class="css-section-hint">
-                    Users with the highest number of messages flagged as negative by the AI model.
-                    This does not constitute a violation — it is an analytical indicator only.
-                </p>
-                <div class="css-flagged-list">
+                <div class="css-insights-warning">
+                    <mat-icon>info</mat-icon>
+                    <p>Users with higher negative sentiment may benefit from additional support or mentoring.</p>
+                </div>
+                <div class="css-flagged-leaderboard">
                     @for (u of stats()!.topFlaggedUsers; track u.userName; let i = $index) {
-                        <div class="css-flagged-row" [class.css-flagged-top]="i < 3">
-                            <div class="css-flagged-rank">{{ i + 1 }}</div>
-                            <div class="css-flagged-name">
-                                <mat-icon class="css-avatar-icon">person</mat-icon>
-                                {{ u.userName }}
+                        <div class="css-flagged-item" [class.css-top-3]="i < 3" [style.animation-delay]="(i * 40) + 'ms'">
+                            <div class="css-flagged-rank-badge" [class]="'css-rank-' + (i < 3 ? 'top' : 'other')">
+                                {{ i + 1 }}
+                                @if (i === 0) {
+                                    <mat-icon class="css-rank-icon">star</mat-icon>
+                                }
                             </div>
-                            <div class="css-flagged-count">
-                                <mat-icon style="color:#e64a19;font-size:16px;vertical-align:middle">warning_amber</mat-icon>
-                                {{ u.negativeCount }} negative
+                            <div class="css-flagged-user-info">
+                                <div class="css-user-avatar">{{ u.userName.charAt(0).toUpperCase() }}</div>
+                                <div class="css-user-details">
+                                    <span class="css-user-name">{{ u.userName }}</span>
+                                    <span class="css-user-status">{{ u.negativeCount }} negative messages</span>
+                                </div>
+                            </div>
+                            <div class="css-flagged-indicator">
+                                <div class="css-sentiment-bar">
+                                    <div class="css-sentiment-fill" [style.width.%]="(u.negativeCount / getMaxNegativeCount()) * 100"></div>
+                                </div>
+                                <span class="css-indicator-text">{{ (u.negativeCount / getMaxNegativeCount()) * 100 | number:'1.0-0' }}%</span>
                             </div>
                         </div>
                     }
@@ -276,8 +401,11 @@ import { PageRightComponent } from '../../../../components/page-right/pageright.
 
         @if (stats()!.total === 0) {
             <mat-card class="css-empty-card">
-                <mat-icon>mood</mat-icon>
-                <p>No analysed messages yet. Send some messages with the sentiment service running to populate this dashboard.</p>
+                <div class="css-empty-content">
+                    <mat-icon class="css-empty-icon">sentiment_dissatisfied</mat-icon>
+                    <h3>No Data Yet</h3>
+                    <p>Send some messages with the sentiment service running to populate this dashboard.</p>
+                </div>
             </mat-card>
         }
 
@@ -285,112 +413,712 @@ import { PageRightComponent } from '../../../../components/page-right/pageright.
 }
     `,
     styles: [`
-:host { display: block; }
-.fade-in { animation: fadeIn .4s ease; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+:host { display: block; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); min-height: 100vh; }
 
-/* ── Header ── */
-.css-header-card { border-radius: 12px; padding: 12px 16px; }
-.css-header-inner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
-.css-header-left { display: flex; align-items: center; gap: 14px; }
+/* ═══════════════════════════════════════════════════════════════ */
+/* ANIMATED BACKGROUND & LOADING */
+/* ═══════════════════════════════════════════════════════════════ */
+.css-bg-blur {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(168, 85, 247, 0.1) 0%, transparent 50%);
+    pointer-events: none; z-index: -1;
+}
+
+.css-loading-container {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 20px; padding: 100px 20px; min-height: 60vh;
+}
+.css-loader-pulse {
+    animation: pulse-scale 2s ease-in-out infinite;
+}
+.css-loading-text {
+    font-size: 1.2rem; font-weight: 600; color: #2c3e50;
+    animation: fadeIn 0.6s ease;
+}
+.css-loading-subtext {
+    font-size: 0.95rem; color: #7f8c8d;
+    animation: fadeIn 0.8s ease 0.2s both;
+}
+
+@keyframes pulse-scale {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.08); opacity: 0.8; }
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* HEADER - GLASS MORPHISM */
+/* ═══════════════════════════════════════════════════════════════ */
+.css-header-glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+    animation: slideInDown 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.css-header-content {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 16px;
+}
+
+.css-header-left {
+    display: flex; align-items: center; gap: 16px;
+}
+
 .css-header-icon-wrap {
-    width: 46px; height: 46px; border-radius: 12px;
-    background: linear-gradient(135deg, #e53935 0%, #e64a19 100%);
+    position: relative;
+    width: 56px; height: 56px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+}
+
+.css-icon-glow {
+    position: absolute; inset: -4px; border-radius: 14px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    opacity: 0.3; filter: blur(8px); z-index: -1;
+}
+
+.css-header-icon-wrap mat-icon {
+    color: #fff; font-size: 28px;
+    animation: pulse 3s ease-in-out infinite;
+}
+
+.css-header-text {
+    display: flex; flex-direction: column; gap: 4px;
+}
+
+.css-header-title {
+    font-size: 1.5rem; font-weight: 700; margin: 0;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.css-header-subtitle {
+    font-size: 0.9rem; color: #7f8c8d; margin: 0;
+}
+
+.css-header-actions {
+    display: flex; gap: 8px; align-items: center;
+}
+
+.css-refresh-btn {
+    transition: all 0.3s ease;
+}
+
+.css-back-btn {
+    border-radius: 10px; font-weight: 600; transition: all 0.3s ease;
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* KPI CARDS - PREMIUM DESIGN */
+/* ═══════════════════════════════════════════════════════════════ */
+.css-dashboard-body {
+    padding-bottom: 48px;
+}
+
+.css-kpi-section {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 16px; margin-bottom: 28px;
+}
+
+@media (max-width: 1200px) {
+    .css-kpi-section { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 600px) {
+    .css-kpi-section { grid-template-columns: 1fr; }
+}
+
+.css-kpi-card {
+    background: white;
+    border-radius: 16px;
+    padding: 24px 20px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative; overflow: hidden;
+}
+
+.css-kpi-card::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, transparent 100%);
+    pointer-events: none;
+}
+
+.css-kpi-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15);
+    border-color: rgba(0, 0, 0, 0.1);
+}
+
+.css-kpi-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.css-kpi-icon-wrap {
+    width: 42px; height: 42px;
+    border-radius: 10px;
     display: flex; align-items: center; justify-content: center;
 }
-.css-header-icon-wrap mat-icon { color: #fff; font-size: 24px; }
-.css-header-title { font-size: 1.1rem; font-weight: 700; margin: 0; }
-.css-header-sub { font-size: 0.8rem; color: #888; margin: 2px 0 0; }
-.css-header-right { display: flex; align-items: center; gap: 8px; }
-.css-back-btn { border-radius: 20px; font-size: .8rem; }
-.css-spin { animation: spin 1s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Loading / Error ── */
-.css-center-spin { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 60px 0; }
-.css-loading-txt { color: #888; font-size: .9rem; }
-.css-error-card { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 48px; color: #c62828; }
+.css-icon-positive { background: rgba(76, 175, 80, 0.15); }
+.css-icon-positive mat-icon { color: #4CAF50; }
 
-/* ── Body ── */
-.css-body { padding-bottom: 48px; }
+.css-icon-neutral { background: rgba(33, 150, 243, 0.15); }
+.css-icon-neutral mat-icon { color: #2196F3; }
 
-/* ── KPI row ── */
-.css-kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
-@media (max-width: 900px) { .css-kpi-row { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 500px) { .css-kpi-row { grid-template-columns: 1fr; } }
-.css-kpi-card {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    padding: 20px 12px; border-radius: 14px; text-align: center; gap: 4px;
+.css-icon-negative { background: rgba(255, 107, 107, 0.15); }
+.css-icon-negative mat-icon { color: #FF6B6B; }
+
+.css-icon-total { background: rgba(156, 39, 176, 0.15); }
+.css-icon-total mat-icon { color: #9C27B0; }
+
+.css-kpi-badge {
+    font-size: 0.7rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    color: #7f8c8d; opacity: 0.8;
 }
-.css-kpi-card mat-icon { font-size: 30px; width: 30px; height: 30px; }
-.css-kpi-num { font-size: 2rem; font-weight: 800; line-height: 1; }
-.css-kpi-lbl { font-size: 0.75rem; text-transform: uppercase; letter-spacing: .07em; color: #555; }
-.css-kpi-pct { font-size: 0.85rem; font-weight: 600; }
-.css-kpi-positive { background: #e8f5e9; } .css-kpi-positive mat-icon { color: #2e7d32; } .css-kpi-positive .css-kpi-num { color: #1b5e20; } .css-kpi-positive .css-kpi-pct { color: #2e7d32; }
-.css-kpi-neutral  { background: #e3f2fd; } .css-kpi-neutral  mat-icon { color: #1565c0; } .css-kpi-neutral  .css-kpi-num { color: #0d47a1; } .css-kpi-neutral  .css-kpi-pct { color: #1565c0; }
-.css-kpi-negative { background: #fce4ec; } .css-kpi-negative mat-icon { color: #c62828; } .css-kpi-negative .css-kpi-num { color: #b71c1c; } .css-kpi-negative .css-kpi-pct { color: #c62828; }
-.css-kpi-total    { background: #f3e5f5; } .css-kpi-total    mat-icon { color: #6a1b9a; } .css-kpi-total    .css-kpi-num { color: #4a148c; }
 
-/* ── Section cards ── */
-.css-section-card { border-radius: 14px; padding: 18px 20px; margin-bottom: 16px; }
-.css-section-title { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: .95rem; margin-bottom: 14px; }
-.css-section-title mat-icon { color: #555; font-size: 20px; }
-.css-section-hint { font-size: .8rem; color: #888; margin: -8px 0 12px; }
+.css-kpi-value {
+    font-size: 2.2rem; font-weight: 800; line-height: 1;
+    margin-bottom: 6px; color: #2c3e50;
+}
 
-/* ── Distribution bar ── */
-.css-dist-bar-wrap { padding: 4px 0; }
-.css-dist-bar { display: flex; height: 36px; border-radius: 8px; overflow: hidden; }
-.css-dist-seg { display: flex; align-items: center; justify-content: center; font-size: .8rem; font-weight: 700; color: #fff; transition: flex .4s ease; min-width: 0; overflow: hidden; }
-.css-seg-positive { background: #43a047; }
-.css-seg-neutral  { background: #1e88e5; }
-.css-seg-negative { background: #e53935; }
-.css-dist-legend { display: flex; gap: 18px; margin-top: 10px; font-size: .8rem; color: #555; align-items: center; }
-.css-legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
-.css-dot-positive { background: #43a047; }
-.css-dot-neutral  { background: #1e88e5; }
-.css-dot-negative { background: #e53935; }
+.css-kpi-percentage {
+    font-size: 1rem; font-weight: 700; margin-bottom: 10px;
+}
 
-/* ── Trend table ── */
-.css-trend-table-wrap { overflow-x: auto; }
-.css-trend-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
-.css-trend-table th { text-align: left; padding: 6px 10px; border-bottom: 2px solid #eee; font-size: .75rem; text-transform: uppercase; color: #888; }
-.css-trend-table td { padding: 6px 10px; border-bottom: 1px solid #f3f3f3; }
-.css-date-cell { font-family: monospace; color: #333; }
-.css-col-pos { color: #2e7d32; font-weight: 600; }
-.css-col-neu { color: #1565c0; font-weight: 600; }
-.css-col-neg { color: #c62828; font-weight: 600; }
-.css-bar-cell { min-width: 120px; }
+.css-kpi-subtitle {
+    font-size: 0.8rem; color: #95a5a6; margin-bottom: 8px;
+}
 
-/* ── Mini bar ── */
-.css-mini-bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; gap: 1px; }
-.css-mini-seg { border-radius: 0; transition: flex .3s; }
+.css-kpi-health {
+    font-size: 0.85rem; font-weight: 600;
+    color: #27ae60; background: rgba(39, 174, 96, 0.1);
+    padding: 4px 8px; border-radius: 6px; display: inline-block;
+}
 
-/* ── Room list ── */
-.css-room-list { display: flex; flex-direction: column; gap: 10px; }
-.css-room-row { display: flex; align-items: center; gap: 12px; padding: 8px 4px; border-bottom: 1px solid #f5f5f5; }
-.css-room-name { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: .9rem; min-width: 140px; }
-.css-room-icon { font-size: 16px; color: #888; }
-.css-room-chips { display: flex; gap: 8px; }
-.css-chip { display: flex; align-items: center; gap: 3px; font-size: .78rem; font-weight: 600; padding: 2px 8px; border-radius: 12px; }
-.css-chip mat-icon { font-size: 14px; width: 14px; height: 14px; }
-.css-chip-pos { background: #e8f5e9; color: #2e7d32; }
-.css-chip-neu { background: #e3f2fd; color: #1565c0; }
-.css-chip-neg { background: #fce4ec; color: #c62828; }
-.css-room-bar-wrap { flex: 1; min-width: 80px; }
-.css-room-total { font-size: .78rem; color: #888; white-space: nowrap; }
+.css-kpi-bar {
+    width: 100%; height: 6px;
+    background: rgba(0, 0, 0, 0.05); border-radius: 3px;
+    overflow: hidden;
+}
 
-/* ── Flagged users ── */
-.css-flagged-list { display: flex; flex-direction: column; gap: 8px; }
-.css-flagged-row { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 8px; background: #fafafa; }
-.css-flagged-top { background: #fff3e0; }
-.css-flagged-rank { font-size: 1.1rem; font-weight: 800; color: #ff6f00; min-width: 28px; text-align: center; }
-.css-flagged-name { display: flex; align-items: center; gap: 6px; flex: 1; font-size: .9rem; font-weight: 500; }
-.css-avatar-icon { font-size: 20px; color: #9e9e9e; }
-.css-flagged-count { font-size: .85rem; color: #c62828; font-weight: 600; }
+.css-kpi-bar-fill {
+    height: 100%; border-radius: 3px;
+    animation: slideInLeft 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
 
-/* ── Empty ── */
-.css-empty-card { display: flex; flex-direction: column; align-items: center; padding: 48px; gap: 12px; color: #aaa; border-radius: 14px; }
-.css-empty-card mat-icon { font-size: 48px; width: 48px; height: 48px; }
+/* ═════════════════════════════════════════════════════════════ */
+/* GRID & PREMIUM CARDS */
+/* ═════════════════════════════════════════════════════════════ */
+.css-grid-2col {
+    display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 20px; margin-bottom: 24px;
+}
+
+@media (max-width: 1000px) {
+    .css-grid-2col { grid-template-columns: 1fr; }
+}
+
+.css-premium-card {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    transition: all 0.4s ease;
+}
+
+.css-premium-card:hover {
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+    transform: translateY(-4px);
+}
+
+.css-card-header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+}
+
+.css-card-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex; align-items: center; justify-content: center;
+}
+
+.css-card-icon mat-icon { color: white; font-size: 20px; }
+
+.css-card-title {
+    font-size: 1.1rem; font-weight: 700; margin: 0;
+    color: #2c3e50;
+}
+
+.css-card-subtitle {
+    font-size: 0.75rem; color: #95a5a6;
+    margin-left: auto; text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+/* ═════════════════════════════════════════════════════════════ */
+/* DISTRIBUTION & LEGEND */
+/* ═════════════════════════════════════════════════════════════ */
+.css-dist-bar-container {
+    padding: 8px 0;
+}
+
+.css-dist-bar-animated {
+    display: flex; height: 32px;
+    border-radius: 8px; overflow: hidden;
+    gap: 2px; margin-bottom: 16px;
+}
+
+.css-dist-segment {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 700; color: white;
+    transition: all 0.4s ease;
+    position: relative;
+}
+
+.css-seg-positive-gradient {
+    background: linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%);
+}
+
+.css-seg-neutral-gradient {
+    background: linear-gradient(135deg, #2196F3 0%, #64B5F6 100%);
+}
+
+.css-seg-negative-gradient {
+    background: linear-gradient(135deg, #FF6B6B 0%, #FF8787 100%);
+}
+
+.css-segment-label {
+    font-weight: 700; opacity: 0.9;
+}
+
+.css-hover-lift:hover {
+    transform: scaleY(1.3);
+}
+
+.css-legend-enhanced {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+@media (max-width: 600px) {
+    .css-legend-enhanced { grid-template-columns: 1fr; }
+}
+
+.css-legend-item {
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 12px; border-radius: 10px;
+    background: rgba(0, 0, 0, 0.02);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    align-items: center; text-align: center;
+}
+
+.css-legend-indicator {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+}
+
+.css-positive { background: #4CAF50; }
+.css-neutral { background: #2196F3; }
+.css-negative { background: #FF6B6B; }
+
+.css-legend-text {
+    font-size: 0.9rem; font-weight: 600; color: #2c3e50;
+}
+
+.css-legend-count {
+    font-size: 0.75rem; color: #95a5a6;
+}
+
+/* ═════════════════════════════════════════════════════════════ */
+/* HEALTH GAUGE */
+/* ═════════════════════════════════════════════════════════════ */
+.css-health-gauge {
+    display: flex; justify-content: center; margin: 24px 0;
+}
+
+.css-gauge-circle {
+    width: 160px; height: 160px;
+    border-radius: 50%;
+    background: conic-gradient(
+        from 0deg,
+        #4CAF50 0deg,
+        #FFC107 calc(var(--health-value) * 3.6deg),
+        rgba(0, 0, 0, 0.08) calc(var(--health-value) * 3.6deg)
+    );
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.1);
+}
+
+.css-gauge-content {
+    width: 142px; height: 142px;
+    border-radius: 50%;
+    background: white;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px;
+}
+
+.css-gauge-value {
+    font-size: 2rem; font-weight: 800;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.css-gauge-label {
+    font-size: 0.8rem; color: #95a5a6;
+    text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+.css-health-insights {
+    margin-top: 16px;
+}
+
+.css-insight-item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.9rem; color: #2c3e50;
+    padding: 10px 12px; border-radius: 8px;
+    background: rgba(0, 0, 0, 0.02);
+    border-left: 3px solid #2196F3;
+}
+
+.css-insight-item.insight-positive {
+    border-left-color: #4CAF50;
+    background: rgba(76, 175, 80, 0.05);
+    color: #27ae60;
+}
+
+.css-insight-item mat-icon {
+    font-size: 18px;
+}
+
+/* ═════════════════════════════════════════════════════════════ */
+/* TREND TIMELINE */
+/* ═════════════════════════════════════════════════════════════ */
+.css-trend-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(65px, 1fr));
+    gap: 8px; min-height: 220px;
+}
+
+.css-trend-item {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 12px 8px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.02);
+    transition: all 0.3s ease;
+    animation: slideInUp 0.6s ease both;
+}
+
+.css-trend-item:hover {
+    background: rgba(102, 126, 234, 0.1);
+    transform: translateY(-4px);
+}
+
+.css-trend-date {
+    font-size: 0.7rem; color: #95a5a6;
+    font-weight: 600; text-transform: uppercase;
+}
+
+.css-trend-bars {
+    flex: 1; width: 100%;
+    display: flex; align-items: flex-end; justify-content: center; gap: 3px;
+    height: 80px;
+}
+
+.css-trend-bar-container {
+    display: flex; align-items: flex-end; gap: 2px; height: 100%;
+}
+
+.css-trend-bar {
+    width: 8px; border-radius: 2px;
+    transition: all 0.3s ease;
+}
+
+.css-bar-positive { background: linear-gradient(180deg, #4CAF50, #66BB6A); }
+.css-bar-neutral { background: linear-gradient(180deg, #2196F3, #64B5F6); }
+.css-bar-negative { background: linear-gradient(180deg, #FF6B6B, #FF8787); }
+
+.css-trend-bar:hover { transform: scaleY(1.2); }
+
+.css-trend-total {
+    font-size: 0.75rem; font-weight: 700; color: #2c3e50;
+}
+
+/* ═════════════════════════════════════════════════════════════ */
+/* ROOMS/CHANNELS */
+/* ═════════════════════════════════════════════════════════════ */
+.css-rooms-list {
+    display: flex; flex-direction: column; gap: 12px;
+}
+
+.css-room-card {
+    border-radius: 12px; padding: 16px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 0.1);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    animation: slideInUp 0.6s ease both;
+}
+
+.css-room-card:hover {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 0.15);
+    transform: translateX(4px);
+}
+
+.css-room-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.css-room-name-icon {
+    display: flex; align-items: center; gap: 8px;
+    font-weight: 700; color: #2c3e50;
+}
+
+.css-room-icon-badge {
+    color: #667eea; font-size: 20px;
+}
+
+.css-room-meta {
+    font-size: 0.8rem; color: #95a5a6;
+}
+
+.css-room-content {
+    display: flex; flex-direction: column; gap: 12px;
+}
+
+.css-room-stats {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+}
+
+.css-room-stat {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 8px; border-radius: 8px;
+}
+
+.css-stat-positive { background: rgba(76, 175, 80, 0.1); }
+.css-stat-neutral { background: rgba(33, 150, 243, 0.1); }
+.css-stat-negative { background: rgba(255, 107, 107, 0.1); }
+
+.css-stat-icon { font-size: 1.5rem; }
+.css-stat-number { font-weight: 700; font-size: 0.95rem; }
+.css-stat-label { font-size: 0.7rem; color: #95a5a6; }
+
+.css-room-bar-animated {
+    display: flex; height: 8px;
+    border-radius: 4px; overflow: hidden; gap: 1px;
+}
+
+.css-bar-segment {
+    border-radius: 0; transition: all 0.3s ease;
+}
+
+.css-bar-segment:hover { filter: brightness(1.15); }
+
+/* ═════════════════════════════════════════════════════════════ */
+/* INSIGHTS & FLAGGED */
+/* ═════════════════════════════════════════════════════════════ */
+.css-insights-warning {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 12px 14px; border-radius: 10px;
+    background: rgba(33, 150, 243, 0.08);
+    border-left: 3px solid #2196F3;
+    margin-bottom: 16px;
+}
+
+.css-insights-warning mat-icon {
+    color: #2196F3; flex-shrink: 0; margin-top: 2px;
+}
+
+.css-insights-warning p {
+    margin: 0; font-size: 0.9rem; color: #34495e;
+}
+
+.css-flagged-leaderboard {
+    display: flex; flex-direction: column; gap: 10px;
+}
+
+.css-flagged-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.02);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    animation: slideInLeft 0.6s ease both;
+}
+
+.css-flagged-item:hover {
+    background: rgba(102, 126, 234, 0.08);
+    transform: translateX(4px);
+}
+
+.css-flagged-item.css-top-3 {
+    background: linear-gradient(135deg, #fff9c4 0%, #ffecb3 100%);
+    border-color: #ffd54f;
+}
+
+.css-flagged-rank-badge {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.9rem;
+    background: #667eea; color: white;
+    flex-shrink: 0; position: relative;
+}
+
+.css-rank-top { background: linear-gradient(135deg, #FFD700, #FFC700); color: #856404; }
+.css-rank-other { background: #bbb; color: white; }
+
+.css-rank-icon {
+    position: absolute; font-size: 14px;
+}
+
+.css-flagged-user-info {
+    display: flex; align-items: center; gap: 10px; flex: 1;
+}
+
+.css-user-avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+}
+
+.css-user-details {
+    display: flex; flex-direction: column; gap: 2px;
+}
+
+.css-user-name {
+    font-weight: 600; color: #2c3e50; font-size: 0.95rem;
+}
+
+.css-user-status {
+    font-size: 0.8rem; color: #95a5a6;
+}
+
+.css-flagged-indicator {
+    display: flex; align-items: center; gap: 8px; min-width: 120px;
+}
+
+.css-sentiment-bar {
+    flex: 1; height: 6px;
+    background: rgba(0, 0, 0, 0.1); border-radius: 3px; overflow: hidden;
+}
+
+.css-sentiment-fill {
+    height: 100%; background: linear-gradient(90deg, #FF6B6B, #FF8787);
+    border-radius: 3px; animation: slideInLeft 0.8s ease;
+}
+
+.css-indicator-text {
+    font-size: 0.8rem; font-weight: 700; color: #FF6B6B;
+    min-width: 35px; text-align: right;
+}
+
+/* ═════════════════════════════════════════════════════════════ */
+/* EMPTY STATE */
+/* ═════════════════════════════════════════════════════════════ */
+.css-empty-card {
+    display: flex; justify-content: center; padding: 60px 20px;
+    border-radius: 16px; background: rgba(0, 0, 0, 0.02);
+    border: 2px dashed rgba(0, 0, 0, 0.1);
+}
+
+.css-empty-content {
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+    text-align: center; color: #95a5a6;
+}
+
+.css-empty-icon {
+    font-size: 56px; opacity: 0.5;
+}
+
+/* ═════════════════════════════════════════════════════════════ */
+/* ERROR STATE */
+/* ═════════════════════════════════════════════════════════════ */
+.css-error-container {
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+    padding: 48px 20px;
+    border-radius: 16px;
+    background: rgba(255, 107, 107, 0.08);
+    border: 2px solid rgba(255, 107, 107, 0.2);
+}
+
+.css-error-icon {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: rgba(255, 107, 107, 0.2);
+    display: flex; align-items: center; justify-content: center;
+}
+
+.css-error-icon mat-icon {
+    color: #FF6B6B; font-size: 32px;
+}
+
+.css-error-title {
+    font-size: 1.3rem; font-weight: 700; color: #2c3e50; margin: 0;
+}
+
+.css-error-message {
+    font-size: 0.95rem; color: #34495e; margin: 0;
+}
+
+.css-retry-btn {
+    border-radius: 8px; font-weight: 600;
+    animation: slideInUp 0.6s ease;
+}
+
+/* ═════════════════════════════════════════════════════════════ */
+/* GLOBAL ANIMATIONS */
+/* ═════════════════════════════════════════════════════════════ */
+@keyframes slideInDown {
+    from { opacity: 0; transform: translateY(-16px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-12px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.05); }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    .css-header-content { flex-direction: column; }
+    .css-header-actions { width: 100%; justify-content: space-between; }
+    .css-trend-grid { grid-template-columns: repeat(auto-fill, minmax(55px, 1fr)); }
+    .css-room-stats { grid-template-columns: 1fr; }
+}
     `],
 })
 export class ChatSentimentStatsComponent implements OnInit, OnDestroy {
@@ -404,11 +1132,13 @@ export class ChatSentimentStatsComponent implements OnInit, OnDestroy {
         if (!s || s.total === 0) return 0;
         return (s.distribution.POSITIVE / s.total) * 100;
     });
+
     readonly neutralPercent = computed(() => {
         const s = this.stats();
         if (!s || s.total === 0) return 0;
         return (s.distribution.NEUTRAL / s.total) * 100;
     });
+
     readonly negativePercent = computed(() => {
         const s = this.stats();
         if (!s || s.total === 0) return 0;
@@ -449,5 +1179,54 @@ export class ChatSentimentStatsComponent implements OnInit, OnDestroy {
 
     goBack(): void {
         this.router.navigate(['/app/chat']);
+    }
+
+    getHealthScore(): number {
+        const s = this.stats();
+        if (!s || s.total === 0) return 0;
+        const positive = s.distribution.POSITIVE;
+        const negative = s.distribution.NEGATIVE;
+        const total = s.total;
+        const score = (positive / total) * 100 - (negative / total) * 10;
+        return Math.min(100, Math.max(0, score));
+    }
+
+    getHealthStatus(): string {
+        const score = this.getHealthScore();
+        if (score >= 75) return 'Excellent';
+        if (score >= 50) return 'Good';
+        if (score >= 25) return 'Fair';
+        return 'Needs Attention';
+    }
+
+    getHealthInsight(): string {
+        const score = this.getHealthScore();
+        if (score >= 75) return 'Conversation sentiment is very positive. Keep up the great communication!';
+        if (score >= 50) return 'Overall positive sentiment. Consider addressing a few negative messages.';
+        if (score >= 25) return 'Mixed sentiment detected. Encourage supportive interactions.';
+        return 'Sentiment needs improvement. Consider team support initiatives.';
+    }
+
+    formatDate(dateStr: string): string {
+        try {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        } catch {
+            return dateStr.slice(5, 10);
+        }
+    }
+
+    getTrendMax(): number {
+        const s = this.stats();
+        if (!s || s.dailyTrend.length === 0) return 1;
+        return Math.max(
+            ...s.dailyTrend.map(d => d.positive + d.neutral + d.negative)
+        );
+    }
+
+    getMaxNegativeCount(): number {
+        const s = this.stats();
+        if (!s || s.topFlaggedUsers.length === 0) return 1;
+        return Math.max(...s.topFlaggedUsers.map(u => u.negativeCount));
     }
 }
