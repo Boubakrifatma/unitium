@@ -38,6 +38,7 @@ export interface AuthResponse {
   fullName: string;
   role: string;
   mustChangePassword?: boolean;
+  avatarUrl?: string;
   organizations?: AuthOrganization[];
 }
 

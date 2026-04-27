@@ -78,7 +78,8 @@ public class AuthController {
                 user.getEmail(),
                 user.getFullName(),
                 user.getRole().name(),
-                Boolean.TRUE.equals(user.getMustChangePassword())
+                Boolean.TRUE.equals(user.getMustChangePassword()),
+                user.getAvatarUrl()
         ));
     }
 
@@ -108,7 +109,8 @@ public class AuthController {
                 user.getEmail(),
                 user.getFullName(),
                 user.getRole().name(),
-                Boolean.TRUE.equals(user.getMustChangePassword())
+                Boolean.TRUE.equals(user.getMustChangePassword()),
+                user.getAvatarUrl()
         ));
     }
 
@@ -136,7 +138,8 @@ public class AuthController {
                 user.getEmail(),
                 user.getFullName(),
                 user.getRole().name(),
-                Boolean.TRUE.equals(user.getMustChangePassword())
+                Boolean.TRUE.equals(user.getMustChangePassword()),
+                user.getAvatarUrl()
         ));
     }
 
@@ -314,7 +317,8 @@ public class AuthController {
                 user.getEmail(),
                 user.getFullName(),
                 user.getRole().name(),
-                Boolean.TRUE.equals(user.getMustChangePassword())
+                Boolean.TRUE.equals(user.getMustChangePassword()),
+                user.getAvatarUrl()
         ));
     }
 
@@ -338,7 +342,8 @@ public class AuthController {
         return ResponseEntity.ok(new AuthResponse(
                 result.token(),
                 user.getId(), user.getEmail(), user.getFullName(), user.getRole().name(),
-                Boolean.TRUE.equals(user.getMustChangePassword())
+                Boolean.TRUE.equals(user.getMustChangePassword()),
+                user.getAvatarUrl()
         ));
     }
 

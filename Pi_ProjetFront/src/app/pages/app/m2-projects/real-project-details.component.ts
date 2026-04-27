@@ -32,6 +32,7 @@ import { ProjectMemberUnassignDialogComponent, ProjectMemberUnassignDialogResult
 import { ProjectPermissionService } from "./project-permission.service";
 import { M2WorkspaceHoliday, M2WorkspaceMember, M2WorkspaceService } from "../m2-workspaces/m2-workspace.service";
 import { AuthService } from "../../../auth/auth.service";
+import { UserService } from "../../../users/user.service";
 import { Milestone, MilestoneService } from "../../../services/mileStoneService/milestone.service";
 import { TaskResponseDto, TaskService } from "../../../services/TaskService/task.service";
 
@@ -1209,6 +1210,7 @@ export class ProjectDetailsComponent implements OnInit {
     private readonly workspaceService = inject(M2WorkspaceService);
     private readonly permissionService = inject(ProjectPermissionService);
     private readonly authService = inject(AuthService);
+    private readonly userService = inject(UserService);
     private readonly milestoneService = inject(MilestoneService);
     private readonly taskService = inject(TaskService);
     private readonly fb = inject(FormBuilder);
@@ -2145,6 +2147,33 @@ export class ProjectDetailsComponent implements OnInit {
                 this.workspaceOrgType.set(((payload.workspace?.orgType || "enterprise") + "").toLowerCase());
 
                 this.members.set(this.mapProjectMembers(payload.projectMembers, payload.workspaceMembers));
+                
+                // Check if any members don't have fullName and fetch user details
+                const mappedMembers = this.mapProjectMembers(payload.projectMembers, payload.workspaceMembers);
+                const membersWithoutNames = mappedMembers.filter(m => !m.fullName || m.fullName === 'Unknown User');
+                
+                if (membersWithoutNames.length > 0) {
+                    // Fetch user details for members without names
+                    const userRequests = membersWithoutNames.map(member => 
+                        this.userService.getById(member.userId).pipe(
+                            map(user => ({ member, user })),
+                            catchError(() => of({ member, user: null }))
+                        )
+                    );
+
+                    forkJoin(userRequests).pipe(
+                        catchError(() => of([]))
+                    ).subscribe(results => {
+                        results.forEach(({ member, user }) => {
+                            if (user && user.fullName) {
+                                member.fullName = user.fullName;
+                                member.email = user.email || member.email;
+                                member.avatarUrl = user.avatarUrl || member.avatarUrl;
+                            }
+                        });
+                        this.members.set(mappedMembers);
+                    });
+                }
                 this.loadMilestoneSnapshot(payload.project.id);
                 if (!this.projectHolidayCountryDetected()) {
                     this.detectHolidayLocation(true);
@@ -2245,7 +2274,7 @@ export class ProjectDetailsComponent implements OnInit {
             const profile = profileByUserId.get(member.userId);
             return {
                 userId: member.userId,
-                fullName: profile?.user?.fullName || `User #${member.userId}`,
+                fullName: profile?.user?.fullName || "Unknown User",
                 email: profile?.user?.email || "",
                 avatarUrl: profile?.user?.avatarUrl || "",
                 role: (member.role || "DEVELOPER").toUpperCase(),

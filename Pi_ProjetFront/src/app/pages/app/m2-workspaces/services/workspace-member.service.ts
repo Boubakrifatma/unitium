@@ -114,7 +114,7 @@ export class WorkspaceMemberService {
     private toWorkspaceMember(row: RawWorkspaceMember): WorkspaceMember {
         return {
             userId: row.userId,
-            fullName: row.fullName || row.user?.fullName || `User #${row.userId}`,
+            fullName: row.fullName || row.user?.fullName || `Unknown User`,
             email: row.email || row.user?.email || "",
             avatarUrl: row.avatarUrl || row.user?.avatarUrl || "",
             workspaceRole: (row.workspaceRole || row.role || "VIEWER").toUpperCase(),

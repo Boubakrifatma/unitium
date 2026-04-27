@@ -18,8 +18,9 @@ import { MatNativeDateModule } from "@angular/material/core";
 import { MatInputModule } from "@angular/material/input";
 import { MatSelectModule } from "@angular/material/select";
 import { combineLatest, forkJoin, of } from "rxjs";
-import { catchError, distinctUntilChanged, map, take } from "rxjs/operators";
+import { catchError, distinctUntilChanged, map, take, switchMap } from "rxjs/operators";
 import { AuthService } from "../../../auth/auth.service";
+import { UserService } from "../../../users/user.service";
 import { CreateProjectWorkflowDialogComponent, CreateProjectWorkflowDialogResult } from "../m2-projects/create-project-workflow-dialog.component";
 import { CreateWithAiComponent, CreateWithAiDialogResult } from "../m2-projects/create-with-ai.component";
 import { ProjectPermissionService } from "../m2-projects/project-permission.service";
@@ -448,7 +449,7 @@ interface WorkspaceActivity {
                                                     </div>
                                                     <div class="ov-meta-row">
                                                         <mat-icon class="ov-meta-icon">person</mat-icon>
-                                                        <span class="ov-meta-val">{{ ownerDisplayName() }}</span>
+                                                        <span class="ov-meta-val">{{ allMembersDisplayNames() }}</span>
                                                     </div>
                                                     <div class="ov-meta-row">
                                                         <mat-icon class="ov-meta-icon">calendar_today</mat-icon>
@@ -2780,6 +2781,7 @@ export class M2WorkspaceDetailsComponent implements OnInit {
     private readonly projectService = inject(M2ProjectService);
     private readonly projectPermissionService = inject(ProjectPermissionService);
     private readonly authService = inject(AuthService);
+    private readonly userService = inject(UserService);
     private readonly dialog = inject(MatDialog);
     private readonly snackBar = inject(MatSnackBar);
 
@@ -2931,7 +2933,14 @@ export class M2WorkspaceDetailsComponent implements OnInit {
         if (ownerMember?.fullName) {
             return ownerMember.fullName;
         }
-        return `User #${this.workspace()?.ownerId || "-"}`;
+        return `Unknown User`;
+    });
+
+    readonly allMembersDisplayNames = computed(() => {
+        const memberNames = this.members()
+            .map(member => member.fullName || `Unknown User`)
+            .filter(name => name && name !== "Unknown User");
+        return memberNames.length > 0 ? memberNames.join(", ") : "No members";
     });
 
     readonly isSameOrganizationAsWorkspace = computed(() => {
@@ -3298,7 +3307,7 @@ export class M2WorkspaceDetailsComponent implements OnInit {
             activities.push({
                 id: `member-${member.userId}`,
                 icon: (member.workspaceRole || "").toUpperCase() === "OWNER" ? "verified" : "person_add",
-                user: member.fullName || `User #${member.userId}`,
+                user: member.fullName || `Unknown User`,
                 action: (member.workspaceRole || "").toUpperCase() === "OWNER" ? "owns" : "joined",
                 target: this.workspace()?.name || "Workspace",
                 timestamp: this.toTimestamp(member.joinedAt),
@@ -3386,7 +3395,7 @@ export class M2WorkspaceDetailsComponent implements OnInit {
             autoFocus: false,
             panelClass: "rounded-dialog",
             data: {
-                newOwnerName: member.fullName || `User #${member.userId}`,
+                newOwnerName: member.fullName || `Unknown User`,
                 newOwnerEmail: member.email || "",
                 workspaceName: this.workspace()?.name || "",
             },
@@ -4258,25 +4267,51 @@ export class M2WorkspaceDetailsComponent implements OnInit {
 
     private loadMembers(workspaceId: string): void {
         this.membersLoading.set(true);
-        forkJoin({
-            members: this.workspaceMemberService.getWorkspaceMembers(workspaceId).pipe(
-                catchError((error: HttpErrorResponse) => {
-                    this.snackBar.open(`Failed to load members: ${this.errorMessage(error)}`, "Close", { duration: 4500 });
-                    return of([] as WorkspaceMember[]);
-                })
-            ),
-            capacity: this.workspaceMemberService.getMemberCapacity(workspaceId).pipe(
-                catchError(() => of(null))
-            ),
-        }).subscribe({
-            next: ({ members, capacity }) => {
-                this.members.set(members || []);
-                this.memberCapacity.set(capacity);
-                this.membersLoading.set(false);
-            },
-            error: () => {
-                this.membersLoading.set(false);
-            },
+        this.workspaceMemberService.getWorkspaceMembers(workspaceId).pipe(
+            catchError((error: HttpErrorResponse) => {
+                this.snackBar.open(`Failed to load members: ${this.errorMessage(error)}`, "Close", { duration: 4500 });
+                return of([] as WorkspaceMember[]);
+            })
+        ).subscribe(members => {
+            // Check if any members don't have fullName and fetch user details
+            const membersWithoutNames = members.filter(m => !m.fullName || m.fullName === 'Unknown User');
+            
+            if (membersWithoutNames.length === 0) {
+                this.members.set(members);
+                this.loadMemberCapacity(workspaceId);
+                return;
+            }
+
+            // Fetch user details for members without names
+            const userRequests = membersWithoutNames.map(member => 
+                this.userService.getById(member.userId).pipe(
+                    map(user => ({ member, user })),
+                    catchError(() => of({ member, user: null }))
+                )
+            );
+
+            forkJoin(userRequests).pipe(
+                catchError(() => of([]))
+            ).subscribe(results => {
+                results.forEach(({ member, user }) => {
+                    if (user && user.fullName) {
+                        member.fullName = user.fullName;
+                        member.email = user.email || member.email;
+                        member.avatarUrl = user.avatarUrl || member.avatarUrl;
+                    }
+                });
+                this.members.set(members);
+                this.loadMemberCapacity(workspaceId);
+            });
+        });
+    }
+
+    private loadMemberCapacity(workspaceId: string): void {
+        this.workspaceMemberService.getMemberCapacity(workspaceId).pipe(
+            catchError(() => of(null))
+        ).subscribe(capacity => {
+            this.memberCapacity.set(capacity);
+            this.membersLoading.set(false);
         });
     }
 
@@ -4323,7 +4358,7 @@ export class M2WorkspaceDetailsComponent implements OnInit {
             const mappedMembers: WorkspaceMember[] = (snapshot.members || []).map((m) => ({
                 userId: m.userId,
                 workspaceRole: m.workspaceRole || "MEMBER",
-                fullName: m.fullName || `User #${m.userId}`,
+                fullName: m.fullName || `Unknown User`,
                 email: m.email || "",
                 avatarUrl: m.avatarUrl || "",
                 orgRole: "",
