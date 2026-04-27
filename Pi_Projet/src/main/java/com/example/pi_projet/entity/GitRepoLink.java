@@ -11,7 +11,8 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "git_repo_links", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_git_repo_links_project_repo", columnNames = {"project_id", "owner", "repo_name"})
+        // One user can link a given owner/repo only once regardless of project
+        @UniqueConstraint(name = "uk_git_repo_links_user_repo", columnNames = {"linked_by_user_id", "owner", "repo_name"})
 })
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class GitRepoLink {
@@ -20,7 +21,8 @@ public class GitRepoLink {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "project_id", nullable = false)
+    // Nullable — employees/students may link repos without tying them to a project
+    @Column(name = "project_id")
     private Long projectId;
 
     @Column(name = "owner", nullable = false, length = 120)

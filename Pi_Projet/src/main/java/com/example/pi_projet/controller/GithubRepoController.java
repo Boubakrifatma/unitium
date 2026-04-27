@@ -45,19 +45,33 @@ public class GithubRepoController {
         return safe(() -> github.createRepo(token, body.name(), body.description(), body.isPrivate(), body.autoInit()));
     }
 
-    /** POST /api/github/repos/link — link a GitHub repo to an internal project. */
+    /** POST /api/github/repos/link — link a GitHub repo (projectId is optional for employees/students). */
     @PostMapping("/link")
     public GitRepoLink linkRepo(@Valid @RequestBody LinkRepoRequest body, HttpServletRequest request) {
         Long userId = currentUserId(request);
-        // Idempotent: update if already linked.
-        GitRepoLink link = repoLinks
-                .findByProjectIdAndOwnerAndRepoName(body.projectId(), body.owner(), body.repoName())
-                .orElseGet(() -> GitRepoLink.builder()
-                        .projectId(body.projectId())
-                        .owner(body.owner())
-                        .repoName(body.repoName())
-                        .linkedByUserId(userId)
-                        .build());
+
+        // Idempotent lookup: when projectId is provided check (project, owner, repo);
+        // otherwise check (user, owner, repo) so employees can link without a project.
+        GitRepoLink link;
+        if (body.projectId() != null) {
+            link = repoLinks
+                    .findByProjectIdAndOwnerAndRepoName(body.projectId(), body.owner(), body.repoName())
+                    .orElseGet(() -> GitRepoLink.builder()
+                            .projectId(body.projectId())
+                            .owner(body.owner())
+                            .repoName(body.repoName())
+                            .linkedByUserId(userId)
+                            .build());
+        } else {
+            link = repoLinks
+                    .findByLinkedByUserIdAndOwnerAndRepoName(userId, body.owner(), body.repoName())
+                    .orElseGet(() -> GitRepoLink.builder()
+                            .projectId(null)
+                            .owner(body.owner())
+                            .repoName(body.repoName())
+                            .linkedByUserId(userId)
+                            .build());
+        }
         link.setLocalPath(body.localPath());
         link.setDefaultBranch(body.defaultBranch());
         return repoLinks.save(link);

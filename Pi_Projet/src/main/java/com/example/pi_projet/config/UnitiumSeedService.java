@@ -734,9 +734,10 @@ public class UnitiumSeedService implements CommandLineRunner {
     private void step10_createChatRooms() {
         log.info("[UnitiumSeedService] Step 10: Creating chat rooms...");
 
+        // Only MANAGER or TUTOR may create ChatRooms — userManager (MANAGER role) is used here
         roomGeneral = chatRoomRepository.save(ChatRoom.builder()
             .project(unitiumProject)
-            .createdBy(userJames)
+            .createdBy(userManager)
             .name("General")
             .roomType(RoomType.general)
             .description("General project discussion and announcements")
@@ -744,13 +745,13 @@ public class UnitiumSeedService implements CommandLineRunner {
 
         roomMilestone2 = chatRoomRepository.save(ChatRoom.builder()
             .project(unitiumProject)
-            .createdBy(userJames)
+            .createdBy(userManager)
             .name("Milestone 2 – Execution & Delivery")
             .roomType(RoomType.task_thread)
             .description("Execution phase: API development, integration, and testing")
             .build());
 
-        // Add all users to both rooms
+        // Add all users to both rooms — any role can be a member and send messages
         for (User user : Arrays.asList(userJames, userAlice, userMarc, userPooja, userManager, userManager2, userAnalyst, userEmployee, userViewer)) {
             roomMemberRepository.save(RoomMember.builder()
                 .room(roomGeneral)
@@ -762,7 +763,7 @@ public class UnitiumSeedService implements CommandLineRunner {
                 .build());
         }
 
-        log.info("[UnitiumSeedService]   ✓ 2 chat rooms created + 18 memberships (all users included for sentiment analysis)");
+        log.info("[UnitiumSeedService]   ✓ 2 chat rooms created by MANAGER + 18 memberships (all users included for sentiment analysis)");
     }
 
     // ─────────────────────────────────────────────────────────────────────────

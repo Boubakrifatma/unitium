@@ -404,8 +404,9 @@ import { Project, ProjectService } from '../../../services/project-service';
               </mat-select>
             </mat-form-field>
             <mat-form-field appearance="outline" class="grow">
-              <mat-label>Projet</mat-label>
+              <mat-label>Project (optional)</mat-label>
               <mat-select [(ngModel)]="newLinkProjectId">
+                <mat-option [value]="null">— No project —</mat-option>
                 <mat-option *ngFor="let p of projects()" [value]="+p.id">
                   <mat-icon style="font-size:14px;vertical-align:middle;margin-right:4px">folder_special</mat-icon>
                   {{ p.name }}
@@ -942,14 +943,15 @@ export class GitWorkspaceComponent implements OnInit {
     this.refresh();
   }
 
-  canLink(): boolean { return !!this.newLinkRepo && !!this.newLinkProjectId; }
+  // projectId is no longer required — employees/students can use git without a project
+  canLink(): boolean { return !!this.newLinkRepo; }
 
   onLinkRepo(): void {
     if (!this.canLink()) return;
     const [owner, repoName] = this.newLinkRepo.split('/');
     this.busy.set(true);
     this.git.linkRepo({
-      projectId: this.newLinkProjectId!,
+      projectId: this.newLinkProjectId ?? undefined,
       owner,
       repoName,
       localPath: this.newLinkLocalPath.trim() || undefined,

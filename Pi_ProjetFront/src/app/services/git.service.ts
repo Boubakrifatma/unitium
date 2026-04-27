@@ -155,7 +155,7 @@ export class GitService {
   // ----- Linked repos (DB) -----------------------------------------------
 
   linkRepo(body: {
-    projectId: number;
+    projectId?: number | null;   // optional — employees/students can link without a project
     owner: string;
     repoName: string;
     localPath?: string;

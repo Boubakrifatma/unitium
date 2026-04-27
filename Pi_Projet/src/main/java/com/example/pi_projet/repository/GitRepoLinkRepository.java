@@ -12,4 +12,5 @@ public interface GitRepoLinkRepository extends JpaRepository<GitRepoLink, Long> 
     List<GitRepoLink> findByProjectId(Long projectId);
     List<GitRepoLink> findByLinkedByUserId(Long userId);
     Optional<GitRepoLink> findByProjectIdAndOwnerAndRepoName(Long projectId, String owner, String repoName);
+    Optional<GitRepoLink> findByLinkedByUserIdAndOwnerAndRepoName(Long linkedByUserId, String owner, String repoName);
 }
