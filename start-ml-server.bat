@@ -80,7 +80,7 @@ echo %BLUE%Ctrl+C to stop
 echo =====================================================%RESET%
 echo.
 
-python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 if errorlevel 1 (
     echo Error: Failed to start server
     pause
