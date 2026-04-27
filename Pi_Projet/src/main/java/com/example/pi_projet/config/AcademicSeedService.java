@@ -4,7 +4,6 @@ import com.example.pi_projet.entity.*;
 import com.example.pi_projet.entity.TimeLineAndDeadLine.*;
 import com.example.pi_projet.entity.PoDecisionAndDelivrable.*;
 import com.example.pi_projet.enums.RoomType;
-import com.example.pi_projet.ml.repository.ChurnPredictionRepository;
 import com.example.pi_projet.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,7 +18,6 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.*;
 import java.util.*;
-import java.math.BigDecimal;
 
 /**
  * Production-quality academic showcase seed for an academic organization.
@@ -703,15 +701,15 @@ public class AcademicSeedService implements CommandLineRunner {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    //  Step 9: Create Chat Rooms (Course Discussions)
+    //  Step 9: Create Chat Rooms (Course Discussions) — CREATED BY TUTOR
     // ─────────────────────────────────────────────────────────────────────────
 
     private void step09_createChatRooms() {
-        log.info("[AcademicSeedService] Step 9: Creating chat rooms...");
+        log.info("[AcademicSeedService] Step 9: Creating chat rooms (created by tutor)...");
 
         classroomChat = chatRoomRepository.save(ChatRoom.builder()
             .project(courseProject)
-            .createdBy(admin)
+            .createdBy(tutor1)
             .name("Classroom Discussion")
             .roomType(RoomType.general)
             .description("General course discussion and Q&A")
@@ -719,7 +717,7 @@ public class AcademicSeedService implements CommandLineRunner {
 
         announcements = chatRoomRepository.save(ChatRoom.builder()
             .project(courseProject)
-            .createdBy(admin)
+            .createdBy(tutor1)
             .name("Course Announcements")
             .roomType(RoomType.general)
             .description("Important course announcements and updates")
@@ -737,7 +735,7 @@ public class AcademicSeedService implements CommandLineRunner {
                 .build());
         }
 
-        log.info("[AcademicSeedService]   ✓ 2 chat rooms created + 16 memberships");
+        log.info("[AcademicSeedService]   ✓ 2 chat rooms created by tutor1 (Prof. Sarah Johnson) + 16 memberships");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -748,16 +746,16 @@ public class AcademicSeedService implements CommandLineRunner {
         log.info("[AcademicSeedService] Step 10: Creating messages...");
 
         // ── Announcements (10 messages — official, stern, encouraging, warning) ──
-        insertMessage(announcements.getId(), admin.getId(),
-            "Welcome to CS-101! This channel is for official course updates only. All coursework lives in the project modules.",
+        insertMessage(announcements.getId(), tutor1.getId(),
+            "Welcome to CS-101! I've set up this channel for official course updates. All coursework lives in the project modules. Please read the syllabus carefully.",
             "2026-01-15 09:00");
         insertMessage(announcements.getId(), tutor1.getId(),
-            "Module 1 is live! Algorithm design assignment due Jan 29. Office hours: Tue/Thu 3-4pm. Don't wait until the last day.",
+            "Module 1 is live! Algorithm design assignment due Jan 29. My office hours: Tue/Thu 3-4pm. Don't wait until the last day.",
             "2026-01-20 10:00");
-        insertMessage(announcements.getId(), admin.getId(),
-            "Reminder: All submissions must go through the portal. Late work incurs a 10% daily penalty. No exceptions will be made.",
+        insertMessage(announcements.getId(), tutor2.getId(),
+            "Reminder from the teaching team: All submissions must go through the portal. Late work incurs a 10% daily penalty. No exceptions will be made.",
             "2026-01-25 08:00");
-        insertMessage(announcements.getId(), admin.getId(),
+        insertMessage(announcements.getId(), tutor1.getId(),
             "Module 1 is complete. Strong results overall. Module 2 starts Feb 16 — data structures are significantly harder. Prepare accordingly.",
             "2026-02-16 08:00");
         insertMessage(announcements.getId(), tutor2.getId(),
@@ -775,7 +773,7 @@ public class AcademicSeedService implements CommandLineRunner {
         insertMessage(announcements.getId(), tutor3.getId(),
             "I will host extra study sessions every Wednesday 5-6pm for Module 3 topics. Dynamic programming and greedy algorithms covered first.",
             "2026-04-03 11:00");
-        insertMessage(announcements.getId(), admin.getId(),
+        insertMessage(announcements.getId(), tutor1.getId(),
             "Final project guidelines posted. Teams of 2-4. Compositions due Apr 5. Presentations on May 10. No solo projects accepted.",
             "2026-04-01 10:00");
 
@@ -807,7 +805,7 @@ public class AcademicSeedService implements CommandLineRunner {
         insertMessage(classroomChat.getId(), student1.getId(),
             "It's hard for sure, but I'm genuinely learning more here than in any other course. Worth it.",
             "2026-03-10 19:30");
-        insertMessage(classroomChat.getId(), admin.getId(),
+        insertMessage(classroomChat.getId(), tutor1.getId(),
             "The difficulty is intentional. CS fundamentals require struggle. If it feels hard, you're engaging with the material correctly.",
             "2026-03-11 08:00");
         insertMessage(classroomChat.getId(), student2.getId(),
@@ -825,14 +823,14 @@ public class AcademicSeedService implements CommandLineRunner {
         insertMessage(classroomChat.getId(), student3.getId(),
             "Can we work in groups for the final project? I really need teammates who are motivated.",
             "2026-04-05 14:00");
-        insertMessage(classroomChat.getId(), admin.getId(),
+        insertMessage(classroomChat.getId(), tutor1.getId(),
             "Yes — teams of 2-4 are strongly encouraged. Submit your team composition via the portal by end of day today.",
             "2026-04-05 15:00");
         insertMessage(classroomChat.getId(), tutor3.getId(),
             "Wednesday study sessions are on! Bring your toughest questions on dynamic programming. See you there.",
             "2026-04-11 09:00");
 
-        log.info("[AcademicSeedService]   ✓ 27 messages created (10 Announcements, 17 Classroom — mixed sentiments)");
+        log.info("[AcademicSeedService]   ✓ 27 messages created (10 Announcements, 17 Classroom — mixed sentiments, all from tutors/students)");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -995,9 +993,10 @@ public class AcademicSeedService implements CommandLineRunner {
     }
 
     private void insertMessage(Long roomId, Long senderId, String text, String createdAt) {
+        LocalDateTime createdAtLdt = LocalDateTime.parse(createdAt, java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
         jdbcTemplate.update(
-            "INSERT INTO messages (room_id, sender_id, content_text, content_type, is_system_message, is_pinned, is_deleted, created_at) " +
-            "VALUES (?, ?, ?, 'text', false, false, false, ?)",
-            roomId, senderId, text, createdAt);
+            "INSERT INTO messages (room_id, sender_id, content_text, content_type, is_system_message, is_pinned, is_deleted, is_edited, created_at) " +
+            "VALUES (?, ?, ?, 'text', false, false, false, false, ?)",
+            roomId, senderId, text, Timestamp.valueOf(createdAtLdt));
     }
 }
