@@ -116,8 +116,8 @@ interface FePlan {
                     <div class="sub-body">
                       <div class="sub-row"><span>Plan</span><strong>{{ subscription.planDisplayName }}</strong></div>
                       <div class="sub-row"><span>Billing Cycle</span><strong>{{ subscription.billingCycle }}</strong></div>
-                      <div class="sub-row"><span>Monthly Price</span><strong>\${{ subscription.planPriceMonthly | number:'1.2-2' }}</strong></div>
-                      <div class="sub-row"><span>Annual/mo</span><strong>\${{ subscription.planPriceYearly | number:'1.2-2' }}</strong></div>
+                      <div class="sub-row"><span>Monthly Price</span><strong>{{ subscription.planPriceMonthly | number:'1.0-0' }} DT</strong></div>
+                      <div class="sub-row"><span>Annual/mo</span><strong>{{ subscription.planPriceYearly | number:'1.0-0' }} DT</strong></div>
                       <div class="sub-row"><span>Period Start</span><strong>{{ subscription.currentPeriodStart | date:'dd MMM yyyy' }}</strong></div>
                       <div class="sub-row"><span>Period End</span><strong>{{ subscription.currentPeriodEnd | date:'dd MMM yyyy' }}</strong></div>
                       <div class="sub-row"><span>Subscribed On</span><strong>{{ subscription.createdAt | date:'dd MMM yyyy' }}</strong></div>
@@ -149,7 +149,7 @@ interface FePlan {
                       <div class="sub-row"><span>Organisation</span><strong>{{ myPayment.orgName }}</strong></div>
                       <div class="sub-row"><span>Plan</span><strong>{{ myPayment.planName }}</strong></div>
                       <div class="sub-row"><span>Billing Cycle</span><strong>{{ myPayment.billingCycle }}</strong></div>
-                      <div class="sub-row"><span>Amount Paid</span><strong>\${{ myPayment.amount | number:'1.2-2' }} {{ myPayment.currency }}</strong></div>
+                      <div class="sub-row"><span>Amount Paid</span><strong>{{ myPayment.amount | number:'1.0-0' }} DT</strong></div>
                       <div class="sub-row"><span>Users</span><strong>{{ myPayment.numUsers }}</strong></div>
                       <div class="sub-row"><span>Payment ID</span><code>{{ myPayment.paymentId }}</code></div>
                       <div class="sub-row"><span>Subscribed On</span><strong>{{ myPayment.createdAt | date:'dd MMM yyyy' }}</strong></div>
@@ -342,7 +342,7 @@ interface FePlan {
                         </div>
                         <div class="d-flex align-items-center gap-2">
                           <span class="pill" [class]="getInvClass(inv.status)">{{ inv.status }}</span>
-                          <strong>\${{ inv.total | number:'1.2-2' }} {{ inv.currency }}</strong>
+                          <strong>{{ inv.total | number:'1.0-0' }} DT</strong>
                         </div>
                       </div>
 
@@ -363,23 +363,23 @@ interface FePlan {
                             <tr *ngFor="let li of inv.lineItems">
                               <td>{{ li.description }}</td>
                               <td class="text-end">{{ li.quantity }}</td>
-                              <td class="text-end">\${{ li.unitPrice | number:'1.2-2' }}</td>
+                              <td class="text-end">{{ li.unitPrice | number:'1.0-0' }} DT</td>
                               <td class="text-end">{{ li.taxRate }}%</td>
-                              <td class="text-end"><strong>\${{ li.totalPrice | number:'1.2-2' }}</strong></td>
+                              <td class="text-end"><strong>{{ li.totalPrice | number:'1.0-0' }} DT</strong></td>
                             </tr>
                           </tbody>
                           <tfoot>
                             <tr class="total-row">
                               <td colspan="4">Subtotal</td>
-                              <td class="text-end">\${{ inv.subtotal | number:'1.2-2' }}</td>
+                              <td class="text-end">{{ inv.subtotal | number:'1.0-0' }} DT</td>
                             </tr>
                             <tr class="total-row">
                               <td colspan="4">Tax (19%)</td>
-                              <td class="text-end">\${{ inv.taxAmount | number:'1.2-2' }}</td>
+                              <td class="text-end">{{ inv.taxAmount | number:'1.0-0' }} DT</td>
                             </tr>
                             <tr class="grand-total">
                               <td colspan="4"><strong>Total</strong></td>
-                              <td class="text-end"><strong>\${{ inv.total | number:'1.2-2' }}</strong></td>
+                              <td class="text-end"><strong>{{ inv.total | number:'1.0-0' }} DT</strong></td>
                             </tr>
                           </tfoot>
                         </table>
@@ -409,7 +409,7 @@ interface FePlan {
                         </div>
                         <div class="d-flex align-items-center gap-2">
                           <span class="pill pill-green">PAID</span>
-                          <strong>\${{ myPayment.amount | number:'1.2-2' }} {{ myPayment.currency }}</strong>
+                          <strong>{{ myPayment.amount | number:'1.0-0' }} DT</strong>
                         </div>
                       </div>
                       <div class="line-items mt-2">
@@ -418,7 +418,7 @@ interface FePlan {
                             <tr>
                               <td>{{ myPayment.planName }} Plan – {{ myPayment.billingCycle }} Subscription</td>
                               <td class="text-end">1</td>
-                              <td class="text-end">\${{ myPayment.amount | number:'1.2-2' }}</td>
+                              <td class="text-end">{{ myPayment.amount | number:'1.0-0' }} DT</td>
                             </tr>
                           </tbody>
                         </table>
@@ -465,7 +465,7 @@ interface FePlan {
                     </ng-container>
                     <ng-container matColumnDef="amount">
                       <th mat-header-cell *matHeaderCellDef>Amount</th>
-                      <td mat-cell *matCellDef="let a"><strong>\${{ a.amount | number:'1.2-2' }}</strong></td>
+                      <td mat-cell *matCellDef="let a"><strong>{{ a.amount | number:'1.0-0' }} DT</strong></td>
                     </ng-container>
                     <ng-container matColumnDef="status">
                       <th mat-header-cell *matHeaderCellDef>Status</th>
@@ -527,7 +527,7 @@ interface FePlan {
                         </p>
                       </div>
                       <div class="pi-price ms-auto text-end">
-                        <span class="pi-amount">\${{ (subscription?.planPriceMonthly ?? myPayment?.amount ?? 0) | number:'1.2-2' }}</span>
+                        <span class="pi-amount">{{ (subscription?.planPriceMonthly ?? myPayment?.amount ?? 0) | number:'1.0-0' }} DT</span>
                         <span class="pi-period text-secondary small d-block">/ month</span>
                       </div>
                       <button mat-flat-button color="primary" class="ms-3" (click)="goUpgrade()">
@@ -550,7 +550,7 @@ interface FePlan {
                             <span class="pill ms-2" [class]="getInvClass(inv.status)">{{ inv.status }}</span>
                           </div>
                           <div class="pi-inv-right">
-                            <strong>\${{ inv.total | number:'1.2-2' }} {{ inv.currency }}</strong>
+                            <strong>{{ inv.total | number:'1.0-0' }} DT</strong>
                             <button mat-icon-button matTooltip="Download PDF" (click)="dl(inv)" class="ms-1">
                               <mat-icon class="material-icons-outlined" style="color:#dc2626;font-size:18px">picture_as_pdf</mat-icon>
                             </button>
@@ -572,7 +572,7 @@ interface FePlan {
                             <span class="pill pill-green ms-2">PAID</span>
                           </div>
                           <div class="pi-inv-right">
-                            <strong>\${{ myPayment.amount | number:'1.2-2' }} {{ myPayment.currency }}</strong>
+                            <strong>{{ myPayment.amount | number:'1.0-0' }} DT</strong>
                           </div>
                         </div>
                       </div>
@@ -639,8 +639,8 @@ interface FePlan {
                           <p class="text-secondary small mb-0">Custom pricing</p>
                         </ng-container>
                         <ng-template #priceBlock>
-                          <span class="pcard-price-currency">$</span>
                           <span class="pcard-price-amount">{{ getPlanPrice(p) }}</span>
+                          <span class="pcard-price-currency"> DT</span>
                           <span class="pcard-price-period">/ {{ plansCycle() === 'monthly' ? 'mo' : 'mo · billed annually' }}</span>
                         </ng-template>
                       </div>

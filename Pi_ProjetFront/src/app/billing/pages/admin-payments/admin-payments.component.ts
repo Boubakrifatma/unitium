@@ -76,7 +76,7 @@ import { PaymentResponse } from '../../models/billing.models';
         <div class="stat-card revenue">
           <mat-icon>attach_money</mat-icon>
           <div>
-            <span class="stat-num">\${{ totalRevenue() | number:'1.0-0' }}</span>
+            <span class="stat-num">{{ totalRevenue() | number:'1.0-0' }} DT</span>
             <span class="stat-label">Revenue Confirmed</span>
           </div>
         </div>

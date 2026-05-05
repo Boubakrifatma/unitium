@@ -432,9 +432,13 @@ export class CheckoutComponent implements OnInit {
     effect(() => {
       const plan = this.selectedPlan();
       if (plan) {
-        const numUsers = typeof plan.limits.users === 'string'
-          ? parseInt(plan.limits.users, 10)
-          : plan.limits.users;
+        let numUsers = 1;
+        if (typeof plan.limits.users === 'number') {
+          numUsers = plan.limits.users;
+        } else if (typeof plan.limits.users === 'string') {
+          const parsed = parseInt(plan.limits.users, 10);
+          numUsers = isNaN(parsed) ? 99999 : parsed;
+        }
         this.form.get('numUsers')?.setValue(numUsers, { emitEvent: false });
       }
     });

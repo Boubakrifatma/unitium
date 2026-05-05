@@ -62,7 +62,7 @@ import { PaymentResponse } from '../../../billing/models/billing.models';
             <mat-card-content>
               <div class="stat-icon theme-yellow"><mat-icon class="material-icons-outlined">payments</mat-icon></div>
               <p class="stat-label">Total Revenue</p>
-              <h3 class="stat-val">\${{ totalRevenue | number:'1.0-0' }}</h3>
+              <h3 class="stat-val">{{ totalRevenue | number:'1.0-0' }} DT</h3>
             </mat-card-content>
           </mat-card>
         </div>
@@ -137,8 +137,8 @@ import { PaymentResponse } from '../../../billing/models/billing.models';
 
                       <!-- Price -->
                       <div class="pcard-price">
-                        <span class="pcard-price-currency">$</span>
                         <span class="pcard-price-amount">{{ plansCycle() === 'monthly' ? p.priceMonthly : p.priceYearly }}</span>
+                        <span class="pcard-price-currency"> DT</span>
                         <span class="pcard-price-period">/ {{ plansCycle() === 'monthly' ? 'mo' : 'mo · annual' }}</span>
                       </div>
 
@@ -221,22 +221,22 @@ import { PaymentResponse } from '../../../billing/models/billing.models';
                       <td mat-cell *matCellDef="let i">
                         <ng-container *ngIf="i.couponCode; else noCoupon">
                           <span class="pill pill-green" style="font-size:10px">{{ i.couponCode }}</span>
-                          <span class="text-success small d-block" style="font-size:10px">−\${{ i.discountAmount | number:'1.2-2' }}</span>
+                          <span class="text-success small d-block" style="font-size:10px">−{{ i.discountAmount | number:'1.0-0' }} DT</span>
                         </ng-container>
                         <ng-template #noCoupon><span class="text-secondary">—</span></ng-template>
                       </td>
                     </ng-container>
                     <ng-container matColumnDef="subtotal">
                       <th mat-header-cell *matHeaderCellDef>Subtotal</th>
-                      <td mat-cell *matCellDef="let i">\${{ i.subtotal | number:'1.2-2' }}</td>
+                      <td mat-cell *matCellDef="let i">{{ i.subtotal | number:'1.0-0' }} DT</td>
                     </ng-container>
                     <ng-container matColumnDef="tax">
                       <th mat-header-cell *matHeaderCellDef>Tax</th>
-                      <td mat-cell *matCellDef="let i" class="text-secondary">\${{ i.taxAmount | number:'1.2-2' }}</td>
+                      <td mat-cell *matCellDef="let i" class="text-secondary">{{ i.taxAmount | number:'1.0-0' }} DT</td>
                     </ng-container>
                     <ng-container matColumnDef="total">
                       <th mat-header-cell *matHeaderCellDef>Total</th>
-                      <td mat-cell *matCellDef="let i"><strong>\${{ i.total | number:'1.2-2' }} {{ i.currency }}</strong></td>
+                      <td mat-cell *matCellDef="let i"><strong>{{ i.total | number:'1.0-0' }} DT</strong></td>
                     </ng-container>
                     <ng-container matColumnDef="status">
                       <th mat-header-cell *matHeaderCellDef>Status</th>
@@ -310,7 +310,7 @@ import { PaymentResponse } from '../../../billing/models/billing.models';
                     </ng-container>
                     <ng-container matColumnDef="amount">
                       <th mat-header-cell *matHeaderCellDef>Amount</th>
-                      <td mat-cell *matCellDef="let p"><strong>\${{ p.amount | number:'1.2-2' }}</strong></td>
+                      <td mat-cell *matCellDef="let p"><strong>{{ p.amount | number:'1.0-0' }} DT</strong></td>
                     </ng-container>
                     <ng-container matColumnDef="status">
                       <th mat-header-cell *matHeaderCellDef>Status</th>
@@ -353,7 +353,7 @@ import { PaymentResponse } from '../../../billing/models/billing.models';
                     <div class="kpi-icon"><mat-icon>trending_up</mat-icon></div>
                     <div class="kpi-info">
                       <span class="kpi-label">MRR</span>
-                      <span class="kpi-value">\${{ mrr | number:'1.0-0' }}</span>
+                      <span class="kpi-value">{{ mrr | number:'1.0-0' }} DT</span>
                       <span class="kpi-sub">Monthly Recurring Revenue</span>
                     </div>
                   </div>
@@ -361,7 +361,7 @@ import { PaymentResponse } from '../../../billing/models/billing.models';
                     <div class="kpi-icon"><mat-icon>account_balance</mat-icon></div>
                     <div class="kpi-info">
                       <span class="kpi-label">ARR</span>
-                      <span class="kpi-value">\${{ arr | number:'1.0-0' }}</span>
+                      <span class="kpi-value">{{ arr | number:'1.0-0' }} DT</span>
                       <span class="kpi-sub">Annual Recurring Revenue</span>
                     </div>
                   </div>
@@ -369,7 +369,7 @@ import { PaymentResponse } from '../../../billing/models/billing.models';
                     <div class="kpi-icon"><mat-icon>payments</mat-icon></div>
                     <div class="kpi-info">
                       <span class="kpi-label">Total Revenue</span>
-                      <span class="kpi-value">\${{ totalRevenue | number:'1.0-0' }}</span>
+                      <span class="kpi-value">{{ totalRevenue | number:'1.0-0' }} DT</span>
                       <span class="kpi-sub">All confirmed invoices</span>
                     </div>
                   </div>
@@ -465,7 +465,7 @@ import { PaymentResponse } from '../../../billing/models/billing.models';
                         @if (c.discountType === 'PERCENTAGE') {
                           <span class="pill pill-purple">{{ c.discountValue }}% OFF</span>
                         } @else {
-                          <span class="pill pill-blue">\${{ c.discountValue }} OFF</span>
+                          <span class="pill pill-blue">{{ c.discountValue }} DT OFF</span>
                         }
                       </td>
                     </ng-container>
@@ -581,13 +581,13 @@ import { PaymentResponse } from '../../../billing/models/billing.models';
                     <mat-icon class="cm-input-icon">sell</mat-icon>
                     <select class="cm-input cm-select" [(ngModel)]="cf.discountType">
                       <option value="PERCENTAGE">Percentage (%)</option>
-                      <option value="FIXED">Fixed Amount ($)</option>
+                      <option value="FIXED">Fixed Amount (DT)</option>
                     </select>
                   </div>
                 </div>
                 <div class="cm-field">
                   <label class="cm-label">
-                    {{ cf.discountType === 'PERCENTAGE' ? 'Discount (%)' : 'Amount ($)' }}
+                    {{ cf.discountType === 'PERCENTAGE' ? 'Discount (%)' : 'Amount (DT)' }}
                     <span class="cm-required">*</span>
                   </label>
                   <div class="cm-input-wrap">
@@ -710,11 +710,11 @@ import { PaymentResponse } from '../../../billing/models/billing.models';
                 <input class="field-input" [(ngModel)]="pf.displayName" placeholder="e.g. Pro">
               </div>
               <div class="col-6 mb-3">
-                <label class="field-lbl">Monthly Price ($)</label>
+                <label class="field-lbl">Monthly Price (DT)</label>
                 <input class="field-input" type="number" [(ngModel)]="pf.priceMonthly">
               </div>
               <div class="col-6 mb-3">
-                <label class="field-lbl">Annual Price/mo ($)</label>
+                <label class="field-lbl">Annual Price/mo (DT)</label>
                 <input class="field-input" type="number" [(ngModel)]="pf.priceYearly">
               </div>
               <div class="col-6 mb-3">
