@@ -1,0 +1,48 @@
+# ── IDE ───────────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# ── Claude Code ───────────────────────────────────────────────────────────────
+.claude/settings.local.json
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Java / Maven (backend) ───────────────────────────────────────────────────
+Pi_Projet/target/
+Pi_Projet/uploads/
+
+# ── Angular / Node (frontend) ────────────────────────────────────────────────
+Pi_ProjetFront/node_modules/
+Pi_ProjetFront/dist/
+Pi_ProjetFront/.angular/
+
+# ── Python (ML services) ─────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+.venv/
+venv/
+env/
+*.egg-info/
+.Python
+
+# ── ML model artefacts ───────────────────────────────────────────────────────
+*.safetensors
+*.joblib
+*.pkl
+*.npy
+*.h5
+*.onnx
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+
+# ── Runtime uploads (user-generated content) ─────────────────────────────────
+uploads/
+

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-configmap
+data:
+  MYSQL_DATABASE: "PiProjet123"
+  MYSQL_ALLOW_EMPTY_PASSWORD: "yes"

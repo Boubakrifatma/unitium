@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 export interface UserDTO {
   id: number;
@@ -16,7 +17,7 @@ export interface UserDTO {
 @Injectable({ providedIn: 'root' })
 export class UserService {
   private http = inject(HttpClient);
-  private base = 'http://localhost:8084/api/users';
+  private base = `${environment.apiUrl}/users`;
 
   getAll(): Observable<UserDTO[]> {
     return this.http.get<UserDTO[]>(this.base);

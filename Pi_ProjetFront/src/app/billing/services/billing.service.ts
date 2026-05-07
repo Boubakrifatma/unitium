@@ -2,10 +2,11 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { Plan, PaymentRequest, PaymentResponse } from '../models/billing.models';
+import { environment } from '../../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class BillingService {
-  private readonly API = 'http://localhost:8084/api/billing';
+  private readonly API = `${environment.apiUrl}/billing`;
 
   // ─── Default Plans (fallback if API fails) ─────────────────────────────────
   readonly defaultEnterprisePlans: Plan[] = [

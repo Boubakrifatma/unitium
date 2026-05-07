@@ -1,0 +1,14 @@
+{
+  "generatedAt": "2026-04-28T10:32:02.128956+00:00",
+  "generator": "scripts/export_pib_artifacts.py",
+  "embeddingMode": "deterministic-hash-384",
+  "templateCount": 13,
+  "profileCount": 47,
+  "roleClasses": [
+    "PROJECT_MANAGER",
+    "DEVELOPER",
+    "REVIEWER",
+    "OBSERVER",
+    "PROFESSOR"
+  ]
+}

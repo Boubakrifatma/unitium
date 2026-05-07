@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+import { environment } from '../../../environments/environment';
 
 export interface SubscriptionDTO {
   id: string; status: string; billingCycle: string;
@@ -93,7 +94,7 @@ export interface MyPaymentDTO {
 @Injectable({ providedIn: 'root' })
 export class OrgBillingService {
   private http = inject(HttpClient);
-  private readonly API = 'http://localhost:8084/api/billing';
+  private readonly API = `${environment.apiUrl}/billing`;
 
   getMySubscription(): Observable<SubscriptionDTO | null> {
     return this.http.get<SubscriptionDTO>(`${this.API}/my-subscription`).pipe(

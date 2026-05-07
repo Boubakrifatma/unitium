@@ -5,11 +5,12 @@ import { Router } from '@angular/router';
 import { tap } from 'rxjs/operators';
 import { Observable } from 'rxjs';
 import { AuthResponse, LoginRequest, User } from './user.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
 
-  private readonly API = 'http://localhost:8084/api/auth';
+  private readonly API = `${environment.apiUrl}/auth`;
   private readonly TOKEN_KEY   = 'session_token';
   private readonly USER_ID_KEY = 'session_user_id';
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));

@@ -1,0 +1,14 @@
+template_id,template_name,name,template_type,ml_completion_rate,ml_fitness_score,org_type
+757caf7c-60e7-441a-9a77-df90940a5e91,Academic Research Project,Academic Research Project,CUSTOM,0.65,0.72,enterprise
+ddcba88a-09a0-4dcb-bc95-1f18019561b5,Enterprise Kanban Flow,Enterprise Kanban Flow,KANBAN,0.65,0.72,enterprise
+e1301384-5976-4e2d-a64d-cf1dd74f61e1,Agile Sprint Board,Agile Sprint Board,SCRUM,0.65,0.72,enterprise
+007be10a-06e3-41fb-998f-580612d89132,Capstone Team Project,Capstone Team Project,CUSTOM,0.65,0.72,enterprise
+2691e7c7-a12d-46b5-989e-6aad47ea8452,ML Pipeline Starter,ML Pipeline Starter,CUSTOM,0.65,0.72,enterprise
+59227711-6edb-4725-bab3-4fd1ba36a66f,Agile Sprint Board (Custom Sprint 2-Week),Agile Sprint Board (Custom Sprint 2-Week),SCRUM,0.65,0.72,enterprise
+59a7db30-d521-45fe-9c8a-19e660f47433,Agile Sprint Board (Manager Fork - Q1 Planning),Agile Sprint Board (Manager Fork - Q1 Planning),SCRUM,0.65,0.72,enterprise
+617cf678-051e-440a-a8bd-6e3a4d8aa6c7,Product Launch Blueprint (Simplified Path),Product Launch Blueprint (Simplified Path),WATERFALL,0.65,0.72,enterprise
+a48f81de-1fcf-49ab-91e4-4a4518fb8673,SDLC Enterprise,SDLC Enterprise,WATERFALL,0.65,0.72,enterprise
+c3ab77a3-d920-4ad2-85d1-f0ebfe3c3844,Agile Sprint Board (Q1 Planning - Team Specific),Agile Sprint Board (Q1 Planning - Team Specific),SCRUM,0.65,0.72,enterprise
+cbd5ea5f-1f50-40f3-82d0-3b80ebe5229c,Enterprise Kanban Flow (Manager WIP Variant),Enterprise Kanban Flow (Manager WIP Variant),KANBAN,0.65,0.72,enterprise
+e08aafee-98ea-42aa-8dea-9575bb5a07cd,Product Launch Blueprint,Product Launch Blueprint,WATERFALL,0.65,0.72,enterprise
+fdfa2a7b-9d01-4bc9-826f-b4756150dab2,Course Assignment Tracker,Course Assignment Tracker,CUSTOM,0.65,0.72,enterprise
