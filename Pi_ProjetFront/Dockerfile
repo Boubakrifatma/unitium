@@ -1,10 +1,11 @@
+# syntax=docker/dockerfile:1.4
 # Stage 1: Build Angular
 FROM node:22-alpine AS builder
 WORKDIR /app
 
 # Install dependencies (cached layer)
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci
 
 # Copy source and build production bundle
 COPY . .
