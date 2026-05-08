@@ -14,6 +14,9 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 COPY . .
 
+RUN mkdir -p /app/default_models && \
+	if [ -d /app/models ]; then cp -a /app/models/. /app/default_models/; fi
+
 EXPOSE 8000
 RUN chmod +x /app/entrypoint.sh
 ENTRYPOINT ["/app/entrypoint.sh"]
