@@ -588,10 +588,29 @@ class BootstrapService:
 
     def _run_stage3(self, stage1: Dict[str, Any], stage2: Dict[str, Any], workspace: WorkspaceContext) -> Dict[str, Any]:
         if not (self.artifacts.stage3_ready and self.artifacts.role_classifier_payload is not None):
-            raise HTTPException(
-                status_code=503,
-                detail="stage3-unavailable: role classifier artifacts are missing. Re-export role_classifier.joblib and role_thresholds.json.",
-            )
+            if os.getenv("PIB_STRICT_MODE", "false").strip().lower() == "true":
+                raise HTTPException(
+                    status_code=503,
+                    detail="stage3-unavailable: role classifier artifacts are missing. Re-export role_classifier.joblib and role_thresholds.json.",
+                )
+
+            fallback_roles = self._fallback_roles_from_template(stage2, workspace)
+            if not fallback_roles:
+                fallback_roles = ["PROJECT_MANAGER", "DEVELOPER", "REVIEWER"]
+
+            return {
+                "cold_start_mode": True,
+                "required_roles": [
+                    {
+                        "role": role,
+                        "critical": role in {"PROJECT_MANAGER", "PROFESSOR"},
+                        "confidence": 0.4,
+                        "countSuggested": self._suggested_count(stage1.get("complexity", "MEDIUM")),
+                        "cold_start_mode": True,
+                    }
+                    for role in fallback_roles
+                ],
+            }
 
         roles = self._infer_roles_from_model(stage1, workspace)
         if not roles:
