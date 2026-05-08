@@ -27,7 +27,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./m2_ml_service/models:/app/models:ro
+      - ./m2_ml_service/models:/app/models
     environment:
       DB_HOST: mysql
       DB_PORT: "3306"
