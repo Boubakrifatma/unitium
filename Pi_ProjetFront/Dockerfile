@@ -3,6 +3,8 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
+ENV NG_BUILD_DISABLE_FONT_INLINING=1
+
 # Install dependencies (cached layer)
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci
