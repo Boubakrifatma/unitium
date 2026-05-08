@@ -807,9 +807,9 @@ app-app-header, app-index-header {
   transition: cubic-bezier(0.25, 0.8, 0.25, 1) all 400ms;
 
   .app-header {
-    color: var(--mat-sys-primary);
+    color: var(--mat-sys-on-primary);
     position: relative;
-    background-color: transparent;
+    background-color: var(--mat-sys-primary);
     backdrop-filter: blur(10px);
 
     .logo {
@@ -874,8 +874,8 @@ app-app-header, app-index-header {
 
 app-index-header {
   .app-header {
-    color: var(--mat-sys-primary);
-    background-color: var(--mat-header-background-color);
+    color: var(--mat-sys-on-primary);
+    background-color: var(--mat-sys-primary);
     box-shadow: var(--mat-card-elevated-container-elevation, var(--mat-sys-level1));
   }
 }
