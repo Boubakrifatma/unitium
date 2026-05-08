@@ -75,3 +75,7 @@ env/
 
 *.log
 uploads/
+
+# Allow required ML artifacts to be tracked
+!m2_ml_service/models/role_classifier.joblib
+!m2_ml_service/models/template_embeddings.npy

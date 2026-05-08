@@ -47,6 +47,7 @@ public class ProjectService {
     private final ProjectRoleMapper projectRoleMapper;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final M2AuditLogService auditLogService;
+    private final com.example.pi_projet.repository.MLTeamRecommendationRepository mlTeamRecommendationRepository;
 
     public Page<Project> getVisible(UUID workspaceId, Long userId, Pageable pageable) {
         if (!userRepo.existsById(userId)) {
@@ -309,6 +310,7 @@ public class ProjectService {
             throw new Module2Exception(FORBIDDEN, "Not allowed to permanently delete project");
         }
         // Hard-delete members first (bypasses soft-delete filter), then the project row itself
+        mlTeamRecommendationRepository.hardDeleteAllByProjectId(projectId);
         projectMemberRepo.hardDeleteAllByProjectId(projectId);
         projectRepo.hardDeleteById(projectId);
     }

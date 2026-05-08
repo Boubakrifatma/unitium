@@ -264,10 +264,10 @@ public class ProjectIntelligenceService {
                 );
             }
 
-            created = projectService.createProjectFromTemplate(workspaceId, selectedTemplateId, projectName, startDate, endDate, currentUserId);
+            created = createWithUniqueNameFromTemplate(workspaceId, selectedTemplateId, projectName, startDate, endDate, currentUserId);
             created = projectService.update(created.getId(), null, projectDescription, visibility, null, null, currentUserId);
         } else {
-            created = projectService.create(workspaceId, projectName, projectDescription, visibility, startDate, endDate, currentUserId);
+            created = createWithUniqueName(workspaceId, projectName, projectDescription, visibility, startDate, endDate, currentUserId);
         }
 
         String orgType = resolveWorkspaceOrgType(workspace);
@@ -294,7 +294,13 @@ public class ProjectIntelligenceService {
 
             ProjectMember assignedMember = null;
             if (accepted) {
-                assignedMember = assignOrReuseProjectMember(created.getId(), suggestedUserId, role, currentUserId);
+                if (workspaceService.isMember(workspaceId, suggestedUserId)) {
+                    assignedMember = assignOrReuseProjectMember(created.getId(), suggestedUserId, role, currentUserId);
+                } else {
+                    accepted = false;
+                    reasons = new ArrayList<>(reasons);
+                    reasons.add("user-not-in-workspace");
+                }
             }
 
             MLTeamRecommendation rec = MLTeamRecommendation.builder()
@@ -329,6 +335,41 @@ public class ProjectIntelligenceService {
 
         writeAudit(currentUserId, workspace, created, "PIB_CONFIRM_PROJECT");
         return created;
+    }
+
+    private Project createWithUniqueName(UUID workspaceId, String baseName, String description,
+                                         Project.Visibility visibility, LocalDate startDate, LocalDate endDate,
+                                         Long currentUserId) {
+        String name = baseName;
+        for (int attempt = 0; attempt < 3; attempt++) {
+            try {
+                return projectService.create(workspaceId, name, description, visibility, startDate, endDate, currentUserId);
+            } catch (Module2Exception ex) {
+                if (ex.getCode() != CONFLICT) {
+                    throw ex;
+                }
+                name = baseName + " (AI)" + (attempt == 0 ? "" : "-" + (attempt + 1));
+            }
+        }
+        return projectService.create(workspaceId, baseName + " (AI-" + UUID.randomUUID().toString().substring(0, 8) + ")",
+            description, visibility, startDate, endDate, currentUserId);
+    }
+
+    private Project createWithUniqueNameFromTemplate(UUID workspaceId, UUID templateId, String baseName,
+                                                     LocalDate startDate, LocalDate endDate, Long currentUserId) {
+        String name = baseName;
+        for (int attempt = 0; attempt < 3; attempt++) {
+            try {
+                return projectService.createProjectFromTemplate(workspaceId, templateId, name, startDate, endDate, currentUserId);
+            } catch (Module2Exception ex) {
+                if (ex.getCode() != CONFLICT) {
+                    throw ex;
+                }
+                name = baseName + " (AI)" + (attempt == 0 ? "" : "-" + (attempt + 1));
+            }
+        }
+        return projectService.createProjectFromTemplate(workspaceId, templateId,
+            baseName + " (AI-" + UUID.randomUUID().toString().substring(0, 8) + ")", startDate, endDate, currentUserId);
     }
 
     private ProjectMember assignOrReuseProjectMember(UUID projectId, Long userId, String role, Long requesterId) {
