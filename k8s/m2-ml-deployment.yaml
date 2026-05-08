@@ -14,7 +14,8 @@ spec:
     spec:
       containers:
         - name: m2-ml-service
-          image: YOUR_DOCKERHUB_USERNAME/m2-ml-service:latest
+          image: fatmaboubakri/piprojet-ml-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8000
           readinessProbe:

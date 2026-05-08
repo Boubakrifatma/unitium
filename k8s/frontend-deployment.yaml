@@ -14,7 +14,8 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: YOUR_DOCKERHUB_USERNAME/piprojet-frontend:latest
+          image: fatmaboubakri/piprojet-frontend:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 80
           readinessProbe:

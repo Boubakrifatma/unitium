@@ -14,7 +14,8 @@ spec:
     spec:
       containers:
         - name: backend
-          image: YOUR_DOCKERHUB_USERNAME/piprojet-backend:latest
+          image: fatmaboubakri/piprojet-backend:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8084
           env:
