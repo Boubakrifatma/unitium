@@ -1,0 +1,6 @@
+target/
+uploads/
+*.md
+.git/
+.gitignore
+mvnw.cmd

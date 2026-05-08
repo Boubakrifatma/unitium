@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: YOUR_DOCKERHUB_USERNAME/piprojet-backend:latest
+          ports:
+            - containerPort: 8084
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://mysql:3306/PiProjet123?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "root"
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: spring-datasource-password
+            - name: ML_SERVICE_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-configmap
+                  key: ML_SERVICE_BASE_URL
+          readinessProbe:
+            tcpSocket:
+              port: 8084
+            initialDelaySeconds: 45
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: 8084
+            initialDelaySeconds: 90
+            periodSeconds: 20

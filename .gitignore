@@ -38,12 +38,40 @@ __pycache__/
 m2_ml_service/seed_run.log
 m2_ml_service/cmp_pib_artifacts.zip
 m2_ml_service/cmp_training_export.csv
-m2_ml_service/models/member_profiles.csv
-m2_ml_service/models/model_metadata.json
-m2_ml_service/models/role_classifier.joblib
-m2_ml_service/models/role_thresholds.json
-m2_ml_service/models/template_embeddings.npy
-m2_ml_service/models/template_metadata.csv
 
 # ── Claude Code memory ─────────────────────────────────────────────────────────
 .claude/
+
+# ── Additional tooling/build ignores ─────────────────────────────────────────--
+.idea/
+*.iws
+*.ipr
+.claude/settings.local.json
+
+Pi_Projet/uploads/
+Pi_ProjetFront/node_modules/
+Pi_ProjetFront/dist/
+Pi_ProjetFront/.angular/
+
+.git/
+.gitignore
+mvnw.cmd
+
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
+.Python
+
+*.safetensors
+*.joblib
+*.pkl
+*.npy
+*.h5
+*.onnx
+
+*.log
+uploads/
