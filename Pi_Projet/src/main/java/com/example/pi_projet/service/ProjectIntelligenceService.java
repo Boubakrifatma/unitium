@@ -247,21 +247,19 @@ public class ProjectIntelligenceService {
 
                 Optional<ProjectTemplate> byName = projectTemplateService.findFirstByNameIgnoreCase(selectedTemplateNameRaw);
                 if (byName.isPresent()) {
-                    meta.put("matchingTemplateIdByName", byName.get().getId().toString());
+                    // Auto-recover from stale template IDs by using the matching name.
+                    selectedTemplateId = byName.get().getId();
+                    meta.put("matchingTemplateIdByName", selectedTemplateId.toString());
                     meta.put("diagnosis", "stale-template-id");
+                    selectedTemplate = Optional.of(byName.get());
+                } else {
+                    meta.put("diagnosis", "template-not-found-in-db");
                     throw new Module2Exception(
                         NOT_FOUND,
-                        "AI selected template ID was not found in backend templates. The template name exists with a different ID, which usually means ML template metadata is stale after reseed/training export. Re-run AI bootstrap and select the refreshed template.",
+                        "AI selected template was not found in backend templates. This usually means ML template metadata is out of sync with current project_templates data (deleted/reseeded templates). Re-run AI bootstrap before confirming.",
                         meta
                     );
                 }
-
-                meta.put("diagnosis", "template-not-found-in-db");
-                throw new Module2Exception(
-                    NOT_FOUND,
-                    "AI selected template was not found in backend templates. This usually means ML template metadata is out of sync with current project_templates data (deleted/reseeded templates). Re-run AI bootstrap before confirming.",
-                    meta
-                );
             }
 
             created = createWithUniqueNameFromTemplate(workspaceId, selectedTemplateId, projectName, startDate, endDate, currentUserId);
