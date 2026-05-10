@@ -110,3 +110,9 @@ jobs:
           echo "---"
           echo "Checking services..."
           kubectl get svc -n piprojet --insecure-skip-tls-verify=true
+          echo "---"
+          echo "Checking monitoring services (Grafana + Prometheus)..."
+          kubectl get pods -n monitoring --insecure-skip-tls-verify=true
+          kubectl get svc -n monitoring --insecure-skip-tls-verify=true
+          echo "---"
+          echo "✓ Grafana dashboard: http://192.168.1.193:30030/dashboards"
