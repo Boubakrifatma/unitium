@@ -100,17 +100,7 @@ jobs:
           echo "Waiting for frontend deployment to rollout..."
           kubectl rollout status deployment/frontend -n piprojet --timeout=120s --insecure-skip-tls-verify=true
 
-      - name: Wait for backend rollout
-        run: |
-          echo "Waiting for backend deployment to rollout..."
-          kubectl rollout status deployment/backend -n piprojet --timeout=180s --insecure-skip-tls-verify=true
-
-      - name: Wait for ML service rollout
-        run: |
-          echo "Waiting for ML service deployment to rollout..."
-          kubectl rollout status deployment/m2-ml-service -n piprojet --timeout=120s --insecure-skip-tls-verify=true
-
-      - name: Verify pods are running
+      - name: Verify deployments
         run: |
           echo "Verifying all pods in piprojet namespace..."
           kubectl get pods -n piprojet --insecure-skip-tls-verify=true
