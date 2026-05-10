@@ -77,7 +77,7 @@ interface WorkspaceActivity {
             <mat-card class="bg-light-theme shadow-none pt-3 pb-lg-3 px-3">
                 <div class="row gx-3 align-items-center">
                     <div class="col-12 col-md mb-3 mb-xl-0 py-1 order-1 order-lg-1">
-                        <h3 class="mb-1">Workspacesssssssssss: {{ workspace()?.name || "Details" }}</h3>
+                        <h3 class="mb-1">Workspace: {{ workspace()?.name || "Details" }}</h3>
                         <p class="small mb-0">
                             <span routerLink="/app/dashboard" class="me-2 text-theme style-none"><mat-icon class="material-icons-outlined align-middle text-sm">house</mat-icon> Home</span>
                             <mat-icon class="material-icons-outlined align-middle text-sm me-2">chevron_right</mat-icon>
