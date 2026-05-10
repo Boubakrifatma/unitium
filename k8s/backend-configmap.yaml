@@ -4,9 +4,19 @@ metadata:
   name: backend-configmap
   namespace: piprojet
 data:
+  # Internal K8s service DNS names - always work within cluster
   ML_SERVICE_BASE_URL: "http://m2-ml-service:8000"
-  CORS_ALLOWED_ORIGINS: "http://frontend,http://localhost:80,http://192.168.1.200,https://venomous-smugness-ethically.ngrok-free.dev"
+  BACKEND_URL: "http://backend:8084"
+  FRONTEND_URL: "http://frontend:80"
+
+  # CORS allows requests from these origins
+  # Use service DNS for internal, allow external URLs for testing/production
+  CORS_ALLOWED_ORIGINS: "http://frontend,http://backend,http://localhost,http://localhost:80,https://venomous-smugness-ethically.ngrok-free.dev"
+
+  # Email configuration
   SPRING_MAIL_HOST: "smtp.gmail.com"
   SPRING_MAIL_PORT: "587"
   SPRING_MAIL_USERNAME: "ca.unitumgroup1@gmail.com"
-  BILLING_APP_URL: "http://192.168.1.200"
+
+  # Billing app URL - use service DNS
+  BILLING_APP_URL: "http://frontend:80"
