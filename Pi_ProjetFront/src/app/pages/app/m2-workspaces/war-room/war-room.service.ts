@@ -6,7 +6,7 @@ import { HeatmapDay, WarRoomSnapshot } from './war-room.models';
 @Injectable({ providedIn: 'root' })
 export class WarRoomService {
   private readonly http = inject(HttpClient);
-  private readonly base = 'http://localhost:8084/api/workspaces';
+  private readonly base = '/api/workspaces';
 
   getSnapshot(workspaceId: string, at?: string): Observable<WarRoomSnapshot> {
     const params: any = {};
@@ -24,3 +24,4 @@ export class WarRoomService {
     return new EventSource(`${this.base}/${workspaceId}/pulse/stream`);
   }
 }
+

@@ -165,7 +165,7 @@ export interface M2PibConfirmRequest {
 @Injectable({ providedIn: "root" })
 export class M2ProjectService {
     private readonly http = inject(HttpClient);
-    private readonly workspaceBase = "http://localhost:8084/api/v1/workspaces";
+    private readonly workspaceBase = "/api/v1/workspaces";
 
     getProjects(workspaceId: string, page = 0, size = 20): Observable<M2ProjectPage> {
         return this.http.get<M2ProjectPage>(`${this.workspaceBase}/${workspaceId}/projects?page=${page}&size=${size}`);
@@ -231,3 +231,4 @@ export class M2ProjectService {
         return this.http.post<M2ProjectSummary>(`${this.workspaceBase}/${workspaceId}/projects/pib/confirm`, body);
     }
 }
+

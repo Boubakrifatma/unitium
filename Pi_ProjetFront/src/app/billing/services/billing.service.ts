@@ -5,7 +5,7 @@ import { Plan, PaymentRequest, PaymentResponse } from '../models/billing.models'
 
 @Injectable({ providedIn: 'root' })
 export class BillingService {
-  private readonly API = 'http://localhost:8084/api/billing';
+  private readonly API = '/api/billing';
 
   // ─── Default Plans (fallback if API fails) ─────────────────────────────────
   readonly defaultEnterprisePlans: Plan[] = [

@@ -31,7 +31,7 @@ interface RemovedMemberRecord {
 @Injectable({ providedIn: "root" })
 export class WorkspaceMemberService {
     private readonly http = inject(HttpClient);
-    private readonly base = "http://localhost:8084/api/v1/workspaces";
+    private readonly base = "/api/v1/workspaces";
 
     // Store removed members (max 10 for 5 minutes each)
     private removedMembers: RemovedMemberRecord[] = [];
@@ -124,3 +124,4 @@ export class WorkspaceMemberService {
         };
     }
 }
+

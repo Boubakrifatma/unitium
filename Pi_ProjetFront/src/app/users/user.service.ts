@@ -15,7 +15,7 @@ export interface UserDTO {
 @Injectable({ providedIn: 'root' })
 export class UserService {
   private http = inject(HttpClient);
-  private base = 'http://localhost:8084/api/users';
+  private base = '/api/users';
 
   getAll(): Observable<UserDTO[]> {
     return this.http.get<UserDTO[]>(this.base);
@@ -45,3 +45,4 @@ export class UserService {
     return this.http.patch<UserDTO>(`${this.base}/${id}/status`, { isActive });
   }
 }
+

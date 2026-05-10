@@ -74,7 +74,7 @@ export interface TemplateRatingRow {
 @Injectable({ providedIn: "root" })
 export class M2AdminService {
     private readonly http = inject(HttpClient);
-    private readonly base = "http://localhost:8084/api/v1/admin";
+    private readonly base = "/api/v1/admin";
 
     getStats(): Observable<AdminStats> {
         return this.http.get<AdminStats>(`${this.base}/stats`);
@@ -112,3 +112,4 @@ export class M2AdminService {
         return this.http.get<TemplateRatingRow[]>(`${this.base}/templates/ratings`);
     }
 }
+

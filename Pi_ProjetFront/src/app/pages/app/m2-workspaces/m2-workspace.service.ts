@@ -118,7 +118,7 @@ export interface M2UpdateWorkspaceRequest {
 @Injectable({ providedIn: "root" })
 export class M2WorkspaceService {
     private http = inject(HttpClient);
-    private base = "http://localhost:8084/api/v1/workspaces";
+    private base = "/api/v1/workspaces";
 
     getWorkspaces(): Observable<M2Workspace[]> {
         return this.http.get<M2Workspace[]>(this.base);
@@ -183,3 +183,4 @@ export class M2WorkspaceService {
         return this.http.get<M2WorkspaceProjectCapacity>(`${this.base}/${workspaceId}/projects/capacity`);
     }
 }
+

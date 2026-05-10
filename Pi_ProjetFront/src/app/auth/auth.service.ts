@@ -9,7 +9,7 @@ import { AuthOrganization, AuthResponse, LoginRequest, OrganizationContext, Orga
 @Injectable({ providedIn: 'root' })
 export class AuthService {
 
-  private readonly API = 'http://localhost:8084/api/auth';
+  private readonly API = '/api/auth';
   private readonly TOKEN_KEY = 'session_token';
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 

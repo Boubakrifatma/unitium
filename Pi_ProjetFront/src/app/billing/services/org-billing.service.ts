@@ -93,7 +93,7 @@ export interface MyPaymentDTO {
 @Injectable({ providedIn: 'root' })
 export class OrgBillingService {
   private http = inject(HttpClient);
-  private readonly API = 'http://localhost:8084/api/billing';
+  private readonly API = '/api/billing';
 
   getMySubscription(): Observable<SubscriptionDTO | null> {
     return this.http.get<SubscriptionDTO>(`${this.API}/my-subscription`).pipe(

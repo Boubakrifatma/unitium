@@ -7,9 +7,10 @@ export class ExportService {
   private readonly http = inject(HttpClient);
 
   exportWorkspacePdf(workspaceId: string, periodDays = 30): Observable<Blob> {
-    return this.http.get(`http://localhost:8084/api/workspaces/${workspaceId}/export/pdf`, {
+    return this.http.get(`/api/workspaces/${workspaceId}/export/pdf`, {
       params: { periodDays },
       responseType: 'blob'
     });
   }
 }
+

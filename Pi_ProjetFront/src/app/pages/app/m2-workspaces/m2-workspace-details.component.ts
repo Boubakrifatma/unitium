@@ -3108,7 +3108,7 @@ export class M2WorkspaceDetailsComponent implements OnInit {
     loadActivity(workspaceId: string): void {
         if (this.activityLoading()) return;
         this.activityLoading.set(true);
-        this.http.get<Record<string, unknown>[]>(`http://localhost:8084/api/v1/workspaces/${workspaceId}/activity?limit=50`)
+        this.http.get<Record<string, unknown>[]>(`/api/v1/workspaces/${workspaceId}/activity?limit=50`)
             .pipe(catchError(() => of([])))
             .subscribe(logs => {
                 this.activityLogs.set(logs || []);
@@ -4157,3 +4157,4 @@ export class M2WorkspaceDetailsComponent implements OnInit {
         }
     }
 }
+

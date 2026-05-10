@@ -61,8 +61,8 @@ export interface M2TemplateLineageNode {
 @Injectable({ providedIn: "root" })
 export class M2TemplateService {
     private readonly http = inject(HttpClient);
-    private readonly base = "http://localhost:8084/api/project-templates";
-    private readonly workspaceBase = "http://localhost:8084/api/v1/workspaces";
+    private readonly base = "/api/project-templates";
+    private readonly workspaceBase = "/api/v1/workspaces";
 
     getAll(page = 0, size = 50): Observable<M2TemplatePage> {
         return this.http.get<M2TemplatePage>(`${this.base}?page=${page}&size=${size}`);
@@ -166,3 +166,4 @@ export class M2TemplateService {
         );
     }
 }
+
