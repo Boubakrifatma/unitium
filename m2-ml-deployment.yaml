@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: m2-ml-service
+  namespace: piprojet
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: m2-ml-service
+  template:
+    metadata:
+      labels:
+        app: m2-ml-service
+    spec:
+      containers:
+        - name: m2-ml-service
+          image: nassimmaaoui007/piprojet-ml-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: ml-configmap
+          env:
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: spring-datasource-password
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 20
