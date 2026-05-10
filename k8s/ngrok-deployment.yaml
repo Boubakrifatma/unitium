@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ngrok
+  namespace: piprojet
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ngrok
+  template:
+    metadata:
+      labels:
+        app: ngrok
+    spec:
+      containers:
+        - name: ngrok
+          image: ngrok/ngrok:latest
+          imagePullPolicy: Always
+          args: ["http", "frontend:80", "--log=stdout"]
+          env:
+            - name: NGROK_AUTHTOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: ngrok-secret
+                  key: authtoken
+          ports:
+            - containerPort: 4040
+          readinessProbe:
+            httpGet:
+              path: /api/status
+              port: 4040
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/status
+              port: 4040
+            initialDelaySeconds: 15
+            periodSeconds: 20

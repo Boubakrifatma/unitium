@@ -76,43 +76,47 @@ jobs:
           cache-to:   type=inline
 
   # ──────────────────────────────────────────────────────────────
-  # Job 2: Tell Kubernetes to pull the new images and redeploy
-  # Runs on the self-hosted runner installed on Fatma's VM
-  # (the VM already has kubectl + access to the local cluster)
+  # Job 2: Deploy to Kubernetes cluster
+  # Runs on the self-hosted runner installed on your machine
+  # (the VM already has kubectl + access to the local K8s cluster)
   # ──────────────────────────────────────────────────────────────
   deploy:
     name: Deploy to Kubernetes
-    runs-on: self-hosted          # <-- your VM's runner label
+    runs-on: self-hosted
     needs: build-and-push
     if: success()
 
-    env:
-      TAG: ${{ needs.build-and-push.outputs.image-tag }}
-
     steps:
-      - name: Update frontend image
-        run: |
-          kubectl set image deployment/frontend \
-            frontend=${{ secrets.DOCKERHUB_USERNAME }}/piprojet-frontend:${{ env.TAG }} \
-            --record
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Update backend image
+      - name: Apply Kubernetes manifests
         run: |
-          kubectl set image deployment/backend \
-            backend=${{ secrets.DOCKERHUB_USERNAME }}/piprojet-backend:${{ env.TAG }} \
-            --record
+          echo "Applying Kubernetes manifests to piprojet namespace..."
+          kubectl apply -f k8s/
 
-      - name: Update ML service image
+      - name: Wait for frontend rollout
         run: |
-          kubectl set image deployment/m2-ml-service \
-            m2-ml-service=${{ secrets.DOCKERHUB_USERNAME }}/piprojet-ml-service:${{ env.TAG }} \
-            --record
+          echo "Waiting for frontend deployment to rollout..."
+          kubectl rollout status deployment/frontend -n piprojet --timeout=120s
 
-      - name: Wait for rollout to finish
+      - name: Wait for backend rollout
         run: |
-          kubectl rollout status deployment/frontend   --timeout=120s
-          kubectl rollout status deployment/backend    --timeout=180s
-          kubectl rollout status deployment/m2-ml-service --timeout=120s
+          echo "Waiting for backend deployment to rollout..."
+          kubectl rollout status deployment/backend -n piprojet --timeout=180s
+
+      - name: Wait for ML service rollout
+        run: |
+          echo "Waiting for ML service deployment to rollout..."
+          kubectl rollout status deployment/m2-ml-service -n piprojet --timeout=120s
 
       - name: Verify pods are running
-        run: kubectl get pods -l "app in (frontend,backend,m2-ml-service)"
+        run: |
+          echo "Verifying all pods in piprojet namespace..."
+          kubectl get pods -n piprojet
+          echo "---"
+          echo "Checking deployment status..."
+          kubectl get deployments -n piprojet
+          echo "---"
+          echo "Checking services..."
+          kubectl get svc -n piprojet
