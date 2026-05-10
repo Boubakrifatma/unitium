@@ -1,0 +1,97 @@
+Step 12: Monitor Deployment
+Go to GitHub Actions:
+
+https://github.com/selmimotez/PiProjetByUnitum/actions
+Click the latest workflow run
+Watch "Deploy to Kubernetes" job
+See logs in real-time
+On your runner machine, watch pods:
+
+
+# Watch pods appear and become ready
+kubectl get pods -n piprojet -w
+
+# In another terminal, watch services:
+kubectl get svc -n piprojet -w
+PHASE 6: Verify Everything Works
+Step 13: Check Deployment Status
+
+# On runner machine:
+
+# 1. Check all pods are running
+kubectl get pods -n piprojet
+# All should be: Running
+
+# 2. Check services and get the LoadBalancer IP
+kubectl get svc -n piprojet
+# frontend-lb should show EXTERNAL-IP (from MetalLB range)
+
+# 3. Get detailed info
+kubectl describe svc frontend-lb -n piprojet
+
+# 4. Test the frontend
+curl http://<EXTERNAL-IP>
+# Should return HTML from Angular app
+Step 14: Check ngrok URL
+
+# Get ngrok logs to find public URL
+kubectl logs -f deployment/ngrok -n piprojet
+
+# Output will show:
+# Session Status    online
+# Version           3.x.x
+# Region            us (US)
+# Web Interface     http://127.0.0.1:4040
+# Forwarding        https://xxxxx.ngrok.io -> http://localhost:80
+# Connections       ttl 0 Ø
+The ngrok URL is your public app URL! Share https://xxxxx.ngrok.io
+
+Summary: What You've Done
+✅ Verified K8s cluster (1 master + 2 workers)
+
+✅ Installed MetalLB for LoadBalancer support
+
+✅ Installed self-hosted GitHub Actions runner
+
+✅ Configured kubectl on runner to access cluster
+
+✅ Configured MetalLB IP range
+
+✅ Updated app manifests with ngrok token & URLs
+
+✅ Pushed code to trigger CI/CD
+
+✅ Deployed app to K8s cluster
+
+✅ Verified all pods running
+
+✅ Got frontend external IP (MetalLB) + ngrok URL
+
+Troubleshooting
+Problem: kubectl can't connect to cluster
+
+
+kubectl cluster-info
+# Check KUBECONFIG env var is set:
+echo $KUBECONFIG
+# Should show: ~/.kube/config
+Problem: Pods not starting (CrashLoopBackOff)
+
+
+kubectl logs deployment/backend -n piprojet  # Check specific logs
+kubectl describe pod <pod-name> -n piprojet  # See detailed error
+Problem: Frontend-lb has no EXTERNAL-IP
+
+
+# MetalLB might not be ready
+kubectl get pods -n metallb-system
+# All should be Running
+❓ Need help with any step?
+Which step are you at? I can help with:
+
+Installing runner
+Configuring kubectl
+Setting MetalLB
+Pushing code
+Verifying deployment
+Let me know! 🚀
