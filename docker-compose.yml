@@ -1,8 +1,10 @@
-services:
+version: '3.8'
 
-  # MySQL
+services:
+  # MySQL Database
   mysql:
     image: mysql:8.0
+    container_name: mysql_db
     environment:
       MYSQL_DATABASE: PiProjet123
       MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
@@ -16,55 +18,87 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+    networks:
+      - piprojet-network
 
-  # Module 2 ML Service
-  m2_ml_service:
-    build:
-      context: ./m2_ml_service
+  # ML Service (Module 2) - Using Docker Hub image
+  m2-ml-service:
+    image: nassimmaaoui007/piprojet-ml-service:latest
+    container_name: ml_service
     depends_on:
       mysql:
         condition: service_healthy
     ports:
       - "8000:8000"
     environment:
+      # Database Configuration
       DB_HOST: mysql
       DB_PORT: "3306"
       DB_NAME: PiProjet123
       DB_USER: root
       DB_PASS: ""
+      # ML Service Configuration
       PIB_STRICT_MODE: "false"
+      SEED_PIB_DATA: "false"
+      EXPORT_PIB_ARTIFACTS: "true"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8000/health').read()"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 20s
+    networks:
+      - piprojet-network
 
-  # Spring Boot Backend
+  # Spring Boot Backend - Using Docker Hub image
   backend:
-    build:
-      context: ./Pi_Projet
+    image: nassimmaaoui007/piprojet-backend:latest
+    container_name: backend_app
     depends_on:
       mysql:
         condition: service_healthy
-      m2_ml_service:
+      m2-ml-service:
         condition: service_healthy
     environment:
+      # Database Configuration
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/PiProjet123?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: ""
-      ML_SERVICE_BASE_URL: ${ML_SERVICE_BASE_URL:-http://m2_ml_service:8000}
+
+      # ML Service Configuration
+      ML_SERVICE_BASE_URL: http://m2-ml-service:8000
+
+      # CORS Configuration - Allow frontend and local requests
+      CORS_ALLOWED_ORIGINS: "http://frontend,http://localhost:80,http://localhost:4200,http://localhost"
+
+      # Email Configuration
+      SPRING_MAIL_HOST: smtp.gmail.com
+      SPRING_MAIL_PORT: "587"
+      SPRING_MAIL_USERNAME: ca.unitumgroup1@gmail.com
+      SPRING_MAIL_PASSWORD: "qciy ldzr mwir aihx"
+
+      # Billing Configuration
+      BILLING_APP_URL: "http://frontend:80"
     ports:
       - "8084:8084"
+    networks:
+      - piprojet-network
 
-  # Angular Frontend (nginx)
+  # Angular Frontend (nginx) - Using Docker Hub image
   frontend:
-    build:
-      context: ./Pi_ProjetFront
+    image: nassimmaaoui007/piprojet-frontend:latest
+    container_name: frontend_app
     depends_on:
       - backend
     ports:
       - "80:80"
+    networks:
+      - piprojet-network
 
 volumes:
   mysql_data:
+    driver: local
+
+networks:
+  piprojet-network:
+    driver: bridge

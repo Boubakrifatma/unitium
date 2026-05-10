@@ -28,13 +28,23 @@ spec:
               mountPath: /var/lib/mysql
           readinessProbe:
             exec:
-              command: ["mysqladmin", "ping", "-h", "localhost", "-u", "root"]
+              command:
+                - mysqladmin
+                - ping
+                - "-h"
+                - localhost
+                - "--silent"
             initialDelaySeconds: 20
             periodSeconds: 10
             failureThreshold: 10
           livenessProbe:
             exec:
-              command: ["mysqladmin", "ping", "-h", "localhost", "-u", "root"]
+              command:
+                - mysqladmin
+                - ping
+                - "-h"
+                - localhost
+                - "--silent"
             initialDelaySeconds: 60
             periodSeconds: 15
       volumes:
