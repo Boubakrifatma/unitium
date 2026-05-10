@@ -13,13 +13,16 @@ spec:
       labels:
         app: ngrok
     spec:
-      securityContext:
-        fsGroup: 1000
+      serviceAccountName: ngrok
       containers:
         - name: ngrok
-          image: ngrok/ngrok:3-alpine
+          image: ngrok/ngrok:latest
           imagePullPolicy: IfNotPresent
-          args: ["http", "frontend:80", "--log=stdout", "--config=/etc/ngrok/ngrok.yml"]
+          command:
+            - /bin/sh
+            - -c
+            - |
+              ngrok http frontend:80 --log=stdout --region=eu
           env:
             - name: NGROK_AUTHTOKEN
               valueFrom:
@@ -28,32 +31,43 @@ spec:
                   key: authtoken
           ports:
             - containerPort: 4040
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: false
-            runAsNonRoot: true
-            runAsUser: 1000
-            capabilities:
-              drop:
-                - ALL
+              name: mgmt
           readinessProbe:
             httpGet:
               path: /api/status
               port: 4040
-            initialDelaySeconds: 15
+            initialDelaySeconds: 20
             periodSeconds: 10
-            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /api/status
               port: 4040
-            initialDelaySeconds: 20
+            initialDelaySeconds: 30
             periodSeconds: 30
-            timeoutSeconds: 5
           resources:
             requests:
-              memory: "64Mi"
-              cpu: "100m"
+              memory: "128Mi"
+              cpu: "200m"
             limits:
-              memory: "256Mi"
-              cpu: "500m"
+              memory: "512Mi"
+              cpu: "1000m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ngrok
+  namespace: piprojet
+spec:
+  type: ClusterIP
+  selector:
+    app: ngrok
+  ports:
+    - name: management
+      port: 4040
+      targetPort: 4040
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ngrok
+  namespace: piprojet
