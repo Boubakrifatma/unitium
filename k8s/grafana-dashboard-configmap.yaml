@@ -11,140 +11,218 @@ data:
       "timezone": "browser",
       "schemaVersion": 38,
       "version": 0,
-      "refresh": "10s",
+      "refresh": "5s",
       "uid": "piprojet-health",
-        "panels": [
-          {
-            "id": 1,
-            "title": "Backend Service Health",
-            "type": "stat",
-            "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
-            "targets": [
-              {
-                "expr": "up{job=\"piprojet-backend\"}",
-                "refId": "A"
-              }
-            ],
-            "options": {
-              "colorMode": "background",
-              "graphMode": "area",
-              "justifyMode": "center",
-              "textMode": "auto",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {"color": "red", "value": null},
-                  {"color": "red", "value": 0},
-                  {"color": "green", "value": 1}
-                ]
-              }
-            },
-            "fieldConfig": {
-              "defaults": {
-                "mappings": [
-                  {
-                    "type": "value",
-                    "options": {
-                      "0": {"text": "DOWN", "color": "red"},
-                      "1": {"text": "UP", "color": "green"}
-                    }
-                  }
-                ],
-                "custom": {}
-              }
+      "panels": [
+        {
+          "id": 1,
+          "title": "Backend Service Health",
+          "type": "stat",
+          "gridPos": {"h": 4, "w": 4, "x": 0, "y": 0},
+          "targets": [
+            {
+              "expr": "max(up{job=\"piprojet-backend\"})",
+              "refId": "A",
+              "legendFormat": "Backend Status"
+            }
+          ],
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "auto",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
             }
           },
-          {
-            "id": 2,
-            "title": "ML Service Health",
-            "type": "stat",
-            "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
-            "targets": [
-              {
-                "expr": "up{job=\"piprojet-ml-service\"}",
-                "refId": "A"
-              }
-            ],
-            "options": {
-              "colorMode": "background",
-              "graphMode": "area",
-              "justifyMode": "center",
-              "textMode": "auto",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {"color": "red", "value": null},
-                  {"color": "red", "value": 0},
-                  {"color": "green", "value": 1}
-                ]
-              }
-            },
-            "fieldConfig": {
-              "defaults": {
-                "mappings": [
-                  {
-                    "type": "value",
-                    "options": {
-                      "0": {"text": "DOWN", "color": "red"},
-                      "1": {"text": "UP", "color": "green"}
-                    }
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "0": {"text": "DOWN", "color": "red"},
+                    "1": {"text": "UP", "color": "green"}
                   }
-                ],
-                "custom": {}
-              }
+                }
+              ],
+              "custom": {}
             }
-          },
-          {
-            "id": 3,
-            "title": "Backend Request Rate (5m)",
-            "type": "graph",
-            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
-            "targets": [
-              {
-                "expr": "rate(http_requests_total{job=\"piprojet-backend\"}[5m])",
-                "legendFormat": "{{ method }} {{ path }}",
-                "refId": "A"
-              }
-            ]
-          },
-          {
-            "id": 4,
-            "title": "Backend Error Rate (5m)",
-            "type": "graph",
-            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
-            "targets": [
-              {
-                "expr": "rate(http_requests_total{job=\"piprojet-backend\", status=~\"5..\"}[5m])",
-                "legendFormat": "{{ method }} {{ path }}",
-                "refId": "A"
-              }
-            ]
-          },
-          {
-            "id": 5,
-            "title": "Backend Response Time (p95)",
-            "type": "graph",
-            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
-            "targets": [
-              {
-                "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=\"piprojet-backend\"}[5m]))",
-                "legendFormat": "{{ method }} {{ path }}",
-                "refId": "A"
-              }
-            ]
-          },
-          {
-            "id": 6,
-            "title": "ML Service Response Time",
-            "type": "graph",
-            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
-            "targets": [
-              {
-                "expr": "rate(http_request_duration_seconds_sum{job=\"piprojet-ml-service\"}[5m])",
-                "legendFormat": "{{ method }} {{ path }}",
-                "refId": "A"
-              }
-            ]
           }
-        ]
+        },
+        {
+          "id": 2,
+          "title": "ML Service Health",
+          "type": "stat",
+          "gridPos": {"h": 4, "w": 4, "x": 4, "y": 0},
+          "targets": [
+            {
+              "expr": "max(up{job=\"piprojet-ml-service\"})",
+              "refId": "A",
+              "legendFormat": "ML Status"
+            }
+          ],
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "auto",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            }
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "0": {"text": "DOWN", "color": "red"},
+                    "1": {"text": "UP", "color": "green"}
+                  }
+                }
+              ],
+              "custom": {}
+            }
+          }
+        },
+        {
+          "id": 3,
+          "title": "Frontend Health",
+          "type": "stat",
+          "gridPos": {"h": 4, "w": 4, "x": 8, "y": 0},
+          "targets": [
+            {
+              "expr": "max(up{job=\"piprojet-frontend\"})",
+              "refId": "A",
+              "legendFormat": "Frontend Status"
+            }
+          ],
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "auto",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            }
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "0": {"text": "DOWN", "color": "red"},
+                    "1": {"text": "UP", "color": "green"}
+                  }
+                }
+              ],
+              "custom": {}
+            }
+          }
+        },
+        {
+          "id": 4,
+          "title": "All Instances Status",
+          "type": "table",
+          "gridPos": {"h": 6, "w": 12, "x": 0, "y": 4},
+          "targets": [
+            {
+              "expr": "up{job=~\"piprojet-.*\"}",
+              "format": "table",
+              "instant": true,
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "showHeader": true,
+            "sortBy": []
+          },
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {"Time": true},
+                "indexByName": {"job": 0, "instance": 1, "pod": 2, "value": 3},
+                "renameByName": {
+                  "job": "Service",
+                  "instance": "Instance",
+                  "pod": "Pod",
+                  "value": "Status"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "title": "Node-Exporter Status",
+          "type": "stat",
+          "gridPos": {"h": 4, "w": 4, "x": 12, "y": 0},
+          "targets": [
+            {
+              "expr": "count(up{job=\"node-exporter\"})",
+              "refId": "A",
+              "legendFormat": "Nodes"
+            }
+          ],
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "center",
+            "textMode": "auto"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {}
+            }
+          }
+        },
+        {
+          "id": 6,
+          "title": "Backend Request Rate (1m)",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 10},
+          "targets": [
+            {
+              "expr": "rate(http_requests_total{job=\"piprojet-backend\"}[1m])",
+              "legendFormat": "{{method}} {{path}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 7,
+          "title": "Backend Error Rate (1m)",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 10},
+          "targets": [
+            {
+              "expr": "rate(http_requests_total{job=\"piprojet-backend\",status=~\"5..\"}[1m])",
+              "legendFormat": "{{method}} {{path}}",
+              "refId": "A"
+            }
+          ]
+        }
+      ]
     }
