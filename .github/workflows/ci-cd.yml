@@ -95,6 +95,11 @@ jobs:
           echo "Applying Kubernetes manifests to piprojet namespace..."
           kubectl apply -f k8s/ --insecure-skip-tls-verify=true
 
+      - name: Force frontend pod restart with latest image
+        run: |
+          echo "Restarting frontend deployment to pull latest image..."
+          kubectl rollout restart deployment/frontend -n piprojet --insecure-skip-tls-verify=true
+
       - name: Wait for frontend rollout
         run: |
           echo "Waiting for frontend deployment to rollout..."
