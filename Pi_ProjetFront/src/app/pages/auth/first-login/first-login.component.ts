@@ -33,7 +33,7 @@ function passwordsMatch(group: AbstractControl): ValidationErrors | null {
         <div class="fl-notice">
           <mat-icon>verified</mat-icon>
           <div>
-            <p class="fl-notice-title">Welcome to Unitum</p>
+            <p class="fl-notice-title">Welcome to Unitum us </p>
             <p class="fl-notice-sub">
               Signing in as <strong>{{ email }}</strong>. Please set a new secure password to continue.
             </p>
