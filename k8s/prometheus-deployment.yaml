@@ -32,14 +32,9 @@ spec:
               mountPath: /etc/prometheus
             - name: prometheus-storage
               mountPath: /prometheus
-            - name: scrape-config
-              mountPath: /etc/prometheus/scrape-configs
       volumes:
         - name: prometheus-config
           configMap:
             name: prometheus-config
-        - name: scrape-config
-          configMap:
-            name: prometheus-piprojet-scrape
         - name: prometheus-storage
           emptyDir: {}
