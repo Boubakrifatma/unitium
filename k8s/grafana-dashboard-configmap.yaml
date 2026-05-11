@@ -6,13 +6,13 @@ metadata:
 data:
   piprojet-health.json: |
     {
-      "dashboard": {
-        "title": "PiProjet App Health Status",
-        "tags": ["piprojet", "health", "monitoring"],
-        "timezone": "browser",
-        "schemaVersion": 38,
-        "version": 0,
-        "refresh": "10s",
+      "title": "PiProjet App Health Status",
+      "tags": ["piprojet", "health", "monitoring"],
+      "timezone": "browser",
+      "schemaVersion": 38,
+      "version": 0,
+      "refresh": "10s",
+      "uid": "piprojet-health",
         "panels": [
           {
             "id": 1,
@@ -147,10 +147,4 @@ data:
             ]
           }
         ]
-      },
-      "overwrite": true,
-      "editable": true,
-      "options": {
-        "folderId": null
-      }
     }

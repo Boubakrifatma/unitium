@@ -33,8 +33,6 @@ spec:
               mountPath: /etc/grafana/provisioning/dashboards
             - name: dashboard-json
               mountPath: /var/lib/grafana/dashboards
-            - name: alert-rules
-              mountPath: /etc/grafana/provisioning/alerting
             - name: storage
               mountPath: /var/lib/grafana
       volumes:
