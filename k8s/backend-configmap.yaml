@@ -4,8 +4,8 @@ metadata:
   name: backend-configmap
   namespace: piprojet
 data:
-  # Internal K8s service DNS names - always work within cluster
-  ML_SERVICE_BASE_URL: "http://m2-ml-service.piprojet.svc.cluster.local:8000"
+  # Use nginx fallback proxy for ML service (falls back to public LB if internal service down)
+  ML_SERVICE_BASE_URL: "http://ml-proxy.piprojet.svc.cluster.local:9000"
   BACKEND_URL: "http://backend.piprojet.svc.cluster.local:8084"
   FRONTEND_URL: "http://frontend.piprojet.svc.cluster.local:80"
 
