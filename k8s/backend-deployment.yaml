@@ -35,10 +35,7 @@ spec:
                   name: mysql-secret
                   key: spring-datasource-password
             - name: ML_SERVICE_BASE_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: backend-configmap
-                  key: ML_SERVICE_BASE_URL
+              value: "http://ml-proxy.piprojet.svc.cluster.local:9000"
             - name: CORS_ALLOWED_ORIGINS
               valueFrom:
                 configMapKeyRef:
