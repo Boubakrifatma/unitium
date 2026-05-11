@@ -99,48 +99,6 @@ data:
           }
         },
         {
-          "id": 3,
-          "title": "Frontend Health",
-          "type": "stat",
-          "gridPos": {"h": 4, "w": 4, "x": 8, "y": 0},
-          "targets": [
-            {
-              "expr": "max(up{job=\"piprojet-frontend\"})",
-              "refId": "A",
-              "legendFormat": "Frontend Status"
-            }
-          ],
-          "options": {
-            "colorMode": "background",
-            "graphMode": "none",
-            "justifyMode": "center",
-            "textMode": "auto",
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                {"color": "red", "value": null},
-                {"color": "red", "value": 0},
-                {"color": "green", "value": 1}
-              ]
-            }
-          },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "mappings": [
-                {
-                  "type": "value",
-                  "options": {
-                    "0": {"text": "DOWN", "color": "red"},
-                    "1": {"text": "UP", "color": "green"}
-                  }
-                }
-              ],
-              "custom": {}
-            }
-          }
-        },
-        {
           "id": 4,
           "title": "All Instances Status",
           "type": "table",
@@ -177,7 +135,7 @@ data:
           "id": 5,
           "title": "Node-Exporter Status",
           "type": "stat",
-          "gridPos": {"h": 4, "w": 4, "x": 12, "y": 0},
+          "gridPos": {"h": 4, "w": 4, "x": 8, "y": 0},
           "targets": [
             {
               "expr": "count(up{job=\"node-exporter\"})",

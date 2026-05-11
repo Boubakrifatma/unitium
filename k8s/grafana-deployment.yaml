@@ -24,8 +24,6 @@ spec:
               value: "admin"
             - name: GF_SECURITY_ADMIN_USER
               value: "admin"
-            - name: GF_INSTALL_PLUGINS
-              value: "grafana-piechart-panel"
           volumeMounts:
             - name: datasource-config
               mountPath: /etc/grafana/provisioning/datasources
@@ -41,12 +39,15 @@ spec:
             name: grafana-datasource
         - name: dashboard-provisioning
           configMap:
-            name: grafana-dashboard-provisioning
+            name: grafana-dashboard-piprojet
+            items:
+              - key: dashboards.yaml
+                path: dashboards.yaml
         - name: dashboard-json
           configMap:
             name: grafana-dashboard-piprojet
-        - name: alert-rules
-          configMap:
-            name: grafana-alert-rules
+            items:
+              - key: piprojet-simple.json
+                path: piprojet-simple.json
         - name: storage
           emptyDir: {}
