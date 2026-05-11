@@ -39,7 +39,7 @@ spec:
             name: grafana-datasource
         - name: dashboard-provisioning
           configMap:
-            name: grafana-dashboard-piprojet
+            name: grafana-dashboard-provisioning
             items:
               - key: dashboards.yaml
                 path: dashboards.yaml
@@ -47,7 +47,7 @@ spec:
           configMap:
             name: grafana-dashboard-piprojet
             items:
-              - key: piprojet-simple.json
-                path: piprojet-simple.json
+              - key: piprojet-dashboard.json
+                path: piprojet-dashboard.json
         - name: storage
           emptyDir: {}
