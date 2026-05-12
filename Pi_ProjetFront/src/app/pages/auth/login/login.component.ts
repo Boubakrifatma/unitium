@@ -29,7 +29,7 @@ import { AuthService } from "../../../auth/auth.service";
                         <mat-icon class="material-icons-outlined">lock</mat-icon>
                     </div>
                     <h2>Sign in to Unitum </h2>
-                    <p>Welcome back — enter your credentials to continue</p>
+                    <p>Welcome back — enter your credentials to continue .</p>
                 </div>
 
                 <!-- Error -->
