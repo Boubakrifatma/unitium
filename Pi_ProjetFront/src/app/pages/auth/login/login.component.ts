@@ -28,7 +28,7 @@ import { AuthService } from "../../../auth/auth.service";
                     <div class="login-avatar">
                         <mat-icon class="material-icons-outlined">lock</mat-icon>
                     </div>
-                    <h2>Sign in to Unitum </h2>
+                    <h2>Sign in to Unitum test</h2>
                     <p>Welcome back — enter your credentials to continue .</p>
                 </div>
 
