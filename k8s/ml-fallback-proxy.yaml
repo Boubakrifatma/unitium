@@ -9,7 +9,7 @@ data:
     http {
       upstream ml_backend {
         server m2-ml-service.piprojet.svc.cluster.local:8000 weight=7 max_fails=2 fail_timeout=10s;
-        server 9.223.53.146:8000 weight=3 max_fails=2 fail_timeout=10s;
+        server 4.165.180.231:8000 weight=3 max_fails=2 fail_timeout=10s;
       }
       server {
         listen 9000;
