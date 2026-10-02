@@ -151,26 +151,3 @@ More details: [`DEPLOYMENT.md`](https://github.com/Boubakrifatma/unitium/blob/do
 | [`dockerize-k8s-module2`](https://github.com/Boubakrifatma/unitium/tree/dockerize-k8s-module2) | Full stack with Docker, Kubernetes, CI/CD and monitoring |
 | [`IntegrationReadyToUse`](https://github.com/Boubakrifatma/unitium/tree/IntegrationReadyToUse) | Complete application with all AI services (risk prediction, NLP, sentiment model) |
 | Feature branches | Chat rooms, billing, membership and access control, deadline timeline… |
-
----
-
-## My contributions — Fatma Boubakri
-
-- Designed and ran the **CI/CD pipeline** with GitHub Actions, publishing the 3 service images to Docker Hub
-- Set up the **self-hosted runner** on my VM to deploy each new version to Kubernetes automatically
-- **Containerized** the services and wrote the **Kubernetes manifests**: deployments, services, ConfigMaps, persistent storage, MetalLB
-- Deployed the **monitoring stack** (Prometheus, Grafana, node-exporter, kube-state-metrics) and built the dashboards
-- Took part in building the **OpenStack private cloud** the platform runs on
-
----
-
-## Team
-
-Built by a team of 6 engineering students at **ESPRIT** (Ariana, Tunisia):
-**Fatma Boubakri** · Yosra Ben Ali · Eya Riahi · Maaoui Nassim · Motez Selmi · Miniar Hemden
-
-Supervised by Rim Ghribi, Ons Fadhel and Khouloud Ammar.
-
-> This repository is a copy of the team's original repository, published with the team's agreement to showcase the project. Credentials and build artifacts were removed from the history.
-
-![Award](docs/images/award.jpg)
